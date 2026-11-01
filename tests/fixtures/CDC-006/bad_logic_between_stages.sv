@@ -1,4 +1,6 @@
 // sverity-args: --top top --sdc @FIXTURES@/_common/async.sdc
+// revert: s2 <= s1 & ~s1; => s2 <= s1;
+// revert-expect-none: CDC-006 ERROR
 // expect: CDC-006 ERROR
 module top(input logic clka, clkb, rst_n, d, en, output logic q);
   logic a_q, s1, s2;

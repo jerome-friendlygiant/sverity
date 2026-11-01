@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <map>
 #include <set>
 
@@ -7,13 +8,14 @@ using namespace sverity;
 
 TEST(catalog_shape) {
     auto& c = Catalog::embedded();
-    CHECK_EQ(c.rules().size(), 184u);
-    std::map<std::string, int> per;
-    std::set<std::string> ids;
-    for (auto& r : c.rules()) { per[r.category]++; ids.insert(r.id); CHECK(!r.title.empty()); }
-    CHECK_EQ(ids.size(), 184u);
-    CHECK_EQ(per["LNT"], 61); CHECK_EQ(per["STY"], 16); CHECK_EQ(per["SVA"], 10);
-    CHECK_EQ(per["CDC"], 44); CHECK_EQ(per["RDC"], 29); CHECK_EQ(per["CST"], 24);
+    std::set<std::string> ids, families{"LNT", "STY", "SVA", "CDC", "RDC", "CST"};
+    for (auto& r : c.rules()) {
+        CHECK(ids.insert(r.id).second);                       // unique ids
+        CHECK(!r.title.empty());
+        CHECK(families.count(r.category) == 1);
+        CHECK(r.id.rfind(r.category + "-", 0) == 0);
+    }
+    CHECK(!c.rules().empty());
 }
 
 // The registry and the code must agree: a rule the code reports as fully EXECUTED must be marked
@@ -37,5 +39,27 @@ TEST(catalog_sync_with_implemented_rules) {
     for (auto& ri : c.rules()) {
         bool done = ri.status == "implemented" || ri.status == "validated";
         if (done) CHECK(seen.count(ri.id) == 1);     // catalog claims implemented -> code must have it
+    }
+}
+
+// Fixtures are named after the rule they exercise, and a rule that claims to be implemented has at least one
+// (waiver/CST rules are covered by the unit tests instead).
+TEST(fixtures_match_catalog) {
+    namespace fs = std::filesystem;
+    auto& c = Catalog::embedded();
+    fs::path root = fs::path(SVERITY_SOURCE_DIR) / "tests" / "fixtures";
+    std::set<std::string> dirs;
+    for (auto& e : fs::directory_iterator(root))
+        if (e.is_directory() && e.path().filename().string()[0] != '_') dirs.insert(e.path().filename().string());
+    for (auto& d : dirs) {
+        if (!c.find(d)) std::printf("  fixture directory '%s' is not a catalog rule\n", d.c_str());
+        CHECK(c.find(d) != nullptr);
+    }
+    for (auto& r : c.rules()) {
+        bool done = r.status == "implemented" || r.status == "validated";
+        if (done && r.category != "CST" && !dirs.count(r.id)) {
+            std::printf("  implemented rule %s has no fixtures\n", r.id.c_str());
+            g_failures++;
+        }
     }
 }

@@ -11,6 +11,7 @@ struct AnalyzerOptions {
     FrontendOptions frontend;
     Config config;
     std::vector<std::string> waiverFiles;
+    std::vector<std::string> libraryFiles;  // library cell descriptions (see LibCell in sverity/frontend.h)
     std::vector<std::string> sdcFiles;      // SDC-subset constraint files (see sverity/sdc.h)
     std::string today;      // ISO date used for waiver expiry; empty = system date
     std::string pathRoot;   // diagnostics paths under this root are reported relative to it

@@ -50,7 +50,7 @@ TEST(sdc_multiline_continuation) {
         "create_clock -name clk_core \\\n"
         "   -period 4.0 \\\n"
         "   [get_ports core_clk]\n"
-        "set_input_delay 1.2 \\\n"
+        "set_output_delay 1.2 \\\n"
         "  -clock clk_core \\\n"
         "  [get_ports din]\n";
     auto c = sdc::parse(text, "f");
@@ -64,7 +64,7 @@ TEST(sdc_multiline_continuation) {
     CHECK_EQ(c.unsupported.size(), 1u);
     if (c.unsupported.size() == 1) {
         // Continuations are joined with a single space, so the text reads as one line.
-        CHECK_EQ(c.unsupported[0].text, std::string("set_input_delay 1.2 -clock clk_core [get_ports din]"));
+        CHECK_EQ(c.unsupported[0].text, std::string("set_output_delay 1.2 -clock clk_core [get_ports din]"));
         CHECK_EQ(c.unsupported[0].loc.line, 4u);
     }
 }
@@ -183,7 +183,7 @@ TEST(sdc_comments) {
         "   # indented comment\n"
         "set x 1 ; # comment after semicolon\n"
         "# comment that continues \\\n"
-        "set_input_delay 1 [get_ports p]\n";   // still part of the comment: not a command
+        "set_output_delay 1 [get_ports p]\n";   // still part of the comment: not a command
     auto c = sdc::parse(text, "f");
     CHECK(c.problems.empty());
     CHECK_EQ(c.clocks.size(), 1u);
@@ -193,7 +193,7 @@ TEST(sdc_comments) {
 
 TEST(sdc_unsupported_commands_recorded) {
     const char* text =
-        "set_input_delay 2.0 -clock clk [get_ports din]\n"
+        "set_output_delay 2.0 -clock clk [get_ports din]\n"
         "set x 5\n"
         "if {$x} { create_clock -period 1 }\n"
         "foreach a {1 2} { puts $a }\n"
@@ -204,8 +204,8 @@ TEST(sdc_unsupported_commands_recorded) {
     CHECK(c.clocks.empty());   // the create_clock inside { } is not interpreted
     CHECK_EQ(c.unsupported.size(), 6u);
     if (c.unsupported.size() != 6) return;
-    CHECK_EQ(c.unsupported[0].command, std::string("set_input_delay"));
-    CHECK_EQ(c.unsupported[0].text, std::string("set_input_delay 2.0 -clock clk [get_ports din]"));
+    CHECK_EQ(c.unsupported[0].command, std::string("set_output_delay"));
+    CHECK_EQ(c.unsupported[0].text, std::string("set_output_delay 2.0 -clock clk [get_ports din]"));
     CHECK_EQ(c.unsupported[1].command, std::string("set"));
     CHECK_EQ(c.unsupported[1].text, std::string("set x 5"));
     CHECK_EQ(c.unsupported[2].command, std::string("if"));
@@ -314,9 +314,9 @@ TEST(sdc_unbalanced_bracket_is_problem) {
 TEST(sdc_trailing_backslash_does_not_crash) {
     auto c = sdc::parse("create_clock -period 2 [get_ports a] \\", "f");
     CHECK_EQ(c.clocks.size(), 1u);
-    auto u = sdc::parse("set_input_delay 1 \\", "f");
+    auto u = sdc::parse("set_output_delay 1 \\", "f");
     CHECK_EQ(u.unsupported.size(), 1u);
-    if (u.unsupported.size() == 1) CHECK_EQ(u.unsupported[0].text, std::string("set_input_delay 1 \\"));
+    if (u.unsupported.size() == 1) CHECK_EQ(u.unsupported[0].text, std::string("set_output_delay 1 \\"));
 }
 
 TEST(sdc_line_and_column_numbers) {

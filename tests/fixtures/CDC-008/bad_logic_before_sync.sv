@@ -1,4 +1,6 @@
 // sverity-args: --top top --sdc @FIXTURES@/_common/async.sdc
+// revert: {s1, a1 & a2} => {s1, a1}
+// revert-expect-none: CDC-008 WARNING
 // Glitch-prone combinational source in front of the synchroniser.
 // expect: CDC-008 WARNING
 module top(input logic clka, clkb, rst_n, d, e, output logic q);

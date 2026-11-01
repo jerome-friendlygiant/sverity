@@ -1,4 +1,5 @@
 #include "sverity/analyzer.h"
+#include "sverity/json.h"
 
 #include <ctime>
 #include <filesystem>
@@ -53,6 +54,38 @@ Report analyze(const AnalyzerOptions& opts) {
         report.setExecutionError(d.message);
         report.add(std::move(d));
         report.markIncomplete("elaboration", "internal failure while loading the design");
+    }
+    if (design) {
+        for (auto& f : opts.libraryFiles) {
+            std::string text;
+            auto fail = [&](const std::string& why) {
+                Diagnostic d;
+                d.ruleId = "CST-018";
+                d.severity = Severity::Error;
+                d.message = "library file '" + f + "' " + why;
+                d.nextStep = "Fix the library file; its cells are treated as ordinary modules (no synchroniser is recognised through them).";
+                report.add(std::move(d));
+                report.markIncomplete("constraints", "library file '" + f + "' " + why);
+            };
+            if (!readFile(f, text)) { fail("could not be read"); continue; }
+            auto pr = json::parse(text);
+            if (!pr.ok) { fail("is not valid JSON (" + pr.error + ")"); continue; }
+            for (auto& c : pr.value["cells"].asArray()) {
+                LibCell lc;
+                lc.name = c["name"].asString();
+                if (c.find("kind")) lc.kind = c["kind"].asString();
+                lc.clock = c["clock"].asString();
+                lc.input = c["input"].asString();
+                lc.output = c["output"].asString();
+                if (c.find("stages")) lc.stages = static_cast<int>(c["stages"].asInt(2));
+                if (c.find("edge")) lc.edge = c["edge"].asString() == "negedge" ? 2 : 1;
+                if (lc.name.empty() || lc.kind != "synchronizer" || lc.clock.empty() || lc.input.empty() || lc.output.empty() || lc.stages < 1) {
+                    fail("has a cell entry that is incomplete or of an unsupported kind (needs name, kind=synchronizer, clock, input, output)");
+                    continue;
+                }
+                design->libCells[lc.name] = lc;
+            }
+        }
     }
     Config config = opts.config;
     for (auto& f : opts.sdcFiles) {

@@ -50,6 +50,9 @@ SystemVerilog + filelist + parameters + constraints + profile
 One elaboration and one model per run; each check is a rule class or a shared analysis pass, never an independent parse.
 Future proof engines consume the same model through explicit interfaces.
 
+Extension: embedders add rules with `sverity::registerRule()` (`include/sverity/rule.h`); AST-based rules derive from `sverity::lint::LintRule`
+(`include/sverity/lint.h`, examples in `src/rules/lint/`). A custom rule outside the catalog is run and listed in the coverage record as `custom`.
+
 Reference-only sources (study, adapt or reimplement with provenance; never runtime dependencies):
 [slang-tidy](https://www.sv-lang.com/tools.html), [slang-netlist](https://github.com/jameshanlon/slang-netlist),
 [OpenCDC](https://github.com/Ayoubbelguellaoui/CDC), [RTL Buddy CDC](https://github.com/rtl-buddy/rtl-buddy-cdc),
@@ -110,14 +113,14 @@ unattempted proof is never reported as unbounded proof.
 The catalog is an **auditable, growing, versioned inventory**, not a claim of universal exhaustiveness. Every catalogued rule is
 native, specified, tested and tracked; an incomplete rule stays visible.
 
-| Family | Scope | Rules |
-|---|---|---:|
-| `LNT` | Semantic, structural and synthesizability lint | 61 |
-| `STY` | Coding convention, source style and formatting | 16 |
-| `SVA` | Static lint of SystemVerilog assertions (no proof claim) | 10 |
-| `CDC` | Clock-domain crossings, synchroniser/protocol structure | 44 |
-| `RDC` | Reset-domain crossings, async reset behaviour and coordination | 29 |
-| `CST` | Constraints, analysis completeness, trust models, report integrity | 24 |
+| Family | Scope |
+|---|---|
+| `LNT` | Semantic, structural and synthesizability lint |
+| `STY` | Coding convention, source style and formatting |
+| `SVA` | Static lint of SystemVerilog assertions (no proof claim) |
+| `CDC` | Clock-domain crossings, synchroniser/protocol structure |
+| `RDC` | Reset-domain crossings, async reset behaviour and coordination |
+| `CST` | Constraints, analysis completeness, trust models, report integrity |
 
 **Rule states.** Catalog status: `proposed → specified → implemented → validated` (or `blocked`). At run time a rule is
 `EXECUTED` (the whole title), `PARTIAL` (a documented subset; the catalog's `gap` field and the run's coverage
@@ -171,13 +174,11 @@ frozen rule `validated`, or a transparent scope revision *before* freezing.
 
 ## 7. Testing
 
-- **Fixtures per rule** (`tests/fixtures/<RULE-ID>/`): good, bad, boundary, unknown/unconstrained, hierarchy, configuration (the same
-  test types for every rule); plus
-  report-integrity checks on every fixture. Fixtures are annotated SystemVerilog files (see the runner), so adding a case needs
-  no C++.
+- **Fixtures per rule** (`tests/fixtures/<RULE-ID>/`): good, bad, boundary, unknown/unconstrained, hierarchy; plus report-integrity
+  checks on every fixture. Fixtures are annotated SystemVerilog files (see the runner), so adding a case needs no C++. Code map: `docs/ARCHITECTURE.md`.
 - **Mutation tests are mandatory** for CDC/RDC: bypass a synchroniser stage, add logic between stages, fan out the first stage,
   synchronise bus bits independently, break Gray pointers, change constraints, flip reset polarity, break reset release, introduce
-  a partial drive, violate style/sizing/case rules. Each injected defect has expected findings, and reverting it clears them.
+  a partial drive, violate style/sizing/case rules. Each injected defect has expected findings, and reverting it clears them (fixtures carry `// revert: <old> => <new>` and `// revert-expect-none:` annotations; the runner analyses the reverted variant too).
 - **Public projects**, pinned by URL and commit, never vendored, never assumed defect-free: PicoRV32, Ibex, OpenTitan, PULP AXI,
   sv-tests (frontend only, not a CDC oracle). Only `picorv32` is wired up so far (`tests/public_projects`).
 - **Differential evaluation** against slang, Verible, Verilator and documented vendor rules is allowed but never replaces native
@@ -197,11 +198,18 @@ frozen rule `validated`, or a transparent scope revision *before* freezing.
 
 ## 9. Open issues in this specification
 
-1. The original catalog listed `good/bad/boundary/configuration/report_evidence` for every rule while §7 lists `unknown`/`hierarchy`; fixtures use the union for all rules. Tailor per rule when specifying it.
-2. `LNT-030` duplicates the `STY` family; resolve into concrete `STY-*` rules before 1.0.
-3. Overlapping rules need explicit trigger boundaries (e.g. LNT-004/056/057, CDC-004/009/016/032/039, RDC-006/016, CDC-038 / CST-008 / RDC-027).
-4. Some rules cannot be decided from RTL alone (CDC-024, LNT-029, RDC-013, CST-024); they may only emit unknown/obligation results.
-5. RDC-012, RDC-021 and RDC-029 need power intent (UPF/CPF), which is not a specified input.
-6. No rule has a severity policy yet (`default_severity` is null everywhere); native severities are provisional, slang findings keep slang's.
-7. The profile file format (ASIC/FPGA cell and primitive libraries) is not yet defined.
-8. Not yet audited: scale beyond ~3000 register bits, memories, interfaces, user functions, latches, clang builds.
+1. **Rule scoping needs a second review.** Much of the LNT/CDC/RDC catalog was drafted by an agent from tool rule lists. Some titles are vague, some
+   overlap, some bundle several checks. Split, merge or drop them; every surviving rule should have a formal, machine-checkable definition
+   (trigger predicate over the model, exemptions, severity, unknown outcome) instead of prose. Eleven overlapping IDs were already retired (below).
+2. Retired (merged, not reused): LNT-021 → RDC-028, LNT-023 → LNT-003/057, LNT-028 → CST-005, LNT-030 → STY-*, LNT-046 → LNT-047, CDC-022 → CST-004/CDC-038,
+   CDC-025 → CDC-008, RDC-015 → RDC-003/007, RDC-018 → RDC-008, RDC-021 → RDC-026, RDC-022 → RDC-007.
+3. **Shared model gaps** limit several Partial rules: no reusable flow-sensitive statement analysis (slang's dataflow is unused; LNT flow rules each have their own walk);
+   edges carry no operator or per-assignment condition (AND versus OR guards, one-hot/Gray need expression semantics); signals over 1024 bits collapse to one node;
+   no value tracking for X/Z; reset values are recorded only as clear/set/unknown.
+4. **Profile/library.** `--library` covers synchroniser cells only. Clock-gate, flop, RAM and black-box kinds, and ASIC/FPGA bundles, are undefined (CDC-023/035, CDC-012).
+5. Some rules cannot be decided from RTL alone (CDC-024, LNT-029, RDC-013, CST-024); they only emit unknown/obligation results.
+6. RDC-012 and RDC-029 need power intent (UPF/CPF), which is not a supported input: they report the missing model as an explicit unknown.
+7. Severity policies are written per rule in `docs/rules/*.md` (`default_severity` in the catalog is still null) and are unreviewed (nothing is `validated`).
+8. Vendor rule lists (AMD UG906, Altera AN 919, commercial RDC tools) could not be fetched when the crosswalks were written; those entries are UNVERIFIED.
+9. Not yet audited: scale beyond ~3000 register bits, interfaces, user functions, clang builds. One independent audit has run (CDC/RDC false-"safe" hunt); the confirmed
+   issues are fixed and kept as `audit_*` fixtures.

@@ -42,6 +42,14 @@ struct PathException {
     SourceLocation loc;
 };
 
+/// set_input_delay: the port is timed relative to `clock`, i.e. it is synchronous to that clock (not a proof of safety).
+struct InputDelay {
+    std::string clock;                // -clock target as written (empty when missing)
+    std::vector<ObjectRef> ports;
+    std::string valueText;
+    SourceLocation loc;
+};
+
 struct Unsupported {
     std::string command;   // e.g. "set_input_delay"
     std::string text;      // full command text (continuations joined)
@@ -57,6 +65,7 @@ struct Constraints {
     std::vector<ClockDef> clocks;
     std::vector<ClockGroups> clockGroups;
     std::vector<PathException> exceptions;
+    std::vector<InputDelay> inputDelays;
     std::vector<Unsupported> unsupported;
     std::vector<ParseProblem> problems;
     void merge(Constraints&& other);
@@ -64,7 +73,7 @@ struct Constraints {
 
 /// Parses an SDC (Tcl subset) text. Never throws; malformed commands become `problems`, unknown
 /// commands become `unsupported`. Interpreted commands: create_clock, create_generated_clock,
-/// set_clock_groups, set_false_path, set_multicycle_path, set_max_delay, set_min_delay.
+/// set_clock_groups, set_false_path, set_multicycle_path, set_max_delay, set_min_delay, set_input_delay.
 /// `fileName` is stored in every SourceLocation.
 Constraints parse(std::string_view text, const std::string& fileName);
 

@@ -1,4 +1,6 @@
 // sverity-args: --top top --sdc @FIXTURES@/_common/async.sdc
+// revert: else {r2, r1} <= {r1, en}; => else {r2, r1} <= {r1, 1'b1};
+// revert-expect-none: RDC-003 WARNING
 // A register chain whose first stage is fed by DATA (not a constant) is not a reset synchroniser.
 // expect: RDC-003 WARNING
 // expect-none: RDC-003 INFO

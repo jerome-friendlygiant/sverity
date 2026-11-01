@@ -1,0 +1,1 @@
+{"cells": [{"name": "SYNC2", "kind": "synchronizer", "clock": "CLK", "input": "D", "output": "Q", "stages": 2}]}

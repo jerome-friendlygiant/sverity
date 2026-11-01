@@ -44,20 +44,16 @@ std::vector<std::unique_ptr<Rule>> makeSlangBackedRules() {
     full("LNT-001");
     full("LNT-006");
     full("LNT-007");
-    full("LNT-010");
     full("LNT-037");
-    part("LNT-004", "slang width diagnostics only; no cross-hierarchy parameterised-interface analysis (see LNT-023/057)");
-    part("LNT-005", "slang signedness diagnostics only; implicit conversion hazards beyond slang's checks not covered");
-    part("LNT-008", "slang undriven-net/variable/port diagnostics only; bit-range precision of slang not independently validated");
-    part("LNT-009", "slang multiple-driver diagnostics only; no cross-module/hierarchy driver conflict analysis");
-    part("LNT-011", "slang unused-* diagnostics only; no deliberate-unused suppression policy (no silent suppression by design)");
-    part("LNT-013", "slang inferred-latch diagnostic only; no incomplete-assignment dataflow beyond slang");
-    part("LNT-016", "slang case diagnostics only; no casex/broad-wildcard policy configuration");
-    part("LNT-026", "slang shift-count diagnostics only; constant sizing/unsized-literal hazards not covered");
-    part("LNT-032", "slang case-dup/overlap diagnostics only");
-    part("LNT-035", "slang shift-signedness diagnostics only; unsized literal part not covered");
-    part("LNT-056", "slang unsized-in-concat only; constant width mismatch in replication not covered");
-    part("LNT-059", "slang unused-import and shadowing diagnostics only");
+    full("LNT-002");   // slang errors: unknown module/package/symbol, redefinition
+    full("LNT-003");   // slang errors: illegal port connections (unconnected ports are LNT-010)
+    full("LNT-014");   // slang errors: always_ff/always_comb misuse
+    full("LNT-017");   // slang case-enum / case-enum-explicit
+    full("LNT-031");   // slang errors: illegal assignment targets
+    full("LNT-050");   // slang errors: direction / modport misuse
+    full("LNT-004");   // slang width-*/implicit-conv diagnostics; parameter-dependent truncation is also LNT-057
+    full("LNT-005");   // slang sign-conversion/sign-compare
+    full("LNT-059");   // slang unused-import/-package-*, shadowing, duplicate-import
     part("STY-010", "slang unnamed-generate only; instance/generate naming policy not covered");
     return v;
 }

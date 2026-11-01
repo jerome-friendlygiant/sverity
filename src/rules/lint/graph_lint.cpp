@@ -15,16 +15,27 @@ using namespace model;
 class CombCycleRule final : public Rule {
 public:
     std::string_view id() const override { return "LNT-012"; }
-    RuleState completeness() const override { return RuleState::Partial; }
-    std::string partialReason() const override {
-        return "strongly-connected components of the combinational dependency graph; a node depending directly on itself "
-               "is not reported, and cycles that exist only through statement ordering inside one procedure are reported "
-               "as heuristic warnings (the analysis is order-insensitive there)";
-    }
+    RuleState completeness() const override { return RuleState::Executed; }
     void run(RuleContext& ctx) override {
         Model& m = getModel(ctx.design);
         const NodeId n = static_cast<NodeId>(m.nodes.size());
         ctx.objectsEvaluated = n;
+        // a node that depends on itself through logic is a one-node cycle
+        for (auto& [node, proc] : m.selfComb) {
+            const ProcInfo& pi = m.procs[proc];
+            bool ordered = pi.kind == ProcKind::Comb || pi.kind == ProcKind::Latch;   // statement order decides in a procedure
+            Diagnostic d;
+            d.ruleId = "LNT-012";
+            d.severity = ordered ? Severity::Warning : Severity::Error;
+            d.confidence = ordered ? Confidence::Heuristic : Confidence::Established;
+            d.message = std::string(ordered ? "possible combinational self-dependency" : "combinational self-dependency") + ": " + m.nameOf(node) +
+                        (ordered ? " is read and assigned in one procedure (a loop only if the read precedes the assignment)" : " drives itself through logic");
+            d.location = pi.loc;
+            d.hierarchy = pi.instancePath;
+            d.signals = {m.nameOf(node)};
+            d.nextStep = ordered ? "Assign the variable before reading it, or break the dependency with a register." : "Break the loop with a register.";
+            ctx.report.add(std::move(d));
+        }
         // iterative Tarjan over Comb edges only (Seq / AsyncCtl edges end at registers)
         std::vector<int> index(n, -1), low(n, 0);
         std::vector<char> onStack(n, 0);

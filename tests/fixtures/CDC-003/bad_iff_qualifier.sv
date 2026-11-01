@@ -1,5 +1,5 @@
 // sverity-args: --top top --sdc @FIXTURES@/_common/async.sdc
-// AUDIT t6: the `iff` qualifier of an event control is an enable dependency.
+// Regression: the `iff` qualifier of an event control is an enable dependency.
 // expect: CDC-003 ERROR
 module top(input logic clka, clkb, d, output logic q);
   logic a_q;

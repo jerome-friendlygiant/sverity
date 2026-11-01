@@ -22,7 +22,7 @@ namespace sverity::sdc {
 
 void Constraints::merge(Constraints&& o) {
     auto mv = [](auto& dst, auto& src) { for (auto& x : src) dst.push_back(std::move(x)); };
-    mv(clocks, o.clocks); mv(clockGroups, o.clockGroups); mv(exceptions, o.exceptions);
+    mv(clocks, o.clocks); mv(clockGroups, o.clockGroups); mv(exceptions, o.exceptions); mv(inputDelays, o.inputDelays);
     mv(unsupported, o.unsupported); mv(problems, o.problems);
 }
 
@@ -740,6 +740,22 @@ void doDelay(Ctx& ctx, const Cmd& cmd, PathException::Kind kind) {
     ctx.out.exceptions.push_back(std::move(e));
 }
 
+void doInputDelay(Ctx& ctx, const Cmd& cmd) {
+    const Parsed p = parseOptions(ctx, cmd, "set_input_delay",
+                                  {{"-clock", true}, {"-reference_pin", true}, {"-max", false}, {"-min", false}, {"-add_delay", false},
+                                   {"-network_latency_included", false}, {"-source_latency_included", false}, {"-clock_fall", false},
+                                   {"-rise", false}, {"-fall", false}});
+    InputDelay d;
+    d.loc = cmd.loc;
+    if (const Arg* c = p.last("-clock")) d.clock = c->value; else addProblem(ctx, "set_input_delay: missing -clock");
+    if (p.positional.size() < 2) { addProblem(ctx, "set_input_delay: expected a delay value and a port list"); return; }
+    d.valueText = p.positional[0]->value;
+    double v = 0;
+    if (!parseDouble(d.valueText, v)) addProblem(ctx, "set_input_delay: invalid delay value '" + shortText(d.valueText) + "'");
+    for (size_t i = 1; i < p.positional.size(); ++i) expandObjects(ctx, *p.positional[i], d.ports, 0);
+    ctx.out.inputDelays.push_back(std::move(d));
+}
+
 void dispatch(Ctx& ctx, const Cmd& cmd) {
     ctx.cur = cmd.loc;
     const Arg& head = cmd.words.front();
@@ -751,6 +767,7 @@ void dispatch(Ctx& ctx, const Cmd& cmd) {
     else if (name == "set_multicycle_path") doMulticycle(ctx, cmd);
     else if (name == "set_max_delay") doDelay(ctx, cmd, PathException::Kind::MaxDelay);
     else if (name == "set_min_delay") doDelay(ctx, cmd, PathException::Kind::MinDelay);
+    else if (name == "set_input_delay") doInputDelay(ctx, cmd);
     else ctx.out.unsupported.push_back(Unsupported{name, joinedText(ctx.src, cmd.begin, cmd.end), cmd.loc});
 }
 

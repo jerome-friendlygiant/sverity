@@ -5,6 +5,7 @@
 #include <fstream>
 #include <sstream>
 
+#include "sverity/catalog.h"
 #include "sverity/json.h"
 #include "testing.h"
 
@@ -73,7 +74,7 @@ TEST(cli_json_and_sarif_are_valid_and_complete) {
     CHECK(j.value["summary"]["execution_status"].isString());
     CHECK(j.value["summary"]["analysis_coverage"].isString());
     CHECK(j.value["summary"]["review_status"].isString());
-    CHECK_EQ(j.value["coverage"]["rules"].asArray().size(), 184u);      // every catalog rule is accounted for
+    CHECK_EQ(j.value["coverage"]["rules"].asArray().size(), sverity::Catalog::embedded().rules().size());      // every catalog rule is accounted for
     auto s = sverity::json::parse(slurp(sa));
     CHECK(s.ok);
     CHECK_EQ(s.value["version"].asString(), std::string("2.1.0"));

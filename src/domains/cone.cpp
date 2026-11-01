@@ -1,0 +1,36 @@
+#include "domains/cone.h"
+
+namespace sverity::model {
+
+Cone ConeFinder::of(const Flop& d) {
+    Cone c;
+    gen_++;
+    std::vector<std::pair<NodeId, bool>> st;
+    for (auto ei : m_.in[d.q]) {
+        auto& e = m_.edges[ei];
+        if (e.type != EdgeType::Seq) continue;   // (a synchronous reset is an ordinary data source here)
+        st.push_back({e.from, !e.exact});
+    }
+    while (!st.empty()) {
+        auto [n, logic] = st.back();
+        st.pop_back();
+        auto& stamp = logic ? s1_ : s0_;
+        if (stamp[n] == gen_) continue;
+        stamp[n] = gen_;
+        if (n == d.q) continue;
+        if (m_.flopOfQ.count(n)) { c.flops.push_back({n, logic}); continue; }
+        if (n < m_.topInput.size() && m_.topInput[n]) { c.inputs.push_back({n, logic}); continue; }
+        // A net touching a black box may be driven by it (or only read by it): record it, but keep tracing the other
+        // drivers so that no crossing is lost.
+        if (n < m_.blackBoxDriven.size() && m_.blackBoxDriven[n]) c.bbLeaves.push_back(n);
+        if (n < m_.unresolvedDriven.size() && m_.unresolvedDriven[n]) c.unresolved.push_back(n);
+        if (m_.in[n].empty() && !(n < m_.blackBoxDriven.size() && m_.blackBoxDriven[n])) c.undriven.push_back(n);
+        for (auto ei : m_.in[n]) {
+            auto& e = m_.edges[ei];
+            if (e.type == EdgeType::Comb || e.type == EdgeType::Seq) st.push_back({e.from, logic || !e.exact});
+        }
+    }
+    return c;
+}
+
+} // namespace sverity::model

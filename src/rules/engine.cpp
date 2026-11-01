@@ -14,18 +14,18 @@ void runRules(Design* design, Report& report, const Config& config) {
     uint32_t counts[6] = {0, 0, 0, 0, 0, 0};
     std::map<std::string, std::map<RuleState, uint32_t>> perCategory;
 
-    for (const auto& ri : catalog.rules()) {
+    // Runs one rule (or records why it did not run) and returns its coverage record.
+    auto evaluate = [&](const std::string& id, const std::string& status, Rule* rule) {
         RuleCoverage rc;
-        rc.ruleId = ri.id;
-        rc.catalogStatus = ri.status;
-        auto it = byId.find(ri.id);
-        if (config.disabledRules.count(ri.id)) {
+        rc.ruleId = id;
+        rc.catalogStatus = status;
+        if (config.disabledRules.count(id)) {
             rc.state = RuleState::Disabled;
             rc.reason = "disabled by configuration";
-            if (it != byId.end() && it->second->upstreamBacked())
+            if (rule && rule->upstreamBacked())
                 rc.reason += "; NOTE: slang still produces this rule's findings and they remain in the report "
                              "(disabling never hides a finding)";
-        } else if (it == byId.end()) {
+        } else if (!rule) {
             rc.state = RuleState::Unimplemented;
             rc.reason = "no native implementation in this build";
         } else if (!design) {
@@ -34,29 +34,42 @@ void runRules(Design* design, Report& report, const Config& config) {
         } else {
             RuleContext ctx{*design, report, config, 0, {}};
             try {
-                it->second->run(ctx);
+                rule->run(ctx);
                 rc.objectsEvaluated = ctx.objectsEvaluated;
                 if (!ctx.degradedReason.empty()) {
                     rc.state = RuleState::Partial;
                     rc.reason = ctx.degradedReason;
                 } else {
-                    rc.state = it->second->completeness();
-                    if (rc.state == RuleState::Partial) rc.reason = it->second->partialReason();
+                    rc.state = rule->completeness();
+                    if (rc.state == RuleState::Partial) rc.reason = rule->partialReason();
                 }
             } catch (const std::exception& e) {
                 rc.state = RuleState::Failed;
                 rc.reason = std::string("internal failure: ") + e.what();
                 Diagnostic d;
-                d.ruleId = ri.id;
+                d.ruleId = id;
                 d.severity = Severity::Fatal;
                 d.message = "rule implementation failed: " + std::string(e.what());
                 d.nextStep = "Report this as a SVerity bug; results for this rule are not available.";
                 report.add(std::move(d));
             }
         }
-        if (rc.state == RuleState::Partial) report.markIncomplete("rule-execution", ri.id + ": " + rc.reason);
+        if (rc.state == RuleState::Partial) report.markIncomplete("rule-execution", id + ": " + rc.reason);
         counts[static_cast<int>(rc.state)]++;
+        return rc;
+    };
+
+    for (const auto& ri : catalog.rules()) {
+        auto it = byId.find(ri.id);
+        RuleCoverage rc = evaluate(ri.id, ri.status, it == byId.end() ? nullptr : it->second);
         perCategory[ri.category][rc.state]++;
+        report.addRuleCoverage(std::move(rc));
+    }
+    // Custom rules (registerRule) whose id is not in the catalog are run and listed too.
+    for (auto& [id, rule] : byId) {
+        if (catalog.find(id)) continue;
+        RuleCoverage rc = evaluate(id, "custom", rule);
+        perCategory["custom"][rc.state]++;
         report.addRuleCoverage(std::move(rc));
     }
 
@@ -79,7 +92,7 @@ void runRules(Design* design, Report& report, const Config& config) {
         Diagnostic d;
         d.ruleId = "CST-019";
         d.severity = Severity::Warning;
-        d.message = std::to_string(gaps) + " of " + std::to_string(catalog.rules().size()) +
+        d.message = std::to_string(gaps) + " of " + std::to_string(counts[0] + counts[1] + counts[2] + counts[3] + counts[4] + counts[5]) +
                     " catalogued rules were not fully evaluated in this run (" +
                     std::to_string(counts[static_cast<int>(RuleState::Unimplemented)]) + " unimplemented, " +
                     std::to_string(counts[static_cast<int>(RuleState::Partial)]) + " partial, " +

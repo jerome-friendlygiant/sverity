@@ -59,7 +59,10 @@ ClockRelations::ClockRelations(const Model& m, const Config& cfg) : m_(m), cfg_(
 
 Relation ClockRelations::relation(uint32_t a, uint32_t b) const {
     if (a == b) return Relation::Same;
-    const std::string &ca = names_[a], &cb = names_[b];
+    return relationByNames(names_[a], names_[b]);
+}
+
+Relation ClockRelations::relationByNames(const std::string& ca, const std::string& cb) const {
     if (!ca.empty() && ca == cb) return Relation::Same;
     if (ca.empty() || cb.empty()) return Relation::Unknown;
     auto inGroup = [&](const sdc::ClockGroups& g, const std::string& c) -> int {

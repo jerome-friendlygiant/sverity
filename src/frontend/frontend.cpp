@@ -63,8 +63,10 @@ public:
         std::string mapped = opt.empty() ? "" : ruleForSlangOption(opt);
         if (!opt.empty())
             d.ruleId = mapped.empty() ? "SLANG-" + opt : mapped;
-        else
-            d.ruleId = "LNT-001";   // syntax / preprocess / elaboration errors have no option name
+        else {
+            d.ruleId = ruleForSlangDiag(rd.originalDiagnostic.code);
+            if (d.ruleId.empty()) d.ruleId = "LNT-001";   // syntax / preprocess / other elaboration errors
+        }
         d.message = rd.formattedMessage;
         d.location = toLoc(sm, rd.location);
         if (auto* sym = rd.originalDiagnostic.symbol) {

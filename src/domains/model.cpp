@@ -11,6 +11,7 @@
 #include "slang/ast/ValuePath.h"
 #include "slang/ast/expressions/AssignmentExpressions.h"
 #include "slang/ast/expressions/ConversionExpression.h"
+#include "slang/ast/expressions/OperatorExpressions.h"
 #include "slang/ast/statements/ConditionalStatements.h"
 #include "slang/ast/statements/LoopStatements.h"
 #include "slang/ast/statements/MiscStatements.h"
@@ -110,8 +111,36 @@ class Builder {
 public:
     Builder(Design& d, Model& m) : design(d), m(m), sm(d.compilation->getSourceManager()) {}
 
+    /// Which processes (nullptr = continuous assignments, port connections, other contexts) read each variable.
+    struct ReaderCollector : ASTVisitor<ReaderCollector, VisitFlags::AllGood> {
+        std::unordered_map<const ValueSymbol*, std::set<const Symbol*>>& readers;
+        const Symbol* owner = nullptr;
+        explicit ReaderCollector(std::unordered_map<const ValueSymbol*, std::set<const Symbol*>>& r) : readers(r) {}
+        void handle(const ProceduralBlockSymbol& p) {
+            auto* saved = owner;
+            owner = &p;
+            visitDefault(p);
+            owner = saved;
+        }
+        void handle(const NamedValueExpression& e) {
+            if (auto* s = e.getSymbolReference(); s && s->isValue()) readers[&s->as<ValueSymbol>()].insert(owner);
+        }
+        void handle(const AssignmentExpression& a) {
+            if (a.isCompound() || a.left().kind != ExpressionKind::NamedValue) a.left().visit(*this);   // plain whole-variable writes are not reads
+            a.right().visit(*this);
+        }
+    };
+    std::unordered_map<const ValueSymbol*, std::set<const Symbol*>> readers_;
+    bool readByOther(const ValueSymbol* s, const Symbol* self) const {
+        auto it = readers_.find(s);
+        if (it == readers_.end()) return false;
+        for (auto* o : it->second) if (o != self) return true;
+        return false;
+    }
+
     void run() {
         auto& root = design.compilation->getRoot();
+        { ReaderCollector rc(readers_); root.visit(rc); }
         for (auto* top : root.topInstances) collectInstances(*top);
         for (auto* top : root.topInstances) {
             top_.insert(top);
@@ -210,9 +239,13 @@ private:
         return static_cast<uint32_t>(m.procs.size() - 1);
     }
 
-    void addEdge(NodeId from, NodeId to, EdgeType t, uint32_t proc, bool exact) {
-        if (from == to) return;
-        m.edges.push_back({from, to, t, exact, proc});
+    void addEdge(NodeId from, NodeId to, EdgeType t, uint32_t proc, bool exact, bool ctrl = false) {
+        if (from == to) {
+            if (t == EdgeType::Seq && !exact) m.selfLogic.insert(from);
+            if (t == EdgeType::Comb && !exact) m.selfComb.emplace(from, proc);
+            return;
+        }
+        m.edges.push_back({from, to, t, exact, proc, ctrl});
     }
 
     NodeId nodeForBit(const InstanceSymbol* ctx, const BitRef& b) {
@@ -224,7 +257,8 @@ private:
 
     /// All-to-all (inexact) dependency from `reads` to `targets`.
     void connect(const InstanceSymbol* ctx, const std::vector<Path>& reads, const InstanceSymbol* tctx,
-                 const std::vector<Path>& targets, EdgeType type, uint32_t proc, slang::SourceLocation loc) {
+                 const std::vector<Path>& targets, EdgeType type, uint32_t proc, slang::SourceLocation loc,
+                 bool ctrl = false) {
         std::vector<std::vector<NodeId>> rn, tn;
         uint64_t rcount = 0, tcount = 0;
         for (auto& r : reads) { rn.push_back(nodesFor(ctx, r)); rcount += rn.back().size(); }
@@ -239,7 +273,7 @@ private:
         for (auto& rv : rn)
             for (auto r : rv)
                 for (auto& tv : tn)
-                    for (auto t : tv) addEdge(r, t, type, proc, false);
+                    for (auto t : tv) addEdge(r, t, type, proc, false, ctrl);
     }
 
     /// Emits the edges of one assignment: exact bit pairs when available, inexact otherwise, plus control.
@@ -277,7 +311,17 @@ private:
             }
             ctrl.push_back(r);
         }
-        connect(ctx, ctrl, ctx, targets, type, proc, loc);
+        connect(ctx, ctrl, ctx, targets, type, proc, loc, true);
+        if (type == EdgeType::Seq) {
+            bool hasData = false;
+            if (a.pairsValid) { for (auto& pr : a.pairs) hasData = hasData || (pr.second.sym != nullptr); }
+            else hasData = !a.dataReads.empty();
+            if (hasData) {
+                std::vector<NodeId> g;
+                for (auto& r : ctrl) for (auto n : nodesFor(ctx, r)) g.push_back(n);
+                for (auto& t : targets) for (auto n : nodesFor(ctx, t)) m.guards[n].push_back(g);
+            }
+        }
     }
 
     // ---------------------------------------------------------------- bit lists
@@ -487,8 +531,13 @@ private:
         const ConditionalStatement* topIf = nullptr;
         if (inner && inner->kind == StatementKind::Conditional) {
             topIf = &inner->as<ConditionalStatement>();
-            for (auto& c : topIf->conditions)
-                for (auto& p : pathsOf(*c.expr, ec, false)) topCond.insert(p);
+            // the whole if / else-if chain: `if (!rst_n) ... else if (!set_n) ...` tests two asynchronous controls
+            for (const Statement* cur = topIf; cur && cur->kind == StatementKind::Conditional; ) {
+                auto& cs = cur->as<ConditionalStatement>();
+                for (auto& c : cs.conditions)
+                    for (auto& p : pathsOf(*c.expr, ec, false)) topCond.insert(p);
+                cur = cs.ifFalse ? firstMeaningful(cs.ifFalse) : nullptr;
+            }
         }
         const Event* clk = nullptr;
         std::vector<const Event*> rsts;
@@ -516,6 +565,7 @@ private:
                      "(" + std::to_string(edgeEvents.size()) + " edge event(s))", pb.location);
         }
         std::vector<ResetInfo> resets;
+        std::vector<const Event*> resetEvents;
         std::set<NodeId> resetNodes;
         for (auto* r : rsts) {
             auto ns = nodesFor(ctx, r->path);
@@ -526,10 +576,37 @@ private:
             ri.activeLow = r->edge == 2;
             ri.fromEdge = true;
             resets.push_back(ri);
+            resetEvents.push_back(r);
             resetNodes.insert(ns[0]);
         }
+        // value each asynchronous control forces on each register: constants assigned in the branch that tests that control
+        std::vector<std::map<const ValueSymbol*, int>> controlKinds(resets.size());
+        struct ConstAssigns : ASTVisitor<ConstAssigns, VisitFlags::AllGood> {
+            std::vector<const AssignmentExpression*> v;
+            void handle(const AssignmentExpression& a) { v.push_back(&a); visitDefault(a); }
+        };
+        for (const Statement* cur = topIf; cur && cur->kind == StatementKind::Conditional;) {
+            auto& c = cur->as<ConditionalStatement>();
+            std::set<Path> condPaths;
+            for (auto& cc : c.conditions) for (auto& p : pathsOf(*cc.expr, ec, false)) condPaths.insert(p);
+            for (size_t ri = 0; ri < resetEvents.size(); ri++) {
+                if (!condPaths.count(resetEvents[ri]->path)) continue;
+                ConstAssigns ca;
+                c.ifTrue.visit(ca);
+                for (auto* a : ca.v) {
+                    auto* ref = a->left().getSymbolReference();
+                    auto* vs = ref ? ref->as_if<ValueSymbol>() : nullptr;
+                    if (!vs) continue;
+                    auto cv = a->right().eval(ec);
+                    int k = (cv.isInteger() && !cv.integer().hasUnknown()) ? (cv.integer() == 0 ? 0 : 1) : 2;
+                    auto [it, fresh] = controlKinds[ri].emplace(vs, k);
+                    if (!fresh && it->second != k) it->second = 2;
+                }
+            }
+            cur = c.ifFalse ? firstMeaningful(c.ifFalse) : nullptr;
+        }
         // heuristic synchronous reset candidate: top-level if on one signal, then-branch assigns constants
-        bool syncCand = false;
+        bool syncCand = false, syncLow = false;
         NodeId syncSig = kNoNode;
         if (resets.empty() && topIf && topIf->conditions.size() == 1) {
             auto cp = pathsOf(*topIf->conditions[0].expr, ec, false);
@@ -543,7 +620,16 @@ private:
                     for (auto& r : a.dataReads) if (!(r == cp[0])) allConst = false;
                 }
                 syncCand = allConst;
-                if (syncCand) { auto ns = nodesFor(ctx, cp[0]); if (!ns.empty()) syncSig = ns[0]; }
+                if (syncCand) {
+                    auto ns = nodesFor(ctx, cp[0]);
+                    if (!ns.empty()) syncSig = ns[0];
+                    const Expression* ce = topIf->conditions[0].expr;
+                    while (ce->kind == ExpressionKind::Conversion) ce = &ce->as<ConversionExpression>().operand();
+                    if (ce->kind == ExpressionKind::UnaryOp) {
+                        auto op = ce->as<UnaryExpression>().op;
+                        syncLow = op == UnaryOperator::LogicalNot || op == UnaryOperator::BitwiseNot;
+                    }
+                }
             }
         }
 
@@ -569,7 +655,7 @@ private:
                     // not read earlier in the block is a combinational temporary (no flop).
                     bool conditional = !a.ctrlReads.empty();
                     bool readBefore = readSoFar.count(t.sym) > 0;
-                    if (!conditional && !readBefore) modLevel = false;
+                    if (!conditional && !readBefore && !readByOther(t.sym, &pb)) modLevel = false;
                     else {
                         blockingState.insert(t.sym);
                         fallback("blocking-assignment-register",
@@ -606,7 +692,12 @@ private:
             f.clockResolved = clockOk && clockNode != kNoNode;
             f.edge = clockEdge;
             f.resets = resets;
+            for (size_t ri = 0; ri < resets.size(); ri++) {
+                auto it = controlKinds[ri].find(m.nodes[q].sym);
+                f.resetKinds.push_back(it == controlKinds[ri].end() ? 2 : it->second);
+            }
             f.hasSyncResetCandidate = syncCand;
+            f.syncActiveLow = syncLow;
             f.syncReset = syncSig;
             f.blocking = blockingState.count(m.nodes[q].sym) > 0;
             m.flopOfQ[q] = static_cast<uint32_t>(m.flops.size());
@@ -659,7 +750,11 @@ private:
     }
     void walkArray(const InstanceArraySymbol& arr, const InstanceSymbol* ctx) {
         for (auto* e : arr.elements) {
-            if (e->kind == SymbolKind::Instance) { connectPorts(e->as<InstanceSymbol>(), ctx); walkInstance(e->as<InstanceSymbol>()); }
+            if (e->kind == SymbolKind::Instance) {
+                if (handleLibCell(e->as<InstanceSymbol>(), ctx)) continue;
+                connectPorts(e->as<InstanceSymbol>(), ctx);
+                walkInstance(e->as<InstanceSymbol>());
+            }
             else if (e->kind == SymbolKind::InstanceArray) walkArray(e->as<InstanceArraySymbol>(), ctx);
         }
     }
@@ -696,6 +791,7 @@ private:
                 }
                 case SymbolKind::Instance: {
                     auto& ci = mem.as<InstanceSymbol>();
+                    if (handleLibCell(ci, ctx)) break;
                     connectPorts(ci, ctx);
                     walkInstance(ci);
                     break;
@@ -751,6 +847,47 @@ private:
                 if (o == i) continue;
                 connect(ctx, paths[i], ctx, paths[o], EdgeType::Comb, proc, pi.location);
             }
+    }
+
+    /// A declared library synchroniser cell: its body is not walked; its output bits become registers on its clock port,
+    /// fed by the input port bits, counting `stages` flops in a synchroniser chain.
+    bool handleLibCell(const InstanceSymbol& ci, const InstanceSymbol* ctx) {
+        auto it = design.libCells.find(std::string(ci.getDefinition().name));
+        if (it == design.libCells.end()) return false;
+        const LibCell& cell = it->second;
+        EvalContext ec(ci);
+        std::vector<NodeId> in, out, clk;
+        for (auto* pc : ci.getPortConnections()) {
+            if (!pc || !pc->getExpression()) continue;
+            std::string pn(pc->port.name);
+            std::vector<NodeId>* dst = pn == cell.input ? &in : pn == cell.output ? &out : pn == cell.clock ? &clk : nullptr;
+            if (!dst) continue;
+            for (auto& p : pathsOf(*pc->getExpression(), ec, pn == cell.output))
+                for (auto n : nodesFor(ctx, p)) dst->push_back(n);
+        }
+        if (in.empty() || out.empty() || clk.empty()) {
+            fallback("library-cell", "library cell '" + cell.name + "' instance '" + std::string(ci.name) + "' lacks a connection for its declared clock, input or output port; treated as a black box", ci.location);
+            return false;
+        }
+        uint32_t proc = addProc(ProcKind::Sequential, ci.location, &ci);
+        m.numSeqProcedures++;
+        for (size_t i = 0; i < out.size(); i++) {
+            NodeId q = out[i];
+            if (m.flopOfQ.count(q)) continue;
+            NodeId src = in.size() == out.size() ? in[i] : in[std::min(i, in.size() - 1)];
+            addEdge(src, q, EdgeType::Seq, proc, in.size() == out.size());
+            Flop f;
+            f.q = q;
+            f.proc = proc;
+            f.clockSignal = clk[0];
+            f.clockResolved = true;
+            f.edge = cell.edge;
+            f.extraStages = cell.stages - 1;
+            m.flopOfQ[q] = static_cast<uint32_t>(m.flops.size());
+            m.flops.push_back(std::move(f));
+        }
+        m.libInstances.push_back({cell.name, ci.getHierarchicalPath(), cell.stages, toLoc(*sm, ci.location)});
+        return true;
     }
 
     void handleBlackBox(const UninstantiatedDefSymbol& ub, const InstanceSymbol* ctx) {
@@ -948,6 +1085,28 @@ void Model::finish() {
         }
         for (auto& r : f.resets) r.root = traceRoot(r.signal);
     }
+}
+
+NodeId Model::aliasRoot(NodeId n) const {
+    for (int guard = 0; guard < 32; guard++) {
+        if (in[n].size() != 1) return n;
+        const Edge& e = edges[in[n][0]];
+        if (!(e.type == EdgeType::Comb && e.exact)) return n;
+        n = e.from;
+    }
+    return n;
+}
+
+const Flop* Model::flopBehind(NodeId n, uint32_t* idx) const {
+    for (int guard = 0; guard < 64; guard++) {
+        auto it = flopOfQ.find(n);
+        if (it != flopOfQ.end()) { if (idx) *idx = it->second; return &flops[it->second]; }
+        if (in[n].size() != 1) return nullptr;
+        const Edge& e = edges[in[n][0]];
+        if (!(e.type == EdgeType::Comb && e.exact)) return nullptr;
+        n = e.from;
+    }
+    return nullptr;
 }
 
 Model& getModel(Design& design) {

@@ -1,6 +1,7 @@
 // Rule engine API. A rule is a C++ class or a shared analysis pass over the one elaborated design;
 // no rule re-parses RTL (RFC section 2).
 #pragma once
+#include <functional>
 #include <map>
 #include <memory>
 #include <set>
@@ -48,8 +49,16 @@ public:
     virtual void run(RuleContext& ctx) = 0;
 };
 
-/// All rules implemented in this build (each id appears at most once).
+/// All rules implemented in this build (each id appears at most once), plus any custom rules registered below.
 std::vector<std::unique_ptr<Rule>> makeAllRules();
+
+/// Extension point: embedders register their own rules before calling analyze(). A custom rule whose id is not in
+/// the catalog (e.g. "ACME-001") is run and listed in the coverage record as category "custom"; a custom rule must
+/// not reuse a catalog id. Custom rules obey the same contract as built-in ones (never hide a finding; unknown is
+/// not safe; report Partial when only a subset of the title is covered).
+using RuleFactory = std::function<std::unique_ptr<Rule>()>;
+void registerRule(RuleFactory factory);
+void clearRegisteredRules();   // for tests
 
 /// Runs every enabled implemented rule; records a coverage entry for *every* catalog rule
 /// (including unimplemented/disabled) and the CST-019 coverage-gap warning.

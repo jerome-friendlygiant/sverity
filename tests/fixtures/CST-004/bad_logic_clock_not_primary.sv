@@ -1,5 +1,5 @@
 // sverity-args: --top top --sdc @FIXTURES@/_common/async.sdc
-// AUDIT t5: a child port that merely shares the name `clka` but is driven by a clock MUX is not the primary clka.
+// Regression: a child port that merely shares the name `clka` but is driven by a clock MUX is not the primary clka.
 // The crossing must be unresolved (WARNING), never "same clock".
 // expect: CDC-002 WARNING
 // expect: CDC-003 WARNING

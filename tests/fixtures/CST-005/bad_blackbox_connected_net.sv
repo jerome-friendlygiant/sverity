@@ -1,5 +1,5 @@
 // sverity-args: --top top --sdc @FIXTURES@/_common/async.sdc --ignore-unknown-modules
-// AUDIT t4: a net that also touches a black box must not stop the crossing analysis.
+// Regression: a net that also touches a black box must not stop the crossing analysis.
 // expect: CDC-003 ERROR
 // expect: CST-005 WARNING
 // expect-coverage: blackboxes INCOMPLETE

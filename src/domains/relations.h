@@ -18,6 +18,10 @@ public:
     /// SDC clock name a domain is constrained as ("" = unconstrained).
     const std::string& clockName(uint32_t domain) const { return names_[domain]; }
     Relation relation(uint32_t a, uint32_t b) const;
+    /// Relationship of two SDC clock names ("" = unconstrained -> Unknown).
+    Relation relationByNames(const std::string& a, const std::string& b) const;
+    /// SDC clock a node is declared as the source of ("" = none).
+    std::string clockNameOfNode(NodeId n) const { return sdcClockForNode(n); }
     /// `get_ports` = top-level ports only; `get_pins/get_nets` = hierarchical names relative to the top instance.
     bool nameMatches(const std::string& kind, const std::string& pattern, NodeId n, const std::string& full) const;
 

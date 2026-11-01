@@ -6,6 +6,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "sverity/diagnostic.h"
@@ -40,6 +41,7 @@ struct Edge {
     EdgeType type = EdgeType::Comb;
     bool exact = false;
     uint32_t proc = 0;                                   // index into Model::procs
+    bool ctrl = false;                                   // the source is a control-flow condition (enable/select), not data
 };
 
 enum class ProcKind : uint8_t { Continuous, Comb, Latch, Sequential, PortConnection, Other };
@@ -73,8 +75,12 @@ struct Flop {
     Root clockRoot;
     int edge = 0;                                        // 1 posedge, 2 negedge, 3 both, 0 unknown
     std::vector<ResetInfo> resets;                       // async resets (from event list)
+    std::vector<int> resetKinds;                         // per reset: value it forces on this register: 0 clear, 1 set, 2 unknown
+
     bool hasSyncResetCandidate = false;                  // heuristic: top-level if(!x) q<=const
+    int extraStages = 0;                                 // library synchroniser cell: stages beyond this register
     bool blocking = false;                               // assigned with a blocking assignment (never a synchroniser stage)
+    bool syncActiveLow = false;                          // polarity of the synchronous reset candidate (condition is a negation)
     NodeId syncReset = kNoNode;                          // the candidate's signal (control edges from it are ignored for chain recognition)
     uint32_t domain = 0;                                 // index into Model::domains (valid if clockResolved)
 };
@@ -88,6 +94,12 @@ struct Domain {
 struct Fallback {
     std::string category;      // e.g. "wide-symbol", "interface-port", "user-function-call", "ref-port"
     std::string detail;
+    SourceLocation loc;
+};
+
+struct LibInstance {
+    std::string module, hierarchy;
+    int stages = 2;
     SourceLocation loc;
 };
 
@@ -106,10 +118,15 @@ public:
     std::vector<Domain> domains;
     std::vector<Fallback> fallbacks;
     std::vector<BlackBoxInst> blackBoxes;
+    std::vector<LibInstance> libInstances;               // instances of declared library synchroniser cells
 
     // adjacency (edge indices), built by finish()
     std::vector<std::vector<uint32_t>> in, out;
     std::unordered_map<NodeId, uint32_t> flopOfQ;        // Q node -> index in flops
+    std::unordered_map<NodeId, uint32_t> selfComb;       // node -> procedure of a combinational dependency on itself
+    /// per register bit: for every data-carrying assignment, the (non-reset) control nodes guarding it; an empty list = unguarded.
+    std::unordered_map<NodeId, std::vector<std::vector<NodeId>>> guards;
+    std::unordered_set<NodeId> selfLogic;                // registers whose next value depends on their own value through logic (toggle/counter)
     std::vector<uint8_t> blackBoxDriven;                 // per node
     std::vector<uint8_t> topInput;                       // per node: input port bit of a top instance
     std::vector<uint8_t> unresolvedDriven;               // per node: drivers truncated by a precision fallback
@@ -127,6 +144,10 @@ public:
     }
     /// Follows exact Comb (alias) edges backwards to the driving root.
     Root traceRoot(NodeId n) const;
+    /// Follows single exact alias edges backwards as far as they go (the node whose value `n` is a plain copy of).
+    NodeId aliasRoot(NodeId n) const;
+    /// The register whose output `n` is a plain alias of, if any (`idx` receives its index in `flops`).
+    const Flop* flopBehind(NodeId n, uint32_t* idx = nullptr) const;
 
     void finish();   // builds adjacency, resolves clock roots, assigns domains
 };

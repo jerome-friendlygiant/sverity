@@ -1,4 +1,6 @@
 // sverity-args: --top top --sdc @FIXTURES@/_common/async.sdc
+// revert: assign gclk = clka & en; => assign gclk = clka;
+// revert-expect-none: CDC-002 WARNING
 // A clock created by logic is a generated/gated clock whose relationship is unresolved.
 // expect: CDC-002 WARNING
 // expect-coverage: clock-extraction INCOMPLETE

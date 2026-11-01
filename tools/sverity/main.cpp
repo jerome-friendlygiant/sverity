@@ -22,6 +22,7 @@ sverity options:
   --json <file|->          write the canonical JSON report ('-' = stdout)
   --sarif <file>           write a SARIF 2.1.0 report
   --profile <name>         generic (default) | asic | fpga
+  --library <file>         technology-neutral library cell description (JSON): modules treated as synchronisers
   --sdc <file>             SDC-subset constraints (repeatable): create_clock, create_generated_clock,
                            set_clock_groups, false-path/multicycle/min/max-delay; others are disclosed
   --waivers <file>         waiver file (repeatable); waived findings stay in every report
@@ -70,6 +71,7 @@ int main(int argc, char** argv) {
         else if (a == "--sarif") sarifOut = need(i, "--sarif");
         else if (a == "--profile") opts.config.profile = need(i, "--profile");
         else if (a == "--sdc") opts.sdcFiles.push_back(need(i, "--sdc"));
+        else if (a == "--library") opts.libraryFiles.push_back(need(i, "--library"));
         else if (a == "--waivers") opts.waiverFiles.push_back(need(i, "--waivers"));
         else if (a == "--disable-rule") opts.config.disabledRules.insert(need(i, "--disable-rule"));
         else if (a == "--date") {
