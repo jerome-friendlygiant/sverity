@@ -1,9 +1,10 @@
 // Native lint on the shared model and the AST: clock/reset coupling (LNT-027), FSM reachability obligations (LNT-029),
-// initialisation assumptions (LNT-048), memories (LNT-049), inferred enables (LNT-052), X-sensitive control (LNT-054)
+// initialisation assumptions (LNT-048), memories (LNT-049), X-sensitive control (LNT-054)
 // and sequential races (LNT-060).
 #include <map>
 #include <set>
 
+#include "analysis/guards.h"
 #include "domains/model.h"
 #include "rules/rules.h"
 #include "sverity/lint.h"
@@ -49,10 +50,12 @@ bool isClocked(const ProceduralBlockSymbol& p) {
 }
 
 // ----------------------------------------------------------------------------------------------------------------
-// LNT-027: a clock net used as data, or a reset net steering a clock net
+// LNT-027: a clock net used as data; LNT-072: a reset net steering a clock net
 class CouplingRule final : public LintRule {
 public:
-    CouplingRule() : LintRule("LNT-027", "clock-as-data and reset-gated clocks only; 'control' signals other than clocks and resets are not classified") {}
+    enum Kind { ClockAsData, ResetSteersClock };
+    explicit CouplingRule(Kind k) : LintRule(k == ClockAsData ? "LNT-027" : "LNT-072"), kind_(k) {}
+    Kind kind_;
     void check(Lint& l) override {
         auto& m = model::getModel(l.context().design);
         std::set<model::NodeId> clocks, resets;
@@ -76,6 +79,7 @@ public:
             return clockReached;
         };
         for (auto c : clocks) {
+            if (kind_ != ClockAsData) break;
             l.count();
             bool data = false;
             reachesClock(c, data);
@@ -87,6 +91,7 @@ public:
                         .hierarchy = where ? where->instancePath : std::string{}, .signals = {m.nameOf(c)}});
         }
         for (auto r : resets) {
+            if (kind_ != ResetSteersClock) break;
             bool data = false;
             if (!reachesClock(r, data)) continue;
             l.count();
@@ -98,16 +103,20 @@ public:
 
 // ----------------------------------------------------------------------------------------------------------------
 // LNT-029: FSM state encodings (enum types assigned in clocked code and used as case expressions): dead states are
-// reported, reachability and liveness are always emitted as proof obligations (never proven here).
+// reported (LNT-029); reachability and liveness are always emitted as proof obligations (LNT-071, never proven here).
 class FsmRule final : public LintRule {
 public:
-    FsmRule() : LintRule("LNT-029") {}
+    enum Kind { Structural, Obligation };
+    explicit FsmRule(Kind k) : LintRule(k == Structural ? "LNT-029" : "LNT-071"), kind_(k) {}
+    Kind kind_;
     struct V : ASTVisitor<V, VisitFlags::AllCanonical> {
         Lint& l;
         std::map<const Type*, std::set<uint64_t>> assigned;      // constants ever assigned to a variable of the enum type
         std::map<const Type*, bool> nonConstAssign, clocked;
         std::map<const Type*, const Symbol*> example;
         std::vector<const CaseStatement*> cases;
+        std::set<const CaseStatement*> defaultPrecedes;   // an assignment to a variable of the case's enum type comes before the case in its procedure
+        const ProceduralBlockSymbol* curProc = nullptr;
         explicit V(Lint& lint) : l(lint) {}
         static const Type* enumTypeOf(const Expression& e) {
             const Type& t = e.type->getCanonicalType();
@@ -143,22 +152,36 @@ public:
                 bool seq = isClocked(p);
                 for (auto* x : a.list) noteAssign(x->left(), x->right(), seq);
             }
+            auto* saved = curProc;
+            curProc = &p;
             visitDefault(p);
+            curProc = saved;
         }
         void handle(const VariableSymbol& v) {
             if (l.isUser(v.location) && v.getInitializer() && isModuleLevel(v)) noteAssign(*v.getInitializer(), *v.getInitializer(), false);   // initialiser value
             visitDefault(v);
         }
         void handle(const CaseStatement& c) {
-            if (l.isUser(c.sourceRange.start())) cases.push_back(&c);
+            if (l.isUser(c.sourceRange.start())) {
+                cases.push_back(&c);
+                if (curProc)
+                    if (auto* t = enumTypeOf(c.expr)) {
+                        Assigns a;
+                        curProc->getBody().visit(a);
+                        for (auto* x : a.list)
+                            if (enumTypeOf(x->left()) == t && x->sourceRange.start().buffer() == c.sourceRange.start().buffer() &&
+                                x->sourceRange.start().offset() < c.sourceRange.start().offset())
+                                defaultPrecedes.insert(&c);
+                    }
+            }
             visitDefault(c);
         }
     };
     void check(Lint& l) override {
         V v(l);
         l.compilation().getRoot().visit(v);
-        std::map<const Type*, const CaseStatement*> fsmCase;
-        for (auto* c : v.cases) if (auto* t = V::enumTypeOf(c->expr)) fsmCase.emplace(t, c);
+        std::vector<std::pair<const Type*, const CaseStatement*>> fsmCase;
+        for (auto* c : v.cases) if (auto* t = V::enumTypeOf(c->expr)) fsmCase.push_back({t, c});
         for (auto& [t, c] : fsmCase) {
             if (!v.clocked[t]) continue;   // not a registered state: a decode, not an FSM
             l.count();
@@ -171,7 +194,7 @@ public:
                     dead += (dead.empty() ? "" : ", ") + std::string(ev.name);
             }
             if (!dead.empty())
-                l.report(c->sourceRange.start(), "FSM state(s) [" + dead + "] are never assigned: unreachable unless they are the power-up value",
+                if (kind_ == Structural) l.report(c->sourceRange.start(), "FSM state(s) [" + dead + "] are never assigned: unreachable unless they are the power-up value",
                          {.confidence = Confidence::Heuristic, .nextStep = "Remove the state or add the missing transition.", .signals = {dead}});
             // stuck-state candidates: a case arm that selects one state and contains no assignment to a state variable at all
             for (auto& g : c->items) {
@@ -179,11 +202,11 @@ public:
                 g.stmt->visit(a);
                 bool any = false;
                 for (auto* x : a.list) any = any || V::enumTypeOf(x->left()) == t;
-                if (!any && !c->defaultCase && g.expressions.size() == 1 && g.stmt->kind != StatementKind::Empty)
-                    l.report(g.expressions[0]->sourceRange.start(), "FSM state arm has no transition: the state can never be left unless a default assignment precedes the case",
+                if (!any && !v.defaultPrecedes.count(c) && g.expressions.size() == 1 && g.stmt->kind != StatementKind::Empty)
+                    if (kind_ == Structural) l.report(g.expressions[0]->sourceRange.start(), "FSM state arm has no transition: the state can never be left unless an assignment to the state precedes the case",
                              {.confidence = Confidence::Heuristic, .nextStep = "Add the exit transition, or make the hold explicit.", .signals = {}});
             }
-            l.report(c->sourceRange.start(), "FSM over states [" + all + "]: reachability of every state and absence of deadlock are not proven",
+            if (kind_ == Obligation) l.report(c->sourceRange.start(), "FSM over states [" + all + "]: reachability of every state and absence of deadlock are not proven",
                      {.severity = Severity::Info, .confidence = Confidence::Heuristic, .proof = ProofState::NotAttempted,
                       .nextStep = "Check with formal reachability or simulation coverage."});
         }
@@ -265,7 +288,7 @@ public:
                         if (r.syms.count(sym)) {
                             l.count();
                             l.report(p.location, "memory '" + std::string(sym->name) + "' is read and written in one clocked process: read-during-write behaviour (old data, new data, undefined) depends on the target RAM primitive",
-                                     {.severity = Severity::Info, .confidence = Confidence::Informational, .proof = ProofState::NotAttempted,
+                                     {.severity = Severity::Info, .confidence = Confidence::Informational,
                                       .nextStep = "State the intended read-during-write behaviour and check it against the RAM primitive.", .signals = {std::string(sym->name)}});
                         }
                 }
@@ -298,73 +321,10 @@ public:
 };
 
 // ----------------------------------------------------------------------------------------------------------------
-// LNT-052: inferred clock enables and priority selection chains in clocked blocks
-class EnableRule final : public LintRule {
-public:
-    EnableRule() : LintRule("LNT-052") {}
-    struct V : ASTVisitor<V, VisitFlags::AllCanonical> {
-        Lint& l;
-        explicit V(Lint& lint) : l(lint) {}
-        static const Symbol* sole(const Statement& s) {
-            Assigns a;
-            s.visit(a);
-            const Symbol* t = nullptr;
-            for (auto* x : a.list) {
-                auto* sy = x->left().getSymbolReference();
-                if (!sy || !isModuleLevel(*sy)) continue;
-                if (t && t != sy) return nullptr;
-                t = sy;
-            }
-            return t;
-        }
-        void chain(const ConditionalStatement& c) {
-            int arms = 1;
-            const Statement* next = c.ifFalse;
-            const Symbol* target = sole(c.ifTrue);
-            while (next && next->kind == StatementKind::Conditional) {
-                auto& n = next->as<ConditionalStatement>();
-                if (sole(n.ifTrue) != target) { target = nullptr; break; }
-                arms++;
-                next = n.ifFalse;
-            }
-            if (target && arms >= 3)
-                l.report(c.sourceRange.start(), "else-if chain of " + std::to_string(arms) + " arms assigns '" + std::string(target->name) + "': infers a priority multiplexer",
-                         {.severity = Severity::Info, .confidence = Confidence::Informational, .nextStep = "Use a case statement (and unique) if the conditions are mutually exclusive.", .signals = {std::string(target->name)}});
-        }
-        void handle(const ProceduralBlockSymbol& p) {
-            if (l.isUser(p.location) && isClocked(p)) {
-                l.count();
-                bool asyncReset = edgeCount(p) > 1;
-                const Statement* body = &p.getBody();
-                if (body->kind == StatementKind::Timed) body = &body->as<TimedStatement>().stmt;
-                while (body->kind == StatementKind::Block) body = &body->as<BlockStatement>().body;
-                std::vector<const Statement*> top;
-                if (body->kind == StatementKind::List) for (auto* s : body->as<StatementList>().list) top.push_back(s); else top.push_back(body);
-                for (size_t i = 0; i < top.size(); i++) {
-                    const Statement* s = top[i];
-                    if (s->kind != StatementKind::Conditional) continue;
-                    auto& c = s->as<ConditionalStatement>();
-                    chain(c);
-                    // `if (en) q <= d;` (no else): clock enable. With an asynchronous reset, the reset if/else wraps the enable.
-                    const ConditionalStatement* en = &c;
-                    if (asyncReset && c.ifFalse && c.ifFalse->kind == StatementKind::Conditional) en = &c.ifFalse->as<ConditionalStatement>();
-                    else if (asyncReset) continue;
-                    if (!en->ifFalse && sole(en->ifTrue))
-                        l.report(en->sourceRange.start(), "register '" + std::string(sole(en->ifTrue)->name) + "' is only assigned under a condition: a clock enable is inferred",
-                                 {.severity = Severity::Info, .confidence = Confidence::Informational, .nextStep = "Intended enables are fine; otherwise add the else branch.", .signals = {std::string(sole(en->ifTrue)->name)}});
-                }
-            }
-            visitDefault(p);
-        }
-    };
-    void check(Lint& l) override { visitDesign<V>(l); }
-};
-
-// ----------------------------------------------------------------------------------------------------------------
 // LNT-054: registers without reset or initial value that steer control flow
 class XControlRule final : public LintRule {
 public:
-    XControlRule() : LintRule("LNT-054", "reset/initialisation reachability is judged per register (no reset event, no initialiser); sequencing and reset-by-construction in other processes are not analysed") {}
+    XControlRule() : LintRule("LNT-054") {}
     struct V : ASTVisitor<V, VisitFlags::AllCanonical> {
         Lint& l;
         std::set<const Symbol*> unset;                         // registers assigned in clocked code without reset
@@ -430,10 +390,11 @@ public:
 };
 
 // ----------------------------------------------------------------------------------------------------------------
-// LNT-060: a register assigned with a blocking assignment in one clocked process and read in another one
+// LNT-060: a register assigned with a blocking assignment in a clocked process and read in another process (clocked, combinational or a
+// continuous assignment)
 class RaceRule final : public LintRule {
 public:
-    RaceRule() : LintRule("LNT-060", "blocking-assignment races between clocked processes of one clock; races through subroutines, hierarchical references and with combinational processes are not analysed") {}
+    RaceRule() : LintRule("LNT-060", "reads and writes inside the bodies of user subroutines are not followed") {}
     struct V : ASTVisitor<V, VisitFlags::AllCanonical> {
         Lint& l;
         std::map<const Symbol*, const ProceduralBlockSymbol*> blockingWriter;
@@ -441,16 +402,29 @@ public:
         std::vector<std::tuple<const Symbol*, const ProceduralBlockSymbol*, slang::SourceLocation>> reads;
         explicit V(Lint& lint) : l(lint) {}
         void handle(const ProceduralBlockSymbol& p) {
-            if (l.isUser(p.location) && isClocked(p)) {
-                Assigns a;
-                p.getBody().visit(a);
-                for (auto* x : a.list)
-                    if (auto* s = x->left().getSymbolReference(); s && isModuleLevel(*s) && !x->isNonBlocking()) blockingWriter.emplace(s, &p);
+            if (l.isUser(p.location) && p.procedureKind != ProceduralBlockKind::Initial && p.procedureKind != ProceduralBlockKind::Final) {
+                if (isClocked(p)) {
+                    Assigns a;
+                    p.getBody().visit(a);
+                    for (auto* x : a.list)
+                        if (!x->isNonBlocking())
+                            for (auto* s : lvalueSymbols(x->left()))
+                                if (isModuleLevel(*s)) blockingWriter.emplace(s, &p);
+                }
                 Reads r;
                 p.getBody().visit(r);
                 for (auto* e : r.refs) reads.emplace_back(e->getSymbolReference(), &p, e->sourceRange.start());
             }
             visitDefault(p);
+        }
+        // continuous assignments and net initialisers are processes too
+        void handle(const ContinuousAssignSymbol& ca) {
+            if (l.isUser(ca.location)) {
+                Reads r;
+                ca.getAssignment().visit(r);
+                for (auto* e : r.refs) reads.emplace_back(e->getSymbolReference(), nullptr, e->sourceRange.start());
+            }
+            visitDefault(ca);
         }
     };
     void check(Lint& l) override {
@@ -461,7 +435,7 @@ public:
             auto it = v.blockingWriter.find(sym);
             if (it == v.blockingWriter.end() || it->second == proc || !done.insert(sym).second) continue;
             l.count();
-            l.report(loc, "'" + std::string(sym->name) + "' is assigned with a blocking assignment in one clocked process and read in another: the value seen depends on process execution order (race)",
+            l.report(loc, "'" + std::string(sym->name) + "' is assigned with a blocking assignment in a clocked process and read in another process: the value seen depends on process execution order (race)",
                      {.nextStep = "Use a nonblocking assignment for state shared between clocked processes.", .hierarchy = sym->getHierarchicalPath(), .signals = {std::string(sym->name)}});
         }
     }
@@ -528,240 +502,76 @@ public:
 };
 
 // ----------------------------------------------------------------------------------------------------------------
-// LNT-013: latches inferred by legacy level-sensitive `always` blocks (always_comb is slang's inferred-latch diagnostic).
-// A module-level variable assigned somewhere in the block but not on every path (if without else, case without default).
-class LegacyLatchRule final : public LintRule {
-public:
-    LegacyLatchRule() : LintRule("LNT-013", "", true) {}
-    using Set = std::set<const Symbol*>;
-    static Set definitely(const Statement& st) {
-        Set out;
-        switch (st.kind) {
-            case StatementKind::ExpressionStatement: {
-                auto& e = st.as<ExpressionStatement>().expr;
-                if (e.kind == ExpressionKind::Assignment) {
-                    auto& a = e.as<AssignmentExpression>();
-                    if (a.left().kind == ExpressionKind::NamedValue)
-                        if (auto* sym = a.left().getSymbolReference()) out.insert(sym);
-                }
-                break;
-            }
-            case StatementKind::List:
-                for (auto* x : st.as<StatementList>().list) { Set t = definitely(*x); out.insert(t.begin(), t.end()); }
-                break;
-            case StatementKind::Block: out = definitely(st.as<BlockStatement>().body); break;
-            case StatementKind::Timed: out = definitely(st.as<TimedStatement>().stmt); break;
-            case StatementKind::Conditional: {
-                auto& c = st.as<ConditionalStatement>();
-                if (c.ifFalse) {
-                    Set a = definitely(c.ifTrue), b = definitely(*c.ifFalse);
-                    for (auto* x : a) if (b.count(x)) out.insert(x);
-                }
-                break;
-            }
-            case StatementKind::Case: {
-                auto& c = st.as<CaseStatement>();
-                if (!c.defaultCase) break;   // not provably exhaustive (slang's case-incomplete covers exhaustive coverage)
-                out = definitely(*c.defaultCase);
-                for (auto& g : c.items) {
-                    Set t = definitely(*g.stmt), r;
-                    for (auto* x : out) if (t.count(x)) r.insert(x);
-                    out = std::move(r);
-                }
-                break;
-            }
-            default: break;
-        }
-        return out;
-    }
-    struct V : ASTVisitor<V, VisitFlags::AllCanonical> {
-        Lint& l;
-        explicit V(Lint& lint) : l(lint) {}
-        void handle(const ProceduralBlockSymbol& p) {
-            const Statement& body = p.getBody();
-            bool legacyComb = p.procedureKind == ProceduralBlockKind::Always && !isClocked(p) && body.kind == StatementKind::Timed;
-            if (legacyComb && l.isUser(p.location)) {
-                l.count();
-                Assigns a;
-                body.visit(a);
-                Set all;
-                for (auto* x : a.list)
-                    if (auto* sym = x->left().getSymbolReference(); sym && isModuleLevel(*sym)) all.insert(sym);
-                Set done = definitely(body);
-                std::string names;
-                for (auto* sym : all) if (!done.count(sym)) names += (names.empty() ? "" : ", ") + std::string(sym->name);
-                if (!names.empty())
-                    l.report(p.location, "level-sensitive always block does not assign [" + names + "] on every path: a latch is inferred",
-                             {.confidence = Confidence::Heuristic, .nextStep = "Assign a default at the top of the block, add the else/default branch, or use always_comb to get slang's check.", .hierarchy = p.getHierarchicalPath(), .signals = {names}});
-            }
-            visitDefault(p);
-        }
-    };
-    void check(Lint& l) override { visitDesign<V>(l); }
+// LNT-009: variables with several drivers are slang's diagnostics. Nets (wire, tri, tri0, tri1, trireg) with overlapping continuous drivers
+// are reported here: ERROR-free WARNING Established when none of the drivers can release the net (no all-z arm; x and partly-z arms still drive); when a driver can
+// release it (a tri-state bus) the overlap is a conflict unless the enables are provably exclusive, so the finding is WARNING Unresolved
+// ("mutual exclusion not proven"), never silence. wand/wor/triand/trior nets resolve overlaps by definition. Instance-output overlaps are
+// LNT-042.
+// A literal with every bit z releases the net; partial z (8'b0000_zzzz) and x literals still drive bits.
+bool allZ(const SVInt& v) {
+    if (v.getBitWidth() == 0) return false;
+    for (uint32_t i = 0; i < v.getBitWidth(); i++)
+        if (v[static_cast<int32_t>(i)].value != slang::logic_t::z.value) return false;
+    return true;
+}
+struct ZSearchV : ASTVisitor<ZSearchV, VisitFlags::AllGood> {
+    bool unknown = false;
+    void handle(const IntegerLiteral& e) { unknown = unknown || allZ(e.getValue()); }
+    void handle(const UnbasedUnsizedIntegerLiteral& e) { unknown = unknown || allZ(e.getValue()); }
 };
+bool ZSearchFn(const Expression& e) {
+    ZSearchV z;
+    e.visit(z);
+    return z.unknown;
+}
 
-// ----------------------------------------------------------------------------------------------------------------
-// LNT-053: a whole-variable assignment that is overwritten before it is read. Path-aware walk over if/case/loops: a pending
-// (unread) write is overwritten by a later whole-variable write that dominates it (the overwriting statement sits in the same
-// or an enclosing statement list, so `q <= 0; if (en) q <= d;` is the default-then-override idiom and is not reported).
-class DeadStoreRule final : public LintRule {
-public:
-    DeadStoreRule() : LintRule("LNT-053") {}
-    struct W { slang::SourceLocation loc; int frame; bool uncertain; };
-    using State = std::map<const Symbol*, std::vector<W>>;
-    struct Walker {
-        Lint& l;
-        std::vector<int> parent{-1};   // frame tree
-        std::set<std::pair<uint32_t, size_t>> reported;
-        explicit Walker(Lint& lint) : l(lint) {}
-        int newFrame(int p) { parent.push_back(p); return static_cast<int>(parent.size()) - 1; }
-        bool dominates(int anc, int f) const { for (; f >= 0; f = parent[f]) if (f == anc) return true; return false; }
-        static void merge(State& into, const State& o) {
-            for (auto& [s, ws] : o) for (auto& w : ws) {
-                auto& v = into[s];
-                bool dup = false;
-                for (auto& x : v) dup = dup || (x.loc == w.loc);
-                if (!dup) v.push_back(w);
-            }
-        }
-        struct Info : ASTVisitor<Info, VisitFlags::AllGood> {
-            std::set<const Symbol*> reads, writes;
-            bool call = false, timing = false;
-            void handle(const NamedValueExpression& e) { if (auto* s = e.getSymbolReference()) reads.insert(s); }
-            void handle(const AssignmentExpression& a) {
-                if (a.left().kind == ExpressionKind::NamedValue) { if (auto* s = a.left().getSymbolReference()) writes.insert(s); }
-                else a.left().visit(*this);
-                if (a.isCompound() && a.left().kind == ExpressionKind::NamedValue) a.left().visit(*this);
-                a.right().visit(*this);
-                if (a.timingControl) timing = true;
-            }
-            void handle(const CallExpression& c) {
-                if (!c.isSystemCall()) call = true;
-                visitDefault(c);
-            }
-            void handle(const TimedStatement& t) { timing = true; visitDefault(t); }
-        };
-        void readAll(State& st, const std::set<const Symbol*>& syms) { for (auto* s : syms) st.erase(s); }
-        void apply(State& st, const Info& in) {
-            if (in.timing) { st.clear(); return; }
-            readAll(st, in.reads);
-            if (in.call) for (auto& [s, ws] : st) for (auto& w : ws) w.uncertain = true;
-        }
-        void report(const W& old, const Symbol& sym, bool sameFrame) {
-            if (!reported.insert({static_cast<uint32_t>(old.loc.offset()), old.loc.buffer().getId()}).second) return;
-            l.report(old.loc, "assignment to '" + std::string(sym.name) + "' is overwritten before it is read" + (sameFrame ? "" : " (on at least one path)"),
-                     {.confidence = old.uncertain ? Confidence::Unresolved : (sameFrame ? Confidence::Established : Confidence::Heuristic),
-                      .nextStep = old.uncertain ? "A subroutine call lies between the two writes and may read the value; review it." : "Remove the first assignment or use the value.",
-                      .signals = {std::string(sym.name)}});
-        }
-        void walk(const Statement& st, int frame, State& state) {
-            switch (st.kind) {
-                case StatementKind::List: {
-                    int f = newFrame(frame);
-                    for (auto* x : st.as<StatementList>().list) walk(*x, f, state);
-                    return;
-                }
-                case StatementKind::Block: walk(st.as<BlockStatement>().body, frame, state); return;
-                case StatementKind::Timed: { state.clear(); walk(st.as<TimedStatement>().stmt, frame, state); state.clear(); return; }
-                case StatementKind::ExpressionStatement: {
-                    auto& e = st.as<ExpressionStatement>().expr;
-                    Info in;
-                    if (e.kind == ExpressionKind::Assignment && e.as<AssignmentExpression>().left().kind == ExpressionKind::NamedValue) {
-                        auto& a = e.as<AssignmentExpression>();
-                        Info rhs;
-                        a.right().visit(rhs);
-                        if (a.isCompound()) a.left().visit(rhs);
-                        apply(state, rhs);
-                        auto* sym = a.left().getSymbolReference();
-                        if (sym && !a.isCompound() && !a.timingControl) {
-                            auto it = state.find(sym);
-                            if (it != state.end()) {
-                                for (auto& w : it->second) if (dominates(frame, w.frame)) report(w, *sym, w.frame == frame);
-                                it->second.erase(std::remove_if(it->second.begin(), it->second.end(), [&](const W& w) { return dominates(frame, w.frame); }), it->second.end());
-                            }
-                            state[sym].push_back({a.sourceRange.start(), frame, false});
-                        } else if (sym) state.erase(sym);
-                        return;
-                    }
-                    e.visit(in);
-                    apply(state, in);
-                    for (auto* s : in.writes) state.erase(s);
-                    return;
-                }
-                case StatementKind::Conditional: {
-                    auto& c = st.as<ConditionalStatement>();
-                    Info in;
-                    for (auto& cond : c.conditions) cond.expr->visit(in);
-                    apply(state, in);
-                    State a = state, b = state;
-                    int fa = newFrame(frame), fb = newFrame(frame);
-                    walk(c.ifTrue, fa, a);
-                    if (c.ifFalse) walk(*c.ifFalse, fb, b);
-                    state = a;
-                    merge(state, b);
-                    return;
-                }
-                case StatementKind::Case: {
-                    auto& c = st.as<CaseStatement>();
-                    Info in;
-                    c.expr.visit(in);
-                    for (auto& g : c.items) for (auto* e : g.expressions) e->visit(in);
-                    apply(state, in);
-                    State out;
-                    bool first = true;
-                    for (auto& g : c.items) { State s = state; walk(*g.stmt, newFrame(frame), s); if (first) out = s; else merge(out, s); first = false; }
-                    State d = state;
-                    if (c.defaultCase) walk(*c.defaultCase, newFrame(frame), d);
-                    if (first) out = d; else merge(out, d);
-                    state = out;
-                    return;
-                }
-                default: {
-                    Info in;
-                    st.visit(in);
-                    if (in.timing) { state.clear(); return; }
-                    // loops and anything else: reads/writes inside are not ordered here; inner straight-line code is checked on its own
-                    readAll(state, in.reads);
-                    for (auto* s : in.writes) state.erase(s);
-                    if (in.call) for (auto& [s, ws] : state) for (auto& w : ws) w.uncertain = true;
-                    return;
-                }
-            }
-        }
+// `en ? v : 'z` against `!en ? w : 'z` (or a different constant of the same operand): the two tri-state drivers are never enabled together.
+bool provablyExclusiveEnables(Lint& l, const Expression& a, const Expression& b) {
+    auto cond = [](const Expression& asg) -> const ConditionalExpression* {
+        if (asg.kind != ExpressionKind::Assignment) return nullptr;
+        const Expression* r = &asg.as<AssignmentExpression>().right();
+        while (r->kind == ExpressionKind::Conversion) r = &r->as<ConversionExpression>().operand();
+        return r->kind == ExpressionKind::ConditionalOp ? &r->as<ConditionalExpression>() : nullptr;
     };
-    struct V : ASTVisitor<V, VisitFlags::AllCanonical> {
-        Lint& l;
-        explicit V(Lint& lint) : l(lint) {}
-        void handle(const ProceduralBlockSymbol& p) {
-            if (p.procedureKind != ProceduralBlockKind::Final && l.isUser(p.location)) {
-                l.count();
-                Walker w(l);
-                State st;
-                w.walk(p.getBody(), 0, st);
-            }
-            visitDefault(p);
-        }
-    };
-    void check(Lint& l) override { visitDesign<V>(l); }
-};
+    auto* ca = cond(a);
+    auto* cb = cond(b);
+    if (!ca || !cb || ca->conditions.size() != 1 || cb->conditions.size() != 1) return false;
+    // the enabled arm is the one without the z literal; assume the true arm drives (`en ? v : 'z`) and the false arm releases
+    auto releases = [](const Expression& arm) { return ZSearchFn(arm); };
+    bool aTrueDrives = !releases(ca->left()) && releases(ca->right());
+    bool bTrueDrives = !releases(cb->left()) && releases(cb->right());
+    if (!aTrueDrives || !bTrueDrives) return false;
+    slang::ast::ASTContext ac(l.compilation().getRoot(), slang::ast::LookupLocation::max);
+    slang::ast::EvalContext ec(ac);
+    return sverity::flow::conditionsExclusive(ec, *ca->conditions[0].expr, true, *cb->conditions[0].expr, true);
+}
 
-// ----------------------------------------------------------------------------------------------------------------
-// LNT-009: variables with several drivers are slang's diagnostics; resolved nets (wire) with overlapping continuous drivers
-// none of which can release the net (no z) are reported here. Instance-output overlaps are LNT-042.
+// The right-hand side is the constant high-impedance value (every bit z): the driver never drives the net.
+bool constantZ(Lint& l, const Expression& asg) {
+    if (asg.kind != ExpressionKind::Assignment) return false;
+    auto cv = l.evalConst(asg.as<AssignmentExpression>().right());
+    if (!cv.isInteger() || cv.integer().getBitWidth() == 0) return false;
+    auto& v = cv.integer();
+    for (uint32_t i = 0; i < v.getBitWidth(); i++)
+        if (v[static_cast<int32_t>(i)].value != slang::logic_t::z.value) return false;
+    return true;
+}
+
 class NetConflictRule final : public LintRule {
 public:
     NetConflictRule() : LintRule("LNT-009", "", true) {}
     struct ZSearch : ASTVisitor<ZSearch, VisitFlags::AllGood> {
         bool unknown = false;
-        void handle(const IntegerLiteral& e) { unknown = unknown || e.getValue().hasUnknown(); }
-        void handle(const UnbasedUnsizedIntegerLiteral& e) { unknown = unknown || e.getValue().hasUnknown(); }
+        void handle(const IntegerLiteral& e) { unknown = unknown || allZ(e.getValue()); }
+        void handle(const UnbasedUnsizedIntegerLiteral& e) { unknown = unknown || allZ(e.getValue()); }
     };
     struct V : ASTVisitor<V, VisitFlags::AllCanonical> {
         Lint& l;
         explicit V(Lint& lint) : l(lint) {}
         void handle(const NetSymbol& n) {
             auto* am = l.context().design.analysis.get();
-            if (am && l.isUser(n.location) && isModuleLevel(n) && n.netType.netKind == NetType::Wire) {
+            auto nk = n.netType.netKind;
+            if (am && l.isUser(n.location) && isModuleLevel(n) && (nk == NetType::Wire || nk == NetType::Tri || nk == NetType::Tri0 || nk == NetType::Tri1 || nk == NetType::TriReg)) {
                 l.count();
                 std::vector<std::pair<std::pair<uint64_t, uint64_t>, const ContinuousAssignSymbol*>> cont;
                 for (auto* d : am->getDrivers(n)) {
@@ -775,7 +585,15 @@ public:
                         ZSearch za, zb;
                         a.second->getAssignment().visit(za);
                         b.second->getAssignment().visit(zb);
-                        if (za.unknown || zb.unknown) continue;   // a possible z drive is a tri-state bus (not a conflict)
+                        if (constantZ(l, a.second->getAssignment()) || constantZ(l, b.second->getAssignment())) continue;   // a driver that never drives
+                        if (za.unknown || zb.unknown) {   // a possible z drive: a tri-state bus; the drivers must never be enabled together
+                            if (provablyExclusiveEnables(l, a.second->getAssignment(), b.second->getAssignment())) continue;
+                            l.report(b.second->location, "net '" + std::string(n.name) + "' has several overlapping tri-state drivers and their enables are not provably exclusive: a driver conflict cannot be excluded",
+                                     {.confidence = Confidence::Unresolved,
+                                      .nextStep = "Make the enables mutually exclusive by construction (one select, decoded), or prove it with an assertion.",
+                                      .hierarchy = n.getHierarchicalPath(), .signals = {std::string(n.name)}});
+                            return;
+                        }
                         l.report(b.second->location, "net '" + std::string(n.name) + "' has several overlapping continuous drivers and none of them can release it (no z): a driver conflict",
                                  {.nextStep = "Drive the net from one source, or make the drivers tri-state.", .hierarchy = n.getHierarchicalPath(), .signals = {std::string(n.name)}});
                         return;
@@ -794,13 +612,12 @@ std::vector<std::unique_ptr<Rule>> makeLintModelRules() {
     v.push_back(std::make_unique<UnconnectedRule>());
     v.push_back(std::make_unique<UnusedRule>());
     v.push_back(std::make_unique<NetConflictRule>());
-    v.push_back(std::make_unique<DeadStoreRule>());
-    v.push_back(std::make_unique<LegacyLatchRule>());
-    v.push_back(std::make_unique<CouplingRule>());
-    v.push_back(std::make_unique<FsmRule>());
+    v.push_back(std::make_unique<CouplingRule>(CouplingRule::ClockAsData));
+    v.push_back(std::make_unique<CouplingRule>(CouplingRule::ResetSteersClock));
+    v.push_back(std::make_unique<FsmRule>(FsmRule::Structural));
+    v.push_back(std::make_unique<FsmRule>(FsmRule::Obligation));
     v.push_back(std::make_unique<InitRule>());
     v.push_back(std::make_unique<MemoryRule>());
-    v.push_back(std::make_unique<EnableRule>());
     v.push_back(std::make_unique<XControlRule>());
     v.push_back(std::make_unique<RaceRule>());
     return v;

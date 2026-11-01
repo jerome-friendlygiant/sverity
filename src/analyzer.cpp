@@ -77,10 +77,29 @@ Report analyze(const AnalyzerOptions& opts) {
                 lc.clock = c["clock"].asString();
                 lc.input = c["input"].asString();
                 lc.output = c["output"].asString();
+                lc.enable = c["enable"].asString();
+                lc.reset = c["reset"].asString();
+                lc.writeClock = c["write_clock"].asString();
+                lc.readClock = c["read_clock"].asString();
                 if (c.find("stages")) lc.stages = static_cast<int>(c["stages"].asInt(2));
+                if (lc.kind == "flop") lc.stages = 1;
                 if (c.find("edge")) lc.edge = c["edge"].asString() == "negedge" ? 2 : 1;
-                if (lc.name.empty() || lc.kind != "synchronizer" || lc.clock.empty() || lc.input.empty() || lc.output.empty() || lc.stages < 1) {
-                    fail("has a cell entry that is incomplete or of an unsupported kind (needs name, kind=synchronizer, clock, input, output)");
+                if (c.find("reset_active")) lc.resetActiveLow = c["reset_active"].asString() != "high";
+                if (c.find("reset_value")) lc.resetValue = c["reset_value"].asInt(0) ? '1' : '0';
+                if (c.find("enable_latched")) lc.enableLatched = c["enable_latched"].asBool(false);
+                if (c.find("sync_read")) lc.syncRead = c["sync_read"].asBool(true);
+                if (c.find("ports"))
+                    for (auto& p : c["ports"].asArray()) lc.ports.push_back({p["name"].asString(), p["dir"].asString(), p["role"].asString(), p["clock"].asString()});
+                bool ok = !lc.name.empty() && lc.stages >= 1;
+                if (lc.kind == "synchronizer" || lc.kind == "flop") ok = ok && !lc.clock.empty() && !lc.input.empty() && !lc.output.empty();
+                else if (lc.kind == "clock_gate") ok = ok && !lc.clock.empty() && !lc.enable.empty() && !lc.output.empty();
+                else if (lc.kind == "ram") ok = ok && !lc.writeClock.empty() && !lc.readClock.empty() && !lc.ports.empty();
+                else if (lc.kind == "blackbox") ok = ok && !lc.ports.empty();
+                else ok = false;
+                for (auto& p : lc.ports)
+                    ok = ok && !p.name.empty() && (p.dir == "in" || p.dir == "out" || p.dir == "inout");
+                if (!ok) {
+                    fail("has a cell entry that is incomplete or of an unsupported kind (kinds: synchronizer, flop, clock_gate, ram, blackbox; see LibCell in sverity/frontend.h)");
                     continue;
                 }
                 design->libCells[lc.name] = lc;

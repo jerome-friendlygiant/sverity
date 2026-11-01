@@ -1,5 +1,5 @@
 // Native AST lint: width rules. LNT-026 sized-literal fit and narrowing, LNT-034 conditional arms, LNT-035 unsized
-// shift operands, LNT-036 arithmetic truncation, LNT-055 wraparound guards, LNT-056 constant concatenations and LNT-057
+// shift operands, LNT-036 arithmetic truncation, LNT-055 unsigned difference below zero, LNT-056 constant concatenations and LNT-057
 // parameter-dependent truncation. Slang's implicit width/sign diagnostics (LNT-004/005), shift-count checks (LNT-026),
 // signed-logical-shift (LNT-035) and unsized-in-concat (LNT-056) are not repeated here.
 #include <algorithm>
@@ -49,16 +49,6 @@ OptWidth widthOf(const Expression& e) {
 
 bool isConst(const Lint& l, const Expression& e) { return l.evalConst(e).isInteger(); }
 
-bool bitAt(const SVInt& v, uint32_t i) { return i < v.getBitWidth() && bool(v[int32_t(i)]); }
-
-// True when the constant `e` has value 1.
-bool isOne(const Lint& l, const Expression& e) {
-    auto cv = l.evalConst(e);
-    if (!cv.isInteger() || cv.integer().hasUnknown() || !bitAt(cv.integer(), 0)) return false;
-    for (uint32_t i = 1; i < cv.integer().getBitWidth(); i++)
-        if (bitAt(cv.integer(), i)) return false;
-    return true;
-}
 
 bool isLeftShift(BinaryOperator op) {
     return op == BinaryOperator::LogicalShiftLeft || op == BinaryOperator::ArithmeticShiftLeft;
@@ -224,13 +214,15 @@ void reportSizedFit(Lint& l, const std::string& path, const IntegerLiteral& lit,
 }
 
 // ---------------------------------------------------------------------------------------------------------------
-// LNT-026: sized literals that do not fit (outside concatenations), unsized literals compared with a wide vector, and
-// constants assigned to a narrower target that change their value.
+// LNT-026: sized literals that do not fit (outside concatenations); LNT-073: constants assigned to a narrower target that change
+// their value; LNT-074: unsized literals compared with a wide vector.
 class LiteralSizeRule final : public LintRule {
 public:
-    LiteralSizeRule() : LintRule("LNT-026", "shift-count and fill-literal hazards beyond slang's checks", true) {}
+    enum Kind { Overflow, Narrowing, UnsizedCompare };
+    explicit LiteralSizeRule(Kind k) : LintRule(k == Overflow ? "LNT-026" : k == Narrowing ? "LNT-073" : "LNT-074"), kind_(k) {}
 
 private:
+    Kind kind_;
     struct V : ASTVisitor<V, VisitFlags::AllCanonical> {
         std::string path;   // hierarchical path of the instance body being visited
         void handle(const InstanceBodySymbol& b) {
@@ -240,8 +232,9 @@ private:
             path = saved;
         }
         Lint& l;
+        Kind kind;
         int concat = 0;
-        explicit V(Lint& lint) : l(lint) {}
+        V(Lint& lint, Kind k) : l(lint), kind(k) {}
         void handle(const ConcatenationExpression& c) {
             concat++;
             visitDefault(c);
@@ -253,13 +246,13 @@ private:
             concat--;
         }
         void handle(const IntegerLiteral& lit) {
-            if (concat == 0 && !lit.isDeclaredUnsized && l.isUser(lit.sourceRange.start())) {
+            if (kind == Overflow && concat == 0 && !lit.isDeclaredUnsized && l.isUser(lit.sourceRange.start())) {
                 l.count();
                 reportSizedFit(l, path, lit, "");
             }
         }
         void handle(const BinaryExpression& b) {
-            if (isCompare(b.op) && l.isUser(b.sourceRange.start())) {
+            if (kind == UnsizedCompare && isCompare(b.op) && l.isUser(b.sourceRange.start())) {
                 l.count();
                 for (int side = 0; side < 2; side++) {
                     const Expression& lit = unwrap(side == 0 ? b.left() : b.right());
@@ -278,7 +271,7 @@ private:
         void handle(const AssignmentExpression& a) {
             const Expression& rhs = unwrap(a.right());
             auto tw = widthOf(a.left());
-            if (!a.isCompound() && tw && rhs.kind == ExpressionKind::IntegerLiteral && l.isUser(a.sourceRange.start())) {
+            if (kind == Narrowing && !a.isCompound() && tw && rhs.kind == ExpressionKind::IntegerLiteral && l.isUser(a.sourceRange.start())) {
                 l.count();
                 SVInt v = rhs.as<IntegerLiteral>().getValue();
                 if (!v.hasUnknown() && *tw < v.getBitWidth()) {
@@ -303,7 +296,10 @@ private:
             visitDefault(a);
         }
     };
-    void check(Lint& l) override { visitDesign<V>(l); }
+    void check(Lint& l) override {
+        V v(l, kind_);
+        l.compilation().getRoot().visit(v);
+    }
 };
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -388,9 +384,7 @@ private:
 // of non-constant operands whose context widens them.
 class UnsizedShiftRule final : public LintRule {
 public:
-    UnsizedShiftRule() : LintRule("LNT-035", "unsized literals only in concatenation/replication operands; signed "
-                                             "widening only for non-constant left shifts; signed logical right shift "
-                                             "is slang's signed-logical-shift", true) {}
+    UnsizedShiftRule() : LintRule("LNT-035", "", true) {}
 
 private:
     struct V : ASTVisitor<V, VisitFlags::AllCanonical> {
@@ -463,10 +457,7 @@ private:
 // and (report_modular=true) +/- assigned at the operand width.
 class ArithmeticRule final : public LintRule {
 public:
-    ArithmeticRule() : LintRule("LNT-036", "multiplication and self-determined +/- only; +/- narrowing at an assignment "
-                                           "is slang's LNT-004; shift and signed-extension intermediates not analysed; "
-                                           "modular +/- (report_modular) is reported as advisory because wraparound "
-                                           "intent cannot be proven from RTL") {}
+    ArithmeticRule() : LintRule("LNT-036") {}
 
 private:
     struct V : ASTVisitor<V, VisitFlags::AllCanonical> {
@@ -549,52 +540,17 @@ private:
 };
 
 // ---------------------------------------------------------------------------------------------------------------
-// LNT-055: provable wraparound contradictions. (a) an unsigned value that is decremented is compared below zero;
-// (b) a counter that increments is guarded by a constant its width cannot reach.
+// LNT-055: an unsigned difference compared below zero, `(a - b) < 0`: the subtraction wraps, so the comparison is never true.
+// Comparisons of a plain variable with a constant outside its range (counter guards, `x < 0` after a decrement) are LNT-038.
 class WraparoundRule final : public LintRule {
 public:
-    WraparoundRule() : LintRule("LNT-055", "wraparound intent cannot be determined from RTL; only provable contradictions are reported") {}
+    WraparoundRule() : LintRule("LNT-055") {}
 
 private:
-    struct Cmp {
-        slang::SourceLocation at;
-        const Symbol* sym;
-        BinaryOperator op;   // normalised so that the symbol is on the left
-        SVInt k;
-        bool unsignedSym;
-    };
-
     static bool allBits(const SVInt& v, bool one) {
         for (uint32_t i = 0; i < v.getBitWidth(); i++)
             if (bool(v[int32_t(i)]) != one) return false;
         return v.getBitWidth() > 0;
-    }
-    // Guard `counter op K` (counter of width w, K non-negative) can never be true.
-    static bool unreachable(BinaryOperator op, const SVInt& k, uint32_t w) {
-        if (k.isSigned() && k.isNegative()) return false;
-        bool beyond = false;
-        for (uint32_t i = w; i < k.getBitWidth() && !beyond; i++) beyond = bool(k[int32_t(i)]);
-        switch (op) {
-            case BinaryOperator::Equality:
-            case BinaryOperator::CaseEquality:
-            case BinaryOperator::GreaterThanEqual: return beyond;   // K >= 2^w
-            case BinaryOperator::GreaterThan: {                    // K >= 2^w - 1
-                if (beyond) return true;
-                for (uint32_t i = 0; i < w; i++)
-                    if (!bitAt(k, i)) return false;
-                return w > 0;
-            }
-            default: return false;
-        }
-    }
-    static BinaryOperator flip(BinaryOperator op) {
-        switch (op) {
-            case BinaryOperator::LessThan: return BinaryOperator::GreaterThan;
-            case BinaryOperator::LessThanEqual: return BinaryOperator::GreaterThanEqual;
-            case BinaryOperator::GreaterThan: return BinaryOperator::LessThan;
-            case BinaryOperator::GreaterThanEqual: return BinaryOperator::LessThanEqual;
-            default: return op;
-        }
     }
 
     struct V : ASTVisitor<V, VisitFlags::AllCanonical> {
@@ -606,55 +562,11 @@ private:
             path = saved;
         }
         Lint& l;
-        std::unordered_map<const Symbol*, bitwidth_t> counters;   // unsigned variables that are incremented
-        std::unordered_set<const Symbol*> decremented;
-        std::vector<Cmp> cmps;
         explicit V(Lint& lint) : l(lint) {}
-
-        void count(const Expression& target, bool inc) {
-            const Symbol* s = target.getSymbolReference();
-            if (!s || !target.type || !target.type->isIntegral()) return;
-            if (inc && !target.type->isSigned()) counters.emplace(s, target.type->getBitWidth());
-            if (!inc) decremented.insert(s);
-        }
-        void handle(const AssignmentExpression& a) {
-            if (l.isUser(a.sourceRange.start())) {
-                if (a.isCompound()) {
-                    if (a.op == BinaryOperator::Add && isOne(l, a.right())) count(a.left(), true);
-                    if (a.op == BinaryOperator::Subtract) count(a.left(), false);
-                }
-                else {
-                    const Expression& r = unwrap(a.right());
-                    if (r.kind == ExpressionKind::BinaryOp) {
-                        auto& s = r.as<BinaryExpression>();
-                        const Symbol* lhs = a.left().getSymbolReference();
-                        if (s.op == BinaryOperator::Add && lhs &&
-                            ((unwrap(s.left()).getSymbolReference() == lhs && isOne(l, unwrap(s.right()))) ||
-                             (unwrap(s.right()).getSymbolReference() == lhs && isOne(l, unwrap(s.left())))))
-                            count(a.left(), true);
-                        if (s.op == BinaryOperator::Subtract) count(a.left(), false);
-                    }
-                }
-            }
-            visitDefault(a);
-        }
-        void handle(const UnaryExpression& u) {
-            if (l.isUser(u.sourceRange.start())) {
-                switch (u.op) {
-                    case UnaryOperator::Preincrement:
-                    case UnaryOperator::Postincrement: count(u.operand(), true); break;
-                    case UnaryOperator::Predecrement:
-                    case UnaryOperator::Postdecrement: count(u.operand(), false); break;
-                    default: break;
-                }
-            }
-            visitDefault(u);
-        }
         void handle(const BinaryExpression& b) {
             if (isCompare(b.op) && l.isUser(b.sourceRange.start())) {
                 const Expression& lhs = unwrap(b.left());
                 const Expression& rhs = unwrap(b.right());
-                // Direct form: unsigned difference compared below zero.
                 if (lhs.kind == ExpressionKind::BinaryOp && lhs.type && !lhs.type->isSigned() &&
                     lhs.as<BinaryExpression>().op == BinaryOperator::Subtract &&
                     ((b.op == BinaryOperator::LessThan && isConst(l, rhs) && allBits(l.evalConst(rhs).integer(), false)) ||
@@ -665,46 +577,14 @@ private:
                              "unsigned difference compared below zero: the subtraction wraps and the comparison is never true",
                              {.nextStep = "Compare the operands before subtracting, or use a signed type for the difference."});
                 }
-                // Symbol form, resolved after the whole design is visited.
-                const Symbol* ls = lhs.getSymbolReference();
-                const Symbol* rs = rhs.getSymbolReference();
-                bool lconst = isConst(l, lhs), rconst = isConst(l, rhs);
-                if (ls && rconst && !lconst) add(b, lhs, b.op, rhs);
-                else if (rs && lconst && !rconst) add(b, rhs, flip(b.op), lhs);
             }
             visitDefault(b);
-        }
-        // `symSide` is the variable operand (unwrapped), `op` is already normalised to put it on the left.
-        void add(const BinaryExpression& b, const Expression& symSide, BinaryOperator op, const Expression& constSide) {
-            auto cv = l.evalConst(constSide);
-            if (!cv.isInteger() || cv.integer().hasUnknown()) return;
-            bool u = symSide.type && symSide.type->isIntegral() && !symSide.type->isSigned();
-            cmps.push_back({b.sourceRange.start(), symSide.getSymbolReference(), op, cv.integer(), u});
         }
     };
 
     void check(Lint& l) override {
         V v(l);
         l.compilation().getRoot().visit(v);
-        for (auto& c : v.cmps) {
-            // (a) an unsigned value that is decremented can never be below zero.
-            bool negGuard = (c.op == BinaryOperator::LessThan && allBits(c.k, false)) ||
-                            (c.op == BinaryOperator::LessThanEqual && c.k.isSigned() && allBits(c.k, true));
-            if (negGuard && c.unsignedSym && v.decremented.count(c.sym)) {
-                reportIn(l, c.sym->getHierarchicalPath(), c.at,
-                         "'" + std::string(c.sym->name) + "' is unsigned and decremented, so the guard can never be true: the decrement wraps to a large value",
-                         {.nextStep = "Test the value before decrementing, or hold it in a signed type.",
-                          .signals = {std::string(c.sym->name)}});
-            }
-            // (b) a counter whose width cannot reach the guard constant.
-            auto it = v.counters.find(c.sym);
-            if (it != v.counters.end() && unreachable(c.op, c.k, it->second))
-                reportIn(l, c.sym->getHierarchicalPath(), c.at,
-                         "guard unreachable, counter wraps: '" + std::string(c.sym->name) + "' is " + std::to_string(it->second) +
-                             " bits and never reaches the constant",
-                         {.nextStep = "Widen the counter or correct the guard constant.",
-                          .signals = {std::string(c.sym->name)}});
-        }
     }
 };
 
@@ -713,9 +593,7 @@ private:
 // that overflow their size inside a concatenation or replication.
 class ConstantConcatRule final : public LintRule {
 public:
-    ConstantConcatRule() : LintRule("LNT-056", "constant concatenations are checked against assignment targets only; "
-                                               "nested constant sub-concatenations and replication counts are not checked; "
-                                               "unsized-in-concatenation and zero replication outside a concatenation are slang's", true) {}
+    ConstantConcatRule() : LintRule("LNT-056", "", true) {}
 
 private:
     struct V : ASTVisitor<V, VisitFlags::AllCanonical> {
@@ -805,12 +683,6 @@ private:
         return false;
     }
 
-    static const InstanceBodySymbol* bodyOf(const Symbol& s) {
-        for (const Scope* sc = s.getParentScope(); sc; sc = sc->asSymbol().getParentScope())
-            if (sc->asSymbol().kind == SymbolKind::InstanceBody) return &sc->asSymbol().as<InstanceBodySymbol>();
-        return nullptr;
-    }
-
     // The object an operand names: the first variable, net or port (parameters used in indices are skipped).
     static const Symbol* firstObject(const std::vector<const Symbol*>& syms) {
         for (auto* s : syms)
@@ -871,7 +743,7 @@ private:
                     r.visit(rn);
                     const Symbol* ls = firstObject(ln.syms);
                     const Symbol* rs = firstObject(rn.syms);
-                    truncation(a.sourceRange.start(), ls, rs, *rw, *lw, ls ? bodyOf(*ls) : nullptr, "assignment");
+                    truncation(a.sourceRange.start(), ls, rs, *rw, *lw, ls ? enclosingBody(*ls) : nullptr, "assignment");
                 }
             }
             visitDefault(a);
@@ -889,13 +761,14 @@ private:
                 if (!pw || !aw || port.direction == ArgumentDirection::InOut || port.direction == ArgumentDirection::Ref)
                     continue;
                 bool input = port.direction == ArgumentDirection::In;
-                if (input ? *aw <= *pw : *pw <= *aw) continue;
+                const uint32_t pwv = *pw, awv = *aw;
+                if (input ? awv <= pwv : pwv <= awv) continue;
                 Names an;
                 actual.visit(an);
                 const Symbol* as = firstObject(an.syms);
                 std::string what = std::string(input ? "input" : "output") + " port '" + std::string(port.name) + "' of '" +
                                    std::string(inst.name) + "'";
-                truncation(actual.sourceRange.start(), port.internalSymbol ? port.internalSymbol : &port, as, input ? *aw : *pw, input ? *pw : *aw, &inst.body, what);
+                truncation(actual.sourceRange.start(), port.internalSymbol ? port.internalSymbol : &port, as, input ? awv : pwv, input ? pwv : awv, &inst.body, what);
             }
             visitDefault(inst);
         }
@@ -907,7 +780,8 @@ private:
 
 std::vector<std::unique_ptr<Rule>> makeLintWidthRules() {
     std::vector<std::unique_ptr<Rule>> v;
-    v.push_back(std::make_unique<LiteralSizeRule>());
+    for (auto k : {LiteralSizeRule::Overflow, LiteralSizeRule::Narrowing, LiteralSizeRule::UnsizedCompare})
+        v.push_back(std::make_unique<LiteralSizeRule>(k));
     v.push_back(std::make_unique<ConditionalRule>());
     v.push_back(std::make_unique<UnsizedShiftRule>());
     v.push_back(std::make_unique<ArithmeticRule>());

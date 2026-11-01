@@ -130,11 +130,67 @@ private:
     }
 };
 
+/// LNT-066: an X or Z constant (an exact constant driver, or a reset value) that can reach the condition of an assignment through the
+/// dependency graph. Flow-insensitive: another driver or an earlier override may mask the value (Heuristic); a tri-state `z` on a net is
+/// the net's normal release and is not followed.
+class XReachesConditionRule final : public Rule {
+public:
+    std::string_view id() const override { return "LNT-066"; }
+    RuleState completeness() const override { return RuleState::Executed; }
+    void run(RuleContext& ctx) override {
+        Model& m = getModel(ctx.design);
+        ctx.objectsEvaluated = m.constDrivers.size() + m.flops.size();
+        std::vector<std::pair<NodeId, std::string>> seeds;   // (node, description of the X/Z source)
+        for (auto& [n, ds] : m.constDrivers)
+            for (auto& d : ds) {
+                if (d.value != 'x' && d.value != 'z') continue;
+                bool isNet = m.nodes[n].sym && m.nodes[n].sym->kind == slang::ast::SymbolKind::Net;
+                if (d.value == 'z' && isNet) continue;
+                seeds.push_back({n, std::string("constant '") + d.value + "' drives " + m.nameOf(n) + " (" + m.procs[d.proc].loc.file + ":" + std::to_string(m.procs[d.proc].loc.line) + ")"});
+                break;
+            }
+        for (auto& f : m.flops)
+            for (size_t i = 0; i < f.resetValues.size(); i++)
+                if (f.resetValues[i] == 'x' || f.resetValues[i] == 'z') {
+                    seeds.push_back({f.q, std::string("reset value '") + f.resetValues[i] + "' of " + m.nameOf(f.q)});
+                    break;
+                }
+        std::sort(seeds.begin(), seeds.end());
+        for (auto& [seed, what] : seeds) {
+            std::set<NodeId> seen{seed};
+            std::vector<NodeId> st{seed};
+            const Edge* hit = nullptr;
+            while (!st.empty() && !hit) {
+                NodeId n = st.back();
+                st.pop_back();
+                for (auto ei : m.out[n]) {
+                    const Edge& e = m.edges[ei];
+                    if (e.type == EdgeType::AsyncCtl) continue;
+                    if (e.ctrl) { hit = &e; break; }
+                    if (seen.insert(e.to).second) st.push_back(e.to);
+                }
+            }
+            if (!hit) continue;
+            Diagnostic d;
+            d.ruleId = "LNT-066";
+            d.severity = Severity::Warning;
+            d.confidence = Confidence::Heuristic;
+            d.message = what + " can reach the condition of an assignment to " + m.nameOf(hit->to) + ": simulation and synthesis may disagree on the branch taken";
+            d.location = m.procs[hit->proc].loc;
+            d.hierarchy = m.procs[hit->proc].instancePath;
+            d.signals = {m.nameOf(seed), m.nameOf(hit->to)};
+            d.nextStep = "Assign a defined value (not 'x/'z) on every path that can reach a condition, or document the don't-care and guard it.";
+            ctx.report.add(std::move(d));
+        }
+    }
+};
+
 } // namespace
 
 std::vector<std::unique_ptr<Rule>> makeGraphLintRules() {
     std::vector<std::unique_ptr<Rule>> v;
     v.push_back(std::make_unique<CombCycleRule>());
+    v.push_back(std::make_unique<XReachesConditionRule>());
     return v;
 }
 

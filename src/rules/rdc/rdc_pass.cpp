@@ -37,22 +37,21 @@ std::vector<std::unique_ptr<Rule>> makeRdcRules() {
     add("RDC-002", "");
     add("RDC-004", "");
     add("RDC-005", "");
-    add("RDC-008", "reset leaves are classified as reset-like by structure and by name (rst/reset) for primary inputs");
+    add("RDC-008", "");
     add("RDC-009", "");
-    add("RDC-010", "unreset registers feeding a reset register of the same module instance; partial reset inside one process is LNT-020");
+    add("RDC-010", "");
     add("RDC-011", "");
-    add("RDC-012", "power intent (UPF/CPF) is not a supported input: reports the missing model, evaluates no retention/isolation rule");
+    add("RDC-012", "");
     add("RDC-013", "");
     add("RDC-014", "");
     add("RDC-016", "");
     add("RDC-017", "");
     add("RDC-019", "");
     add("RDC-020", "");
-    add("RDC-025", "outputs depending on unreset registers; isolation cells and interface protocols are not modelled");
+    add("RDC-025", "");
     add("RDC-026", "");
     add("RDC-027", "");
     add("RDC-028", "");
-    add("RDC-029", "power intent (UPF/CPF) is not a supported input: reports the missing model, evaluates no retention/isolation rule");
     return v;
 }
 

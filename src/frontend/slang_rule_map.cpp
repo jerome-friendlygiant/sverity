@@ -13,7 +13,7 @@ namespace sverity {
 const std::map<std::string, std::string>& slangRuleTable() {
     static const std::map<std::string, std::string> table = {
         {"width-trunc", "LNT-004"}, {"width-expand", "LNT-004"}, {"port-width-trunc", "LNT-004"},
-        {"port-width-expand", "LNT-004"}, {"implicit-conv", "LNT-004"}, {"packed-array-conv", "LNT-004"},
+        {"port-width-expand", "LNT-004"}, {"implicit-conv", "LNT-005"}, {"packed-array-conv", "LNT-005"},
         {"sign-conversion", "LNT-005"}, {"sign-compare", "LNT-005"}, {"ineffective-sign", "LNT-005"},
         {"index-oob", "LNT-006"}, {"range-oob", "LNT-006"}, {"range-width-oob", "LNT-006"},
         {"implicit-net", "LNT-007"}, {"implicit-net-port", "LNT-007"},
@@ -30,12 +30,12 @@ const std::map<std::string, std::string>& slangRuleTable() {
         {"unused-port", "LNT-011"}, {"unused-argument", "LNT-011"}, {"unused-parameter", "LNT-011"},
         {"unused-type-parameter", "LNT-011"}, {"unused-typedef", "LNT-011"}, {"unused-genvar", "LNT-011"},
         {"inferred-latch", "LNT-013"},
-        {"case-wildcard-2state", "LNT-016"}, {"case-not-wildcard", "LNT-016"}, {"casez-with-x", "LNT-016"},
-        {"case-incomplete", "LNT-016"}, {"case-none", "LNT-016"}, {"case-default", "LNT-016"},
-        {"case-enum", "LNT-017"}, {"case-enum-explicit", "LNT-017"}, {"case-too-complex", "LNT-016"},
+        {"case-wildcard-2state", "LNT-065"}, {"case-not-wildcard", "LNT-065"}, {"casez-with-x", "LNT-040"},
+        {"case-incomplete", "LNT-065"}, {"case-none", "LNT-065"}, {"case-default", "LNT-065"},
+        {"case-enum", "LNT-017"}, {"case-enum-explicit", "LNT-017"}, {"case-too-complex", "LNT-065"},
         {"case-dup", "LNT-032"}, {"case-overlap", "LNT-032"}, {"case-unreachable", "LNT-032"},
         {"divide-by-zero", "LNT-037"},
-        {"shift-count-overflow", "LNT-026"}, {"shift-count-negative", "LNT-026"},
+        {"shift-count-overflow", "LNT-035"}, {"shift-count-negative", "LNT-035"},
         {"signed-logical-shift", "LNT-035"}, {"unsigned-arith-shift", "LNT-035"},
         {"unsized-concat", "LNT-056"},
         {"unused-import", "LNT-059"}, {"unused-wildcard-import", "LNT-059"}, {"shadow-value", "LNT-059"},
@@ -103,8 +103,8 @@ std::string ruleForSlangDiag(slang::DiagCode code) {
         {diag::DirectionOnInterfacePort, "LNT-050"}, {diag::DirectionWithInterfacePort, "LNT-050"},
         {diag::InvalidModportAccess, "LNT-050"}, {diag::NotAllowedInModport, "LNT-050"},
         {diag::RefPortMustBeVariable, "LNT-050"}, {diag::WriteToInputClockVar, "LNT-050"},
-        // LNT-016: duplicate default etc. in case statements
-        {diag::MultipleDefaultCases, "LNT-016"}, {diag::CaseStatementEmpty, "LNT-016"},
+        // LNT-065: duplicate default and empty case statements
+        {diag::MultipleDefaultCases, "LNT-065"}, {diag::CaseStatementEmpty, "LNT-065"},
         // LNT-018 / LNT-038: constant evaluation facts slang proves
         {diag::StaticAssert, "LNT-018"},
         // LNT-006

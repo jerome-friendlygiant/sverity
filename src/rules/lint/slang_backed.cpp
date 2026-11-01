@@ -51,8 +51,9 @@ std::vector<std::unique_ptr<Rule>> makeSlangBackedRules() {
     full("LNT-017");   // slang case-enum / case-enum-explicit
     full("LNT-031");   // slang errors: illegal assignment targets
     full("LNT-050");   // slang errors: direction / modport misuse
-    full("LNT-004");   // slang width-*/implicit-conv diagnostics; parameter-dependent truncation is also LNT-057
-    full("LNT-005");   // slang sign-conversion/sign-compare
+    full("LNT-004");   // slang width-trunc/-expand and port-width-* diagnostics; parameter-dependent truncation is also LNT-057
+    full("LNT-005");   // slang sign-conversion/sign-compare/implicit-conv
+    full("LNT-065");   // slang case-default/-incomplete/-none/-not-wildcard/-wildcard-2state/-too-complex
     full("LNT-059");   // slang unused-import/-package-*, shadowing, duplicate-import
     part("STY-010", "slang unnamed-generate only; instance/generate naming policy not covered");
     return v;

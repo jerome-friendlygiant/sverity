@@ -31,7 +31,7 @@ using namespace slang::ast;
 
 namespace {
 
-constexpr uint32_t kMaxBits = 1024;          // wider symbols are collapsed to one node (fallback)
+constexpr uint32_t kMaxBits = 16384;         // wider symbols are collapsed to one node (recorded fallback); exact bit moves stay linear
 constexpr uint64_t kMaxEdgesPerAssign = 1u << 22;
 
 struct Path {
@@ -92,15 +92,121 @@ struct NodeKeyHash {
     }
 };
 
+// ---- operator classification (Edge::op / Edge::inv)
+struct OpInfo {
+    Op op = Op::None;
+    uint8_t inv = 0;
+    Branch br = Branch::None;
+};
+using OpMap = std::map<const ValueSymbol*, OpInfo>;
+
+void noteOp(OpMap& out, const ValueSymbol* sym, Op op, uint8_t inv, Branch br = Branch::None) {
+    auto [it, fresh] = out.emplace(sym, OpInfo{op, inv, br});
+    if (fresh) return;
+    if (it->second.op != op) it->second.op = Op::Other;
+    if (it->second.inv != inv) it->second.inv = 2;
+    if (it->second.br != br) it->second.br = Branch::None;
+}
+
+uint8_t flipInv(uint8_t i) { return i == 2 ? 2 : static_cast<uint8_t>(i ^ 1); }
+
+struct AnyRefs : ASTVisitor<AnyRefs, VisitFlags::AllGood> {
+    OpMap& out;
+    explicit AnyRefs(OpMap& o) : out(o) {}
+    void handle(const NamedValueExpression& e) { noteOp(out, &e.symbol, Op::Other, 2); }
+    void handle(const HierarchicalValueExpression& e) { noteOp(out, &e.symbol, Op::Other, 2); }
+};
+
+/// Records, for every variable referenced in `e`, the innermost operator around it and whether it arrives inverted.
+void classify(const Expression& e, Op parent, uint8_t inv, OpMap& out, Op anc = Op::None) {
+    switch (e.kind) {
+        case ExpressionKind::NamedValue: noteOp(out, &e.as<NamedValueExpression>().symbol, anc == Op::Other ? Op::Other : parent, anc == Op::Other ? 2 : inv); return;
+        case ExpressionKind::HierarchicalValue: noteOp(out, &e.as<HierarchicalValueExpression>().symbol, anc == Op::Other ? Op::Other : parent, anc == Op::Other ? 2 : inv); return;
+        case ExpressionKind::ElementSelect: {
+            auto& x = e.as<ElementSelectExpression>();
+            classify(x.value(), parent, inv, out, anc);
+            classify(x.selector(), Op::Select, 2, out, anc);
+            return;
+        }
+        case ExpressionKind::RangeSelect: {
+            auto& x = e.as<RangeSelectExpression>();
+            classify(x.value(), parent, inv, out, anc);
+            classify(x.left(), Op::Select, 2, out, anc);
+            classify(x.right(), Op::Select, 2, out, anc);
+            return;
+        }
+        case ExpressionKind::MemberAccess: classify(e.as<MemberAccessExpression>().value(), parent, inv, out, anc); return;
+        case ExpressionKind::Conversion: classify(e.as<ConversionExpression>().operand(), parent, inv, out, anc); return;
+        case ExpressionKind::Concatenation:
+            for (auto* op : e.as<ConcatenationExpression>().operands()) classify(*op, parent, inv, out, anc);
+            return;
+        case ExpressionKind::Replication: classify(e.as<ReplicationExpression>().concat(), parent, inv, out, anc); return;
+        case ExpressionKind::UnaryOp: {
+            auto& u = e.as<UnaryExpression>();
+            switch (u.op) {
+                case UnaryOperator::BitwiseNot:
+                case UnaryOperator::LogicalNot: classify(u.operand(), Op::Not, flipInv(inv), out, anc); return;
+                case UnaryOperator::BitwiseAnd: classify(u.operand(), Op::And, inv, out, anc); return;
+                case UnaryOperator::BitwiseNand: classify(u.operand(), Op::And, flipInv(inv), out, anc); return;
+                case UnaryOperator::BitwiseOr: classify(u.operand(), Op::Or, inv, out, anc); return;
+                case UnaryOperator::BitwiseNor: classify(u.operand(), Op::Or, flipInv(inv), out, anc); return;
+                case UnaryOperator::BitwiseXor: classify(u.operand(), Op::Xor, inv, out, anc); return;
+                case UnaryOperator::BitwiseXnor: classify(u.operand(), Op::Xor, flipInv(inv), out, anc); return;
+                case UnaryOperator::Plus: classify(u.operand(), parent, inv, out, anc); return;
+                default: classify(u.operand(), Op::Arith, 2, out, anc); return;
+            }
+        }
+        case ExpressionKind::BinaryOp: {
+            auto& b = e.as<BinaryExpression>();
+            Op op = Op::Other;
+            uint8_t i = inv;
+            switch (b.op) {
+                case BinaryOperator::BinaryAnd: case BinaryOperator::LogicalAnd: op = Op::And; break;
+                case BinaryOperator::BinaryOr: case BinaryOperator::LogicalOr: op = Op::Or; break;
+                case BinaryOperator::BinaryXor: op = Op::Xor; break;
+                case BinaryOperator::BinaryXnor: op = Op::Xor; i = flipInv(inv); break;
+                case BinaryOperator::Add: case BinaryOperator::Subtract: case BinaryOperator::Multiply:
+                case BinaryOperator::Divide: case BinaryOperator::Mod: case BinaryOperator::Power: op = Op::Arith; i = 2; break;
+                case BinaryOperator::LogicalShiftLeft: case BinaryOperator::LogicalShiftRight:
+                case BinaryOperator::ArithmeticShiftLeft: case BinaryOperator::ArithmeticShiftRight: op = Op::Shift; i = 2; break;
+                case BinaryOperator::Equality: case BinaryOperator::Inequality: case BinaryOperator::CaseEquality:
+                case BinaryOperator::CaseInequality: case BinaryOperator::WildcardEquality: case BinaryOperator::WildcardInequality:
+                case BinaryOperator::GreaterThanEqual: case BinaryOperator::GreaterThan: case BinaryOperator::LessThanEqual:
+                case BinaryOperator::LessThan: op = Op::Compare; i = 2; break;
+                default: op = Op::Other; i = 2; break;
+            }
+            Op nanc = anc;
+            if (op == Op::And || op == Op::Or) nanc = (anc == Op::None || anc == op) ? op : Op::Other;
+            classify(b.left(), op, i, out, nanc);
+            classify(b.right(), op, i, out, nanc);
+            return;
+        }
+        case ExpressionKind::ConditionalOp: {
+            auto& c = e.as<ConditionalExpression>();
+            for (auto& cond : c.conditions) classify(*cond.expr, Op::MuxSel, 2, out, anc);
+            classify(c.left(), Op::Mux, inv, out, anc);
+            classify(c.right(), Op::Mux, inv, out, anc);
+            return;
+        }
+        default: {
+            AnyRefs v(out);
+            e.visit(v);
+            return;
+        }
+    }
+}
+
 struct BitRef {
     const ValueSymbol* sym = nullptr;   // nullptr = constant bit
     uint32_t bit = 0;
+    char value = 0;                     // constant bit: '0' '1' 'x' 'z', 0 when not known
 };
 
 struct Assign {
     std::vector<Path> targets;
     std::vector<Path> dataReads;   // RHS (and compound-assignment target) reads
     std::vector<Path> ctrlReads;   // control-flow conditions + selector reads
+    OpMap dataOps, ctrlOps;        // operator context of each referenced variable (RHS / enclosing conditions)
     bool nonBlocking = false;
     bool pairsValid = false;       // dataReads are fully described by exact bit pairs below
     std::vector<std::pair<BitRef, BitRef>> pairs;   // (target bit, source bit or constant)
@@ -239,13 +345,25 @@ private:
         return static_cast<uint32_t>(m.procs.size() - 1);
     }
 
+    const OpMap* curData = nullptr;
+    const OpMap* curCtrl = nullptr;
+
     void addEdge(NodeId from, NodeId to, EdgeType t, uint32_t proc, bool exact, bool ctrl = false) {
         if (from == to) {
             if (t == EdgeType::Seq && !exact) m.selfLogic.insert(from);
             if (t == EdgeType::Comb && !exact) m.selfComb.emplace(from, proc);
             return;
         }
-        m.edges.push_back({from, to, t, exact, proc, ctrl});
+        Edge e{from, to, t, exact, proc, ctrl};
+        if (const OpMap* om = ctrl ? curCtrl : curData) {
+            auto it = om->find(m.nodes[from].sym);
+            if (it != om->end()) {
+                e.op = it->second.op;
+                e.inv = it->second.inv;
+                e.branch = it->second.br;
+            }
+        }
+        m.edges.push_back(e);
     }
 
     NodeId nodeForBit(const InstanceSymbol* ctx, const BitRef& b) {
@@ -280,8 +398,17 @@ private:
     void emitAssign(const InstanceSymbol* ctx, const Assign& a, const std::vector<Path>& targets, EdgeType type,
                     uint32_t proc, slang::SourceLocation loc, const std::set<NodeId>* skipReads = nullptr,
                     NodeId* /*unused*/ = nullptr) {
+        curData = &a.dataOps;
+        curCtrl = &a.ctrlOps;
+        struct Reset { Builder& b; ~Reset() { b.curData = b.curCtrl = nullptr; } } reset{*this};
         if (a.pairsValid) {
             for (auto& [t, src] : a.pairs) {
+                if (!src.sym && t.sym && src.value) {
+                    bool sel = false;
+                    for (auto& tp : targets) if (tp.sym == t.sym) sel = true;
+                    if (sel) m.constDrivers[nodeForBit(ctx, t)].push_back({src.value, type, proc});
+                    continue;
+                }
                 if (!src.sym || !t.sym) continue;
                 bool tsel = false;
                 for (auto& tp : targets) if (tp.sym == t.sym) tsel = true;
@@ -335,7 +462,7 @@ private:
             uint64_t ow = op.type ? op.type->getBitstreamWidth() : 0;
             if (!want || !ow || ow > want) return false;
             if (ow < want && op.type->isSigned()) return false;   // sign-extension replicates the MSB
-            for (uint64_t i = ow; i < want; i++) out.push_back({});
+            for (uint64_t i = ow; i < want; i++) out.push_back({nullptr, 0, '0'});   // zero extension
             return bitList(op, ec, out);
         }
         bool isConst = x->getConstant() != nullptr;
@@ -345,7 +472,16 @@ private:
             isConst = !x->eval(tmp).bad();
         }
         if (isConst) {
-            for (uint64_t i = 0; i < want; i++) out.push_back({});
+            EvalContext tmp(ec.astCtx);
+            ConstantValue cv = x->eval(tmp);
+            for (uint64_t i = 0; i < want; i++) {
+                BitRef b;
+                if (cv.isInteger() && want - 1 - i < cv.integer().getBitWidth()) {
+                    logic_t bit = cv.integer()[static_cast<int32_t>(want - 1 - i)];
+                    b.value = bit.value == 0 ? '0' : bit.value == 1 ? '1' : bit.value == logic_t::z.value ? 'z' : 'x';
+                }
+                out.push_back(b);
+            }
             return want != 0;
         }
         if (x->kind == ExpressionKind::Concatenation) {
@@ -372,30 +508,44 @@ private:
         EvalContext& ec;
         std::vector<Assign>& out;
         const InstanceSymbol* ctx;
-        std::vector<std::vector<Path>> control;
+        struct Ctl {
+            std::vector<Path> paths;
+            OpMap ops;
+            Branch br = Branch::None;
+        };
+        std::vector<Ctl> control;
 
         void addReads(const Expression& e, std::vector<Path>& dst) {
             for (auto& p : b.pathsOf(e, ec, false)) dst.push_back(p);
         }
-        void pushControl(const Expression& e) {
+        void pushControl(const Expression& e, Branch br = Branch::None) {
             control.emplace_back();
-            addReads(e, control.back());
+            addReads(e, control.back().paths);
+            classify(e, Op::None, 0, control.back().ops);
+            control.back().br = br;
         }
 
         void handle(const ConditionalStatement& s) {
             size_t depth = control.size();
-            for (auto& c : s.conditions) pushControl(*c.expr);
+            for (auto& c : s.conditions) pushControl(*c.expr, Branch::Taken);
             s.ifTrue.visit(*this);
-            if (s.ifFalse) s.ifFalse->visit(*this);
             control.resize(depth);
+            if (s.ifFalse) {
+                for (auto& c : s.conditions) pushControl(*c.expr, Branch::NotTaken);
+                s.ifFalse->visit(*this);
+                control.resize(depth);
+            }
         }
         void handle(const CaseStatement& s) {
             size_t depth = control.size();
             pushControl(s.expr);
+            for (auto& [sym, oi] : control.back().ops) { oi.op = Op::Compare; oi.inv = 2; }   // the selector is compared with the items
             // An arm executes only if no earlier arm matched: it depends on its own and all earlier item expressions.
             for (auto& g : s.items) {
-                for (auto* e : g.expressions) pushControl(*e);
+                size_t first = control.size();
+                for (auto* e : g.expressions) pushControl(*e, Branch::Taken);
                 g.stmt->visit(*this);
+                for (size_t k = first; k < control.size(); k++) control[k].br = Branch::NotTaken;   // later arms run only if this one did not match
             }
             if (s.defaultCase) s.defaultCase->visit(*this);
             control.resize(depth);
@@ -438,10 +588,14 @@ private:
             for (auto& p : all)
                 if (!std::binary_search(as.targets.begin(), as.targets.end(), p)) as.ctrlReads.push_back(p);
             for (auto& p : b.pathsOf(a.right(), ec, false)) as.dataReads.push_back(p);
+            classify(a.right(), Op::None, 0, as.dataOps);
             if (a.isCompound())
-                for (auto& t : as.targets) as.dataReads.push_back(t);
-            for (auto& c : control)
-                for (auto& p : c) as.ctrlReads.push_back(p);
+                for (auto& t : as.targets) { as.dataReads.push_back(t); noteOp(as.dataOps, t.sym, Op::Arith, 2); }
+            for (auto& p : as.ctrlReads) noteOp(as.ctrlOps, p.sym, Op::Select, 2);   // selector reads on the left-hand side
+            for (auto& c : control) {
+                for (auto& p : c.paths) as.ctrlReads.push_back(p);
+                for (auto& [sym, oi] : c.ops) noteOp(as.ctrlOps, sym, oi.op, oi.inv, c.br);
+            }
             if (!a.isCompound()) {
                 std::vector<BitRef> L, R;
                 if (b.bitList(a.left(), ec, L) && b.bitList(a.right(), ec, R) && L.size() == R.size() && !L.empty()) {
@@ -580,7 +734,7 @@ private:
             resetNodes.insert(ns[0]);
         }
         // value each asynchronous control forces on each register: constants assigned in the branch that tests that control
-        std::vector<std::map<const ValueSymbol*, int>> controlKinds(resets.size());
+        std::vector<std::map<const ValueSymbol*, std::string>> controlKinds(resets.size());   // per reset: symbol -> value per bit (LSB first)
         struct ConstAssigns : ASTVisitor<ConstAssigns, VisitFlags::AllGood> {
             std::vector<const AssignmentExpression*> v;
             void handle(const AssignmentExpression& a) { v.push_back(&a); visitDefault(a); }
@@ -594,13 +748,31 @@ private:
                 ConstAssigns ca;
                 c.ifTrue.visit(ca);
                 for (auto* a : ca.v) {
-                    auto* ref = a->left().getSymbolReference();
-                    auto* vs = ref ? ref->as_if<ValueSymbol>() : nullptr;
-                    if (!vs) continue;
+                    ValuePath vp(a->left(), ec);
+                    auto* vs = vp.rootSymbol();
+                    if (!vs || !isGraphSymbol(*vs)) continue;
+                    uint64_t w = std::max<uint64_t>(widthOf(*vs), 1);
+                    auto& bits = controlKinds[ri].try_emplace(vs, std::string(w, '\0')).first->second;   // '\0' = bit not assigned here
+                    uint64_t lo = 0, hi = w - 1;
+                    bool stat = false;
+                    if (vp.lsp) {
+                        lo = vp.lspBounds.first;
+                        hi = vp.lspBounds.second;
+                        if (lo > hi) std::swap(lo, hi);
+                        hi = std::min(hi, w - 1);
+                        lo = std::min(lo, hi);
+                        stat = vp.isFullyStatic();
+                    }
                     auto cv = a->right().eval(ec);
-                    int k = (cv.isInteger() && !cv.integer().hasUnknown()) ? (cv.integer() == 0 ? 0 : 1) : 2;
-                    auto [it, fresh] = controlKinds[ri].emplace(vs, k);
-                    if (!fresh && it->second != k) it->second = 2;
+                    for (uint64_t b = lo; b <= hi; b++) {
+                        char ch = '?';
+                        if (stat && cv.isInteger() && b - lo < cv.integer().getBitWidth()) {
+                            logic_t bit = cv.integer()[static_cast<int32_t>(b - lo)];
+                            ch = bit.value == 0 ? '0' : bit.value == 1 ? '1' : bit.value == logic_t::z.value ? 'z' : 'x';
+                        }
+                        if (bits[b] == '\0') bits[b] = ch;
+                        else if (bits[b] != ch) bits[b] = '?';
+                    }
                 }
             }
             cur = c.ifFalse ? firstMeaningful(c.ifFalse) : nullptr;
@@ -694,7 +866,19 @@ private:
             f.resets = resets;
             for (size_t ri = 0; ri < resets.size(); ri++) {
                 auto it = controlKinds[ri].find(m.nodes[q].sym);
-                f.resetKinds.push_back(it == controlKinds[ri].end() ? 2 : it->second);
+                char ch = 'n';   // 'n': this reset branch does not assign the bit
+                if (it != controlKinds[ri].end()) {
+                    const std::string& bits = it->second;
+                    uint32_t bit = m.nodes[q].bit;
+                    if (m.collapsed(q)) {   // one node stands for the whole vector: a value only if every bit agrees
+                        ch = bits.empty() ? 'n' : bits[0];
+                        for (char c : bits) if (c != ch) ch = '?';
+                    }
+                    else if (bit < bits.size()) ch = bits[bit];
+                    if (ch == '\0') ch = 'n';
+                }
+                f.resetValues.push_back(ch);
+                f.resetKinds.push_back(ch == '0' ? 0 : ch == '1' ? 1 : 2);
             }
             f.hasSyncResetCandidate = syncCand;
             f.syncActiveLow = syncLow;
@@ -849,44 +1033,130 @@ private:
             }
     }
 
-    /// A declared library synchroniser cell: its body is not walked; its output bits become registers on its clock port,
-    /// fed by the input port bits, counting `stages` flops in a synchroniser chain.
+    /// A declared library cell (--library). Its body is not walked; it is modelled by kind:
+    ///  synchronizer / flop: its output bits become registers on the declared clock (flop: optional asynchronous reset with value),
+    ///  clock_gate: the gated clock is an exact alias of the clock (clock tracing passes through) and the enable is recorded,
+    ///  ram: write and read clocks recorded, read data marked as RAM-driven,
+    ///  blackbox: ports with declared directions and roles; outputs are black-box driven.
     bool handleLibCell(const InstanceSymbol& ci, const InstanceSymbol* ctx) {
         auto it = design.libCells.find(std::string(ci.getDefinition().name));
         if (it == design.libCells.end()) return false;
         const LibCell& cell = it->second;
         EvalContext ec(ci);
-        std::vector<NodeId> in, out, clk;
+        auto declaredOut = [&](const std::string& pn) {
+            if (cell.kind == "synchronizer" || cell.kind == "flop" || cell.kind == "clock_gate") return pn == cell.output;
+            for (auto& p : cell.ports) if (p.name == pn) return p.dir != "in";
+            return false;
+        };
+        std::map<std::string, std::vector<NodeId>> conn;
         for (auto* pc : ci.getPortConnections()) {
             if (!pc || !pc->getExpression()) continue;
             std::string pn(pc->port.name);
-            std::vector<NodeId>* dst = pn == cell.input ? &in : pn == cell.output ? &out : pn == cell.clock ? &clk : nullptr;
-            if (!dst) continue;
-            for (auto& p : pathsOf(*pc->getExpression(), ec, pn == cell.output))
-                for (auto n : nodesFor(ctx, p)) dst->push_back(n);
+            for (auto& p : pathsOf(*pc->getExpression(), ec, declaredOut(pn)))
+                for (auto n : nodesFor(ctx, p)) conn[pn].push_back(n);
         }
-        if (in.empty() || out.empty() || clk.empty()) {
-            fallback("library-cell", "library cell '" + cell.name + "' instance '" + std::string(ci.name) + "' lacks a connection for its declared clock, input or output port; treated as a black box", ci.location);
+        auto get = [&](const std::string& pn) -> const std::vector<NodeId>& {
+            static const std::vector<NodeId> none;
+            auto f = conn.find(pn);
+            return f == conn.end() ? none : f->second;
+        };
+        auto roleOf = [](const std::string& r) {
+            if (r == "clock") return PortRole::Clock;
+            if (r == "reset") return PortRole::Reset;
+            if (r == "enable") return PortRole::Enable;
+            if (r == "data_in") return PortRole::DataIn;
+            if (r == "data_out") return PortRole::DataOut;
+            if (r == "address") return PortRole::Address;
+            if (r == "write_enable") return PortRole::WriteEnable;
+            if (r == "gated_clock") return PortRole::GatedClock;
+            return PortRole::Unknown;
+        };
+        auto dirOf = [](const std::string& d) { return d == "in" ? PortDir::In : d == "out" ? PortDir::Out : d == "inout" ? PortDir::InOut : PortDir::Unknown; };
+        std::vector<BlackBoxPort> ports;
+        auto addPort = [&](const std::string& name, PortDir d, PortRole r, const std::string& clk = {}) { ports.push_back({name, d, r, clk, get(name)}); };
+        const std::string& kind = cell.kind;
+        bool ok = true;
+        if (kind == "synchronizer" || kind == "flop") ok = !get(cell.input).empty() && !get(cell.output).empty() && !get(cell.clock).empty();
+        else if (kind == "clock_gate") ok = !get(cell.clock).empty() && !get(cell.enable).empty() && !get(cell.output).empty();
+        else if (kind == "ram") { ok = true; for (auto& p : cell.ports) ok = ok && !get(p.name).empty(); }
+        if (!ok) {
+            fallback("library-cell", "library cell '" + cell.name + "' instance '" + std::string(ci.name) + "' lacks a connection for a declared port; treated as a black box", ci.location);
             return false;
         }
-        uint32_t proc = addProc(ProcKind::Sequential, ci.location, &ci);
-        m.numSeqProcedures++;
-        for (size_t i = 0; i < out.size(); i++) {
-            NodeId q = out[i];
-            if (m.flopOfQ.count(q)) continue;
-            NodeId src = in.size() == out.size() ? in[i] : in[std::min(i, in.size() - 1)];
-            addEdge(src, q, EdgeType::Seq, proc, in.size() == out.size());
-            Flop f;
-            f.q = q;
-            f.proc = proc;
-            f.clockSignal = clk[0];
-            f.clockResolved = true;
-            f.edge = cell.edge;
-            f.extraStages = cell.stages - 1;
-            m.flopOfQ[q] = static_cast<uint32_t>(m.flops.size());
-            m.flops.push_back(std::move(f));
+        uint32_t proc = addProc(kind == "clock_gate" ? ProcKind::Continuous : ProcKind::Sequential, ci.location, &ci);
+        if (kind == "synchronizer" || kind == "flop") {
+            const auto &in = get(cell.input), &out = get(cell.output), &clk = get(cell.clock);
+            m.numSeqProcedures++;
+            for (size_t i = 0; i < out.size(); i++) {
+                NodeId q = out[i];
+                if (m.flopOfQ.count(q)) continue;
+                NodeId src = in.size() == out.size() ? in[i] : in[std::min(i, in.size() - 1)];
+                addEdge(src, q, EdgeType::Seq, proc, in.size() == out.size());
+                Flop f;
+                f.q = q;
+                f.proc = proc;
+                f.clockSignal = clk[0];
+                f.clockResolved = true;
+                f.edge = cell.edge;
+                f.extraStages = cell.stages - 1;
+                if (kind == "flop" && !cell.reset.empty() && !get(cell.reset).empty()) {
+                    ResetInfo ri;
+                    ri.signal = get(cell.reset)[0];
+                    ri.async = true;
+                    ri.activeLow = cell.resetActiveLow;
+                    ri.fromEdge = false;
+                    f.resets.push_back(ri);
+                    f.resetValues.push_back(cell.resetValue);
+                    f.resetKinds.push_back(cell.resetValue == '1' ? 1 : 0);
+                    addEdge(ri.signal, q, EdgeType::AsyncCtl, proc, false);
+                }
+                m.flopOfQ[q] = static_cast<uint32_t>(m.flops.size());
+                m.flops.push_back(std::move(f));
+            }
+            addPort(cell.clock, PortDir::In, PortRole::Clock);
+            addPort(cell.input, PortDir::In, PortRole::DataIn);
+            addPort(cell.output, PortDir::Out, PortRole::DataOut);
+            if (!cell.reset.empty()) addPort(cell.reset, PortDir::In, PortRole::Reset);
         }
-        m.libInstances.push_back({cell.name, ci.getHierarchicalPath(), cell.stages, toLoc(*sm, ci.location)});
+        else if (kind == "clock_gate") {
+            const auto &clk = get(cell.clock), &en = get(cell.enable), &out = get(cell.output);
+            for (auto o : out) addEdge(clk[0], o, EdgeType::Comb, proc, true);
+            m.clockGates.push_back({cell.name, ci.getHierarchicalPath(), clk, en, out, cell.enableLatched, toLoc(*sm, ci.location)});
+            addPort(cell.clock, PortDir::In, PortRole::Clock);
+            addPort(cell.enable, PortDir::In, PortRole::Enable);
+            addPort(cell.output, PortDir::Out, PortRole::GatedClock);
+        }
+        else if (kind == "ram") {
+            RamInst r;
+            r.module = cell.name;
+            r.hierarchy = ci.getHierarchicalPath();
+            r.writeClk = get(cell.writeClock);
+            r.readClk = get(cell.readClock);
+            r.syncRead = cell.syncRead;
+            r.loc = toLoc(*sm, ci.location);
+            for (auto& p : cell.ports) {
+                addPort(p.name, dirOf(p.dir), roleOf(p.role), p.clock);
+                if (p.dir != "in" && roleOf(p.role) == PortRole::DataOut)
+                    for (auto n : get(p.name)) pendingFlags.push_back({n, 5});
+            }
+            r.ports = ports;
+            m.rams.push_back(std::move(r));
+        }
+        else {   // blackbox with declared ports
+            BlackBoxInst bb;
+            bb.module = cell.name;
+            bb.hierarchy = ci.getHierarchicalPath();
+            bb.loc = toLoc(*sm, ci.location);
+            bb.declared = true;
+            for (auto& p : cell.ports) {
+                addPort(p.name, dirOf(p.dir), roleOf(p.role), p.clock);
+                if (p.dir != "in")
+                    for (auto n : get(p.name)) pendingFlags.push_back({n, 1});
+            }
+            bb.ports = ports;
+            m.blackBoxes.push_back(std::move(bb));
+        }
+        m.libInstances.push_back({cell.name, ci.getHierarchicalPath(), kind, cell.stages, toLoc(*sm, ci.location), ports});
         return true;
     }
 
@@ -895,18 +1165,27 @@ private:
         bb.module = std::string(ub.definitionName);
         bb.hierarchy = ub.getHierarchicalPath();
         bb.loc = toLoc(*sm, ub.location);
-        m.blackBoxes.push_back(bb);
         // The module is unknown: every connected signal may be driven by it. Mark them as black-box
         // driven (conservative) so clock/reset/data tracing reports BlackBox rather than inventing a driver.
         EvalContext ec(ub);
+        auto names = ub.getPortNames();
+        size_t idx = 0;
         for (auto* conn : ub.getPortConnections()) {
+            size_t i = idx++;
             if (!conn || conn->kind != AssertionExprKind::Simple) continue;
             const Expression& e = conn->as<SimpleAssertionExpr>().expr;
             const Expression* x = &e;
             if (x->kind == ExpressionKind::Assignment) x = &x->as<AssignmentExpression>().left();
+            BlackBoxPort port;
+            port.name = i < names.size() ? std::string(names[i]) : std::to_string(i);
             for (auto& p : pathsOf(*x, ec, true))
-                for (auto n : nodesFor(ctx, p)) pendingFlags.push_back({n, 1});
+                for (auto n : nodesFor(ctx, p)) {
+                    pendingFlags.push_back({n, 1});
+                    port.nodes.push_back(n);
+                }
+            bb.ports.push_back(std::move(port));
         }
+        m.blackBoxes.push_back(std::move(bb));
     }
 
     void connectPorts(const InstanceSymbol& ci, const InstanceSymbol* parent) {
@@ -952,7 +1231,11 @@ private:
                 if (actualIsSource) {
                     as.targets = {ip};
                     as.dataReads = actual;
+                    OpMap portOps;   // an actual such as ~rst_n arrives inverted at the formal
+                    classify(*act, Op::None, 0, portOps);
+                    curData = &portOps;
                     emitPortEdges(actCtx, fmCtx, as, proc, ci.location, true);
+                    curData = nullptr;
                 } else {
                     as.targets = actual;
                     as.dataReads = {ip};
@@ -1006,6 +1289,7 @@ public:
             if (f == 1) m.blackBoxDriven[n] = 1;
             if (f == 2) m.topInput[n] = 1;
             if (f == 3) m.topOutput[n] = 1;
+            if (f == 5) m.blackBoxDriven[n] = 2;
         }
     }
     friend std::unique_ptr<Model> buildModel(Design&);
@@ -1084,6 +1368,21 @@ void Model::finish() {
             f.domain = it->second;
         }
         for (auto& r : f.resets) r.root = traceRoot(r.signal);
+    }
+    // clocks of library RAMs are clock domains too (a RAM may be the only user of its clock)
+    auto domainOf = [&](const std::vector<NodeId>& clk) -> int64_t {
+        if (clk.empty()) return -1;
+        Root r = traceRoot(clk[0]);
+        auto it = domainOfRoot.find(r.node);
+        if (it == domainOfRoot.end()) {
+            it = domainOfRoot.emplace(r.node, static_cast<uint32_t>(domains.size())).first;
+            domains.push_back({r.node, r.kind, nameOf(r.node)});
+        }
+        return it->second;
+    };
+    for (auto& ram : rams) {
+        ram.writeDomain = domainOf(ram.writeClk);
+        ram.readDomain = domainOf(ram.readClk);
     }
 }
 

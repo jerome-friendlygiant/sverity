@@ -22,8 +22,11 @@ public:
     explicit ConeFinder(const Model& m) : m_(m), s0_(m.nodes.size(), 0), s1_(m.nodes.size(), 0) {}
     /// Fan-in cone of register `d` (control and data edges, through combinational logic, stopping at registers).
     Cone of(const Flop& d);
+    /// Fan-in cone of arbitrary nets (for example the nets wired to an input of a black box).
+    Cone ofNodes(const std::vector<NodeId>& nets);
 
 private:
+    Cone walk(std::vector<std::pair<NodeId, bool>> seeds, NodeId self);
     const Model& m_;
     std::vector<uint32_t> s0_, s1_;
     uint32_t gen_ = 0;

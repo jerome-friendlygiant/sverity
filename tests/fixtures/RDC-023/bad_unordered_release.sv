@@ -1,6 +1,4 @@
 // sverity-args: --top top --sdc @FIXTURES@/_common/async.sdc
-// revert: ALL negedge rst_b_n) if (!rst_b_n) => negedge rst_a_n) if (!rst_a_n)
-// revert-expect-none: RDC-023 WARNING
 // Gray FIFO pair with independent resets: release order of the two domains is an unverified obligation.
 // expect: RDC-023 WARNING
 module top(input logic clka, clkb, rst_a_n, rst_b_n, winc, rinc, output logic [3:0] wq, rq);

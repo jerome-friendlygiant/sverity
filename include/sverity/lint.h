@@ -11,7 +11,10 @@
 #include "slang/ast/ASTVisitor.h"
 #include "slang/ast/ASTContext.h"
 #include "slang/ast/Compilation.h"
+#include "slang/ast/symbols/InstanceSymbols.h"
 #include "slang/ast/expressions/AssignmentExpressions.h"
+#include "slang/ast/expressions/ConversionExpression.h"
+#include "slang/ast/expressions/OperatorExpressions.h"
 #include "slang/ast/EvalContext.h"
 #include "slang/syntax/SyntaxTree.h"
 #include "slang/text/SourceManager.h"
@@ -148,6 +151,33 @@ inline bool isModuleLevel(const slang::ast::Symbol& s) {
     auto k = sc->asSymbol().kind;
     return k == slang::ast::SymbolKind::InstanceBody || k == slang::ast::SymbolKind::GenerateBlock ||
            k == slang::ast::SymbolKind::CompilationUnit || k == slang::ast::SymbolKind::Package;
+}
+
+/// The instance body (module, interface, program) that encloses a symbol; null at compilation-unit level.
+inline const slang::ast::InstanceBodySymbol* enclosingBody(const slang::ast::Symbol& s) {
+    for (const slang::ast::Scope* sc = s.getParentScope(); sc; sc = sc->asSymbol().getParentScope())
+        if (sc->asSymbol().kind == slang::ast::SymbolKind::InstanceBody) return &sc->asSymbol().as<slang::ast::InstanceBodySymbol>();
+    return nullptr;
+}
+
+/// Root symbols written by an assignment target: a variable, a select or member of one, or every operand of a concatenation.
+inline void lvalueSymbols(const slang::ast::Expression& e, std::vector<const slang::ast::Symbol*>& out) {
+    using slang::ast::ExpressionKind;
+    switch (e.kind) {
+        case ExpressionKind::Concatenation:
+            for (auto* op : e.as<slang::ast::ConcatenationExpression>().operands()) lvalueSymbols(*op, out);
+            return;
+        case ExpressionKind::Conversion:
+            lvalueSymbols(e.as<slang::ast::ConversionExpression>().operand(), out);
+            return;
+        default:
+            if (auto* s = e.getSymbolReference()) out.push_back(s);
+    }
+}
+inline std::vector<const slang::ast::Symbol*> lvalueSymbols(const slang::ast::Expression& e) {
+    std::vector<const slang::ast::Symbol*> v;
+    lvalueSymbols(e, v);
+    return v;
 }
 
 /// Every assignment expression under a node (statements, expressions, continuous assigns).

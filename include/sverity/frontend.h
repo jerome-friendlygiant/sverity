@@ -16,13 +16,32 @@ namespace sverity::model { class Model; }
 
 namespace sverity {
 
-/// A library cell the user declares (--library JSON): an elaborated module (sim model or stub) that the analysis treats as a
-/// synchroniser of `stages` flops on `edge` of its `clock` port instead of looking at its body. The format is technology
-/// neutral: it names modules and ports only. {"cells":[{"name":"SYNC2","kind":"synchronizer","clock":"CLK","input":"D","output":"Q","stages":2}]}
+/// A port of a declared library cell: direction (in | out | inout) and role (clock | reset | enable | data_in | data_out |
+/// address | write_enable | gated_clock). Roles are what analyses need; nothing technology specific is encoded.
+/// "clock" names the clock port this port is synchronous to (ram / blackbox); a data port without one is unresolved for crossing checks.
+struct LibPort {
+    std::string name, dir, role, clock;
+};
+
+/// A library cell the user declares (--library JSON): an elaborated module (sim model or stub) whose body the analysis does not read;
+/// it is modelled by its declared kind instead. Technology neutral: the format names modules and ports only (ASIC and FPGA share it).
+///   synchronizer  `stages` flops in a chain on `clock` (input -> output)           {"kind":"synchronizer","clock","input","output","stages"}
+///   flop          one register: clock, input, output, optional asynchronous reset  {"kind":"flop",...,"reset","reset_active":"low|high","reset_value":0|1}
+///   clock_gate    output = clock gated by `enable`; "enable_latched": true when the enable is captured glitch-free inside the cell
+///   ram           storage written on `write_clock`, read on `read_clock` (or asynchronously when "sync_read": false); roles in "ports"
+///   blackbox      any other cell: port directions and roles in "ports" (unknown cells stay unresolved black boxes)
+/// Example: {"cells":[{"name":"SYNC2","kind":"synchronizer","clock":"CLK","input":"D","output":"Q","stages":2}]}
 struct LibCell {
     std::string name, kind = "synchronizer", clock, input, output;
     int stages = 2;
     int edge = 1;   // 1 posedge, 2 negedge
+    std::string enable, reset;            // clock_gate enable port; flop asynchronous reset port
+    bool resetActiveLow = true;
+    char resetValue = '0';                // value the flop takes while reset is asserted
+    bool enableLatched = false;           // clock_gate: enable is captured by a latch inside the cell
+    std::string writeClock, readClock;    // ram
+    bool syncRead = true;                 // ram: read data is registered on readClock
+    std::vector<LibPort> ports;           // ram / blackbox: declared ports
 };
 
 /// One elaborated design: slang driver + compilation + slang's driver/dataflow analysis.

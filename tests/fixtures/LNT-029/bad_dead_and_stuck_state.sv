@@ -1,6 +1,6 @@
 // sverity-args: --top top
 // expect: LNT-029 WARNING
-// expect: LNT-029 INFO
+// expect: LNT-071 WARNING
 module top(input logic clk, rst_n, go, output logic busy);
   typedef enum logic [1:0] {IDLE, RUN, STUCK, NEVER} st_t;
   st_t st, nx;

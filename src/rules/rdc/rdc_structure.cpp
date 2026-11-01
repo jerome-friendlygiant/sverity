@@ -41,6 +41,21 @@ void RdcShared::structure(RuleContext& ctx) {
     std::set<NodeId> resetRoots;
     for (auto& [n, u] : usersOf) resetRoots.insert(n);
 
+    // --- registers with an asynchronous reset but no identified clock are skipped by the clock-domain based reset checks below:
+    // say so, never leave them without a finding (the clock itself is CDC-001 / CST-004)
+    {
+        std::set<std::string> seenUnidentified;
+        for (auto& f : m_->flops) {
+            if (f.clockResolved || f.resets.empty() || !seenUnidentified.insert(stripBit(flopName(f))).second) continue;
+            evaluated["RDC-003"]++;
+            Diagnostic d = mk("RDC-003", Severity::Warning, "register " + stripBit(flopName(f)) + " has an asynchronous reset but no identified clock: reset deassertion synchronisation and reset-domain crossings "
+                              "for it are unresolved", procLoc(f).loc, procLoc(f).instancePath, Confidence::Unresolved);
+            d.signals = {stripBit(flopName(f))};
+            add(std::move(d));
+            ctx.report.markIncomplete("reset-extraction", "register " + stripBit(flopName(f)) + " has a reset but no identified clock");
+        }
+    }
+
     // --- RDC-004 / RDC-005: data leaving a register that can be reset asynchronously into one that is not reset by the same source
     std::set<std::string> done;
     for (uint32_t di = 0; di < m_->flops.size(); di++) {
@@ -152,10 +167,33 @@ void RdcShared::structure(RuleContext& ctx) {
             evaluated["RDC-008"]++;
             std::string l;
             for (auto n : resetLeaves) l += (l.empty() ? "" : ", ") + stripBit(m_->nameOf(n));
-            Diagnostic d = mk("RDC-008", Severity::Warning, "reset " + rname + " is a logic combination of " + std::to_string(resetLeaves.size()) + " resets [" + l +
-                              "]: it asserts when any asserts and releases only after the last releases (reconvergent reset topology)",
-                              procLoc(u0).loc, procLoc(u0).instancePath, Confidence::Heuristic);
+            // How the sources combine: read the operator of the edges into the reset net (Edge::op / inv) and the polarity the users
+            // reset on. Sources are assumed to have the net's polarity (flagged in the evidence); only And/Or with true-polarity inputs
+            // are classified, anything else stays an unclassified combination.
+            bool rootLow = false, polKnown = false;
+            for (auto ui : users)
+                for (auto& r : m_->flops[ui].resets)
+                    if (m_->aliasRoot(r.signal) == root) { rootLow = r.activeLow; polKnown = true; }
+            int ands = 0, ors = 0, other = 0;
+            std::set<NodeId> srcs;
+            for (auto ei : m_->in[root]) {
+                const Edge& e = m_->edges[ei];
+                if (e.type != EdgeType::Comb) continue;
+                srcs.insert(e.from);
+                if (e.op == Op::And && e.inv == 0) ands++;
+                else if (e.op == Op::Or && e.inv == 0) ors++;
+                else other++;
+            }
+            bool classified = polKnown && srcs.size() >= 2 && other == 0 && (ands == 0) != (ors == 0);
+            bool assertsOnAny = classified && ((rootLow && ands) || (!rootLow && ors));
+            std::string how = !classified ? "the operators combining them are not classified (not a plain AND/OR of true-polarity sources)"
+                            : assertsOnAny ? "it asserts when any source asserts and releases only after the last releases (reconvergent release)"
+                                           : "it asserts only while all sources assert and releases as soon as any releases (conditional reset: a partial assertion does not reset)";
+            Diagnostic d = mk("RDC-008", Severity::Warning, "reset " + rname + " is a logic combination of " + std::to_string(resetLeaves.size()) + " resets [" + l + "]: " + how,
+                              procLoc(u0).loc, procLoc(u0).instancePath, classified ? Confidence::Heuristic : Confidence::Unresolved);
             d.signals = {rname};
+            d.evidence.push_back({"combination", !classified ? "unclassified" : assertsOnAny ? "assert-on-any" : "assert-on-all", {}});
+            if (classified) d.evidence.push_back({"assumption", std::string("sources have the same polarity as ") + rname + " (" + (rootLow ? "active low" : "active high") + ")", {}});
             add(std::move(d));
         } else if (!dataLeaves.empty()) {
             evaluated["RDC-009"]++;
@@ -266,47 +304,35 @@ void RdcShared::structure(RuleContext& ctx) {
 
     // --- RDC-026: more than one asynchronous control on one register. Set + clear is a real conflict (simultaneous assertion has
     // no defined value; the if/else-if order is the priority); several controls forcing the same value are power-on/functional resets.
-    done.clear();
+    // judged per register bit and reported once per register: one bit set by one control and cleared by another is the conflict
+    struct Multi { const Flop* first = nullptr; bool conflict = false, unknown = false; };
+    std::map<std::string, Multi> multi;
     for (auto& f : m_->flops) {
         if (f.resets.size() < 2) continue;
-        std::string key = stripBit(flopName(f));
-        if (!done.insert(key).second) continue;
+        auto& mu = multi[stripBit(flopName(f))];
+        if (!mu.first) mu.first = &f;
+        bool clear = false, set = false;
+        for (auto k : f.resetKinds) { clear = clear || k == 0; set = set || k == 1; mu.unknown = mu.unknown || k == 2; }
+        mu.conflict = mu.conflict || (clear && set);
+    }
+    for (auto& [key, mu] : multi) {
+        const Flop& f = *mu.first;
         evaluated["RDC-026"]++;
-        bool clear = false, set = false, unknown = false;
-        for (auto k : f.resetKinds) { clear = clear || k == 0; set = set || k == 1; unknown = unknown || k == 2; }
+        bool conflict = mu.conflict, unknown = mu.unknown;
         std::string l;
         for (size_t i = 0; i < f.resets.size(); i++)
             l += (l.empty() ? "" : ", ") + stripBit(m_->nameOf(f.resets[i].root.node)) + (f.resets[i].activeLow ? " (negedge" : " (posedge") +
                  (i < f.resetKinds.size() ? (f.resetKinds[i] == 0 ? ", clears)" : f.resetKinds[i] == 1 ? ", sets)" : ")") : ")");
-        bool conflict = clear && set;
         Diagnostic d = mk("RDC-026", conflict ? Severity::Warning : unknown ? Severity::Warning : Severity::Info,
                           "register " + key + " has " + std::to_string(f.resets.size()) + " asynchronous controls [" + l + "]: " +
-                          (conflict ? "it is both asynchronously set and cleared, so simultaneous assertion has no defined value (priority = if/else-if order) and releasing them together is a race"
+                          (conflict ? "a bit is both asynchronously set and cleared, so simultaneous assertion has no defined value (priority = if/else-if order) and releasing them together is a race"
                            : unknown ? "the value each control forces is not constant, so priority and simultaneous assertion cannot be judged"
-                                     : "all controls force the same value (power-on and functional resets); their scenarios are not modelled"),
+                                     : "all controls force the same value for every bit (power-on and functional resets); their scenarios are not modelled"),
                           procLoc(f).loc, procLoc(f).instancePath, conflict ? Confidence::Established : unknown ? Confidence::Unresolved : Confidence::Heuristic);
         d.signals = {key};
-        d.proofState = ProofState::NotAttempted;
+        if (conflict || unknown) d.proofState = ProofState::NotAttempted;
         add(std::move(d));
         if (unknown) ctx.report.markIncomplete("reset-extraction", "register " + key + " has several asynchronous controls of unknown value");
-    }
-
-    // --- RDC-019 (continued): one reset net acting as asynchronous clear on some registers and as asynchronous set on others
-    for (auto& [root, users] : usersOf) {
-        bool clear = false, set = false;
-        for (auto u : users)
-            for (size_t i = 0; i < m_->flops[u].resets.size(); i++)
-                if (m_->flops[u].resets[i].root.node == root && i < m_->flops[u].resetKinds.size()) {
-                    clear = clear || m_->flops[u].resetKinds[i] == 0;
-                    set = set || m_->flops[u].resetKinds[i] == 1;
-                }
-        if (!(clear && set)) continue;
-        evaluated["RDC-019"]++;
-        const Flop& u0 = m_->flops[users[0]];
-        Diagnostic d = mk("RDC-019", Severity::Warning, "reset " + stripBit(m_->nameOf(root)) + " acts as an asynchronous clear on some registers and as an asynchronous set on others: after release the two groups start from opposite values",
-                          procLoc(u0).loc, procLoc(u0).instancePath, Confidence::Established);
-        d.signals = {stripBit(m_->nameOf(root))};
-        add(std::move(d));
     }
 
     // --- RDC-025: primary outputs that depend on registers without any reset
@@ -376,11 +402,18 @@ void RdcShared::structure(RuleContext& ctx) {
             if (n != root && (m_->flopOfQ.count(n) || (n < m_->topInput.size() && m_->topInput[n]))) { leaves.push_back(n); continue; }
             for (auto ei : m_->in[n]) { const Edge& e = m_->edges[ei]; if (e.type == EdgeType::Comb) { logic = logic || !e.exact; if (seen.insert(e.from).second) st.push_back(e.from); } }
         }
-        if (leaves.size() == 1 && logic) {
+        // a reset that is the inverted copy of one source: the polarity changes across the hierarchy (a gated or combined reset is RDC-008/009)
+        bool inverted = false, plain = true;
+        for (auto ei : m_->in[root]) {
+            const Edge& e = m_->edges[ei];
+            if (e.type != EdgeType::Comb) continue;
+            if (e.inv == 1) inverted = true; else plain = false;
+        }
+        if (leaves.size() == 1 && logic && inverted && plain) {
             evaluated["RDC-028"]++;
             const Flop& u0 = m_->flops[users[0]];
-            Diagnostic d = mk("RDC-028", Severity::Info, "reset " + stripBit(m_->nameOf(root)) + " is a logic function (inversion or gating) of " + stripBit(m_->nameOf(leaves[0])) +
-                              ": verify polarity and that the synchronisation of the source is preserved across the hierarchy", procLoc(u0).loc, procLoc(u0).instancePath, Confidence::Heuristic);
+            Diagnostic d = mk("RDC-028", Severity::Info, "reset " + stripBit(m_->nameOf(root)) + " is the inverted copy of " + stripBit(m_->nameOf(leaves[0])) +
+                              ": its polarity differs from its source; verify the receiving blocks assume the inverted polarity", procLoc(u0).loc, procLoc(u0).instancePath, Confidence::Heuristic);
             d.signals = {stripBit(m_->nameOf(root))};
             add(std::move(d));
         }
@@ -415,7 +448,7 @@ void RdcShared::structure(RuleContext& ctx) {
             add(std::move(d));
             ctx.report.markIncomplete("reset-extraction", "reset sequencing between " + std::to_string(sources.size()) + " reset sources is not modelled");
         }
-        for (const char* id : {"RDC-012", "RDC-029"}) {
+        for (const char* id : {"RDC-012"}) {
             evaluated[id]++;
             Diagnostic d = mk(id, Severity::Warning, "no power intent (UPF/CPF) is supported or supplied: retention, isolation and power-domain reset rules are not evaluated",
                               {}, {}, Confidence::Unresolved);

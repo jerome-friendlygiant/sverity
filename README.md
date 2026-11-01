@@ -4,11 +4,10 @@ An open-source, offline SystemVerilog analyzer for **lint, CDC and RDC**, built 
 [slang](https://github.com/MikePopoloski/slang) (C++20 CLI + embeddable library). The long-term aim is a transparent,
 community-maintained rule deck where nothing is silently hidden and *unknown is never reported as safe*.
 
-**Status: early development, not validated.** Docs: [docs/SVerity_RFC.md](docs/SVerity_RFC.md) (the specification, with its
-open issues), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (code map and how to add a rule), [docs/rules/](docs/rules/) (the candidate rule catalog: `catalog.json` plus a table per family).
+**Status: early development, not validated.** Docs: [docs/SVerity_RFC.md](docs/SVerity_RFC.md) (the specification and its open issues),
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (design decisions), [docs/rules/](docs/rules/) (`catalog.json` plus a table and spec per family).
 
-Per-rule implementation state (executed / partial with its stated gap / not implemented): `sverity --list-rules` and the
-`status`/`gap` fields of `docs/rules/catalog.json`.
+Per-rule state (executed / partial with its stated gap / not implemented): `sverity --list-rules`. Library cells (`--library`): kinds in `include/sverity/frontend.h`.
 
 ## Build
 
@@ -33,9 +32,16 @@ Unrecognised options go to slang (`-f`, `-D`, `-I`, `--top`, ...). Exit code is 
 
 ## Extending
 
-Add a rule by deriving from `sverity::lint::LintRule` (AST rules, see `src/rules/lint/lint_procedural.cpp`) or `sverity::Rule` (model-based) and
-registering it with `sverity::registerRule()` (embedders) or one line in `src/rules/registry.cpp` (built-in). Specify it in `docs/rules/<FAMILY>.md`
-and give it fixtures in `tests/fixtures/<RULE-ID>/` (annotated SystemVerilog; no C++ needed).
+A built-in rule is an AST rule (`sverity::lint::LintRule`, one class and one `ASTVisitor`; see `src/rules/lint/lint_procedural.cpp`), a rule on the
+procedure analysis (`src/rules/lint/lint_dataflow.cpp`) or a model-based `sverity::Rule`; register it with one line in its family factory
+(`src/rules/registry.cpp` lists them). Embedders register their own with `sverity::registerRule()` (a rule outside the catalog is listed as `custom`).
+In one commit:
+
+1. the entry in `docs/rules/catalog.json` and its row in `docs/rules/<FAMILY>.md` (titles must match), `status: implemented` only if the whole
+   title is covered, otherwise a `gap`; the unit tests check catalog, docs and the registered rules agree;
+2. the rule's spec block in the family doc: trigger, exemptions, severity, unknown outcome;
+3. fixtures in `tests/fixtures/<RULE-ID>/` (annotated SystemVerilog, no C++; format at the top of `tests/unit/fixture_runner.cpp`): good, bad, boundary,
+   hierarchy/unknown, and for CDC/RDC a mutation (`// revert:`).
 
 ## Acknowledgements
 

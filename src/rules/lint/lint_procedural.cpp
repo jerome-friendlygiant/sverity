@@ -53,37 +53,40 @@ Style styleOf(const ProceduralBlockSymbol& p) {
 }
 
 // ---------------------------------------------------------------------------------------------------------------
-// LNT-015: blocking/nonblocking policy. Sequential blocks use <= for module-level state, combinational blocks use =,
-// and one variable is never assigned with both kinds.
+// LNT-015 blocking write to state in a clocked block / LNT-062 nonblocking write in a combinational block /
+// LNT-063 one variable written with both styles. One walk, three rules (each instance reports only its own kind).
 class AssignStyleRule final : public LintRule {
 public:
-    AssignStyleRule() : LintRule("LNT-015") {}
+    enum Kind { BlockingInSeq, NonblockingInComb, Mixed };
+    explicit AssignStyleRule(Kind k) : LintRule(k == BlockingInSeq ? "LNT-015" : k == NonblockingInComb ? "LNT-062" : "LNT-063"), kind_(k) {}
 
 private:
+    Kind kind_;
     struct Kinds { bool blocking = false, nonblocking = false; slang::SourceLocation firstLoc; const Symbol* sym = nullptr; };
     struct V : ASTVisitor<V, VisitFlags::AllCanonical> {
         Lint& l;
+        Kind kind;
         std::map<const Symbol*, Kinds> kinds;
-        explicit V(Lint& lint) : l(lint) {}
+        V(Lint& lint, Kind k) : l(lint), kind(k) {}
         void handle(const ProceduralBlockSymbol& p) {
             if (l.isUser(p.location)) {
                 Style st = styleOf(p);
                 Assigns c;
                 p.getBody().visit(c);
-                for (auto* a : c.list) {
-                    auto* sym = a->left().getSymbolReference();
-                    if (!sym || !isModuleLevel(*sym)) continue;   // block-local temporaries may use either style
+                for (auto* a : c.list)
+                  for (auto* sym : lvalueSymbols(a->left())) {   // a concatenation target writes every operand
+                    if (!isModuleLevel(*sym)) continue;   // block-local temporaries may use either style
                     l.count();
                     auto& k = kinds[sym];
                     k.sym = sym;
                     (a->isNonBlocking() ? k.nonblocking : k.blocking) = true;
                     if (!k.firstLoc.valid()) k.firstLoc = a->sourceRange.start();
-                    if (st == Style::Sequential && !a->isNonBlocking())
+                    if (kind == BlockingInSeq && st == Style::Sequential && !a->isNonBlocking())
                         l.report(a->sourceRange.start(),
                                  "blocking assignment to '" + std::string(sym->name) + "' in a sequential block",
                                  {.nextStep = "Use '<=' for state updated on a clock edge (avoids simulation races).",
                                   .hierarchy = p.getHierarchicalPath(), .signals = {std::string(sym->name)}});
-                    else if (st == Style::Combinational && a->isNonBlocking())
+                    else if (kind == NonblockingInComb && st == Style::Combinational && a->isNonBlocking())
                         l.report(a->sourceRange.start(),
                                  "nonblocking assignment to '" + std::string(sym->name) + "' in a combinational block",
                                  {.nextStep = "Use '=' in combinational logic.",
@@ -94,33 +97,37 @@ private:
         }
     };
     void check(Lint& l) override {
-        V v(l);
+        V v(l, kind_);
         l.compilation().getRoot().visit(v);
-        for (auto& [sym, k] : v.kinds)
-            if (k.blocking && k.nonblocking)
-                l.report(k.firstLoc, "'" + std::string(sym->name) + "' is assigned with both blocking and nonblocking assignments",
-                         {.nextStep = "Pick one assignment style per variable.", .hierarchy = sym->getHierarchicalPath(),
-                          .signals = {std::string(sym->name)}});
+        if (kind_ == Mixed)
+            for (auto& [sym, k] : v.kinds)
+                if (k.blocking && k.nonblocking)
+                    l.report(k.firstLoc, "'" + std::string(sym->name) + "' is assigned with both blocking and nonblocking assignments",
+                             {.nextStep = "Pick one assignment style per variable.", .hierarchy = sym->getHierarchicalPath(),
+                              .signals = {std::string(sym->name)}});
     }
 };
 
 // ---------------------------------------------------------------------------------------------------------------
-// LNT-016: casex, all-wildcard items, and (via slang) missing default / incomplete case / unknown-bit items.
+// LNT-016 casex statement / LNT-064 casez or casex item whose bits are all wildcards.
 class CaseWildcardRule final : public LintRule {
 public:
-    CaseWildcardRule() : LintRule("LNT-016", "", true) {}
+    enum Kind { CasexStatement, AllWildcardItem };
+    explicit CaseWildcardRule(Kind k) : LintRule(k == CasexStatement ? "LNT-016" : "LNT-064"), kind_(k) {}
 
 private:
+    Kind kind_;
     struct V : ASTVisitor<V, VisitFlags::AllCanonical> {
         Lint& l;
-        explicit V(Lint& lint) : l(lint) {}
+        Kind kind;
+        V(Lint& lint, Kind k) : l(lint), kind(k) {}
         void handle(const CaseStatement& c) {
             if (l.isUser(c.sourceRange.start())) {
                 l.count();
-                if (c.condition == CaseStatementCondition::WildcardXOrZ)
+                if (kind == CasexStatement && c.condition == CaseStatementCondition::WildcardXOrZ)
                     l.report(c.sourceRange.start(), "casex treats X and Z in the case expression as wildcards",
                              {.nextStep = "Use casez with '?' wildcards in the items, or 'case ... inside'; casex hides X propagation bugs."});
-                if (c.condition != CaseStatementCondition::Normal)
+                if (kind == AllWildcardItem && c.condition != CaseStatementCondition::Normal)
                     for (auto& g : c.items)
                         for (auto* e : g.expressions)
                             if (auto cv = l.evalConst(*e); cv.isInteger()) {
@@ -135,15 +142,20 @@ private:
             visitDefault(c);
         }
     };
-    void check(Lint& l) override { visitDesign<V>(l); }
+    void check(Lint& l) override {
+        V v(l, kind_);
+        l.compilation().getRoot().visit(v);
+    }
 };
 
 } // namespace
 
 std::vector<std::unique_ptr<Rule>> makeLintProceduralRules() {
     std::vector<std::unique_ptr<Rule>> v;
-    v.push_back(std::make_unique<AssignStyleRule>());
-    v.push_back(std::make_unique<CaseWildcardRule>());
+    for (auto k : {AssignStyleRule::BlockingInSeq, AssignStyleRule::NonblockingInComb, AssignStyleRule::Mixed})
+        v.push_back(std::make_unique<AssignStyleRule>(k));
+    for (auto k : {CaseWildcardRule::CasexStatement, CaseWildcardRule::AllWildcardItem})
+        v.push_back(std::make_unique<CaseWildcardRule>(k));
     return v;
 }
 

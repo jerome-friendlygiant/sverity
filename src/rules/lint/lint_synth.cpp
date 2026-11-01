@@ -11,6 +11,7 @@
 #include "rules/rules.h"
 #include "slang/ast/symbols/ParameterSymbols.h"
 #include "slang/ast/statements/MiscStatements.h"
+#include "domains/model.h"
 #include "sverity/lint.h"
 #include "slang/analysis/AnalysisManager.h"
 #include "slang/analysis/ValueDriver.h"
@@ -146,16 +147,6 @@ bool isPlain(const Expression& e0) {
         case ExpressionKind::MemberAccess: return isPlain(e.as<MemberAccessExpression>().value());
         default: return false;
     }
-}
-
-/// The instance body (module, interface, program) that encloses a symbol.
-const Symbol* enclosingBody(const Symbol& s) {
-    const Symbol* cur = &s;
-    while (cur && cur->kind != SymbolKind::InstanceBody) {
-        auto* sc = cur->getParentScope();
-        cur = sc ? &sc->asSymbol() : nullptr;
-    }
-    return cur;
 }
 
 std::string lowerName(const Symbol* s) {
@@ -645,21 +636,51 @@ private:
 };
 
 // ---------------------------------------------------------------------------------------------------------------
-// LNT-020: reset-only registers (assigned only in the reset branch), registers with no reset value (assigned only
-// outside the reset branch), and always_ff blocks with no reset in a module whose other always_ff blocks reset.
+// LNT-020 reset-only registers (assigned only in the reset branch), LNT-067 registers with no reset value (assigned only
+// outside the reset branch), LNT-068 always_ff blocks with no reset in a module whose other always_ff blocks reset.
 class ResetCodingRule final : public LintRule {
 public:
-    ResetCodingRule()
-        : LintRule("LNT-020", "missing-reset detection is relative to the other always_ff blocks of the same module; no per-register reset specification") {}
+    enum Kind { ResetOnly, NoResetValue, NoResetBlock };
+    explicit ResetCodingRule(Kind k) : LintRule(k == ResetOnly ? "LNT-020" : k == NoResetValue ? "LNT-067" : "LNT-068"), kind_(k) {}
 
 private:
+    Kind kind_;
+    // Bit-precise complement of the statement-level check, from the model's per-bit reset values: bits that no asynchronous reset branch
+    // assigns although other bits of the register get a value, and registers of blocks with several asynchronous controls.
+    void modelNoResetValue(Lint& l) {
+        auto& m = model::getModel(l.context().design);
+        struct Sym { std::set<uint32_t> missing, having; const model::Flop* first = nullptr; bool multi = false; };
+        std::map<std::string, Sym> syms;
+        for (auto& f : m.flops) {
+            if (f.resets.empty() || !m.nodes[f.q].sym || !l.isUser(m.nodes[f.q].sym->location)) continue;
+            std::string name = m.nameOf(f.q);
+            if (auto b = name.rfind('['); b != std::string::npos && name.back() == ']') name.resize(b);
+            auto& s = syms[name];
+            if (!s.first) s.first = &f;
+            s.multi = s.multi || f.resets.size() >= 2;
+            bool has = false;
+            for (char ch : f.resetValues) has = has || ch != 'n';
+            (has ? s.having : s.missing).insert(m.nodes[f.q].bit);
+        }
+        for (auto& [name, s] : syms) {
+            if (s.missing.empty() || !(s.multi || !s.having.empty())) continue;   // a register with no reset value at all is the statement-level check
+            std::string bits;
+            for (auto it = s.missing.begin(); it != s.missing.end();) {
+                auto lo = *it, hi = lo;
+                for (++it; it != s.missing.end() && *it == hi + 1; ++it) hi = *it;
+                bits += (bits.empty() ? "" : ", ") + (lo == hi ? "[" + std::to_string(lo) + "]" : "[" + std::to_string(hi) + ":" + std::to_string(lo) + "]");
+            }
+            l.reportAt(m.procs[s.first->proc].loc, "register '" + name + "' bits " + bits + " have no reset value: no asynchronous reset branch assigns them",
+                       {.nextStep = "Assign the bits in the reset branch.", .hierarchy = m.procs[s.first->proc].instancePath, .signals = {name}});
+        }
+    }
     struct BodyInfo {
         bool anyReset = false;
         std::vector<const ProceduralBlockSymbol*> noReset;
     };
 
     void check(Lint& l) override {
-        std::map<const Symbol*, BodyInfo> bodies;
+        std::map<const InstanceBodySymbol*, BodyInfo> bodies;
         forEachProc(l, [&](const ProceduralBlockSymbol& p) {
             if (!l.isUser(p.location)) return;
             auto v = seqView(l, p);
@@ -675,20 +696,20 @@ private:
                         if (auto* s = a->left().getSymbolReference(); s && isModuleLevel(*s)) inOther.emplace(s, a);
                     auto conf = b.exact ? Confidence::Established : Confidence::Heuristic;
                     for (auto& [s, a] : inReset)
-                        if (!inOther.count(s))
+                        if (kind_ == ResetOnly && !inOther.count(s))
                             l.report(a->sourceRange.start(),
                                      "register '" + std::string(s->name) + "' is assigned only in the reset branch (reset-only, never loads)",
                                      {.confidence = conf, .nextStep = "Assign the register in the non-reset branch too.",
                                       .hierarchy = p.getHierarchicalPath(), .signals = {std::string(s->name)}});
                     for (auto& [s, a] : inOther)
-                        if (!inReset.count(s))
+                        if (kind_ == NoResetValue && !inReset.count(s))
                             l.report(a->sourceRange.start(),
                                      "register '" + std::string(s->name) + "' has no reset value (assigned only outside the reset branch)",
                                      {.confidence = conf, .nextStep = "Add a reset value for the register.",
                                       .hierarchy = p.getHierarchicalPath(), .signals = {std::string(s->name)}});
                 }
             }
-            if (p.procedureKind != ProceduralBlockKind::AlwaysFF) return;
+            if (kind_ != NoResetBlock || p.procedureKind != ProceduralBlockKind::AlwaysFF) return;
             bool hasReset = v->reset != nullptr || (v->first && [&] {
                 for (auto& c : v->first->conditions)
                     if (findExpr(*c.expr, [](const Expression& x) {
@@ -700,6 +721,7 @@ private:
             if (hasReset) info.anyReset = true;
             else if (!assignsIn(v->body).empty()) info.noReset.push_back(&p);
         });
+        if (kind_ == NoResetValue) modelNoResetValue(l);
         for (auto& [body, info] : bodies) {
             if (!info.anyReset) continue;
             for (auto* p : info.noReset)
@@ -711,11 +733,10 @@ private:
 };
 
 // ---------------------------------------------------------------------------------------------------------------
-// LNT-022: one register controlled by both posedge and negedge of a signal, or by several clock-like edges (edges not
-// recognised as async resets by the first if).
-class EdgeMixRule final : public LintRule {
+// LNT-022: one signal controls a register on both posedge and negedge.
+class BothEdgesRule final : public LintRule {
 public:
-    EdgeMixRule() : LintRule("LNT-022", "multi-clock detection is structural (the event list and the first if/else-if chain only); no per-register clock tracing") {}
+    BothEdgesRule() : LintRule("LNT-022") {}
 
 private:
     void check(Lint& l) override {
@@ -734,6 +755,25 @@ private:
                                  {.nextStep = "Use one clock edge per register.", .hierarchy = p.getHierarchicalPath(),
                                   .signals = {std::string(a->name)}});
                 }
+        });
+    }
+};
+
+// ---------------------------------------------------------------------------------------------------------------
+// LNT-069: an edge control of a sequential block that the first if / else-if chain does not test. Every edge control but the
+// clock must be an asynchronous control tested by that chain; otherwise the block has several clock-like controls or an
+// untested asynchronous control. One finding per block.
+class UntestedEdgeControlRule final : public LintRule {
+public:
+    UntestedEdgeControlRule() : LintRule("LNT-069") {}
+
+private:
+    void check(Lint& l) override {
+        forEachProc(l, [&](const ProceduralBlockSymbol& p) {
+            if (!l.isUser(p.location)) return;
+            auto v = seqView(l, p);
+            if (!v || v->edges.size() < 2) return;
+            const auto& e = v->edges;
             // Distinct controls: key by signal, or by the event itself when the signal is not named.
             std::vector<const void*> keys;
             std::vector<bool> recognised;
@@ -751,16 +791,34 @@ private:
                     recognised[static_cast<size_t>(it - keys.begin())] = recognised[static_cast<size_t>(it - keys.begin())] || v->tested[i];
                 }
             }
-            if (keys.size() < 2) return;
-            size_t nRec = static_cast<size_t>(std::count(recognised.begin(), recognised.end(), true));
-            if (nRec + 1 >= keys.size()) return;
-            std::string clocks;
-            for (size_t i = 0; i < keys.size(); i++)
-                if (!recognised[i]) clocks += (clocks.empty() ? "" : ", ") + names[i];
-            l.report(p, "event list has " + std::to_string(keys.size()) + " edge controls but only " + std::to_string(nRec) +
-                            " are recognised as async resets; clock-like: " + clocks,
-                     {.confidence = Confidence::Heuristic, .nextStep = "Use one clock per register; add the other controls as resets tested by the first if.",
-                      .hierarchy = p.getHierarchicalPath()});
+            if (keys.size() >= 2) {
+                size_t nRec = static_cast<size_t>(std::count(recognised.begin(), recognised.end(), true));
+                if (nRec + 1 < keys.size()) {
+                    std::string clocks;
+                    for (size_t i = 0; i < keys.size(); i++)
+                        if (!recognised[i]) clocks += (clocks.empty() ? "" : ", ") + names[i];
+                    l.report(p, "event list has " + std::to_string(keys.size()) + " edge controls but only " + std::to_string(nRec) +
+                                    " are recognised as async resets; clock-like: " + clocks,
+                             {.confidence = Confidence::Heuristic, .nextStep = "Use one clock per register; add the other controls as resets tested by the first if.",
+                              .hierarchy = p.getHierarchicalPath()});
+                    return;
+                }
+            }
+            if (v->ambiguous && e.size() >= 3) {   // several asynchronous controls (set + reset, power-on + functional)
+                size_t nTested = static_cast<size_t>(std::count(v->tested.begin(), v->tested.end(), true));
+                if (nTested + 1 != e.size()) {
+                    l.report(p, "block has " + std::to_string(e.size()) + " edge events but only " + std::to_string(nTested) +
+                                " are tested by the if / else-if chain: the asynchronous controls are not all coded as a priority chain",
+                             {.confidence = Confidence::Heuristic, .nextStep = "Test every asynchronous control in the first if / else-if chain.", .hierarchy = p.getHierarchicalPath()});
+                }
+                return;
+            }
+            if (!v->ambiguous && v->reset && v->heuristicReset) {
+                std::string rname = std::string(symOf(v->reset->expr) ? symOf(v->reset->expr)->name : std::string_view("<expression>"));
+                l.report(p, "async reset '" + rname + "' is not tested by the first if",
+                         {.confidence = Confidence::Heuristic, .nextStep = "Test the reset as the first if condition, with the matching polarity.",
+                          .hierarchy = p.getHierarchicalPath(), .signals = {rname}});
+            }
         });
     }
 };
@@ -835,24 +893,39 @@ private:
 };
 
 // ---------------------------------------------------------------------------------------------------------------
-// LNT-058: async reset event-control coding: the reset must be tested by the first if, its polarity must match the
-// edge, and its reset branch must assign constants. Blocks with several async controls are not checked (gap).
+// LNT-058 polarity of an asynchronous control must match its edge (also in blocks with several controls); LNT-070 the reset
+// branch of an asynchronous reset must assign constants. (A control the first if does not test is LNT-069.)
 class AsyncResetControlRule final : public LintRule {
 public:
-    AsyncResetControlRule()
-        : LintRule("LNT-058") {}
+    enum Kind { Polarity, NonConstant };
+    explicit AsyncResetControlRule(Kind k) : LintRule(k == Polarity ? "LNT-058" : "LNT-070"), kind_(k) {}
 
 private:
+    Kind kind_;
     void check(Lint& l) override {
         forEachProc(l, [&](const ProceduralBlockSymbol& p) {
             if (!l.isUser(p.location)) return;
             auto v = seqView(l, p);
             if (v && v->ambiguous && v->edges.size() >= 3) {   // several asynchronous controls (set + reset, power-on + functional)
                 size_t nTested = static_cast<size_t>(std::count(v->tested.begin(), v->tested.end(), true));
-                if (nTested + 1 != v->edges.size()) {
-                    l.report(p, "block has " + std::to_string(v->edges.size()) + " edge events but only " + std::to_string(nTested) +
-                                " are tested by the if / else-if chain: the asynchronous controls are not all coded as a priority chain",
-                             {.confidence = Confidence::Heuristic, .nextStep = "Test every asynchronous control in the first if / else-if chain.", .hierarchy = p.getHierarchicalPath()});
+                if (nTested + 1 != v->edges.size()) return;   // untested controls: LNT-069
+                if (kind_ == NonConstant) {   // every branch that tests an asynchronous control assigns constants
+                    for (const ConditionalStatement* c = v->first; c; c = asIf(c->ifFalse)) {
+                        bool testsControl = false;
+                        for (size_t i = 0; i < v->edges.size(); i++) {
+                            const Symbol* sy = symOf(v->edges[i]->expr);
+                            if (!v->tested[i] || !sy) continue;
+                            for (auto& cond : c->conditions) testsControl = testsControl || findRef(*cond.expr, *sy);
+                        }
+                        if (!testsControl) continue;
+                        for (auto* a : assignsIn(&c->ifTrue)) {
+                            if (static_cast<bool>(l.evalConst(a->right()))) continue;
+                            l.report(a->right().sourceRange.start(), "reset branch assigns a non-constant value to '" +
+                                         std::string(a->left().getSymbolReference() ? a->left().getSymbolReference()->name : std::string_view("?")) + "'",
+                                     {.severity = Severity::Warning, .confidence = hasUserCall(a->right()) ? Confidence::Unresolved : Confidence::Established,
+                                      .nextStep = "Reset values must be constants.", .hierarchy = p.getHierarchicalPath()});
+                        }
+                    }
                     return;
                 }
                 for (size_t i = 0; i < v->edges.size(); i++) {
@@ -878,13 +951,8 @@ private:
             if (!v || v->edges.size() < 2 || v->ambiguous || !v->reset) return;
             std::string rname = std::string(symOf(v->reset->expr) ? symOf(v->reset->expr)->name : std::string_view("<expression>"));
             bool negedge = v->reset->edge == EdgeKind::NegEdge;
-            if (v->heuristicReset) {
-                l.report(p, "async reset '" + rname + "' is not tested by the first if",
-                         {.confidence = Confidence::Heuristic, .nextStep = "Test the reset as the first if condition, with the matching polarity.",
-                          .hierarchy = p.getHierarchicalPath(), .signals = {rname}});
-                return;
-            }
-            if (v->polarity >= 0 && !v->activeOnTrue()) {
+            if (v->heuristicReset) return;   // the first if does not test the reset: LNT-069
+            if (kind_ == Polarity && v->polarity >= 0 && !v->activeOnTrue()) {
                 l.report(p, std::string(negedge ? "negedge" : "posedge") + " '" + rname + "' but the reset branch runs when '" + rname +
                                 (negedge ? "' is high" : "' is low") + ": polarity mismatch",
                          {.severity = Severity::Error, .confidence = Confidence::Established,
@@ -892,6 +960,7 @@ private:
                           .hierarchy = p.getHierarchicalPath(), .signals = {rname}});
             }
             if (v->polarity >= 0 && !v->activeOnTrue()) return;   // mismatch already reported; the reset branch is unclear
+            if (kind_ != NonConstant) return;
             Branches b = branchesOf(*v);
             if (!b.reset || !b.exact) return;
             for (auto* a : assignsIn(b.reset)) {
@@ -1073,7 +1142,7 @@ private:
 
 class XZCompareRule final : public LintRule {
 public:
-    XZCompareRule() : LintRule("LNT-040", "only literal X/Z hazards are checked (X/Z literals in comparisons, case items, inside, and conditions); X-valued variables are not tracked") {}
+    XZCompareRule() : LintRule("LNT-040", "", true) {}   // slang casez-with-x is mapped here too
 
 private:
     void check(Lint& l) override { visitDesign<XZVisit>(l, true); }
@@ -1085,10 +1154,13 @@ std::vector<std::unique_ptr<Rule>> makeLintSynthRules() {
     std::vector<std::unique_ptr<Rule>> v;
     v.push_back(std::make_unique<NonSynthRule>());
     v.push_back(std::make_unique<SystemTaskRule>());
-    v.push_back(std::make_unique<ResetCodingRule>());
-    v.push_back(std::make_unique<EdgeMixRule>());
+    for (auto k : {ResetCodingRule::ResetOnly, ResetCodingRule::NoResetValue, ResetCodingRule::NoResetBlock})
+        v.push_back(std::make_unique<ResetCodingRule>(k));
+    v.push_back(std::make_unique<BothEdgesRule>());
+    v.push_back(std::make_unique<UntestedEdgeControlRule>());
     v.push_back(std::make_unique<DataDrivenEventRule>());
-    v.push_back(std::make_unique<AsyncResetControlRule>());
+    for (auto k : {AsyncResetControlRule::Polarity, AsyncResetControlRule::NonConstant})
+        v.push_back(std::make_unique<AsyncResetControlRule>(k));
     v.push_back(std::make_unique<XZAssignRule>());
     v.push_back(std::make_unique<XZCompareRule>());
     return v;

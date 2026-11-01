@@ -3,6 +3,7 @@
 // Template and helpers: see lint_procedural.cpp and include/sverity/lint.h.
 #include <algorithm>
 #include <bit>
+#include <map>
 #include <optional>
 #include <set>
 #include <string>
@@ -10,6 +11,8 @@
 #include <utility>
 #include <vector>
 
+#include "analysis/flow.h"
+#include "slang/ast/ValuePath.h"
 #include "rules/rules.h"
 #include "sverity/lint.h"
 #include "slang/ast/Statement.h"
@@ -32,19 +35,10 @@ namespace {
 using namespace slang;
 using namespace slang::ast;
 using namespace lint;
+namespace fl = sverity::flow;
 
 // ---------------------------------------------------------------------------------------------------------------
 // Shared helpers
-
-// A variable, net or port declared at module scope (instance body, generate block, package or unit).
-bool isModuleSignal(const Symbol& s) {
-    if (s.kind != SymbolKind::Variable && s.kind != SymbolKind::Net && s.kind != SymbolKind::Port) return false;
-    auto* sc = s.getParentScope();
-    if (!sc) return false;
-    auto k = sc->asSymbol().kind;
-    return k == SymbolKind::InstanceBody || k == SymbolKind::GenerateBlock || k == SymbolKind::CompilationUnit ||
-           k == SymbolKind::Package;
-}
 
 // Value of an integer with no X/Z bits and at most 63 significant bits, so it compares exactly in int64.
 std::optional<int64_t> smallValue(const SVInt& v) {
@@ -73,29 +67,8 @@ bool referencesSignal(const Expression& e) {
     return s.found;
 }
 
-// An identifier or select chain with no calls or side effects, so both occurrences in one expression see one value.
-bool pureRef(const Expression& e0) {
-    const Expression& e = e0.unwrapImplicitConversions();
-    switch (e.kind) {
-        case ExpressionKind::NamedValue:
-        case ExpressionKind::HierarchicalValue:
-        case ExpressionKind::IntegerLiteral:
-        case ExpressionKind::UnbasedUnsizedIntegerLiteral:
-            return true;
-        case ExpressionKind::ElementSelect: {
-            auto& s = e.as<ElementSelectExpression>();
-            return pureRef(s.value()) && pureRef(s.selector());
-        }
-        case ExpressionKind::RangeSelect: {
-            auto& s = e.as<RangeSelectExpression>();
-            return pureRef(s.value()) && pureRef(s.left()) && pureRef(s.right());
-        }
-        case ExpressionKind::MemberAccess:
-            return pureRef(e.as<MemberAccessExpression>().value());
-        default:
-            return false;
-    }
-}
+using fl::isPureRef;
+bool pureRef(const Expression& e) { return isPureRef(e); }
 
 bool isLiteral01(const Lint& l, const Expression& e0) {
     const Expression& e = e0.unwrapImplicitConversions();
@@ -104,203 +77,7 @@ bool isLiteral01(const Lint& l, const Expression& e0) {
     return v && (*v == 0 || *v == 1);
 }
 
-// One recorded read or write, in evaluation order (right-hand side before the target of an assignment).
-struct Access {
-    const ValueSymbol* sym;
-    slang::SourceLocation loc;
-    bool write;
-    bool whole;                       // write to the whole variable (not through a select or member access)
-    const AssignmentExpression* asg;  // write: the assignment; read: innermost assignment whose right side holds it
-};
-
-// Collects accesses of an expression or statement tree. A call to a user subroutine sets `opaque`: it may read or
-// write state that is not visible here, so callers must not reason past it.
-struct Collector : ASTVisitor<Collector, VisitFlags::AllGood> {
-    std::vector<Access> acc;
-    bool opaque = false;
-    const AssignmentExpression* owner = nullptr;
-
-    void read(const ValueSymbol& s, slang::SourceLocation loc) { acc.push_back({&s, loc, false, false, owner}); }
-    void handle(const NamedValueExpression& n) { read(n.symbol, n.sourceRange.start()); }
-    void handle(const HierarchicalValueExpression& n) { read(n.symbol, n.sourceRange.start()); }
-    void handle(const CallExpression& c) {
-        if (!c.isSystemCall()) opaque = true;
-        visitDefault(c);
-    }
-    void handle(const AssignmentExpression& a) {
-        auto* saved = owner;
-        owner = &a;
-        a.right().visit(*this);
-        owner = saved;
-        target(a.left(), a, a.isCompound(), true);
-    }
-    void target(const Expression& e, const AssignmentExpression& a, bool compound, bool whole) {
-        switch (e.kind) {
-            case ExpressionKind::NamedValue:
-            case ExpressionKind::HierarchicalValue: {
-                const ValueSymbol& s = e.kind == ExpressionKind::NamedValue
-                                           ? e.as<NamedValueExpression>().symbol
-                                           : e.as<HierarchicalValueExpression>().symbol;
-                if (compound) read(s, e.sourceRange.start());
-                acc.push_back({&s, e.sourceRange.start(), true, whole, &a});
-                break;
-            }
-            case ExpressionKind::ElementSelect: {
-                auto& s = e.as<ElementSelectExpression>();
-                target(s.value(), a, compound, false);
-                s.selector().visit(*this);
-                break;
-            }
-            case ExpressionKind::RangeSelect: {
-                auto& s = e.as<RangeSelectExpression>();
-                target(s.value(), a, compound, false);
-                s.left().visit(*this);
-                s.right().visit(*this);
-                break;
-            }
-            case ExpressionKind::MemberAccess:
-                target(e.as<MemberAccessExpression>().value(), a, compound, false);
-                break;
-            case ExpressionKind::Concatenation:
-                for (auto* op : e.as<ConcatenationExpression>().operands()) target(*op, a, compound, whole);
-                break;
-            default:
-                e.visit(*this);
-        }
-    }
-};
-
-Collector collect(const Statement& s) {
-    Collector c;
-    s.visit(c);
-    return c;
-}
-Collector collect(const Expression& e) {
-    Collector c;
-    e.visit(c);
-    return c;
-}
-
-bool mentions(const Collector& c, const ValueSymbol* s) {
-    return std::any_of(c.acc.begin(), c.acc.end(), [&](const Access& a) { return a.sym == s; });
-}
-
-// A write that replaces the whole variable: blocking writes always do; nonblocking ones only in combinational code.
-bool kills(const Access& a, bool seq) { return a.write && a.whole && (!seq || !a.asg->isNonBlocking()); }
-
-// Statements that run in order with no timing control, loop, call or branch that could observe a variable between
-// two of their assignments.
-bool straight(const Statement& s) {
-    switch (s.kind) {
-        case StatementKind::Empty:
-        case StatementKind::ExpressionStatement:
-        case StatementKind::VariableDeclaration:
-            return true;
-        case StatementKind::List: {
-            auto& l = s.as<StatementList>();
-            return std::all_of(l.list.begin(), l.list.end(), [](const Statement* x) { return straight(*x); });
-        }
-        case StatementKind::Block: {
-            auto& b = s.as<BlockStatement>();
-            return b.blockKind == StatementBlockKind::Sequential && straight(b.body);
-        }
-        case StatementKind::Conditional: {
-            auto& c = s.as<ConditionalStatement>();
-            return straight(c.ifTrue) && (!c.ifFalse || straight(*c.ifFalse));
-        }
-        case StatementKind::Case: {
-            auto& c = s.as<CaseStatement>();
-            for (auto& g : c.items)
-                if (!straight(*g.stmt)) return false;
-            return !c.defaultCase || straight(*c.defaultCase);
-        }
-        default:
-            return false;
-    }
-}
-
-// Sequential block statements in order, with nested sequential begin/end blocks spliced in.
-void flatten(const Statement& s, std::vector<const Statement*>& out, std::unordered_set<const Statement*>& covered) {
-    if (s.kind == StatementKind::List) {
-        for (auto* x : s.as<StatementList>().list) flatten(*x, out, covered);
-    }
-    else if (s.kind == StatementKind::Block && s.as<BlockStatement>().blockKind == StatementBlockKind::Sequential) {
-        covered.insert(&s);
-        flatten(s.as<BlockStatement>().body, out, covered);
-    }
-    else {
-        out.push_back(&s);
-    }
-}
-
-const AssignmentExpression* topAssign(const Statement& s) {
-    if (s.kind != StatementKind::ExpressionStatement) return nullptr;
-    auto& e = s.as<ExpressionStatement>().expr;
-    return e.kind == ExpressionKind::Assignment ? &e.as<AssignmentExpression>() : nullptr;
-}
-
-const ValueSymbol* wholeVar(const Expression& e) {
-    return e.kind == ExpressionKind::NamedValue ? &e.as<NamedValueExpression>().symbol : nullptr;
-}
-
-// `v = e;` as the only statement of a (possibly begin/end wrapped) body, with v a whole variable.
-bool assignedWhole(const Statement& s, const AssignmentExpression*& a, const ValueSymbol*& v) {
-    const Statement* x = &s;
-    for (;;) {
-        if (x->kind == StatementKind::Block && x->as<BlockStatement>().blockKind == StatementBlockKind::Sequential)
-            x = &x->as<BlockStatement>().body;
-        else if (x->kind == StatementKind::List && x->as<StatementList>().list.size() == 1)
-            x = x->as<StatementList>().list[0];
-        else
-            break;
-    }
-    auto* asg = topAssign(*x);
-    if (!asg || asg->isCompound()) return false;
-    auto* sym = wholeVar(asg->left());
-    if (!sym || sym->kind != SymbolKind::Variable) return false;
-    a = asg;
-    v = sym;
-    return true;
-}
-
 bool singleIf(const ConditionalStatement& c) { return c.conditions.size() == 1 && !c.conditions[0].pattern; }
-
-// Procedure body without its outer event control (always @(...) / always @*).
-const Statement& procBody(const ProceduralBlockSymbol& p) {
-    const Statement& b = p.getBody();
-    return b.kind == StatementKind::Timed ? b.as<TimedStatement>().stmt : b;
-}
-
-enum class Style { Comb, Latch, Seq, Level, Other };
-
-// Combinational: always_comb, always @*; Level: always @(a or b) with no edges; Seq: always_ff or edge-controlled.
-Style styleOf(const ProceduralBlockSymbol& p) {
-    switch (p.procedureKind) {
-        case ProceduralBlockKind::AlwaysComb: return Style::Comb;
-        case ProceduralBlockKind::AlwaysLatch: return Style::Latch;
-        case ProceduralBlockKind::AlwaysFF: return Style::Seq;
-        case ProceduralBlockKind::Always: break;
-        default: return Style::Other;
-    }
-    const Statement& body = p.getBody();
-    if (body.kind != StatementKind::Timed) return Style::Other;
-    const TimingControl& t = body.as<TimedStatement>().timing;
-    if (t.kind == TimingControlKind::ImplicitEvent) return Style::Comb;
-    std::vector<const TimingControl*> events;
-    if (t.kind == TimingControlKind::EventList)
-        events.assign(t.as<EventListControl>().events.begin(), t.as<EventListControl>().events.end());
-    else
-        events.push_back(&t);
-    bool edge = false, other = events.empty();
-    for (auto* e : events) {
-        if (e->kind != TimingControlKind::SignalEvent)
-            other = true;
-        else if (e->as<SignalEventControl>().edge != EdgeKind::None)
-            edge = true;
-    }
-    if (edge) return Style::Seq;
-    return other ? Style::Other : Style::Level;
-}
 
 std::string joinNames(std::vector<std::string> v) {
     std::sort(v.begin(), v.end());
@@ -412,7 +189,7 @@ private:
 class TautologyRule final : public LintRule {
 public:
     TautologyRule()
-        : LintRule("LNT-038", "constant-range and same-operand forms only: other Boolean tautologies or contradictions are not proven") {}
+        : LintRule("LNT-038") {}
 
 private:
     struct V : ASTVisitor<V, VisitFlags::AllCanonical> {
@@ -592,153 +369,6 @@ private:
 };
 
 // ---------------------------------------------------------------------------------------------------------------
-// LNT-025 (combinational / blocking) and LNT-043 (sequential / nonblocking): `if (c1) v = e1;` followed later in the
-// same procedure by `if (c2) v = e2;` (no else) makes the later assignment win whenever both conditions hold.
-
-// Conditions that cannot both hold: x==c1 with x==c2 (c1 != c2), or x==c with x!=c (x alone is x!=0, !x is x==0).
-struct CondForm {
-    const Expression* operand;
-    bool eq;
-    int64_t c;
-};
-std::optional<CondForm> condForm(const Lint& l, const Expression& e0) {
-    const Expression& e = e0.unwrapImplicitConversions();
-    if (e.kind == ExpressionKind::UnaryOp && e.as<UnaryExpression>().op == UnaryOperator::LogicalNot) {
-        const Expression& o = e.as<UnaryExpression>().operand().unwrapImplicitConversions();
-        if (pureRef(o)) return CondForm{&o, true, 0};
-        return std::nullopt;
-    }
-    if (e.kind == ExpressionKind::BinaryOp) {
-        auto& bo = e.as<BinaryExpression>();
-        bool eq = bo.op == BinaryOperator::Equality || bo.op == BinaryOperator::CaseEquality;
-        bool ne = bo.op == BinaryOperator::Inequality || bo.op == BinaryOperator::CaseInequality;
-        if (!eq && !ne) return std::nullopt;
-        const Expression& lhs = bo.left().unwrapImplicitConversions();
-        const Expression& rhs = bo.right().unwrapImplicitConversions();
-        if (pureRef(lhs) && isRuntime(l, lhs))
-            if (auto c = constSmall(l, rhs)) return CondForm{&lhs, eq, *c};
-        if (pureRef(rhs) && isRuntime(l, rhs))
-            if (auto c = constSmall(l, lhs)) return CondForm{&rhs, eq, *c};
-        return std::nullopt;
-    }
-    if (pureRef(e) && isRuntime(l, e)) return CondForm{&e, false, 0};
-    return std::nullopt;
-}
-
-bool exclusive(const Lint& l, const Expression& e1, const Expression& e2) {
-    auto a = condForm(l, e1), b = condForm(l, e2);
-    if (!a || !b || !a->operand->isEquivalentTo(*b->operand)) return false;
-    return (a->eq && b->eq && a->c != b->c) || (a->eq != b->eq && a->c == b->c);
-}
-
-void checkOverrides(Lint& l, const ProceduralBlockSymbol& p, bool nonBlocking) {
-    std::vector<const Statement*> list;
-    std::unordered_set<const Statement*> covered;
-    flatten(procBody(p), list, covered);
-    for (size_t i = 0; i < list.size(); i++) {
-        if (list[i]->kind != StatementKind::Conditional) continue;
-        auto& ci = list[i]->as<ConditionalStatement>();
-        const AssignmentExpression* ai;
-        const ValueSymbol* v;
-        if (!singleIf(ci) || ci.ifFalse || !assignedWhole(ci.ifTrue, ai, v) || ai->isNonBlocking() != nonBlocking) continue;
-        for (size_t j = i + 1; j < list.size(); j++) {
-            Collector cj = collect(*list[j]);
-            if (cj.opaque) break;
-            if (list[j]->kind == StatementKind::Conditional) {
-                auto& cn = list[j]->as<ConditionalStatement>();
-                const AssignmentExpression* aj;
-                const ValueSymbol* vj;
-                if (singleIf(cn) && !cn.ifFalse && assignedWhole(cn.ifTrue, aj, vj) && vj == v &&
-                    aj->isNonBlocking() == nonBlocking) {
-                    Collector cc = collect(*cn.conditions[0].expr);
-                    if (!mentions(cc, v) && !exclusive(l, *ci.conditions[0].expr, *cn.conditions[0].expr))
-                        l.report(list[j]->sourceRange.start(),
-                                 "conditional assignment to '" + std::string(v->name) + "' overrides the one on line " +
-                                     std::to_string(l.sm().getLineNumber(list[i]->sourceRange.start())) +
-                                     " when both conditions hold",
-                                 {.confidence = Confidence::Heuristic,
-                                  .nextStep = "Use if/else or a priority case so the intended choice is explicit; the conditions may be mutually exclusive.",
-                                  .hierarchy = p.getHierarchicalPath(),
-                                  .signals = {std::string(v->name)}});
-                    break;
-                }
-            }
-            if (mentions(cj, v) || !straight(*list[j])) break;
-        }
-    }
-}
-
-template <bool Seq>
-class OverrideRule final : public LintRule {
-public:
-    OverrideRule()
-        : LintRule(Seq ? "LNT-043" : "LNT-025") {}
-
-private:
-    struct V : ASTVisitor<V, VisitFlags::AllCanonical> {
-        Lint& l;
-        explicit V(Lint& lint) : l(lint) {}
-        void handle(const ProceduralBlockSymbol& p) {
-            if (!l.isUser(p.location)) return;
-            Style st = styleOf(p);
-            if (Seq ? st == Style::Seq : (st == Style::Comb || st == Style::Latch || st == Style::Level))
-                checkOverrides(l, p, Seq);
-        }
-    };
-    void check(Lint& l) override { visitDesign<V>(l); }
-};
-
-// ---------------------------------------------------------------------------------------------------------------
-// LNT-044: a module-level variable read before its first assignment in the same always block, while the block
-// assigns it later. Combinational blocks: any whole assignment counts (x = x + 1 is a read before assignment).
-// Sequential blocks: only blocking whole assignments count, and the read must precede one in another statement.
-void checkReadBeforeAssign(Lint& l, const ProceduralBlockSymbol& p, bool seq) {
-    Collector c = collect(procBody(p));
-    std::set<const Symbol*> done, killed;
-    for (size_t i = 0; i < c.acc.size(); i++) {
-        const Access& a = c.acc[i];
-        if (!isModuleSignal(*a.sym)) continue;
-        if (a.write) {
-            if (kills(a, seq)) killed.insert(a.sym);
-            continue;
-        }
-        if (killed.count(a.sym) || done.count(a.sym)) continue;
-        bool later = false;
-        for (size_t k = i + 1; k < c.acc.size() && !later; k++) {
-            const Access& w = c.acc[k];
-            later = w.sym == a.sym && kills(w, seq) && (!seq || w.asg != a.asg);
-        }
-        if (later) {
-            done.insert(a.sym);
-            l.report(a.loc,
-                     "'" + std::string(a.sym->name) + "' is read before its first assignment in this block: the read sees the previous value",
-                     {.nextStep = "Assign the variable before reading it, or read it through a separate variable.",
-                      .hierarchy = p.getHierarchicalPath(),
-                      .signals = {std::string(a.sym->name)}});
-        }
-    }
-}
-
-class ReadBeforeAssignRule final : public LintRule {
-public:
-    ReadBeforeAssignRule()
-        : LintRule("LNT-044") {}
-
-private:
-    struct V : ASTVisitor<V, VisitFlags::AllCanonical> {
-        Lint& l;
-        explicit V(Lint& lint) : l(lint) {}
-        void handle(const ProceduralBlockSymbol& p) {
-            if (!l.isUser(p.location)) return;
-            Style st = styleOf(p);
-            if (st == Style::Comb) checkReadBeforeAssign(l, p, false);
-            else if (st == Style::Seq) checkReadBeforeAssign(l, p, true);
-        }
-    };
-    void check(Lint& l) override { visitDesign<V>(l); }
-};
-
-// ---------------------------------------------------------------------------------------------------------------
 // LNT-045: legacy always @(a or b ...) with an explicit level list: a module-level signal read by the body (before
 // the body assigns it) but missing from the list is a sensitivity mismatch (WARNING); a listed signal the body never
 // reads is INFO. always @*, always_comb and edge-sensitive blocks are not checked.
@@ -750,27 +380,38 @@ void checkSensitivity(Lint& l, const ProceduralBlockSymbol& p) {
     else
         events.push_back(&t);
 
+    // Listed entries as (symbol, bit range): a static select such as a[0] is sensitive to those bits only (IEEE 1800 9.4.2).
+    slang::ast::EvalContext ec(p);
     std::set<const Symbol*> listed;
+    std::map<const Symbol*, std::vector<fl::Range>> listedRanges;
     bool unresolved = false;
     for (auto* e : events) {
-        auto* sym = e->as<SignalEventControl>().expr.getSymbolReference();
-        if (sym)
-            listed.insert(sym);
-        else
-            unresolved = true;
+        auto& expr = e->as<SignalEventControl>().expr;
+        ValuePath vp(expr, ec);
+        auto* sym = vp.rootSymbol();
+        if (!sym || !sym->isValue()) { unresolved = true; continue; }
+        listed.insert(sym);
+        uint64_t w = sym->as<ValueSymbol>().getType().isFixedSize() ? sym->as<ValueSymbol>().getType().getBitstreamWidth() : 1;
+        fl::Range r{0, w ? w - 1 : 0};
+        if (vp.lsp && vp.isFullyStatic()) { r = vp.lspBounds; if (r.first > r.second) std::swap(r.first, r.second); }
+        listedRanges[sym].push_back(r);
     }
 
-    Collector c = collect(procBody(p));
-    std::set<const Symbol*> killed, external, anyRead;
-    for (auto& a : c.acc) {
-        if (!isModuleSignal(*a.sym)) continue;
-        if (a.write) {
-            if (kills(a, true)) killed.insert(a.sym);
+    fl::Flow flow(p);
+    std::set<const Symbol*> external, anyRead;
+    for (auto& a : flow.accesses) {
+        if (a.write || a.local) continue;
+        anyRead.insert(a.sym);
+        if (!a.entryMaybe) continue;   // every path reads a value this activation wrote itself
+        // some path reads the value from before this activation: every bit read must be covered by a listed range
+        bool covered = false;
+        if (auto it = listedRanges.find(a.sym); it != listedRanges.end()) {
+            std::vector<bool> bits(a.range.second - a.range.first + 1, false);
+            for (auto& lr : it->second)
+                for (uint64_t b = std::max(lr.first, a.range.first); b <= std::min(lr.second, a.range.second) && lr.first <= lr.second; b++) bits[b - a.range.first] = true;
+            covered = std::all_of(bits.begin(), bits.end(), [](bool x) { return x; });
         }
-        else {
-            anyRead.insert(a.sym);
-            if (!killed.count(a.sym)) external.insert(a.sym);
-        }
+        if (!covered) external.insert(a.sym);
     }
 
     auto minus = [](const std::set<const Symbol*>& a, const std::set<const Symbol*>& b) {
@@ -779,7 +420,7 @@ void checkSensitivity(Lint& l, const ProceduralBlockSymbol& p) {
             if (!b.count(s)) out.push_back(std::string(s->name));
         return out;
     };
-    auto missing = minus(external, listed);
+    auto missing = minus(external, {});   // `external` already excludes reads covered by a listed range
     auto unused = minus(listed, anyRead);
     std::string where = p.getHierarchicalPath();
 
@@ -789,7 +430,7 @@ void checkSensitivity(Lint& l, const ProceduralBlockSymbol& p) {
                  {.nextStep = "Add the signals to the list, or use always @* / always_comb.",
                   .hierarchy = where,
                   .signals = missing});
-    if (!unused.empty() && !c.opaque)
+    if (!unused.empty() && !flow.opaque)
         l.report(p.location,
                  "sensitivity list entries '" + joinNames(unused) + "' are never read by the block",
                  {.severity = Severity::Info,
@@ -799,7 +440,7 @@ void checkSensitivity(Lint& l, const ProceduralBlockSymbol& p) {
     if (unresolved)
         l.report(p.location, "sensitivity list entry is not a plain signal: the list is not checked",
                  {.severity = Severity::Warning, .confidence = Confidence::Unresolved, .hierarchy = where});
-    if (c.opaque)
+    if (flow.opaque)
         l.report(p.location, "block calls a subroutine: signals read inside it are not checked against the sensitivity list",
                  {.severity = Severity::Warning, .confidence = Confidence::Unresolved, .hierarchy = where});
 }
@@ -813,7 +454,7 @@ private:
         Lint& l;
         explicit V(Lint& lint) : l(lint) {}
         void handle(const ProceduralBlockSymbol& p) {
-            if (l.isUser(p.location) && p.procedureKind == ProceduralBlockKind::Always && styleOf(p) == Style::Level)
+            if (l.isUser(p.location) && p.procedureKind == ProceduralBlockKind::Always && fl::styleOf(p) == fl::Style::Level)
                 checkSensitivity(l, p);
         }
     };
@@ -826,9 +467,6 @@ std::vector<std::unique_ptr<Rule>> makeLintFlowRules() {
     std::vector<std::unique_ptr<Rule>> v;
     v.push_back(std::make_unique<ConstantConditionRule>());
     v.push_back(std::make_unique<TautologyRule>());
-    v.push_back(std::make_unique<OverrideRule<false>>());
-    v.push_back(std::make_unique<OverrideRule<true>>());
-    v.push_back(std::make_unique<ReadBeforeAssignRule>());
     v.push_back(std::make_unique<SensitivityRule>());
     return v;
 }

@@ -110,3 +110,18 @@ TEST(empty_hierarchy_has_no_empty_occurrence) {
     r.finalize();
     CHECK(r.diagnostics()[0].occurrences.empty());
 }
+
+// RFC section 3: an unproved property is at least a WARNING; INFO + NOT_ATTEMPTED needs a stated trust model.
+TEST(unproved_obligation_is_never_info) {
+    Report r = fullCoverage();
+    Diagnostic bare = mk("CDC-024", Severity::Info, "obligation");
+    bare.proofState = ProofState::NotAttempted;
+    Diagnostic trusted = mk("CDC-003", Severity::Info, "recognised synchroniser", "a.sv", 2);
+    trusted.proofState = ProofState::NotAttempted;
+    trusted.evidence.push_back({"trust_model", "2FF assumed", {}});
+    r.add(bare);
+    r.add(trusted);
+    r.finalize();
+    CHECK(r.diagnostics()[0].severity == Severity::Warning);
+    CHECK(r.diagnostics()[1].severity == Severity::Info);
+}

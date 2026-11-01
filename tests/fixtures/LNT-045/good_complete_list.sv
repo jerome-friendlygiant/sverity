@@ -5,7 +5,7 @@ module top(input logic clk, a, b, input logic [1:0] m, output logic y0, y1, y2, 
   logic t;
   always @(a or b) y0 = a & b;
   always @* y1 = a | b;
-  always @(m[0] or a) begin
+  always @(m[1] or a) begin
     t = m[1];
     y2 = t & a;
   end

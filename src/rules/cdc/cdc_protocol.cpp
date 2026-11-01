@@ -223,15 +223,15 @@ double Shared::periodNs(uint32_t domain) const {
 }
 
 void Shared::analyseStructure() {
-    for (const char* r : {"CDC-010", "CDC-011", "CDC-036", "CDC-019", "CDC-020", "CDC-030", "CDC-031", "CDC-021", "CDC-043",
+    for (const char* r : {"CDC-010", "CDC-019", "CDC-020", "CDC-030", "CDC-031", "CDC-043",
                           "CDC-012", "CDC-013", "CDC-014", "CDC-015", "CDC-024", "CDC-034", "CDC-035", "CDC-037", "CDC-038",
-                          "CDC-040", "CDC-041", "CDC-042", "CDC-044", "CDC-023", "RDC-023", "RDC-024"})
+                          "CDC-040", "CDC-041", "CDC-044", "CDC-023", "CDC-045", "CDC-046", "RDC-023", "RDC-024"})
         evaluated[r] += 0;
     sequentialElements();
     reconvergence();
     clockStructure();
-    asyncControls();
     edgeStructure();
+    libraryCells();
     protocols();
 }
 
@@ -286,25 +286,24 @@ void Shared::reconvergence() {
             }
         }
         if (synced.size() + raw.size() < 2) continue;
-        const char* rule = !raw.empty() ? "CDC-036" : nullptr;
-        if (!rule) {
-            std::set<uint32_t> doms;
-            for (auto& [n, so] : synced) doms.insert(so->srcDomain);
-            rule = doms.size() > 1 ? "CDC-011" : "CDC-010";
-        }
+        const char* rule = "CDC-010";
+        std::set<uint32_t> doms;
+        for (auto& [n, so] : synced) doms.insert(so->srcDomain);
+        const char* kind = !raw.empty() ? "unsynchronised" : doms.size() > 1 ? "multi-domain" : "same-domain";
         std::string dst = stripBit(m->nameOf(d.q));
-        if (!done.insert(std::string(rule) + dst).second) continue;
+        if (!done.insert(dst + kind).second) continue;
         evaluated[rule]++;
         std::string list;
         for (auto& [n, so] : synced) list += (list.empty() ? "" : ", ") + n + " (synchronised from " + m->domains[so->srcDomain].name + ")";
         for (auto& n : raw) list += (list.empty() ? "" : ", ") + n + " (NOT synchronised)";
         Diagnostic x = mk(rule, Severity::Warning,
                           "register " + dst + " combines " + std::to_string(synced.size() + raw.size()) + " asynchronous influences before sampling: " + list +
-                          (std::string(rule) == "CDC-010" ? "; independently synchronised signals from one domain can arrive in different cycles and reconverge inconsistently"
-                           : std::string(rule) == "CDC-011" ? "; signals from different source domains reconverge in one cone"
+                          (std::string(kind) == "same-domain" ? "; independently synchronised signals from one domain can arrive in different cycles and reconverge inconsistently"
+                           : std::string(kind) == "multi-domain" ? "; signals from different source domains reconverge in one cone"
                                                             : "; unsynchronised signals are combined by logic, so glitches/skew are sampled"),
                           procOf(d).loc, procOf(d).instancePath, Confidence::Heuristic);
         x.signals = {dst};
+        x.evidence.push_back({"reconvergence_kind", kind, {}});
         x.proofState = ProofState::NotAttempted;
         x.nextStep = "Merge the related signals in the source domain and synchronise once (or use a handshake/FIFO) before combining them.";
         add(std::move(x));
@@ -450,7 +449,7 @@ void Shared::clockStructure() {
             std::string sel;
             selectInfo(clockLeaves, sel);
             if (bbox) {
-                Diagnostic d = mk("CDC-020", Severity::Warning, "clock '" + dom.name + "' is gated through an unmodeled black box", {}, {}, Confidence::Unresolved);
+                Diagnostic d = mk("CDC-002", Severity::Warning, "clock '" + dom.name + "' is gated through an unmodeled black box: its relationship to the source clock is unresolved", {}, {}, Confidence::Unresolved);
                 add(std::move(d));
             }
             for (auto n : flopLeaves) {
@@ -469,62 +468,25 @@ void Shared::clockStructure() {
                 add(mk("CDC-020", Severity::Warning, "gated clock '" + dom.name + "' enable " + m->nameOf(n) + " is a primary input with no declared relation to the clock",
                        {}, {}, Confidence::Unresolved));
             }
-            if (!latch && !flopLeaves.empty()) {
-                Diagnostic d = mk("CDC-020", Severity::Warning,
+            if (!latch && (!flopLeaves.empty() || !inputLeaves.empty())) {
+                evaluated["CDC-045"]++;
+                Diagnostic d = mk("CDC-045", Severity::Warning,
                                   "clock '" + dom.name + "' is gated by combinational logic without an enable latch: a late or changing enable (" + sel +
                                   ") can truncate or glitch the clock pulse", {}, {}, Confidence::Heuristic);
                 d.nextStep = "Use a latch-based integrated clock gate (enable latched while the clock is low).";
                 add(std::move(d));
             } else if (latch) {
-                Diagnostic d = mk("CDC-020", Severity::Info, "clock '" + dom.name + "' is gated through a latch that is transparent while the clock is low (clock-gate pattern)",
+                evaluated["CDC-045"]++;
+                Diagnostic d = mk("CDC-045", Severity::Info, "clock '" + dom.name + "' is gated through a latch that is transparent while the clock is low (clock-gate pattern)",
                                   {}, {}, Confidence::Heuristic);
                 d.proofState = ProofState::NotAttempted;
-                d.evidence.push_back({"proof_obligation", "every enable path must pass through the latch and the enable must be stable while the clock is high; timing of the latch is not analysed", {}});
+                d.evidence.push_back({"trust_model", "every enable path must pass through the latch and the enable must be stable while the clock is high; timing of the latch is not analysed", {}});
                 add(std::move(d));
             }
         }
     }
 }
 
-// --- CDC-021: a data signal used as an asynchronous set/clear of registers in another clock domain ----------------
-void Shared::asyncControls() {
-    std::set<std::string> done;
-    for (auto& f : m->flops) {
-        if (!f.clockResolved) continue;
-        for (auto& r : f.resets) {
-            if (r.root.kind != RootKind::Logic) continue;
-            NodeId q = aliasRoot(r.root.node);
-            auto it = m->flopOfQ.find(q);
-            if (it == m->flopOfQ.end()) continue;
-            const Flop& rf = m->flops[it->second];
-            if (!rf.clockResolved) continue;
-            bool functional = false;
-            std::vector<NodeId> cl;
-            std::unordered_set<NodeId> seen{q};
-            cl.push_back(q);
-            for (size_t i = 0; i < cl.size(); i++)
-                for (auto ei : m->out[cl[i]]) {
-                    const Edge& e = m->edges[ei];
-                    if (e.type == EdgeType::AsyncCtl) continue;
-                    if (e.type == EdgeType::Comb && e.exact) { if (seen.insert(e.to).second) cl.push_back(e.to); continue; }
-                    functional = true;
-                }
-            if (!functional) continue;
-            Relation rel = relation(rf.domain, f.domain);
-            if (rel == Relation::Same) continue;
-            std::string name = stripBit(m->nameOf(q));
-            if (!done.insert(name + ">" + m->domains[f.domain].name).second) continue;
-            evaluated["CDC-021"]++;
-            Diagnostic d = mk("CDC-021", rel == Relation::Async ? Severity::Error : rel == Relation::Exclusive ? Severity::Info : Severity::Warning,
-                              "signal " + name + " (domain " + m->domains[rf.domain].name + ") is used both as functional data and as an asynchronous set/clear of registers in domain " +
-                              m->domains[f.domain].name + " [" + relName(rel) + "]: an asynchronous control crossing a clock domain is unsynchronised",
-                              procOf(f).loc, procOf(f).instancePath, rel == Relation::Unknown ? Confidence::Unresolved : Confidence::Established);
-            d.signals = {name};
-            d.nextStep = "Do not drive asynchronous controls from functional signals; use a dedicated reset (RDC) or a synchronous control.";
-            add(std::move(d));
-        }
-    }
-}
 
 // --- CDC-043: rising/falling-edge registers of one clock ---------------------------------------------------------------
 void Shared::edgeStructure() {
@@ -576,13 +538,13 @@ void Shared::protocols() {
         const Chain& ch = chains_[g.dstFlops[0]];
         return !ch.linkLogic && ch.depth >= 2;
     };
-    auto dstLast = [&](const Group& g) { return m->flops[chains_[g.dstFlops[0]].stages.back()].q; };
     auto withTag = [&](const Group& g) {
         Relation rel = relation(g.srcDomain, g.dstDomain);
         return std::string(rel == Relation::Unknown ? " [clock relationship UNKNOWN]" : "");
     };
     auto ev = [&](Diagnostic& d, const Group& g) {
         d.signals = {g.srcName, g.dstName};
+        if (relation(g.srcDomain, g.dstDomain) == Relation::Exclusive) d.evidence.push_back({"trust_model", "the two clocks are declared exclusive by constraint (trusted, not verified)", {}});
         d.evidence.push_back({"launch_register", g.srcName + " (clock domain " + m->domains[g.srcDomain].name + ")", {}});
         d.evidence.push_back({"capture_register", g.dstName + " (clock domain " + m->domains[g.dstDomain].name + ")", {}});
     };
@@ -655,7 +617,7 @@ void Shared::protocols() {
             reset041(g, m->flopAt(g.srcQ), tag);   // multi-bit synchronised groups get the reset check too
         if (!isSyncedSingle(g) || g.memory) continue;
         single.push_back(&g);
-        NodeId sq = g.srcQ, lastQ = dstLast(g);
+        NodeId sq = g.srcQ;
         const Flop* sf = m->flopAt(sq);
 
         // CDC-012: synchroniser attributes (profile dependent)
@@ -688,7 +650,7 @@ void Shared::protocols() {
 
         // CDC-013 / CDC-042: pulses and the clock-rate relation
         if (!exclusive && sf) {
-            evaluated["CDC-013"]++; evaluated["CDC-042"]++;
+            evaluated["CDC-013"]++;
             bool eventLike = false;
             for (auto ei : m->in[sq]) {
                 const Edge& e = m->edges[ei];
@@ -713,12 +675,13 @@ void Shared::protocols() {
                 add(std::move(d));
             } else if (eventLike) {
                 bool unknownRate = ts <= 0 || td <= 0;
-                Diagnostic d = mk("CDC-042", unknownRate ? Severity::Warning : Severity::Info,
+                Diagnostic d = mk("CDC-013", unknownRate ? Severity::Warning : Severity::Info,
                                   "crossing " + g.srcName + " -> " + g.dstName + " carries a computed (event-like) signal: nothing guarantees it is held long enough for the destination" +
                                   (unknownRate ? " (clock periods unknown)" : "") + tag, g.loc, g.hier,
                                   unknownRate ? Confidence::Unresolved : Confidence::Heuristic);
                 ev(d, g);
                 d.proofState = ProofState::NotAttempted;
+                d.evidence.push_back({"signal_kind", "computed (event-like) signal", {}});
                 d.evidence.push_back({"proof_obligation", "minimum pulse width >= 1.5 x destination period (or a toggle/handshake protocol) is not verified", {}});
                 add(std::move(d));
             }
@@ -744,7 +707,7 @@ void Shared::protocols() {
                 Diagnostic d = mk("CDC-014", Severity::Info, "toggle synchroniser recognised for " + g.srcName + " -> " + g.dstName + tag, g.loc, g.hier, Confidence::Heuristic);
                 ev(d, g);
                 d.proofState = ProofState::NotAttempted;
-                d.evidence.push_back({"proof_obligation", "toggles must be at least two destination clock periods apart, otherwise events are lost", {}});
+                d.evidence.push_back({"trust_model", "toggles must be at least two destination clock periods apart, otherwise events are lost", {}});
                 add(std::move(d));
                 evaluated["CDC-024"]++;
                 Diagnostic o = mk("CDC-024", Severity::Info, "functional correctness of the toggle protocol " + g.srcName + " -> " + g.dstName + " is not verified", g.loc, g.hier, Confidence::Heuristic);
@@ -775,7 +738,7 @@ void Shared::protocols() {
                                   " (" + m->domains[b->srcDomain].name + ")", a->loc, a->hier, Confidence::Heuristic);
                 d.signals = {a->srcName, b->srcName};
                 d.proofState = ProofState::NotAttempted;
-                d.evidence.push_back({"proof_obligation", "the 4-phase protocol (req held until ack, ack held until req drops, data stable while req is high) is not verified", {}});
+                d.evidence.push_back({"trust_model", "the 4-phase protocol (req held until ack, ack held until req drops, data stable while req is high) is not verified", {}});
                 add(std::move(d));
                 evaluated["CDC-024"]++;
                 Diagnostic o = mk("CDC-024", Severity::Info, "functional correctness of the handshake " + a->srcName + " <-> " + b->srcName + " is not verified", a->loc, a->hier, Confidence::Heuristic);
@@ -800,19 +763,21 @@ void Shared::protocols() {
             auto roots = [&](const Group& g) {
                 std::set<NodeId> r; bool unreset = false;
                 for (auto q : g.srcBits) { const Flop* f = m->flopAt(q); if (!f) continue; if (f->resets.empty()) unreset = true; for (auto& rr : f->resets) r.insert(rr.root.node); }
+                // the binary counter the Gray value is derived from is part of the pointer: it needs a reset too
+                for (auto q : g.srcBits)
+                    if (const Flop* f = m->flopAt(q))
+                        for (auto& cs : cones_->of(*f).flops)
+                            if (const Flop* bf = m->flopAt(cs.q); bf && bf->resets.empty()) unreset = true;
                 return std::make_pair(r, unreset);
             };
             auto [r1, u1] = roots(g1);
             auto [r2, u2] = roots(g2);
             std::string msg = "asynchronous FIFO pointers " + g1.srcName + " (" + m->domains[g1.srcDomain].name + ") <-> " + g2.srcName + " (" + m->domains[g2.srcDomain].name + "): ";
             if (u1 || u2) msg += "a pointer register has no asynchronous reset; ";
-            if (r1 != r2 && !r1.empty() && !r2.empty()) msg += "the two pointers are reset by different resets, so reset release is not coordinated across the domains; ";
-            bool bad = u1 || u2 || (r1 != r2 && !r1.empty() && !r2.empty());
-            Diagnostic d = mk("CDC-034", bad ? Severity::Warning : Severity::Info, bad ? msg + "pointer values can be inconsistent after reset" : msg + "pointer pair recognised, both reset by the same reset",
+            bool bad = u1 || u2;   // independent resets of the two pointers are RDC-023
+            Diagnostic d = mk("CDC-034", bad ? Severity::Warning : Severity::Info, bad ? msg + "pointer values can be inconsistent after reset" : msg + "pointer pair recognised, every pointer bit has an asynchronous reset",
                               g1.loc, g1.hier, Confidence::Heuristic);
-            d.signals = {g1.srcName, g2.srcName};
-            d.proofState = ProofState::NotAttempted;
-            d.evidence.push_back({"proof_obligation", "each domain must see the other's pointer only after a coordinated reset release (see RDC-023); empty/full flag correctness is not verified", {}});
+            d.signals = {g1.srcName, g2.srcName};   // the unproved FIFO obligations are CDC-024 and RDC-023
             add(std::move(d));
             Diagnostic o = mk("CDC-024", Severity::Info, "functional correctness of the asynchronous FIFO " + g1.srcName + " / " + g2.srcName + " (pointer arithmetic, full/empty, data path) is not verified",
                               g1.loc, g1.hier, Confidence::Heuristic);
@@ -948,6 +913,7 @@ void Shared::protocols() {
 
     // CDC-040: library cells declared as synchronisers (--library)
     for (auto& li : m->libInstances) {
+        if (li.kind != "synchronizer") continue;   // flop, clock_gate, ram and blackbox cells are described by their own rules
         evaluated["CDC-040"]++;
         Diagnostic d = mk("CDC-040", Severity::Info, "library synchroniser cell '" + li.module + "' (" + std::to_string(li.stages) + " stages) at " + li.hierarchy +
                           " is recognised through the library description, not by its body", li.loc, li.hierarchy, Confidence::Heuristic);

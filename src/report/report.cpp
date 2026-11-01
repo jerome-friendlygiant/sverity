@@ -32,6 +32,12 @@ const char* toString(RuleState s) {
 }
 
 void Report::add(Diagnostic d) {
+    // Severity contract (RFC section 3): an unproved property is at least a WARNING. INFO with proof state NOT_ATTEMPTED is allowed only for a
+    // recognised structure that states its trust model (evidence "trust_model"); a bare obligation is raised to WARNING here, in one place.
+    if (d.severity == Severity::Info && d.proofState == ProofState::NotAttempted) {
+        bool trusted = std::any_of(d.evidence.begin(), d.evidence.end(), [](const Evidence& e) { return e.kind == "trust_model"; });
+        if (!trusted) d.severity = Severity::Warning;
+    }
     if (d.disposition == Disposition::Open) d.applyDefaultDisposition();
     diags_.push_back(std::move(d));
     finalized_ = false;

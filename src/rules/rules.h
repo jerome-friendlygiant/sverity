@@ -15,6 +15,7 @@ std::vector<std::unique_ptr<Rule>> makeLintSynthRules();
 std::vector<std::unique_ptr<Rule>> makeLintWidthRules();
 std::vector<std::unique_ptr<Rule>> makeLintStructRules();
 std::vector<std::unique_ptr<Rule>> makeLintModelRules();
+std::vector<std::unique_ptr<Rule>> makeLintDataflowRules();   // rules/lint/lint_dataflow.cpp: rules on the flow analysis (src/analysis)
 std::vector<std::unique_ptr<Rule>> makeGraphLintRules();     // rules/lint/graph_lint.cpp
 std::vector<std::unique_ptr<Rule>> makeRdcRules();           // rules/rdc/rdc_pass.cpp
 std::vector<std::unique_ptr<Rule>> makeCdcRules();           // rules/cdc/cdc_pass.cpp (CDC/RDC/CST model-based)

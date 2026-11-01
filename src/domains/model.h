@@ -36,12 +36,23 @@ struct Node {
     uint32_t bit = 0;                                    // bit offset within sym (0 for collapsed symbols)
 };
 
+/// The operator the source participates in on its way to the target (innermost operator around the source's reference).
+/// None = a pure bit move (alias, concatenation, select, extension). Mux = data arm of ?:, MuxSel = its select.
+enum class Op : uint8_t { None, And, Or, Xor, Not, Mux, MuxSel, Compare, Arith, Shift, Select, Other };
+
+/// Where the source sits in the control structure of the assignment (for ctrl edges).
+enum class Branch : uint8_t { None, Taken, NotTaken };
+
 struct Edge {
     NodeId from = kNoNode, to = kNoNode;
     EdgeType type = EdgeType::Comb;
     bool exact = false;
     uint32_t proc = 0;                                   // index into Model::procs
     bool ctrl = false;                                   // the source is a control-flow condition (enable/select), not data
+    Op op = Op::None;                                    // innermost operator on the source's path (Other when it differs between uses)
+    uint8_t inv = 0;                                     // 0 the source reaches the target true-polarity, 1 inverted (odd number of NOT /
+                                                         // XNOR/NAND/NOR/!= on the way), 2 unknown (arithmetic, comparison, mixed uses)
+    Branch branch = Branch::None;                        // ctrl edges: the assignment runs when the condition holds / does not hold
 };
 
 enum class ProcKind : uint8_t { Continuous, Comb, Latch, Sequential, PortConnection, Other };
@@ -75,7 +86,8 @@ struct Flop {
     Root clockRoot;
     int edge = 0;                                        // 1 posedge, 2 negedge, 3 both, 0 unknown
     std::vector<ResetInfo> resets;                       // async resets (from event list)
-    std::vector<int> resetKinds;                         // per reset: value it forces on this register: 0 clear, 1 set, 2 unknown
+    std::vector<int> resetKinds;                         // per reset: value it forces on this register bit: 0 clear, 1 set, 2 unknown (derived from resetValues)
+    std::vector<char> resetValues;                       // per reset: the constant this bit gets: '0' '1' 'x' 'z', '?' (assigned a non-constant or conflicting value), 'n' (not assigned by that reset's branch)
 
     bool hasSyncResetCandidate = false;                  // heuristic: top-level if(!x) q<=const
     int extraStages = 0;                                 // library synchroniser cell: stages beyond this register
@@ -97,16 +109,58 @@ struct Fallback {
     SourceLocation loc;
 };
 
-struct LibInstance {
-    std::string module, hierarchy;
-    int stages = 2;
-    SourceLocation loc;
+enum class PortRole : uint8_t { Unknown, Clock, Reset, Enable, DataIn, DataOut, Address, WriteEnable, GatedClock };
+enum class PortDir : uint8_t { Unknown, In, Out, InOut };
+
+/// One connection of a black-box (or library) instance. `dir`/`role` are Unknown unless the --library declaration names them.
+struct BlackBoxPort {
+    std::string name;
+    PortDir dir = PortDir::Unknown;
+    PortRole role = PortRole::Unknown;
+    std::string clock;                                   // library: name of the clock port this port is synchronous to ("" = not declared)
+    std::vector<NodeId> nodes;                           // the actual signal's bits in the instantiating scope
 };
 
 struct BlackBoxInst {
     std::string module;
     std::string hierarchy;
     SourceLocation loc;
+    std::vector<BlackBoxPort> ports;
+    bool declared = false;                               // a --library entry describes the ports (roles and directions known)
+};
+
+struct LibInstance {
+    std::string module, hierarchy;
+    std::string kind;                                    // synchronizer | flop | clock_gate | ram
+    int stages = 2;
+    SourceLocation loc;
+    std::vector<BlackBoxPort> ports;                     // every declared port with the nodes connected to it
+};
+
+/// A library clock gate: `out` is the gated copy of `clk`, switched by `enable` (clock tracing follows out -> clk).
+struct ClockGateInst {
+    std::string module, hierarchy;
+    std::vector<NodeId> clk, enable, out;
+    bool latched = false;                                // the library declares the enable captured glitch-free inside the cell
+    SourceLocation loc;
+};
+
+/// A library RAM: written in the `writeClk` domain, read in the `readClk` domain (or asynchronously). Read data nodes are
+/// blackBoxDriven == 2.
+struct RamInst {
+    std::string module, hierarchy;
+    std::vector<NodeId> writeClk, readClk;
+    std::vector<BlackBoxPort> ports;
+    bool syncRead = true;
+    SourceLocation loc;
+    int64_t writeDomain = -1, readDomain = -1;           // index into Model::domains of the write / read clock (-1 = not resolved), set by finish()
+};
+
+/// A constant bit that drives a node through an exact move (`assign y = 1'bx;`, `q <= 4'b0001`). value: '0' '1' 'x' 'z'.
+struct ConstDriver {
+    char value = '?';
+    EdgeType type = EdgeType::Comb;
+    uint32_t proc = 0;
 };
 
 class Model {
@@ -118,7 +172,10 @@ public:
     std::vector<Domain> domains;
     std::vector<Fallback> fallbacks;
     std::vector<BlackBoxInst> blackBoxes;
-    std::vector<LibInstance> libInstances;               // instances of declared library synchroniser cells
+    std::vector<LibInstance> libInstances;               // instances of declared library cells (every kind)
+    std::unordered_map<NodeId, std::vector<ConstDriver>> constDrivers;   // exact constant drivers per node (X/Z kept)
+    std::vector<ClockGateInst> clockGates;
+    std::vector<RamInst> rams;
 
     // adjacency (edge indices), built by finish()
     std::vector<std::vector<uint32_t>> in, out;
@@ -127,7 +184,7 @@ public:
     /// per register bit: for every data-carrying assignment, the (non-reset) control nodes guarding it; an empty list = unguarded.
     std::unordered_map<NodeId, std::vector<std::vector<NodeId>>> guards;
     std::unordered_set<NodeId> selfLogic;                // registers whose next value depends on their own value through logic (toggle/counter)
-    std::vector<uint8_t> blackBoxDriven;                 // per node
+    std::vector<uint8_t> blackBoxDriven;                 // per node: 1 = may be driven by an unmodelled black box, 2 = read data of a library RAM
     std::vector<uint8_t> topInput;                       // per node: input port bit of a top instance
     std::vector<uint8_t> unresolvedDriven;               // per node: drivers truncated by a precision fallback
     std::vector<uint8_t> topOutput;                      // per node: output port bit of a top instance (observable)

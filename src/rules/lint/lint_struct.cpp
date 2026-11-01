@@ -215,12 +215,6 @@ void reportUnresolved(Lint& l, slang::SourceLocation at, std::string message, st
               .nextStep = "Make the index constant, or review the driver manually.", .hierarchy = std::move(hierarchy)});
 }
 
-const InstanceBodySymbol* enclosingBody(const Symbol& s) {
-    for (const Scope* sc = s.getParentScope(); sc; sc = sc->asSymbol().getParentScope())
-        if (sc->asSymbol().kind == SymbolKind::InstanceBody) return &sc->asSymbol().as<InstanceBodySymbol>();
-    return nullptr;
-}
-
 // Module-level nets and variables of every canonical instance body (generate blocks included), output-port
 // internals annotated with their port, and every symbol referenced by name in the design.
 struct ValueCollector : ASTVisitor<ValueCollector, VisitFlags::AllCanonical> {

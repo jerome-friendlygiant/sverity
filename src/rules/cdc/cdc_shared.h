@@ -156,7 +156,7 @@ private:
         for (auto& [mod, v] : byMod) {
             Diagnostic d = mk("CST-005", Severity::Warning,
                               std::to_string(v.size()) + " instance(s) of unknown module '" + mod +
-                              "' (black box, UNMODELED): its clock/reset/CDC behaviour is not analysed",
+                              "' (black box, UNMODELED): its clock/reset/CDC behaviour is not analysed" + std::string(v[0]->declared ? " (declared in a --library file: port directions and roles are known, behaviour is not)" : ""),
                               v[0]->loc, v[0]->hierarchy, Confidence::Unresolved);
             for (size_t i = 0; i < v.size() && i < 8; i++)
                 d.evidence.push_back({"blackbox_instance", v[i]->hierarchy, v[i]->loc});
@@ -251,7 +251,7 @@ private:
             if (!domainClockName(i).empty()) d.evidence.push_back({"domain_provenance", "constrained as SDC clock '" + domainClockName(i) + "'", {}});
             add(std::move(d));
             if (dom.kind != RootKind::TopPort) {
-                Diagnostic g = mk(dom.kind == RootKind::Logic ? "CDC-002" : "CDC-001", Severity::Warning,
+                Diagnostic g = mk("CDC-002", Severity::Warning,
                                   std::string("clock '") + dom.name + "' is not a primary input: it is " + kind +
                                   "; its relationship to other clocks is unresolved",
                                   {}, {}, Confidence::Unresolved);
@@ -274,7 +274,7 @@ private:
     void analyseResets() {
         evaluated["RDC-001"] = m->flops.size();
         evaluated["CST-001"] = m->flops.size();
-        struct Rs { Root root; bool activeLow = false; std::set<uint32_t> domains; uint64_t regs = 0; SourceLocation loc; };
+        struct Rs { Root root; bool activeLow = false; std::set<uint32_t> domains; uint64_t regs = 0, clears = 0, sets = 0, other = 0; SourceLocation loc; };
         std::map<NodeId, Rs> resets;
         uint64_t asyncRegs = 0, syncCand = 0, none = 0;
         std::map<uint32_t, std::array<uint64_t, 3>> perDomain;   // async, sync-candidate, none
@@ -283,11 +283,14 @@ private:
             if (!f.resets.empty()) {
                 asyncRegs++;
                 if (dm != ~0u) perDomain[dm][0]++;
-                for (auto& r : f.resets) {
+                for (size_t ri = 0; ri < f.resets.size(); ri++) {
+                    auto& r = f.resets[ri];
                     auto& e = resets[r.root.node];
                     e.root = r.root;
                     e.activeLow = r.activeLow;
                     e.regs++;
+                    char rv = ri < f.resetValues.size() ? f.resetValues[ri] : '?';
+                    (rv == '0' ? e.clears : rv == '1' ? e.sets : e.other)++;
                     if (f.clockResolved) e.domains.insert(f.domain);
                     if (!e.loc.valid()) e.loc = procOf(f).loc;
                 }
@@ -310,6 +313,7 @@ private:
                               std::to_string(r.regs) + " register bit(s) in clock domain(s) [" + doms + "]",
                               r.loc, {}, Confidence::Informational);
             d.evidence.push_back({"reset_polarity", "polarity inferred from the event edge (negedge=active-low); assumes the block resets when the signal is asserted", r.loc});
+            d.evidence.push_back({"reset_values", "register bits cleared to 0: " + std::to_string(r.clears) + ", set to 1: " + std::to_string(r.sets) + ", other or unknown value: " + std::to_string(r.other), r.loc});
             add(std::move(d));
             if (r.root.kind != RootKind::TopPort) {
                 Diagnostic g = mk("RDC-001", Severity::Warning,
@@ -475,15 +479,16 @@ private:
     void analyseStructure();   // cdc_protocol.cpp: the structure analyses below
     void reconvergence();      // CDC-010 / 011 / 036
     void clockStructure();     // CDC-019 / 020 / 030 / 031
-    void asyncControls();      // CDC-021
     void edgeStructure();      // CDC-043
     void protocols();          // CDC-012 / 013 / 014 / 015 / 024 / 034 / 035 / 037 / 038 / 040 / 041 / 042 / 044
     void sequentialElements(); // CDC-001 latches
+    void libraryCells();       // cdc_library.cpp: CDC-020 / 035 / 045 / 046 for declared library RAMs, clock gates and black boxes
+    int domainOfClockNode(NodeId clk) const;
     double periodNs(uint32_t domain) const;
 
     void analyseCrossings() {
-        evaluated["CDC-026"] = evaluated["CDC-027"] = evaluated["CDC-032"] = 0;
-        evaluated["CDC-016"] = evaluated["CDC-017"] = evaluated["CDC-018"] = evaluated["CDC-028"] = evaluated["CDC-033"] = evaluated["CDC-039"] = 0;
+        evaluated["CDC-026"] = evaluated["CDC-032"] = 0;
+        evaluated["CDC-016"] = evaluated["CDC-017"] = evaluated["CDC-018"] = evaluated["CDC-028"] = evaluated["CDC-039"] = 0;
         evaluated["CDC-003"] = evaluated["CDC-004"] = evaluated["CDC-005"] = evaluated["CDC-006"] = 0;
         evaluated["CDC-007"] = evaluated["CDC-008"] = evaluated["CDC-009"] = evaluated["CDC-029"] = evaluated["CST-004"] = 0;
         int minStages = 2;
@@ -618,6 +623,7 @@ private:
             auto base = [&](const char* rule, Severity sev, std::string msg) {
                 Diagnostic d = mk(rule, sev, std::move(msg), g.loc, g.hier, sev == Severity::Info ? Confidence::Informational : conf);
                 d.signals = {g.srcName, g.dstName};
+                if (rel == Relation::Exclusive) d.evidence.push_back({"trust_model", "the two clocks are declared exclusive by constraint (trusted, not verified)", {}});
                 d.evidence.push_back({"launch_register", g.srcName + " (clock domain " + m->domains[g.srcDomain].name + ")", {}});
                 d.evidence.push_back({"capture_register", g.dstName + " (clock domain " + m->domains[g.dstDomain].name + ", " +
                                       std::to_string(width) + " bit(s))", procOf(f0).loc});
@@ -686,7 +692,7 @@ private:
                     clkMis += chains[di].clockMismatch; rstMis += chains[di].resetMismatch;
                     mid += chains[di].midFanout; leak += chains[di].leaksDomain;
                 }
-                evaluated["CDC-026"] += width; evaluated["CDC-027"] += width;
+                evaluated["CDC-026"] += width;
                 if (clkMis || rstMis) {
                     Diagnostic d = base("CDC-026", sevViol, "synchroniser stages of " + g.dstName + " are not clocked/reset alike (" +
                                         std::string(clkMis ? "different clock edge" : "") + (clkMis && rstMis ? " and " : "") +
@@ -695,7 +701,7 @@ private:
                     add(std::move(d));
                 }
                 if (mid || leak) {
-                    Diagnostic d = base("CDC-027", sevViol, "an intermediate stage of the synchroniser " + g.dstName + " " +
+                    Diagnostic d = base("CDC-007", sevViol, "an intermediate stage of the synchroniser " + g.dstName + " " +
                                         (leak ? "is captured by a register in another clock domain (feedback/leak)" : "feeds logic other than the next stage") + tag);
                     d.nextStep = "Only the last synchroniser stage may be used; do not tap or feed back intermediate stages.";
                     add(std::move(d));
@@ -732,7 +738,7 @@ private:
                     }
             }
             if (width > 1 && (gray || counter)) {
-                evaluated["CDC-017"] += width; evaluated["CDC-018"] += width; evaluated["CDC-033"] += width;
+                evaluated["CDC-017"] += width; evaluated["CDC-018"] += width;
                 if (counter) {
                     Diagnostic d = base("CDC-017", sevViol, "multi-bit pointer " + g.srcName + " -> " + g.dstName + " is a binary counter: several bits change at "
                                         "once, so independently synchronised bits can be captured in an invalid state" + tag);
@@ -748,18 +754,6 @@ private:
                         d.nextStep = "Every pointer bit needs its own synchroniser chain of the required depth with no logic between stages.";
                         add(std::move(d));
                     }
-                    if (g.anyLogicBefore) {
-                        Diagnostic d = base("CDC-033", sevViol, "Gray pointer " + g.srcName + " is not launched directly from a register: logic between the "
-                                            "Gray register and the crossing can glitch and break the single-bit-change property" + tag);
-                        d.nextStep = "Register the Gray value in the source domain and cross that register.";
-                        add(std::move(d));
-                    }
-                    Diagnostic o = base("CDC-033", Severity::Info, "recognised Gray-coded pointer " + g.srcName + " -> " + g.dstName + tag);
-                    o.confidence = Confidence::Heuristic;
-                    o.proofState = ProofState::NotAttempted;
-                    o.evidence.push_back({"proof_obligation", "assumes the pointer changes by at most one count per source clock (Gray property) "
-                                          "and that the source stays stable long enough: neither is proven", {}});
-                    add(std::move(o));
                     if (synced == static_cast<int>(width)) {
                         NodeId sq = *g.srcBits.begin();
                         NodeId dq = m->flops[g.dstFlops[0]].q;
@@ -770,6 +764,7 @@ private:
                                                 "the Gray property only holds if all bits arrive within one source clock period" + tag);
                             d.confidence = Confidence::Unresolved;
                             d.proofState = ProofState::NotAttempted;
+                            d.evidence.push_back({"proof_obligation", "assumes the pointer changes by at most one count per source clock (Gray property) and that the source stays stable long enough: neither is proven", {}});
                             d.nextStep = "Add set_max_delay -datapath_only (or a bus skew constraint) on the pointer bits.";
                             add(std::move(d));
                         } else {
@@ -778,6 +773,7 @@ private:
                                                 "); its value is not checked against the clock periods" + tag);
                             d.confidence = Confidence::Heuristic;
                             d.proofState = ProofState::NotAttempted;
+                            d.evidence.push_back({"trust_model", "the max-delay constraint is trusted: its value against the clock periods and the bus skew are not verified", {}});
                             add(std::move(d));
                         }
                     }
@@ -848,7 +844,7 @@ private:
                 if (inputLogic_.count({inNode, dom})) sx("CDC-008", "combinational logic between primary input '" + inFull + "' and its capturing register: glitches on the asynchronous input are sampled", Confidence::Established);
                 bool merged = false;
                 for (auto di : dsts) merged = merged || multiInputDst_.count(di);
-                if (merged) sx("CDC-036", "primary input '" + inFull + "' is combined with other asynchronous inputs before it is sampled", Confidence::Heuristic);
+                if (merged) sx("CDC-010", "primary input '" + inFull + "' is combined with other asynchronous inputs before it is sampled", Confidence::Heuristic);
                 // other bits of the same input vector captured separately
                 std::set<NodeId> bits;
                 for (auto& [k2, d2] : inputsToDomain) if (k2.second == dom && stripBit(m->nameOf(k2.first)) == inFull) bits.insert(k2.first);

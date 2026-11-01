@@ -2,7 +2,7 @@
 file(GLOB UNIT_TEST_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_*.cpp")
 add_executable(sverity_unit_tests unit/test_main.cpp ${UNIT_TEST_SOURCES})
 target_link_libraries(sverity_unit_tests PRIVATE sverity_lib)
-target_include_directories(sverity_unit_tests PRIVATE unit)
+target_include_directories(sverity_unit_tests PRIVATE unit ${PROJECT_SOURCE_DIR}/src)
 target_compile_definitions(sverity_unit_tests PRIVATE
   SVERITY_SOURCE_DIR="${PROJECT_SOURCE_DIR}" SVERITY_BIN="$<TARGET_FILE:sverity>")
 add_test(NAME unit COMMAND sverity_unit_tests)

@@ -1,6 +1,6 @@
 // sverity-args: --top top
-// an element read counts as reading the whole array; listing one element still covers the array symbol
-// expect-none: LNT-045
+// audit: @(m[0]) is sensitive to bit 0 only; the body reads m[1], which is not in the list
+// expect: LNT-045 WARNING
 module top(input logic a, output logic y);
   logic [1:0] m;
   always @(m[0] or a) begin

@@ -1,0 +1,2 @@
+{"cells": [{"name": "ICG_LATCHED", "kind": "clock_gate", "clock": "CLK", "enable": "EN", "output": "GCLK", "enable_latched": true},
+           {"name": "AND_GATE", "kind": "clock_gate", "clock": "CLK", "enable": "EN", "output": "GCLK"}]}

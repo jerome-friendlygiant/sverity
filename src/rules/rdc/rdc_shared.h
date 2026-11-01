@@ -198,6 +198,20 @@ private:
                                             "' [clock relationship " + relName(rel) + "]: its release is asynchronous to the receiving clock",
                                             rel == Relation::Unknown ? Confidence::Unresolved : Confidence::Established);
                         d.evidence.push_back({"domain_provenance", "reset generator register " + m_->nameOf(root.node) + " in domain " + m_->domains[rf->domain].name, m_->procs[rf->proc].loc});
+                        {   // the generator's output also steers ordinary logic (a data signal used as an asynchronous control)
+                            bool functional = false;
+                            std::vector<NodeId> cl{m_->aliasRoot(root.node)};
+                            std::unordered_set<NodeId> seenN{cl[0]};
+                            for (size_t ci = 0; ci < cl.size() && !functional; ci++)
+                                for (auto ei : m_->out[cl[ci]]) {
+                                    const Edge& e = m_->edges[ei];
+                                    if (e.type == EdgeType::AsyncCtl) continue;
+                                    if (e.type == EdgeType::Comb && e.exact) { if (seenN.insert(e.to).second) cl.push_back(e.to); continue; }
+                                    functional = true;
+                                    break;
+                                }
+                            if (functional) d.evidence.push_back({"also_functional_data", "the generator register's output also feeds functional logic: a data signal used as an asynchronous control", {}});
+                        }
                         d.nextStep = "Pass the reset through a synchroniser clocked by the receiving domain.";
                         add(std::move(d));
                         if (rel == Relation::Unknown) ctx.report.markIncomplete("clock-relationships", "reset '" + rname + "' crosses unrelated clocks");

@@ -1,0 +1,6 @@
+{"cells": [{"name": "HARD_IP", "kind": "blackbox",
+  "ports": [{"name": "clk", "dir": "in", "role": "clock"}, {"name": "din", "dir": "in", "role": "data_in"}, {"name": "dout", "dir": "out", "role": "data_out"}]},
+ {"name": "TWO_CLK_IP", "kind": "blackbox",
+  "ports": [{"name": "clk_a", "dir": "in", "role": "clock"}, {"name": "clk_b", "dir": "in", "role": "clock"},
+            {"name": "din_a", "dir": "in", "role": "data_in", "clock": "clk_a"}, {"name": "din_b", "dir": "in", "role": "data_in", "clock": "clk_b"},
+            {"name": "dout", "dir": "out", "role": "data_out"}]}]}

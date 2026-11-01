@@ -1,0 +1,3 @@
+{"cells": [{"name": "DPRAM", "kind": "ram", "write_clock": "WCLK", "read_clock": "RCLK", "sync_read": true,
+  "ports": [{"name": "WCLK", "dir": "in", "role": "clock"}, {"name": "RCLK", "dir": "in", "role": "clock"},
+            {"name": "WD", "dir": "in", "role": "data_in"}, {"name": "RD", "dir": "out", "role": "data_out"}]}]}

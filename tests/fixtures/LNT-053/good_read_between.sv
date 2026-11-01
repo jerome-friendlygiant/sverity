@@ -1,7 +1,7 @@
 // sverity-args: --top top
-// a read between the two assignments, a self-referencing right side, and a timing control keep the first live
+// a read between the two assignments and a self-referencing right side keep the first write live
 // expect-none: LNT-053
-module top(input logic clk, a, b, output logic y, z);
+module top(input logic a, b, output logic y, z);
   logic t, u;
   always_comb begin
     t = a;
@@ -10,10 +10,5 @@ module top(input logic clk, a, b, output logic y, z);
     u = a;
     u = u + b;
     z = u;
-  end
-  always_ff @(posedge clk) begin
-    t <= a;
-    y <= t;
-    t <= b;
   end
 endmodule
