@@ -1,0 +1,12 @@
+build*/
+out/
+.cache/
+compile_commands.json
+*.o
+*.a
+*.log
+.vscode/
+.idea/
+.DS_Store
+# local-only agent/tool state
+.claude/

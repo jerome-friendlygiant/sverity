@@ -1,0 +1,13 @@
+{
+  "comment": "Pinned public designs used for robustness/performance/regression runs. Sources are NOT vendored: scripts/run_public_projects.sh clones them at the pinned commit into a scratch directory. Upstream RTL is not assumed defect-free and sverity findings are not assumed to be true bugs (RFC section 7). 'expect' only asserts that the run completes, with the stated execution status; it is not a statement about design quality.",
+  "projects": [
+    {
+      "name": "picorv32",
+      "url": "https://github.com/YosysHQ/picorv32",
+      "commit": "ef203c2b0a3fb793280f5114941416c425c5b461",
+      "licence": "ISC",
+      "args": ["--top", "picorv32", "picorv32.v"],
+      "expect": {"execution_status": "SUCCESS", "min_register_bits": 2000, "max_seconds": 60}
+    }
+  ]
+}
