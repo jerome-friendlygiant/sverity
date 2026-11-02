@@ -1,4 +1,9 @@
-# SVerity
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/logo/sverity-logo-dark.svg">
+    <img alt="SVerity" src="docs/logo/sverity-logo.svg" width="320">
+  </picture>
+</h1>
 
 An open-source, offline SystemVerilog analyzer for **lint, CDC and RDC**, built natively on
 [slang](https://github.com/MikePopoloski/slang) (C++20 CLI + embeddable library). The long-term aim is a transparent,
