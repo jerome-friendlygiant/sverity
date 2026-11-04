@@ -16,13 +16,16 @@
 namespace sverity {
 
 struct Config {
+    std::set<std::string> goals;           // selected goal names; empty means all families
+    bool goalBroadened = false;             // explicit enable restored a rule outside the goal
     std::set<std::string> disabledRules;   // disabled rules stay listed in the coverage report
     std::string profile = "generic";       // generic | asic | fpga
     sdc::Constraints constraints;          // merged from all --sdc files
     std::vector<std::string> sdcFiles;     // names of the loaded constraint files (provenance, CST-021)
     bool constraintsProvided = false;
-    /// Per-rule options, key = "<RULE-ID>.<option>" (e.g. "STY-011.max_line_length" = "120").
+    /// Per-rule options, key = "<RULE-ID>.<option>" (e.g. "CDC-005.min_stages" = "2").
     std::map<std::string, std::string> ruleOptions;
+    std::map<std::string, Severity> severityOverrides; // expanded exact rule IDs
     std::string option(const std::string& key, const std::string& def) const {
         auto it = ruleOptions.find(key);
         return it == ruleOptions.end() ? def : it->second;

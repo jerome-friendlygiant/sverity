@@ -38,7 +38,7 @@ Crossing severity: ERROR if the clocks are declared asynchronous, WARNING if UNK
 | `CDC-035` | Memory written and read in different clock domains |
 | `CDC-037` | Clock group relationship contradiction with observed synchronizers |
 | `CDC-038` | Multi-cycle/falsely cut paths do not establish CDC safety |
-| `CDC-039` | Payload captured under a synchronised qualifier (data-stability obligation) |
+| `CDC-039` | Payload qualification and data-stability obligations |
 | `CDC-040` | Synchroniser recognised from an annotation or a library description |
 | `CDC-041` | Reset-dependent CDC protocol activation / release |
 | `CDC-043` | Mixed positive/negative edge domains |
@@ -62,13 +62,13 @@ Terms: a crossing group is a (source signal, destination signal) pair; its width
 
 ### CDC-003
 - **Trigger:** a single-bit crossing group (s -> d, relation not Same) where d starts no chain of depth >= 2 without link logic (unsynchronised) and d is not a qualified payload (CDC-039).
-- **Exempt:** qualified payloads (CDC-039). A recognised synchroniser (depth >= min_stages, no link logic, first stage without fan-out) is INFO, not a finding class change.
+- **Exempt:** qualified payloads and undecided capture qualification (CDC-039). A recognised synchroniser (depth >= min_stages, no link logic, first stage without fan-out) is INFO, not a finding class change.
 - **Severity:** ERROR Established when Async; WARNING Unresolved when Unknown; INFO Informational when Exclusive or recognised (proof NOT_ATTEMPTED). This is the severity convention used by "as CDC-003" below.
 - **Unknown:** Unknown relation is WARNING Unresolved, never INFO. An unidentified clock on either side emits no CDC-003; the path is counted as CST-004 (scope clock-relationships INCOMPLETE).
 
 ### CDC-004
 - **Trigger:** a multi-bit crossing group (width >= 2, relation not Same) with at least one destination bit that starts no chain of depth >= 2 without link logic, and that is not a qualified payload (CDC-039). A wide symbol (more than 16384 bits, tracked as one node) in a crossing is reported here without classification.
-- **Exempt:** qualified payloads (CDC-039). A group whose bits are all synchronised is decided by CDC-009, CDC-017 and CDC-018; a partly synchronised Gray pointer is reported here as well as by CDC-017.
+- **Exempt:** qualified payloads and undecided capture qualification (CDC-039). A group whose bits are all synchronised is decided by CDC-009, CDC-017 and CDC-018; a partly synchronised Gray pointer is reported here as well as by CDC-017.
 - **Severity:** as CDC-003. Wide symbol: WARNING Unresolved, or ERROR Unresolved when Async and no next-stage register exists; INFO when Exclusive.
 - **Unknown:** wide symbol: scope graph-precision INCOMPLETE and CST-010 wide-symbol fallback; Unknown relation as CDC-003.
 
@@ -136,8 +136,8 @@ Terms: a crossing group is a (source signal, destination signal) pair; its width
 ### CDC-017
 - **Trigger:** a multi-bit crossing group (width >= 2, relation not Same) whose source is a binary counter (some source bit's next value depends on another bit of the bus: carry), or a Gray-coded pointer (every source bit is a Gray conversion of a counter) with at least one destination bit that is not a clean chain of depth >= min_stages without link logic.
 - **Exempt:** Gray pointers whose bits are all synchronised (CDC-018 decides them).
-- **Severity:** counter: WARNING Heuristic (INFO Heuristic when Exclusive). Gray not fully synchronised: as CDC-003.
-- **Unknown:** counter detection is heuristic; Unknown relation gives WARNING Unresolved for the Gray case.
+- **Severity:** counter: ERROR Heuristic (Async), INFO Heuristic (Exclusive), WARNING Heuristic otherwise. Gray not fully synchronised: as CDC-003. An unanalysed source function gives WARNING Unresolved and a proof obligation.
+- **Unknown:** counter detection is heuristic; Unknown relation gives WARNING Unresolved for the Gray case. User-function output remains unresolved unless its single pure body is proved to implement the supported Gray conversion; scope is INCOMPLETE.
 
 ### CDC-018
 - **Trigger:** a Gray-coded crossing (CDC-017 detection) whose destination bits all start chains of depth >= min_stages without link logic. WARNING when no SDC set_max_delay matches the first source bit and the first destination register; INFO when one matches.
@@ -173,9 +173,9 @@ Terms: a crossing group is a (source signal, destination signal) pair; its width
 
 ### CDC-028
 - **Trigger:** a crossing group with at least one destination bit that is unsynchronised and unqualified (depth < 2, no link logic) whose capture register has a clock-enable (control) input.
-- **Exempt:** qualified payloads (CDC-039).
+- **Exempt:** qualified payloads and undecided capture qualification (CDC-039).
 - **Severity:** as CDC-003.
-- **Unknown:** Unknown relation as CDC-003; none otherwise.
+- **Unknown:** Unknown relation as CDC-003; undecided capture-control necessity is reported by CDC-039.
 
 ### CDC-029
 - **Trigger:** a top-level input bit captured by registers of clock domain D. Declared synchronous when a set_input_delay -clock C names the input and C has relation Same to D; recognised when every capturing register starts a chain of depth >= 2 without link logic.
@@ -221,9 +221,9 @@ Terms: a crossing group is a (source signal, destination signal) pair; its width
 - **Unknown:** -through is not path-evaluated: when -from or -to is present it is ignored, so the match uses -from and -to names only.
 
 ### CDC-039
-- **Trigger:** a crossing group (relation not Same, not a wide symbol) whose destination bits all start no chain of depth >= 2, where every assignment into every destination register is guarded and every guard reaches a recognised synchroniser output of the source domain through combinational logic only.
-- **Severity:** WARNING Informational, proof NOT_ATTEMPTED (the data-stability contract is unproved).
-- **Unknown:** none.
+- **Trigger:** an unsynchronised payload crossing whose capture qualification is either proven necessary or undecided. Proven necessary means every data-moving write requires a control synchronised from the launch domain into the capture domain; local conjunctions may restrict capture further. A concrete bypass or absence of matching control is instead reported by CDC-003/004 and CDC-028.
+- **Severity:** WARNING Informational for proven necessity, retaining the unproved stability/timing obligation. WARNING Unresolved for undecided necessity. Both carry proof NOT_ATTEMPTED.
+- **Unknown:** state-held validity, opaque calls, unsupported Boolean semantics, cyclic logic or proof/walk limits prevent a necessity claim; the path stays visible with an explicit proof obligation and INCOMPLETE scope. Undecided messages do not claim the qualifier pattern. Neither result proves data stability.
 
 ### CDC-040
 - **Trigger:** (a) a module annotated (* sverity_sync *) or (* cdc_sync *), checked for a recognised synchroniser (depth >= 2) inside its instance path; (b) every declared --library cell instance of kind synchronizer, reported with its stage count (flop, clock_gate, ram and blackbox cells are described by their own rules).
@@ -259,14 +259,13 @@ Terms: a crossing group is a (source signal, destination signal) pair; its width
 
 ## Crosswalk and licences
 
-Reference projects were studied for rule inventories only; no source code from any of them is included. Vendor documentation (AMD UG906, Altera AN 919)
-could not be fetched when this crosswalk was written: their entries are UNVERIFIED snippets, used for IDs/titles only (never copied text).
+Reference projects were studied for rule inventories only; no source code from any of them is included. Vendor rule lists were read from the public pages cited in the [roadmap](../ROADMAP.md#sources-and-provenance) on 2026-11-03 and are paraphrased. The AMD list was read through an automated summary of the page, so recheck it against the page before relying on one entry. **The mappings are closest intent, never equivalence:** no vendor tool has been run to compare.
 
 | Source (licence) | Reference rules → SVerity |
 |---|---|
-| OpenCDC (Apache-2.0) | unsynchronized crossing → CDC-003; multi-bit → CDC-004; reconvergence → CDC-010/011; gated clock → CDC-020; muxed clock → CDC-019; comb between sync → CDC-006; daisy chain → CDC-027; reset-domain crossing → RDC-004/005; path truncation → CST-010; pulse/toggle → CDC-013/014/042; unknown propagation → LNT-040/054 |
-| RTL Buddy CDC (BSD-3-Clause) | 001 → CDC-003; 002/022 → CDC-005; 003/006 → CDC-008; 004/019/020 → CDC-004/009/032; 005 → CDC-010; 008 clock as data → LNT-027; 009/013 → CDC-013/014; 010 clock glitch → CDC-020; 011 input → CDC-029; 012 → CDC-028/039; 014 → CDC-006; 015 → CDC-026/041; 016 → CDC-043; 017 latch → CDC-001; 018 → CDC-027; 021 → CST-011/CDC-002; 023 → CDC-019 |
-| AMD Vivado UG906 CDC-1..6, 8, 9, 11 (vendor, UNVERIFIED) | unsynchronised single/multi-bit → CDC-003/004; ASYNC_REG → CDC-012; async clear/preset → CDC-021; reset fan-out → RDC-016 |
-| Altera AN 919 CDC-50001..3 (vendor, UNVERIFIED) | → CDC-003, CST-004 (missing constraints), CDC-028 |
+| OpenCDC (Apache-2.0) | unsynchronized crossing → CDC-003; multi-bit → CDC-004; reconvergence → CDC-010; gated clock → CDC-020; muxed clock → CDC-019; comb between sync → CDC-006; daisy chain → CDC-007; reset-domain crossing → RDC-004/005; path truncation → CST-010; pulse/toggle → CDC-013/014; unknown propagation → LNT-040/054 |
+| RTL Buddy CDC (BSD-3-Clause) | 001 → CDC-003; 002/022 → CDC-005; 003/006 → CDC-008; 004/019/020 → CDC-004/009/032; 005 → CDC-010; 008 clock as data → LNT-027; 009/013 → CDC-013/014; 010 clock glitch → CDC-020; 011 input → CDC-029; 012 → CDC-028/039; 014 → CDC-006; 015 → CDC-026/041; 016 → CDC-043; 017 latch → CDC-001; 018 → CDC-007; 021 → CST-011/CDC-002; 023 → CDC-019 |
+| AMD Vivado UG906 (vendor) | CDC-1 → CDC-003; CDC-2 → CDC-012; CDC-3 → CDC-003 INFO with CDC-012; CDC-4 → CDC-004; CDC-5 → CDC-009 (attributes are not read on buses: CDC-012 is single-bit); CDC-6 → CDC-009; CDC-10 → CDC-008; CDC-12 → CDC-010; CDC-15, 16, 17 → CDC-028/039; CDC-18 → CDC-040. Reset rules CDC-7, 8, 9: see `RDC.md`. **No rule:** CDC-11 (fan-out before a synchroniser), CDC-13 (non-flop primitive), CDC-26 (LUTRAM collision; CDC-035 only reports the memory). The list has no CDC-14 or CDC-19 to CDC-25 |
+| Altera Quartus Design Assistant 21.3 (vendor) | CDC-50001 → CDC-003 with CDC-008; CDC-50005 → CDC-032; CDC-50006 → CDC-004; CDC-50008 → CDC-009, CDC-017/018 for Gray; CDC-50011 → CDC-008; CDC-50012 → CDC-010. **Partial:** CDC-50002 → CST-004 (declared relationship only, not a max-delay value); CDC-50003, 50004 → CDC-039 obligation (skew and net-delay constraints are not checked); CDC-50007 → CDC-018 for Gray only. CDC-50009 and 50010 were not read |
 
 Retired IDs: CDC-011 → CDC-010, CDC-021 → RDC-007, CDC-022 → CST-004 + CDC-038, CDC-025 → CDC-008, CDC-027 → CDC-007, CDC-033 → CDC-008 + CDC-018 (obligation: CDC-024), CDC-036 → CDC-010, CDC-042 → CDC-013. OpenCDC and RTL Buddy code may be reused under their licences if notices are kept; none is.

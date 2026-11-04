@@ -18,6 +18,7 @@ TEST(json_errors) {
     CHECK(!parse("{\"a\":1} x").ok);
     CHECK(!parse("\"abc").ok);
     CHECK(!parse("").ok);
+    CHECK(!parse("{\"a\":1,\"a\":2}").ok);
 }
 TEST(json_object_order_is_insertion_order) {
     Value v = Value::object();

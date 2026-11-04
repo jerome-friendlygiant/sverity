@@ -67,6 +67,13 @@ public:
             d.ruleId = ruleForSlangDiag(rd.originalDiagnostic.code);
             if (d.ruleId.empty()) d.ruleId = "LNT-001";   // syntax / preprocess / other elaboration errors
         }
+        // Use upstream code and argument values, never its message format string.
+        d.identityKey = std::string(slang::toString(rd.originalDiagnostic.code));
+        for (const auto& arg : rd.originalDiagnostic.args) {
+            const auto value = engine->formatArg(arg);
+            d.identityKey += ":" + std::to_string(arg.index());
+            d.identityArguments.push_back(value);
+        }
         d.message = rd.formattedMessage;
         d.location = toLoc(sm, rd.location);
         if (auto* sym = rd.originalDiagnostic.symbol) {
@@ -266,6 +273,13 @@ std::unique_ptr<Design> loadDesign(const FrontendOptions& opts, Report& report) 
         d.nextStep = "Resolve the slang errors listed above, then re-run.";
         report.add(std::move(d));
         report.markIncomplete("elaboration", "slang reported elaboration errors");
+    }
+    for (auto buffer : drv.sourceManager.getAllBuffers()) {
+        const auto kind = drv.sourceManager.getBufferKind(buffer);
+        if (kind == slang::SourceManager::BufferKind::DesignFile ||
+            kind == slang::SourceManager::BufferKind::IncludeFile ||
+            kind == slang::SourceManager::BufferKind::LibraryFile)
+            report.addIdentityFile(drv.sourceManager.getFullPath(buffer).generic_string());
     }
     return design;
 }

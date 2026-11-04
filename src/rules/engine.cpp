@@ -78,6 +78,7 @@ void runRules(Design* design, Report& report, const Config& config) {
         Diagnostic d;
         d.ruleId = "CST-019";
         d.severity = Severity::Warning;
+        d.identityKey = id;
         d.message = "disabled-rule list names unknown rule '" + id + "'";
         d.confidence = Confidence::Unresolved;
         d.nextStep = "Fix the rule ID; a misspelt ID leaves the intended rule enabled or the policy unclear.";

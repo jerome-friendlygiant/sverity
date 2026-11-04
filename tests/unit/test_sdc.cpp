@@ -1,4 +1,6 @@
 #include <string>
+#include <filesystem>
+#include <fstream>
 #include <vector>
 
 #include "sverity/sdc.h"
@@ -61,11 +63,11 @@ TEST(sdc_multiline_continuation) {
         CHECK(c.clocks[0].periodNs == 4.0);
         CHECK_EQ(c.clocks[0].loc.line, 1u);
     }
-    CHECK_EQ(c.unsupported.size(), 1u);
-    if (c.unsupported.size() == 1) {
+    CHECK_EQ(c.outputDelays.size(), 1u);
+    if (c.outputDelays.size() == 1) {
         // Continuations are joined with a single space, so the text reads as one line.
-        CHECK_EQ(c.unsupported[0].text, std::string("set_output_delay 1.2 -clock clk_core [get_ports din]"));
-        CHECK_EQ(c.unsupported[0].loc.line, 4u);
+        CHECK_EQ(c.outputDelays[0].text, std::string("set_output_delay 1.2 -clock clk_core [get_ports din]"));
+        CHECK_EQ(c.outputDelays[0].loc.line, 4u);
     }
 }
 
@@ -73,7 +75,7 @@ TEST(sdc_clock_groups_async_two_groups) {
     const char* text =
         "set_clock_groups -asynchronous \\\n"
         "  -group [get_clocks clk_a] \\\n"
-        "  -group {clk_b [get_clocks {clk_c clk_d}]}\n";
+        "  -group [get_clocks {clk_b clk_c clk_d}]\n";
     auto c = sdc::parse(text, "f");
     CHECK(c.problems.empty());
     CHECK(c.unsupported.empty());
@@ -84,7 +86,7 @@ TEST(sdc_clock_groups_async_two_groups) {
     CHECK_EQ(g.groups.size(), 2u);
     if (g.groups.size() != 2) return;
     std::vector<R> g0 = {R{"get_clocks", "clk_a"}};
-    std::vector<R> g1 = {R{"", "clk_b"}, R{"get_clocks", "clk_c"}, R{"get_clocks", "clk_d"}};
+    std::vector<R> g1 = {R{"get_clocks", "clk_b"}, R{"get_clocks", "clk_c"}, R{"get_clocks", "clk_d"}};
     CHECK_EQ(g.groups[0], g0);
     CHECK_EQ(g.groups[1], g1);
     CHECK_EQ(g.loc.line, 1u);
@@ -106,8 +108,7 @@ TEST(sdc_clock_groups_bare_names_and_kinds) {
 
 TEST(sdc_clock_groups_missing_kind_is_problem) {
     auto c = sdc::parse("set_clock_groups -group clk_a -group clk_b\n", "f");
-    CHECK(c.clockGroups.size() == 1);
-    CHECK(c.clockGroups.size() == 1 && c.clockGroups[0].kind == sdc::ClockGroups::Kind::Unspecified);
+    CHECK(c.clockGroups.empty());
     CHECK(hasProblem(c, "missing -asynchronous"));
 }
 
@@ -172,8 +173,7 @@ TEST(sdc_generated_clock) {
 TEST(sdc_generated_clock_missing_source_is_problem) {
     auto c = sdc::parse("create_generated_clock -name g -divide_by 2 [get_pins q/Q]\n", "f");
     CHECK(hasProblem(c, "missing required -source"));
-    CHECK_EQ(c.clocks.size(), 1u);
-    if (c.clocks.size() == 1) CHECK(c.clocks[0].generated);
+    CHECK(c.clocks.empty());
 }
 
 TEST(sdc_comments) {
@@ -187,41 +187,24 @@ TEST(sdc_comments) {
     auto c = sdc::parse(text, "f");
     CHECK(c.problems.empty());
     CHECK_EQ(c.clocks.size(), 1u);
-    CHECK_EQ(c.unsupported.size(), 1u);
-    if (c.unsupported.size() == 1) CHECK_EQ(c.unsupported[0].command, std::string("set"));
+    CHECK(c.unsupported.empty());
 }
 
 TEST(sdc_unsupported_commands_recorded) {
-    const char* text =
-        "set_output_delay 2.0 -clock clk [get_ports din]\n"
-        "set x 5\n"
-        "if {$x} { create_clock -period 1 }\n"
-        "foreach a {1 2} { puts $a }\n"
-        "proc foo {} { return 1 }\n"
-        "set_load 0.1 [all_outputs]\n";
-    auto c = sdc::parse(text, "f");
-    CHECK(c.problems.empty());
-    CHECK(c.clocks.empty());   // the create_clock inside { } is not interpreted
-    CHECK_EQ(c.unsupported.size(), 6u);
-    if (c.unsupported.size() != 6) return;
-    CHECK_EQ(c.unsupported[0].command, std::string("set_output_delay"));
-    CHECK_EQ(c.unsupported[0].text, std::string("set_output_delay 2.0 -clock clk [get_ports din]"));
-    CHECK_EQ(c.unsupported[1].command, std::string("set"));
-    CHECK_EQ(c.unsupported[1].text, std::string("set x 5"));
-    CHECK_EQ(c.unsupported[2].command, std::string("if"));
-    CHECK_EQ(c.unsupported[2].text, std::string("if {$x} { create_clock -period 1 }"));
-    CHECK_EQ(c.unsupported[5].command, std::string("set_load"));
-    CHECK_EQ(c.unsupported[5].loc.line, 6u);
+    auto c = sdc::parse("source other.sdc\nset_output_delay 1 [get_ports p]\n"
+                        "set_case_analysis 0 [get_ports d]\nif {1} {}\nproc f {} {}\nexpr 1+1\n", "f");
+    CHECK(hasProblem(c, "source: file could not be read"));
+    // Output delay is rejected for missing -clock; binary case analysis is recorded, not applied.
+    CHECK(hasProblem(c, "set_output_delay: missing -clock"));
+    CHECK(c.outputDelays.empty()); CHECK_EQ(c.caseAnalyses.size(), 1u);
+    CHECK_EQ(c.unsupported.size(), 3u);
+    CHECK(c.clocks.empty());
 }
 
 TEST(sdc_malformed_create_clock_without_period) {
     auto c = sdc::parse("create_clock -name clk [get_ports clk]\n", "f");
     CHECK(hasProblem(c, "missing required -period"));
-    CHECK_EQ(c.clocks.size(), 1u);   // best-effort object is still recorded
-    if (c.clocks.size() == 1) {
-        CHECK_EQ(c.clocks[0].name, std::string("clk"));
-        CHECK(c.clocks[0].periodNs == 0.0);
-    }
+    CHECK(c.clocks.empty());
     CHECK_EQ(c.problems.size(), 1u);
     if (c.problems.size() == 1) CHECK_EQ(c.problems[0].loc.line, 1u);
 }
@@ -229,7 +212,7 @@ TEST(sdc_malformed_create_clock_without_period) {
 TEST(sdc_malformed_missing_option_value) {
     auto c = sdc::parse("create_clock -name clk -period\n", "f");
     CHECK(hasProblem(c, "option '-period' of create_clock is missing its value"));
-    CHECK_EQ(c.clocks.size(), 1u);
+    CHECK(c.clocks.empty());
 }
 
 TEST(sdc_malformed_bad_numeric_value) {
@@ -240,16 +223,15 @@ TEST(sdc_malformed_bad_numeric_value) {
     CHECK(hasProblem(c, "invalid -period 'fast'"));
     CHECK(hasProblem(c, "invalid delay value 'abc'"));
     CHECK(hasProblem(c, "invalid multiplier '1.5'"));
-    CHECK_EQ(c.clocks.size(), 1u);
-    CHECK_EQ(c.exceptions.size(), 2u);
-    if (c.exceptions.size() == 2) CHECK_EQ(c.exceptions[0].valueText, std::string("abc"));
+    CHECK(c.clocks.empty());
+    CHECK(c.exceptions.empty());
 }
 
 TEST(sdc_malformed_unknown_option_and_missing_value) {
     auto c = sdc::parse("set_false_path -bogus -from\n", "f");
     CHECK(hasProblem(c, "unknown option '-bogus'"));
     CHECK(hasProblem(c, "option '-from' of set_false_path is missing its value"));
-    CHECK_EQ(c.exceptions.size(), 1u);
+    CHECK(c.exceptions.empty());
 }
 
 TEST(sdc_problems_point_at_their_command) {
@@ -308,15 +290,15 @@ TEST(sdc_unbalanced_brace_is_problem) {
 TEST(sdc_unbalanced_bracket_is_problem) {
     auto c = sdc::parse("create_clock -period 1 [get_ports a\nset x 1\n", "f");
     CHECK(hasProblem(c, "unbalanced '['"));
-    CHECK_EQ(c.clocks.size(), 1u);
+    CHECK(c.clocks.empty());
 }
 
 TEST(sdc_trailing_backslash_does_not_crash) {
     auto c = sdc::parse("create_clock -period 2 [get_ports a] \\", "f");
-    CHECK_EQ(c.clocks.size(), 1u);
+    CHECK(c.clocks.empty());
+    CHECK(hasProblem(c, "backslash escapes in list"));
     auto u = sdc::parse("set_output_delay 1 \\", "f");
-    CHECK_EQ(u.unsupported.size(), 1u);
-    if (u.unsupported.size() == 1) CHECK_EQ(u.unsupported[0].text, std::string("set_output_delay 1 \\"));
+    CHECK(!u.problems.empty()); CHECK(u.outputDelays.empty());
 }
 
 TEST(sdc_line_and_column_numbers) {
@@ -325,13 +307,10 @@ TEST(sdc_line_and_column_numbers) {
         "  create_clock -name a -period 5 [get_ports a]\n"
         "set_load 1 [get_ports b]; create_clock -name z -period 1\n";
     auto c = sdc::parse(text, "pos.sdc");
-    CHECK_EQ(c.unsupported.size(), 2u);
-    if (c.unsupported.size() == 2) {
-        CHECK_EQ(c.unsupported[0].loc.file, std::string("pos.sdc"));
-        CHECK_EQ(c.unsupported[0].loc.line, 1u);
+    CHECK_EQ(c.unsupported.size(), 1u);
+    if (c.unsupported.size() == 1) {
+        CHECK_EQ(c.unsupported[0].loc.line, 3u);
         CHECK_EQ(c.unsupported[0].loc.column, 1u);
-        CHECK_EQ(c.unsupported[1].loc.line, 3u);
-        CHECK_EQ(c.unsupported[1].loc.column, 1u);
     }
     CHECK_EQ(c.clocks.size(), 2u);
     if (c.clocks.size() == 2) {
@@ -362,8 +341,7 @@ TEST(sdc_object_forms) {
 TEST(sdc_unknown_object_command_is_problem) {
     auto c = sdc::parse("set_false_path -from [expr 1+1] -to [get_clocks]\n", "f");
     CHECK(hasProblem(c, "unsupported object command 'expr'"));
-    CHECK(hasProblem(c, "'get_clocks' needs an object name"));
-    CHECK_EQ(c.exceptions.size(), 1u);
+    CHECK(c.exceptions.empty());
 }
 
 TEST(sdc_very_long_line) {
@@ -384,7 +362,7 @@ TEST(sdc_deep_nesting_does_not_crash) {
     deep += "get_ports a";
     deep.append(100000, ']');
     auto c = sdc::parse(deep, "f");
-    CHECK_EQ(c.exceptions.size(), 1u);
+    CHECK(c.exceptions.empty());
     CHECK(!c.problems.empty());
 }
 
@@ -393,6 +371,203 @@ TEST(sdc_merge_keeps_everything) {
     auto b = sdc::parse("set x 1\nset_false_path -to [get_ports q]\n", "b.sdc");
     a.merge(std::move(b));
     CHECK_EQ(a.clocks.size(), 1u);
-    CHECK_EQ(a.unsupported.size(), 1u);
+    CHECK(a.unsupported.empty());
     CHECK_EQ(a.exceptions.size(), 1u);
+}
+
+TEST(sdc_atomic_rejection_every_handler) {
+    const char* commands[] = {
+        "create_clock -name a -period bad [get_ports a]",
+        "create_generated_clock -name b -source [get_ports a] -divide_by bad [get_ports b]",
+        "set_clock_groups -asynchronous -group a -group [unknown b]",
+        "set_false_path -from a -to [unknown b]",
+        "set_multicycle_path bad -from a -to b",
+        "set_max_delay bad -from a -to b",
+        "set_min_delay bad -from a -to b",
+        "set_input_delay -clock a bad [get_ports p]",
+        "create_clock -period 1 [get_ports a", // scanner failure, not just handler failure
+        "set_input_delay 1 [get_ports p]",
+        "create_generated_clock -name b -source [get_ports a] -edges {1 bad 3} [get_ports b]",
+        "set_input_delay -clock [unknown a] 1 [get_ports p]"
+    };
+    for (auto text : commands) {
+        auto c = sdc::parse(text, "bad.sdc");
+        CHECK(!c.problems.empty());
+        CHECK(c.clocks.empty() && c.clockGroups.empty() && c.exceptions.empty() && c.inputDelays.empty());
+        for (const auto& p : c.problems) { CHECK_EQ(p.loc.file, std::string("bad.sdc")); CHECK_EQ(p.loc.line, 1u); }
+    }
+}
+
+TEST(sdc_variable_period_and_alias) {
+    auto c = sdc::parse("set P 10\nset Q $P\ncreate_clock -period $Q [get_ports a]", "f");
+    CHECK(c.problems.empty());
+    CHECK_EQ(c.clocks.size(), 1u);
+    if (!c.clocks.empty()) CHECK(c.clocks[0].periodNs == 10);
+}
+
+TEST(sdc_variable_forms_and_quoted_concatenation) {
+    auto c = sdc::parse("set suffix a\nset P 10\ncreate_clock -name \"clk_${suffix}\" -period ${P} [get_ports clk_$suffix]", "f");
+    CHECK(c.problems.empty());
+    CHECK_EQ(c.clocks.size(), 1u);
+    if (!c.clocks.empty()) { CHECK_EQ(c.clocks[0].name, std::string("clk_a")); CHECK_EQ(c.clocks[0].sources[0].pattern, std::string("clk_a")); }
+}
+
+TEST(sdc_braces_do_not_substitute) {
+    auto c = sdc::parse("set P 10\ncreate_clock -period {$P} [get_ports a]", "f");
+    CHECK(hasProblem(c, "invalid -period '$P'"));
+    CHECK(c.clocks.empty());
+}
+
+TEST(sdc_undefined_variable_applies_nothing) {
+    auto c = sdc::parse("create_clock -period $missing [get_ports a]", "f");
+    CHECK(hasProblem(c, "undefined variable")); CHECK(c.clocks.empty());
+}
+
+TEST(sdc_foreach_clocks_and_body_provenance) {
+    auto c = sdc::parse("set clocks {a b}\nforeach c $clocks {\n  create_clock -name $c -period 10 [get_ports $c]\n}\nset c\ncreate_clock -name last -period 2 [get_ports $c]", "f");
+    CHECK(c.problems.empty() && c.unsupported.empty());
+    CHECK_EQ(c.clocks.size(), 3u);
+    if (c.clocks.size() == 3) {
+        CHECK_EQ(c.clocks[0].loc.line, 3u); CHECK_EQ(c.clocks[0].loc.column, 3u);
+        CHECK_EQ(c.clocks[1].name, std::string("b"));
+        CHECK_EQ(c.clocks[2].sources[0].pattern, std::string("b"));
+    }
+}
+
+TEST(sdc_foreach_iteration_limit) {
+    std::string script = "foreach c {";
+    for (int i = 0; i < 1000; ++i) script += "a ";
+    auto boundary = sdc::parse(script + "} {create_clock -period 1 [get_ports $c]}", "f");
+    CHECK(boundary.problems.empty()); CHECK_EQ(boundary.clocks.size(), 1000u);
+    auto c = sdc::parse(script + "a} {create_clock -period 1 [get_ports $c]}", "f");
+    CHECK(hasProblem(c, "iteration limit")); CHECK(c.clocks.empty());
+}
+
+TEST(sdc_expr_and_unsupported_bracket_disclosed) {
+    for (auto command : {"expr 5+5", "lindex {10} 0", "unknown 10"}) {
+        auto c = sdc::parse(std::string("create_clock -period [") + command + "] [get_ports a]", "f");
+        CHECK(hasProblem(c, "unsupported object command")); CHECK(c.clocks.empty());
+    }
+}
+
+TEST(sdc_set_read_substitution) {
+    auto c = sdc::parse("set P 10\ncreate_clock -period [set P] [get_ports a]", "f");
+    CHECK(c.problems.empty()); CHECK_EQ(c.clocks.size(), 1u);
+}
+
+TEST(sdc_foreach_multiple_variables_disclosed) {
+    auto c = sdc::parse("foreach {a b} {x y} {create_clock -period 1 [get_ports $a]}", "f");
+    CHECK(hasProblem(c, "one scalar variable")); CHECK(c.clocks.empty());
+}
+
+TEST(sdc_substituted_text_is_not_evaluated_again) {
+    auto c = sdc::parse("set P {$missing}\ncreate_clock -period $P [get_ports a]", "f");
+    CHECK(hasProblem(c, "invalid -period '$missing'")); CHECK(c.clocks.empty());
+    auto literal = sdc::parse("set pin {a[0]}\ncreate_clock -period 1 [get_ports $pin]", "f");
+    CHECK(literal.problems.empty()); CHECK_EQ(literal.clocks.size(), 1u);
+    if (!literal.clocks.empty()) CHECK_EQ(literal.clocks[0].sources[0].pattern, std::string("a[0]"));
+}
+
+TEST(sdc_failed_assignment_does_not_reuse_stale_value) {
+    auto c = sdc::parse("set P 10\nset P [expr 20]\ncreate_clock -period $P [get_ports a]", "f");
+    CHECK(hasProblem(c, "unsupported object command"));
+    CHECK(hasProblem(c, "undefined variable")); CHECK(c.clocks.empty());
+}
+
+TEST(sdc_foreach_failure_is_atomic) {
+    auto c = sdc::parse("foreach c {10 bad} {create_clock -name c -period $c [get_ports c]}", "f");
+    CHECK(hasProblem(c, "invalid -period")); CHECK(c.clocks.empty());
+}
+
+TEST(sdc_braced_variable_name_keeps_script_delimiters_literal) {
+    auto c = sdc::parse("set {P;x} 10\ncreate_clock -period ${P;x} [get_ports a]", "f");
+    CHECK(c.problems.empty()); CHECK_EQ(c.clocks.size(), 1u);
+    if (!c.clocks.empty()) CHECK(c.clocks[0].periodNs == 10);
+}
+
+TEST(sdc_source_relative_shared_variable_and_provenance) {
+    auto dir = std::filesystem::temp_directory_path() / "sverity_sdc_source_test";
+    std::filesystem::create_directories(dir / "sub");
+    { std::ofstream f(dir / "sub" / "child.sdc"); f << "\ncreate_clock -name $name -period 10 [get_ports clk]\n"; }
+    auto c = sdc::parse("set name shared\nsource sub/child.sdc\n", (dir / "top.sdc").string());
+    CHECK(c.problems.empty());
+    CHECK_EQ(c.clocks.size(), 1u);
+    if (!c.clocks.empty()) { CHECK_EQ(c.clocks[0].name, "shared"); CHECK_EQ(c.clocks[0].loc.line, 2u); CHECK_EQ(c.clocks[0].loc.file, (dir / "sub" / "child.sdc").string()); }
+    std::filesystem::remove_all(dir);
+}
+
+TEST(sdc_source_cycle_disclosed) {
+    auto dir = std::filesystem::temp_directory_path() / "sverity_sdc_cycle_test";
+    std::filesystem::create_directories(dir);
+    { std::ofstream f(dir / "child.sdc"); f << "source top.sdc\n"; }
+    auto c = sdc::parse("source child.sdc\n", (dir / "top.sdc").string());
+    CHECK(hasProblem(c, "cycle detected"));
+    std::filesystem::remove_all(dir);
+}
+
+TEST(sdc_source_depth_limit_disclosed) {
+    auto dir = std::filesystem::temp_directory_path() / "sverity_sdc_depth_test";
+    std::filesystem::create_directories(dir);
+    for (int i = 1; i <= 65; ++i) {
+        std::ofstream f(dir / (std::to_string(i) + ".sdc"));
+        f << "source " << i + 1 << ".sdc\n";
+    }
+    auto c = sdc::parse("source 1.sdc\n", (dir / "top.sdc").string());
+    CHECK(hasProblem(c, "depth limit exceeded"));
+    std::filesystem::remove_all(dir);
+}
+
+TEST(sdc_source_options_disclosed) {
+    auto c = sdc::parse("set p 10\nsource -encoding utf-8 child.sdc\ncreate_clock -period $p [get_ports clk]\n", "top.sdc");
+    CHECK(hasProblem(c, "options are unsupported"));
+    CHECK(c.sourcedFiles.empty()); CHECK(c.clocks.empty());
+    CHECK(hasProblem(c, "undefined variable"));
+}
+
+TEST(sdc_all_inputs_options_reject_whole_command) {
+    auto c = sdc::parse("set_input_delay -clock clk 1 [all_inputs -clock clk]\n", "f");
+    CHECK(hasProblem(c, "all_inputs: options")); CHECK(c.inputDelays.empty());
+}
+
+TEST(sdc_all_inputs_clock_position_disclosed) {
+    auto c = sdc::parse("set_clock_groups -asynchronous -group [all_inputs] -group clk\n", "f");
+    CHECK(hasProblem(c, "expected clocks")); CHECK(c.clockGroups.empty());
+}
+
+TEST(sdc_output_delay_recorded) {
+    auto c = sdc::parse("set_output_delay -clock [get_clocks clk] -1.5 [get_ports {q r}]\n", "f");
+    CHECK(c.problems.empty()); CHECK_EQ(c.outputDelays.size(), 1u);
+    if (c.outputDelays.empty()) return;
+    CHECK_EQ(c.outputDelays[0].clock, "clk"); CHECK_EQ(c.outputDelays[0].valueText, "-1.5");
+    CHECK_EQ(c.outputDelays[0].ports.size(), 2u); CHECK(!c.outputDelays[0].text.empty());
+    CHECK(c.inputDelays.empty());
+}
+TEST(sdc_output_delay_invalid_atomic) {
+    for (auto text : {"set_output_delay 1 [get_ports q]", "set_output_delay -clock c nope [get_ports q]",
+                      "set_output_delay -clock c 1 [get_nets q]", "set_output_delay -clock c -rise 1 [get_ports q]"}) {
+        auto c = sdc::parse(text, "f");
+        CHECK(!c.problems.empty()); CHECK(c.outputDelays.empty());
+    }
+}
+TEST(sdc_case_analysis_recorded_not_applied) {
+    auto c = sdc::parse("set_case_analysis 0 [get_ports sel]\nset_case_analysis 1 [get_nets top.mode]", "f");
+    CHECK(c.problems.empty()); CHECK_EQ(c.caseAnalyses.size(), 2u);
+    if (c.caseAnalyses.size() != 2) return;
+    CHECK_EQ(c.caseAnalyses[0].value, 0); CHECK_EQ(c.caseAnalyses[1].value, 1);
+    CHECK_EQ(c.caseAnalyses[1].objects[0].kind, "get_nets");
+}
+TEST(sdc_case_analysis_value_rejected) {
+    for (auto value : {"1'bx", "rising", "falling", "2", "1'b0"}) {
+        auto c = sdc::parse(std::string("set_case_analysis ") + value + " [get_ports sel]", "f");
+        CHECK(hasProblem(c, "only literal 0 or 1")); CHECK(c.caseAnalyses.empty());
+    }
+}
+TEST(sdc_recorded_constraints_loop_rollback) {
+    auto c = sdc::parse("foreach p {q r} {set_output_delay -clock c 1 [get_ports $p]; set_case_analysis 0 [get_ports sel]; unknown_command}", "f");
+    CHECK(c.outputDelays.empty()); CHECK(c.caseAnalyses.empty()); CHECK(!c.unsupported.empty());
+}
+TEST(sdc_recorded_constraints_merge) {
+    auto c = sdc::parse("set_output_delay -clock c 1 q", "f");
+    c.merge(sdc::parse("set_case_analysis 1 sel", "g"));
+    CHECK_EQ(c.outputDelays.size(), 1u); CHECK_EQ(c.caseAnalyses.size(), 1u);
 }

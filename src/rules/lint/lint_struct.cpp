@@ -776,7 +776,7 @@ private:
         }
         if (!hasElse && (s.check == UniquePriorityCheck::Unique || s.check == UniquePriorityCheck::Priority))
             l.report(s.sourceRange.start(), "'" + kw + "' chain has no final else: the claim fails when no condition is true",
-                     {.nextStep = "Add a final else branch, or use a unique0 check if no-match is allowed."});
+                     {.nextStep = "Add a final else branch, or use a unique0 check if no-match is allowed.", .identityKey = "missing-else"});
         if (s.check != UniquePriorityCheck::Unique && s.check != UniquePriorityCheck::Unique0) return;
         int trueCount = 0;
         bool allConst = true;
@@ -790,7 +790,7 @@ private:
         }
         if (!allConst) {
             l.report(s.sourceRange.start(), "'" + kw + "' claim not statically checkable: a condition is not a constant",
-                     {.severity = Severity::Info, .confidence = Confidence::Unresolved, .nextStep = "Check the claim with simulation or formal analysis."});
+                     {.severity = Severity::Info, .confidence = Confidence::Unresolved, .nextStep = "Check the claim with simulation or formal analysis.", .identityKey = "nonconstant-claim"});
         }
         else if (trueCount >= 2) {
             l.report(s.sourceRange.start(), "'" + kw + "' claim is statically false: " + std::to_string(trueCount) + " conditions are true",
@@ -850,13 +850,14 @@ private:
 
         void report(const GenerateBlockSymbol& g) {
             std::string kind, why;
+            std::string identity = "branch:" + std::to_string(static_cast<int>(g.branchKind)) + ":" + std::string(g.name);
             switch (g.branchKind) {
                 case GenerateBranchKind::IfTrue:
                 case GenerateBranchKind::IfFalse: {
                     kind = g.branchKind == GenerateBranchKind::IfTrue ? "if" : "else";
                     if (auto* ce = g.getConditionExpression()) {
                         auto cv = l.evalConst(*ce);
-                        if (cv) why = " (condition evaluates to " + cv.toString() + ")";
+                        if (cv) { why = " (condition evaluates to " + cv.toString() + ")"; identity += ":" + cv.toString(); }
                     }
                     break;
                 }
@@ -867,7 +868,7 @@ private:
             l.count();
             l.report(g.location, "generate " + kind + " branch '" + name + "' is not elaborated in this configuration" + why,
                      {.severity = Severity::Info, .confidence = Confidence::Informational,
-                      .nextStep = "Check the other configurations this block is meant to support.", .hierarchy = g.getHierarchicalPath()});
+                      .nextStep = "Check the other configurations this block is meant to support.", .hierarchy = g.getHierarchicalPath(), .identityKey = std::move(identity)});
         }
     };
 
@@ -877,7 +878,7 @@ private:
         for (auto& [key, k] : v.constructs)
             if (k.elaborated == 0 && k.total > 0)
                 l.report(k.loc, "no generate branch of this construct is elaborated in this configuration",
-                         {.nextStep = "The construct is dead for the selected parameters; check the parameter values."});
+                         {.nextStep = "The construct is dead for the selected parameters; check the parameter values.", .identityKey = "construct"});
     }
 };
 

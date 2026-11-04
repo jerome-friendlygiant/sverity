@@ -14,6 +14,8 @@ namespace slang::ast { class Compilation; }
 namespace slang::analysis { class AnalysisManager; }
 namespace sverity::model { class Model; }
 
+namespace slang::ast { class ValueSymbol; }
+
 namespace sverity {
 
 /// A port of a declared library cell: direction (in | out | inout) and role (clock | reset | enable | data_in | data_out |
@@ -56,6 +58,9 @@ public:
     /// Lazily built by model::getModel(): the shared connectivity/clock/reset model (one per run).
     std::shared_ptr<model::Model> model;
     std::map<std::string, LibCell> libCells;   // by module (definition) name
+    struct CaseResult { bool applied = false; std::string reason; std::vector<std::string> names; };
+    std::vector<CaseResult> caseResults;
+    std::map<const slang::ast::ValueSymbol*, int> caseConstants;
     int numUpstreamErrors = 0;
     int numUpstreamWarnings = 0;
 };

@@ -2,14 +2,17 @@
 // result instead of walking statements itself.
 //   LNT-013 legacy level-sensitive always blocks that leave a variable unassigned on some path (inferred latch)
 //   LNT-053 a whole-variable write overwritten before any read
-//   LNT-025 a conditional write overridden by a later conditional write when both conditions can hold
+//   LNT-025 potentially conflicting conditional writes when both conditions can hold
 //   LNT-044 a variable read before the procedure's first write of it
 #include <set>
 
 #include "analysis/flow.h"
+#include "domains/model.h"
 #include "rules/rules.h"
 #include "sverity/lint.h"
 #include "slang/ast/symbols/BlockSymbols.h"
+#include "slang/ast/symbols/InstanceSymbols.h"
+#include "slang/ast/symbols/CompilationUnitSymbols.h"
 #include "slang/ast/symbols/VariableSymbols.h"
 
 namespace sverity {
@@ -74,11 +77,11 @@ public:
             if (names.empty() && (f.opaque || f.approximated))
                 l.report(p.location, std::string("level-sensitive always block: assignment on every path cannot be proven (") +
                                          (f.opaque ? "it calls a user subroutine or has a timing control" : "a continue or a case with items that cannot match approximates the path analysis") + ")",
-                         {.confidence = Confidence::Unresolved, .nextStep = "Assign a default at the top of the block, or use always_comb.", .hierarchy = p.getHierarchicalPath()});
+                         {.confidence = Confidence::Unresolved, .nextStep = "Review unsupported control flow and ensure every combinational output is assigned on every path; always_comb alone does not remove storage.", .hierarchy = p.getHierarchicalPath()});
             if (!names.empty())
                 l.report(p.location, "level-sensitive always block does not assign [" + names + "] on every path: a latch is inferred",
                          {.confidence = f.opaque ? Confidence::Unresolved : Confidence::Heuristic,
-                          .nextStep = "Assign a default at the top of the block, add the else/default branch, or use always_comb to get slang's check.",
+                          .nextStep = "Assign a default at the top of the block or cover missing else/default paths; always_comb can diagnose storage but does not repair it.",
                           .hierarchy = p.getHierarchicalPath(), .signals = {names}});
         });
     }
@@ -113,6 +116,50 @@ public:
     }
 };
 
+// Equal literal writes to the same integral range cannot disagree on the final value.
+// Evaluate the bound RHS including assignment conversions, not its source spelling.
+// Keep opaque calls and different ranges out: neither is an equality proof.
+bool sameLiteralValue(const Lint& l, const fl::Access& v, const fl::Access& w) {
+    if (!v.asg || !w.asg || v.compound || w.compound || v.range != w.range) return false;
+    const auto& a = v.asg->right();
+    const auto& b = w.asg->right();
+    auto literal = [](const Expression& e) {
+        auto kind = e.unwrapImplicitConversions().kind;
+        return kind == ExpressionKind::IntegerLiteral || kind == ExpressionKind::UnbasedUnsizedIntegerLiteral;
+    };
+    if (!literal(a) || !literal(b)) return false;
+    auto av = l.evalConst(a), bv = l.evalConst(b);
+    return av.isInteger() && bv.isInteger() && !av.integer().hasUnknown() && !bv.integer().hasUnknown() &&
+           av.integer().getBitWidth() == bv.integer().getBitWidth() && exactlyEqual(av.integer(), bv.integer());
+}
+
+// This is an advisory recognition of text selection, not an exclusivity proof.
+// Restrict it to whole packed string-literal writes; numeric state/control chains
+// need their own policy. Every conditional write must participate, so an unrelated
+// text write cannot lower a mixed data/control conflict.
+bool textPriorityChain(const Lint& l, const fl::Flow& f, const fl::Access& target,
+                       const std::set<const ValueSymbol*>& controls) {
+    if (f.bad || f.opaque || f.approximated || controls.count(target.sym)) return false;
+    if (!target.sym->getType().isIntegral() || target.sym->getType().getBitstreamWidth() <= 8) return false;
+    std::vector<const fl::Access*> writes;
+    for (const auto& a : f.accesses) {
+        if (a.inLoop) return false;
+        if (!a.write || a.sym != target.sym) continue;
+        if (!a.whole || !a.exact || a.compound || !a.asg || a.nonblocking != target.nonblocking) return false;
+        const auto& rhs = a.asg->right();
+        if (rhs.unwrapImplicitConversions().kind != ExpressionKind::StringLiteral) return false;
+        auto value = l.evalConst(rhs);
+        if (!value.isInteger() || value.integer().hasUnknown()) return false;
+        if (!a.guards->empty()) writes.push_back(&a);
+    }
+    if (writes.size() < 3) return false;
+    for (size_t i = 0; i < writes.size(); ++i)
+        for (size_t j = i + 1; j < writes.size(); ++j)
+            if (fl::Flow::guardImplies(*writes[i], *writes[j]) ||
+                fl::Flow::guardImplies(*writes[j], *writes[i]) || f.exclusive(*writes[i], *writes[j])) return false;
+    return true;
+}
+
 // ---------------------------------------------------------------------------------------------------------------
 // LNT-025: an earlier conditional whole-variable write is overridden by a later conditional one, with no read in between, when the
 // conditions are independent and not provably exclusive (different branches of one if/case, or comparisons of one operand with
@@ -126,8 +173,39 @@ public:
             auto st = fl::styleOf(p);
             return st == fl::Style::Seq || st == fl::Style::Comb || st == fl::Style::Latch || st == fl::Style::Level;
         };
+        // Exclude all modelled control sources, including their upstream aliases.
+        auto& m = model::getModel(l.context().design);
+        std::vector<std::vector<model::NodeId>> upstream(m.nodes.size());
+        std::vector<model::NodeId> pending;
+        for (const auto& e : m.edges) {
+            upstream[e.to].push_back(e.from);
+            if (e.ctrl) pending.push_back(e.from);
+        }
+        for (const auto& flop : m.flops) {
+            if (flop.clockSignal != model::kNoNode) pending.push_back(flop.clockSignal);
+            for (const auto& reset : flop.resets) pending.push_back(reset.signal);
+        }
+        std::set<model::NodeId> visited;
+        std::set<const ValueSymbol*> controls;
+        while (!pending.empty()) {
+            auto node = pending.back(); pending.pop_back();
+            if (node == model::kNoNode || !visited.insert(node).second) continue;
+            controls.insert(m.nodes[node].sym);
+            for (auto from : upstream[node]) pending.push_back(from);
+        }
         forEachProc(l, want, [&](const ProceduralBlockSymbol& p, const fl::Flow& f) {
             bool seq = fl::styleOf(p) == fl::Style::Seq;
+            uint32_t procedureOrdinal = 0;
+            std::string unit;
+            if (const auto* scope = p.getParentScope(); scope && scope->asSymbol().kind == SymbolKind::InstanceBody) {
+                const auto& definition = scope->asSymbol().as<InstanceBodySymbol>().getDefinition();
+                unit = std::to_string(definition.sourceLibrary.name.size()) + ":" + definition.sourceLibrary.name + std::string(definition.name);
+                uint32_t ordinal = 0;
+                for (const auto& member : scope->members()) {
+                    if (member.kind == slang::ast::SymbolKind::ProceduralBlock) ++ordinal;
+                    if (&member == &p) { procedureOrdinal = ordinal; break; }
+                }
+            }
             for (auto& k : f.kills) {
                 const fl::Access &v = f.accesses[k.victim], &w = f.accesses[k.killer];
                 if (!v.exact || !w.exact || v.compound || v.nonblocking != seq || w.nonblocking != seq) continue;
@@ -135,13 +213,23 @@ public:
                 if (k.readBefore || k.observed) continue;
                 if (fl::Flow::guardImplies(v, w) || fl::Flow::guardImplies(w, v)) continue;   // nested or dominating: LNT-053 / intended priority
                 if (f.exclusive(v, w)) continue;
-                l.report(w.loc, "conditional assignment to '" + rangeText(*v.sym, w.range) + "' overrides the one on line " +
-                                    std::to_string(l.sm().getLineNumber(v.loc)) + " when both conditions hold" +
-                                    (k.exposed ? " (a subroutine call between them may have read the value)" : ""),
-                         {.confidence = k.exposed ? Confidence::Unresolved : Confidence::Heuristic,
-                          .nextStep = "Use if/else or a priority case so the intended choice is explicit; the conditions may be mutually exclusive.",
+                if (!k.exposed && sameLiteralValue(l, v, w)) continue;
+                bool advisory = !k.exposed && textPriorityChain(l, f, v, controls);
+                bool unresolved = k.exposed || f.opaque || f.approximated || f.bad;
+                l.report(w.loc, "potentially conflicting conditional assignment to '" + rangeText(*v.sym, w.range) + "' overrides the one on line " +
+                                    std::to_string(l.sm().getLineNumber(v.loc)) + " if both conditions hold (overlap and intent are not proven)" +
+                                    (k.exposed ? " (a subroutine call between them may have read the value)" : "") +
+                                    (advisory ? " (string-literal chain assumed to be intended priority; exclusivity is not proved)" : ""),
+                         {.severity = advisory && l.option("priority_chains", "info") != "warning" ? Severity::Info : Severity::Warning,
+                          .confidence = unresolved ? Confidence::Unresolved : Confidence::Heuristic,
+                          .proof = ProofState::NotApplicable,
+                          .nextStep = advisory ? "Review the assumed text-selection priority; use --severity LNT-025=WARNING or --option LNT-025.priority_chains=warning to raise it."
+                                               : "Review the priority or prove the conditions exclusive; independent if statements may intentionally encode last-write priority.",
                           .hierarchy = p.getHierarchicalPath(), .signals = {std::string(v.sym->name)},
-                          .evidence = {{"procedure", seq ? "clocked (nonblocking writes)" : "combinational (blocking writes)", {}}}});
+                          .evidence = {{"procedure", seq ? "clocked (nonblocking writes)" : "combinational (blocking writes)", {}}},
+                          .groupingUnit = unit, .groupingProcedureOrdinal = procedureOrdinal,
+                          .identityKey = std::to_string(l.sm().getLineNumber(v.loc)) + ":" + std::to_string(l.sm().getColumnNumber(v.loc)) +
+                              ":" + rangeText(*v.sym, v.range) + ":" + rangeText(*v.sym, w.range)});
             }
         });
     }

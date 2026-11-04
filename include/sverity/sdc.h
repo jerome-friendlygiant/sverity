@@ -12,7 +12,7 @@ namespace sverity::sdc {
 /// An object reference as written, e.g. "[get_ports clk]" -> {"get_ports", "clk"}; a bare word "clk_a"
 /// (as used in `-group {clk_a clk_b}`) -> {"", "clk_a"}.
 struct ObjectRef {
-    std::string kind;      // get_ports | get_pins | get_nets | get_clocks | get_cells | all_clocks | "" (bare)
+    std::string kind;      // get_ports | get_pins | get_nets | get_clocks | get_cells | all_clocks | all_inputs | "" (bare)
     std::string pattern;   // pattern text exactly as written (no glob expansion)
     bool operator==(const ObjectRef&) const = default;
 };
@@ -50,6 +50,22 @@ struct InputDelay {
     SourceLocation loc;
 };
 
+// Output delays supply external capture clocks to CST-012; they do not prove timing.
+struct OutputDelay {
+    std::string clock;
+    std::vector<ObjectRef> ports;
+    std::string valueText;
+    SourceLocation loc;
+    std::string text;
+};
+// Binary mode request; target validation precedes model construction.
+struct CaseAnalysis {
+    int value = 0;
+    std::vector<ObjectRef> objects;
+    SourceLocation loc;
+    std::string text;
+};
+
 struct Unsupported {
     std::string command;   // e.g. "set_input_delay"
     std::string text;      // full command text (continuations joined)
@@ -62,10 +78,13 @@ struct ParseProblem {
 };
 
 struct Constraints {
+    std::vector<std::string> sourcedFiles;
     std::vector<ClockDef> clocks;
     std::vector<ClockGroups> clockGroups;
     std::vector<PathException> exceptions;
     std::vector<InputDelay> inputDelays;
+    std::vector<OutputDelay> outputDelays;
+    std::vector<CaseAnalysis> caseAnalyses;
     std::vector<Unsupported> unsupported;
     std::vector<ParseProblem> problems;
     void merge(Constraints&& other);
@@ -74,6 +93,7 @@ struct Constraints {
 /// Parses an SDC (Tcl subset) text. Never throws; malformed commands become `problems`, unknown
 /// commands become `unsupported`. Interpreted commands: create_clock, create_generated_clock,
 /// set_clock_groups, set_false_path, set_multicycle_path, set_max_delay, set_min_delay, set_input_delay.
+/// Output delay supplies CST-012 boundary contracts; binary case analysis is target-validated by the analyser.
 /// `fileName` is stored in every SourceLocation.
 Constraints parse(std::string_view text, const std::string& fileName);
 

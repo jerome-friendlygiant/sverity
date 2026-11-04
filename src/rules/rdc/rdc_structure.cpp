@@ -83,10 +83,15 @@ void RdcShared::structure(RuleContext& ctx) {
             Diagnostic x = mk(rule, Severity::Warning,
                               "register " + stripBit(m_->nameOf(d.q)) + " samples " + stripBit(m_->nameOf(s.q)) + " which is asynchronously reset by [" + rsn + "], but is " +
                               (rdn.empty() ? "not reset" : "reset by [" + rdn + "]") + (sameClock ? " (same clock)" : " (different clocks: " + std::string(relName(rel)) + ")") +
-                              ": when that reset asserts the source changes asynchronously to the destination clock",
+                              (sameClock ? ": when that reset asserts the source changes asynchronously to the destination clock" :
+                                           ": asserting the source reset can change the sampled value without resetting the destination"),
                               procLoc(d).loc, procLoc(d).instancePath, Confidence::Heuristic);
             x.signals = {stripBit(m_->nameOf(s.q)), stripBit(m_->nameOf(d.q))};
             x.proofState = ProofState::NotAttempted;
+            if (!sameClock) {
+                x.message += "; reset compatibility is an unproved functional obligation, even with a data synchroniser";
+                x.evidence.push_back({"obligation", "The destination must tolerate the reset-induced value change; metastability synchronisation alone does not establish this.", {}});
+            }
             x.nextStep = "Reset both registers by the same reset, or ensure the destination value is don't-care while the source is in reset (documented obligation).";
             add(std::move(x));
         }
@@ -371,8 +376,7 @@ void RdcShared::structure(RuleContext& ctx) {
             for (auto& r : ex.through) hit = hit || rel_->nameMatches(r.kind, r.pattern, root, full);
             if (!hit) continue;
             evaluated["RDC-027"]++;
-            Diagnostic d = mk("RDC-027", Severity::Warning, std::string(ex.kind == sdc::PathException::Kind::FalsePath ? "set_false_path" : "set_multicycle_path") + " (" + ex.loc.file + ":" +
-                              std::to_string(ex.loc.line) + ") covers reset " + full + ": the exception removes timing checks, it does not make the reset-domain crossing safe",
+            Diagnostic d = mk("RDC-027", Severity::Warning, std::string(ex.kind == sdc::PathException::Kind::FalsePath ? "set_false_path" : "set_multicycle_path") + " covers reset " + full + ": the exception removes timing checks, it does not make the reset-domain crossing safe",
                               ex.loc, {}, Confidence::Established);
             d.signals = {full};
             add(std::move(d));
@@ -459,6 +463,7 @@ void RdcShared::structure(RuleContext& ctx) {
             evaluated["RDC-013"]++;
             Diagnostic d = mk("RDC-013", Severity::Info, "reset " + stripBit(m_->nameOf(s)) + ": recovery/removal timing, minimum pulse width and metastability are physical properties that "
                               "digital RTL cannot show; they are not analysed", {}, {}, Confidence::Informational);
+            d.identityKey = stripBit(m_->nameOf(s));
             d.proofState = ProofState::NotAttempted;
             add(std::move(d));
         }

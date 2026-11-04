@@ -32,6 +32,7 @@ static std::string norm(std::string p) {
 bool ClockRelations::nameMatches(const std::string& kind, const std::string& pattern, NodeId n,
                                  const std::string& full) const {
     std::string p = norm(pattern);
+    if (kind == "all_inputs") return n < m_.topInput.size() && m_.topInput[n];
     if (kind == "get_ports") {
         bool top = n < m_.topInput.size() && (m_.topInput[n] || m_.topOutput[n]);
         return top && (globMatch(p, std::string(m_.nodes[n].sym->name)) || globMatch(p, full));
@@ -46,7 +47,7 @@ std::string ClockRelations::sdcClockForNode(NodeId n) const {
     std::string full = stripBit(m_.nameOf(n));
     for (auto& c : cfg_.constraints.clocks)
         for (auto& s : c.sources)
-            if ((s.kind == "get_ports" || s.kind == "get_pins" || s.kind == "get_nets") &&
+            if ((s.kind == "get_ports" || s.kind == "get_pins" || s.kind == "get_nets" || s.kind == "all_inputs") &&
                 nameMatches(s.kind, s.pattern, n, full))
                 return c.name.empty() ? s.pattern : c.name;
     return {};

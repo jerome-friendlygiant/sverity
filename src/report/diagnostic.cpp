@@ -58,19 +58,31 @@ void Diagnostic::applyDefaultDisposition() {
         disposition = Disposition::Open;
 }
 
-// FNV-1a 64: stable across platforms/runs; identity excludes hierarchy so that a finding in a
-// module instantiated N times keeps one identity with N occurrences.
+// Length framing prevents ambiguous concatenations. Hierarchy is deliberately excluded:
+// exact duplicates across instances retain the existing occurrence grouping contract.
+std::string findingIdentity(const Diagnostic& d) {
+    std::string key;
+    auto part = [&](std::string_view s) { key += std::to_string(s.size()) + ":"; key += s; };
+    part("finding-v2"); part(d.ruleId); part(d.location.file);
+    part(std::to_string(d.location.line)); part(std::to_string(d.location.column));
+    part(d.origin); part(d.upstreamCode); part(d.identityKey);
+    part(std::to_string(d.identityArguments.size()));
+    for (const auto& arg : d.identityArguments) part(arg);
+    part(std::to_string(d.signals.size()));
+    for (const auto& signal : d.signals) part(signal);
+    part(d.groupingUnit); part(std::to_string(d.groupingProcedureOrdinal));
+    part(std::to_string(d.evidence.size()));
+    for (const auto& e : d.evidence) {
+        part(e.kind); part(e.location.file);
+        part(std::to_string(e.location.line)); part(std::to_string(e.location.column));
+    }
+    return key;
+}
+
+// FNV-1a 64: stable across platforms and runs.
 std::string computeFingerprint(const Diagnostic& d) {
     uint64_t h = 1469598103934665603ull;
-    auto mix = [&](std::string_view s) {
-        for (unsigned char c : s) { h ^= c; h *= 1099511628211ull; }
-        h ^= 0xff; h *= 1099511628211ull;
-    };
-    mix(d.ruleId);
-    mix(d.location.file);
-    mix(std::to_string(d.location.line));
-    mix(std::to_string(d.location.column));
-    mix(d.message);
+    for (unsigned char c : findingIdentity(d)) { h ^= c; h *= 1099511628211ull; }
     char buf[24];
     std::snprintf(buf, sizeof buf, "%016llx", static_cast<unsigned long long>(h));
     return buf;

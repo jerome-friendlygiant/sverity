@@ -1,6 +1,6 @@
 # SVerity architecture
 
-One elaboration, one model, many rules. This page records the design decisions; the code and tests are the truth for everything else.
+One elaboration, one model, many rules. This page records the design decisions; the code and tests are the truth for everything else. What each analysis establishes and assumes is in [`rules/ANALYSIS.md`](rules/ANALYSIS.md).
 
 ```text
 CLI / embedders ── analyze() ── loadDesign() ── slang (parse, elaborate, driver analysis)
@@ -19,7 +19,7 @@ CLI / embedders ── analyze() ── loadDesign() ── slang (parse, elabor
 | `include/sverity/` | public API: `Rule`, `registerRule()`, `lint::LintRule` and the shared AST helpers, report/diagnostic/catalog/sdc types, `LibCell` |
 | `src/frontend/` | slang driver; `slang_rule_map.cpp` maps slang warning options and error codes to catalog rules |
 | `src/analysis/`, `src/domains/` | the two shared analyses above |
-| `src/rules/{lint,cdc,rdc,style,cst}/` | rules; CDC and RDC each share one analysis object across many rule objects |
+| `src/rules/{lint,cdc,rdc,cst}/` | rules; CDC and RDC each share one analysis object across many rule objects |
 | `tests/fixtures/<RULE-ID>/` | annotated SystemVerilog, format at the top of `tests/unit/fixture_runner.cpp` |
 
 ## Design decisions

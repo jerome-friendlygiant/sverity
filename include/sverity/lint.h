@@ -31,6 +31,9 @@ struct LintOpts {
     std::string hierarchy;
     std::vector<std::string> signals;
     std::vector<Evidence> evidence;
+    std::string groupingUnit;
+    uint32_t groupingProcedureOrdinal = 0;
+    std::string identityKey;
 };
 
 /// Per-run helper: location conversion, user-code filter and finding construction.
@@ -81,10 +84,13 @@ public:
         d.confidence = o.confidence;
         d.proofState = o.proof;
         d.message = std::move(message);
+        d.identityKey = std::move(o.identityKey);
         d.nextStep = std::move(o.nextStep);
         d.hierarchy = std::move(o.hierarchy);
         d.signals = std::move(o.signals);
         d.evidence = std::move(o.evidence);
+        d.groupingUnit = std::move(o.groupingUnit);
+        d.groupingProcedureOrdinal = o.groupingProcedureOrdinal;
         d.location = std::move(loc);
         ctx_.report.add(std::move(d));
     }

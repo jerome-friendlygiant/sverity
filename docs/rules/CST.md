@@ -29,3 +29,18 @@ per rule below the table when it is specified: trigger, exemptions, severity pol
 | `CST-022` | Waiver expiration, stale match and overbroad-waiver warning |
 | `CST-023` | Selective blackbox and encrypted RTL coverage reporting |
 | `CST-024` | Physical-assumption proof obligation inventory |
+
+## CST-012 — Top-level IO and abstract IP CDC contracts
+
+- **Trigger:** a valid `set_output_delay -clock X` matches a top-level output. Trace its combinational cone to launching registers, using the same named-clock relationship contract as CDC-029. Aggregate bits of each output port per declaration.
+- **Exemptions:** outputs without output delays produce no finding. A synchroniser before the output is not an exemption: its final register launches into the external capture boundary.
+- **Severity:** INFO when every launch register has a resolved clock synchronous to X and the cone has one launch domain and no unknown leaves; state explicitly that physical timing is not proved. A declared asynchronous launch/capture relationship is ERROR, as for CDC-003, even if other cone sources are unresolved.
+- **Unknown:** WARNING Unresolved and INCOMPLETE constraints for unknown/exclusive relationships, mixed launch domains, primary-input feed-through, no launching register, opaque calls, black-box leaves, unresolved or undriven paths. A proven asynchronous crossing retains ERROR alongside Unresolved confidence when the cone is also incomplete. Function bodies contribute their state dependencies; function names do not imply safety.
+- **Evidence:** the SDC declaration and launch registers with their clock relationships. Delay values are not setup/hold proofs. Generated clocks are usable by their declared name; distinct clock names require an established relationship and are otherwise unknown.
+
+## CST-014 — Dynamic modes and mutually exclusive clock configurations
+
+- **Trigger:** a binary case-analysis declaration is applied to scalar top-level input ports. WARNING Unresolved names the fixed values, states that alternatives are not covered, and gives run totals of pruned conditional branches and mux expressions. Counts describe syntax selections, not removed crossing counts.
+- **Exemptions:** unapplied declarations use CST-009; unknown objects and conflicting values also use CST-018.
+- **Unknown:** the `case-analysis-modes` and constraints scopes remain INCOMPLETE. Alternative crossings are not inventoried; analyse the opposite values in separate runs. No cross-mode safety is inferred.
+- **Evidence:** original declaration and applied values in report inputs; console summary names the selected mode. Internal targets, vectors, internally driven inputs and clock/reset event sources remain unapplied with reasons. Conflicting declarations apply nothing to the conflicting object. Calls prevent condition pruning, including a constant conjunct.

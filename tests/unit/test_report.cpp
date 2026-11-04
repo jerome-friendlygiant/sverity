@@ -125,3 +125,60 @@ TEST(unproved_obligation_is_never_info) {
     CHECK(r.diagnostics()[0].severity == Severity::Warning);
     CHECK(r.diagnostics()[1].severity == Severity::Info);
 }
+
+TEST(html_preserves_unknown_input_fields_and_escapes_them) {
+    Report r;
+    auto future = json::Value::object();
+    future.set("future<key>", "value<script>");
+    r.addInput("future", future);
+    auto html = r.toHtml();
+    CHECK(html.find("future&lt;key&gt;") != std::string::npos);
+    CHECK(html.find("value&lt;script&gt;") != std::string::npos);
+}
+
+TEST(console_outcome_order_and_detail_modes) {
+    Report r;
+    for (auto severity : {Severity::Info, Severity::Warning, Severity::Error, Severity::Fatal}) {
+        auto d = mk("CDC-003", severity, toString(severity));
+        d.evidence = {{"launch_register", "top.src", {}}, {"detail", "extra detail", {}}};
+        d.nextStep = "Repair the crossing.";
+        if (severity == Severity::Error) { d.disposition = Disposition::Waived; d.waiver = WaiverInfo{"w", "reviewed", "team", "", "", {}}; }
+        r.add(d);
+    }
+    r.markIncomplete("test", "unknown"); r.finalize();
+    auto before = r.toJson().dump(), t = r.toText(false), full = r.toText(false, 0, "", false, true);
+    CHECK(t.find("Result: FAIL, exit") == 0); CHECK(t.find("<no location>") == std::string::npos);
+    CHECK(t.find("<OPEN>") == std::string::npos); CHECK(t.find("help: Repair the crossing.") == t.rfind("help: Repair the crossing."));
+    CHECK(full.find("help: Repair the crossing.") != full.rfind("help: Repair the crossing."));
+    CHECK(t.find("FATAL [") < t.find("ERROR [")); CHECK(t.find("ERROR [") < t.find("WARNING ["));
+    CHECK(t.find("WARNING [") < t.find("INFO [")); CHECK(t.find("<WAIVED>") != std::string::npos);
+    CHECK(t.find("1 waived") != std::string::npos); CHECK(t.find("extra detail") == std::string::npos);
+    CHECK(full.find("extra detail") != std::string::npos); CHECK(full.find("fingerprint:") != std::string::npos);
+    CHECK(full.find("occurrences:") != std::string::npos); CHECK(full.find("proof:") != std::string::npos);
+    CHECK(t.find("Review this finding") == std::string::npos); CHECK(t.find("evidence(") == std::string::npos);
+    CHECK(t.find("summary ==") == std::string::npos); CHECK_EQ(before, r.toJson().dump());
+}
+TEST(console_zero_findings_does_not_claim_safety) {
+    Report r; r.markIncomplete("test", "not evaluated"); r.finalize(); auto t = r.toText();
+    CHECK(t.find("INCOMPLETE") != std::string::npos); CHECK(t.find("NO_OPEN_FINDINGS") != std::string::npos);
+    CHECK(t.find("PASS") == std::string::npos); CHECK(t.find("0 INFO (0 waived)") != std::string::npos);
+}
+
+TEST(sarif_evidence_keeps_missing_coordinates_missing) {
+    Report r = fullCoverage();
+    auto d = mk("CDC-003", Severity::Error, "crossing");
+    d.location.column = 0;
+    d.evidence = {{"launch", "source register", {"launch.sv", 7, 0}},
+                  {"capture", "destination register", {"capture.sv", 9, 4}},
+                  {"relationship", "unknown", {}}};
+    r.add(d); r.finalize();
+    const auto result = r.toSarif()["runs"].asArray()[0]["results"].asArray()[0];
+    const auto& related = result["relatedLocations"].asArray();
+    CHECK_EQ(related.size(), 3u);
+    CHECK_EQ(related[0]["message"]["text"].asString(), std::string("launch: source register"));
+    CHECK_EQ(related[0]["physicalLocation"]["region"]["startLine"].asInt(), 7);
+    CHECK(related[0]["physicalLocation"]["region"]["startColumn"].isNull());
+    CHECK_EQ(related[1]["physicalLocation"]["region"]["startColumn"].asInt(), 4);
+    CHECK(related[2]["physicalLocation"].isNull());
+    CHECK(result["locations"].asArray()[0]["physicalLocation"]["region"]["startColumn"].isNull());
+}

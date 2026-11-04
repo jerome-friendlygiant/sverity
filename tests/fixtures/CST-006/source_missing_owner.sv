@@ -1,0 +1,6 @@
+// sverity-args: --top top
+// expect: CST-006 WARNING
+module top(input logic b, output logic y);
+// sverity-waive LNT-076 reason="legacy process"
+always @(b) y = ~b;
+endmodule

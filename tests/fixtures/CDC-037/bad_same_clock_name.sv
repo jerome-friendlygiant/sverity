@@ -1,5 +1,6 @@
 // sverity-args: --top top --sdc @DIR@/same2.sdc
 // expect: CST-018 WARNING
+// expect: CDC-037 WARNING
 // Regression from the independent audit: this hazard must never be classified as safe.
 // Two distinct clock input ports, one SDC clock name covers both; no synchroniser.
 module top(input logic clka, clkb, d, output logic q);

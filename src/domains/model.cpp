@@ -21,6 +21,7 @@
 #include "slang/ast/symbols/MemberSymbols.h"
 #include "slang/ast/symbols/PortSymbols.h"
 #include "slang/ast/symbols/VariableSymbols.h"
+#include "slang/ast/symbols/SubroutineSymbols.h"
 #include "slang/ast/types/Type.h"
 #include "slang/text/SourceManager.h"
 
@@ -211,6 +212,9 @@ struct Assign {
     bool pairsValid = false;       // dataReads are fully described by exact bit pairs below
     std::vector<std::pair<BitRef, BitRef>> pairs;   // (target bit, source bit or constant)
     SourceLocation loc;
+    BoolFactPtr booleanValue;
+    std::vector<GuardCondition> booleanGuards;
+    std::vector<uint32_t> uncertainCalls;
 };
 
 class Builder {
@@ -255,7 +259,18 @@ public:
         // mark top-level input ports
         for (auto* top : root.topInstances) markTopInputs(*top);
         applyFlags();
+        for (NodeId n = 0; n < m.nodes.size(); ++n) {
+            auto it = design.caseConstants.find(m.nodes[n].sym);
+            if (it != design.caseConstants.end()) m.modeConstants[n] = it->second ? '1' : '0';
+        }
         m.finish();
+        std::sort(unknownWriteCalls.begin(), unknownWriteCalls.end());
+        unknownWriteCalls.erase(std::unique(unknownWriteCalls.begin(), unknownWriteCalls.end()), unknownWriteCalls.end());
+        for (auto issue : unknownWriteCalls)
+            for (const auto& flop : m.flops) m.uncertainCallDrivers[flop.q].push_back(issue);
+        for (auto& [node, issues] : m.uncertainCallDrivers) {
+            std::sort(issues.begin(), issues.end()); issues.erase(std::unique(issues.begin(), issues.end()), issues.end());
+        }
     }
 
 private:
@@ -317,7 +332,7 @@ private:
     }
 
     // ---------------------------------------------------------------- paths
-    std::vector<Path> pathsOf(const Expression& e, EvalContext& ec, bool skipSelectors) {
+    std::vector<Path> rawPathsOf(const Expression& e, EvalContext& ec, bool skipSelectors) {
         std::vector<Path> out;
         ValuePath::visitPaths(e, ec, [&](const ValuePath& vp) {
             const ValueSymbol* rs = vp.rootSymbol();
@@ -331,6 +346,308 @@ private:
         std::sort(out.begin(), out.end());
         out.erase(std::unique(out.begin(), out.end()), out.end());
         return out;
+    }
+
+    // Summaries collect dependency sets, not function values. Formals retain
+    // the existing argument-carried behavior; locals are never graph nodes.
+    struct CallSummary {
+        std::set<Path> reads, writes;
+        std::set<std::string> unknown;
+        bool unboundedWrites = false;
+    };
+    std::map<const SubroutineSymbol*, CallSummary> callSummaries;
+    std::set<const SubroutineSymbol*> activeCalls;
+    CallSummary recursiveCall{{}, {}, {"recursive call graph is not expanded"}, true};
+    CallSummary limitedCall{{}, {}, {"subroutine expansion depth limit reached"}, true};
+    std::map<std::pair<const CallExpression*, const InstanceSymbol*>, uint32_t> callIssueIds;
+    std::vector<uint32_t> unknownWriteCalls;
+
+    static bool localTo(const ValueSymbol& symbol, const SubroutineSymbol& sub) {
+        for (auto scope = symbol.getParentScope(); scope; scope = scope->asSymbol().getParentScope())
+            if (&scope->asSymbol() == &sub) return true;
+        return false;
+    }
+    static bool returnsValue(const Statement& statement, const SubroutineSymbol& sub) {
+        switch (statement.kind) {
+            case StatementKind::Return: return statement.as<ReturnStatement>().expr != nullptr;
+            case StatementKind::Block: return returnsValue(statement.as<BlockStatement>().body, sub);
+            case StatementKind::List:
+                for (const auto* stmt : statement.as<StatementList>().list) if (returnsValue(*stmt, sub)) return true;
+                return false;
+            case StatementKind::Conditional: {
+                const auto& branch = statement.as<ConditionalStatement>();
+                return branch.ifFalse && returnsValue(branch.ifTrue, sub) && returnsValue(*branch.ifFalse, sub);
+            }
+            case StatementKind::ExpressionStatement: {
+                const auto& expr = statement.as<ExpressionStatement>().expr;
+                if (expr.kind != ExpressionKind::Assignment) return false;
+                const auto& assignment = expr.as<AssignmentExpression>();
+                return !assignment.isCompound() && assignment.left().kind == ExpressionKind::NamedValue &&
+                       assignment.left().getSymbolReference() == sub.returnValVar;
+            }
+            default: return false;
+        }
+    }
+    struct SummaryVisitor : ASTVisitor<SummaryVisitor, VisitFlags::AllGood> {
+        Builder& b;
+        const SubroutineSymbol& sub;
+        CallSummary& result;
+        EvalContext ec;
+        size_t visited = 0;
+        SummaryVisitor(Builder& builder, const SubroutineSymbol& routine, CallSummary& summary)
+            : b(builder), sub(routine), result(summary), ec(routine) {}
+        bool tick() {
+            ++b.m.subroutineBodyNodes;
+            if (++visited <= 4096) return true;
+            result.unknown.insert("subroutine body-size limit reached"); result.unboundedWrites = true; return false;
+        }
+        void paths(const Expression& expr, bool write, bool skipSelectors = false) {
+            for (const auto& path : b.rawPathsOf(expr, ec, skipSelectors)) {
+                if (localTo(*path.sym, sub)) {
+                    if (path.sym == sub.returnValVar) {
+                        if (!write) result.unknown.insert("function return state is read before its value is established");
+                    } else if (path.sym->kind != SymbolKind::FormalArgument) {
+                        result.unknown.insert("subroutine-local dataflow or persistent state is not expanded");
+                    }
+                    continue;
+                }
+                auto& set = write ? result.writes : result.reads;
+                if (set.size() < 256) set.insert(path);
+                else { result.unknown.insert("subroutine dependency limit reached"); result.unboundedWrites = true; }
+            }
+        }
+        template<class T> void handle(const T& node) {
+            if (!tick()) return;
+            if constexpr (std::is_base_of_v<Statement, T>) {
+                if constexpr (!std::is_same_v<T, StatementList> && !std::is_same_v<T, BlockStatement> &&
+                              !std::is_same_v<T, ReturnStatement> && !std::is_same_v<T, ConditionalStatement> &&
+                              !std::is_same_v<T, CaseStatement> && !std::is_same_v<T, ExpressionStatement> &&
+                              !std::is_same_v<T, VariableDeclStatement> && !std::is_same_v<T, EmptyStatement> &&
+                              !std::is_same_v<T, ForLoopStatement> && !std::is_same_v<T, WhileLoopStatement> &&
+                              !std::is_same_v<T, DoWhileLoopStatement> && !std::is_same_v<T, RepeatLoopStatement> &&
+                              !std::is_same_v<T, ForeachLoopStatement>)
+                    result.unknown.insert("unsupported subroutine control or timing statement");
+            }
+            this->visitDefault(node);
+        }
+        void handle(const NamedValueExpression& expr) { if (tick()) paths(expr, false); }
+        void handle(const HierarchicalValueExpression& expr) { if (tick()) paths(expr, false); }
+        void handle(const ElementSelectExpression& expr) { if (tick()) { paths(expr, false); visitDefault(expr); } }
+        void handle(const RangeSelectExpression& expr) { if (tick()) { paths(expr, false); visitDefault(expr); } }
+        void handle(const MemberAccessExpression& expr) {
+            if (!tick()) return;
+            if (expr.value().type->isClass() || expr.value().type->isVirtualInterface())
+                result.unknown.insert("object or virtual-interface state is not expanded");
+            visitDefault(expr);
+        }
+        void handle(const VariableDeclStatement& declaration) {
+            if (!tick()) return;
+            if (auto* initializer = declaration.symbol.getInitializer()) initializer->visit(*this);
+            result.unknown.insert("subroutine-local dataflow or persistent state is not expanded");
+        }
+        void handle(const UnaryExpression& expr) {
+            if (!tick()) return;
+            if (expr.op == UnaryOperator::Preincrement || expr.op == UnaryOperator::Postincrement ||
+                expr.op == UnaryOperator::Predecrement || expr.op == UnaryOperator::Postdecrement)
+                paths(expr.operand(), true, true);
+            visitDefault(expr);
+        }
+        void handle(const AssignmentExpression& assignment) {
+            if (!tick()) return;
+            paths(assignment.left(), true, true);
+            // Index expressions influence a write but the LHS value itself is
+            // not read by a simple assignment.
+            auto targets = b.rawPathsOf(assignment.left(), ec, true);
+            for (const auto& path : b.rawPathsOf(assignment.left(), ec, false))
+                if (assignment.isCompound() || std::find(targets.begin(), targets.end(), path) == targets.end()) {
+                    if (!localTo(*path.sym, sub)) result.reads.insert(path);
+                }
+            if (assignment.isCompound()) paths(assignment.left(), false);
+            if (assignment.left().kind != ExpressionKind::NamedValue && assignment.left().kind != ExpressionKind::HierarchicalValue)
+                assignment.left().visit(*this);
+            assignment.right().visit(*this);
+        }
+        void handle(const CallExpression& call) {
+            if (!tick()) return;
+            this->visitDefault(call); // actual argument reads, including nested argument calls
+            if (call.isSystemCall()) {
+                result.unknown.insert("system call '" + std::string(call.getSubroutineName()) +
+                    "' inside the body retains argument-only modeling");
+                if (call.hasOutputArgs()) result.unboundedWrites = true;
+                return;
+            }
+            const auto* callee = std::get<const SubroutineSymbol*>(call.subroutine);
+            if (!callee || call.thisClass()) { result.unknown.insert("unresolved or class-method call"); result.unboundedWrites = true; return; }
+            const auto& nested = b.summarize(*callee);
+            for (const auto& path : nested.reads) {
+                if (result.reads.size() < 256) result.reads.insert(path);
+                else { result.unknown.insert("subroutine dependency limit reached"); result.unboundedWrites = true; }
+            }
+            for (const auto& path : nested.writes) {
+                if (result.writes.size() < 256) result.writes.insert(path);
+                else { result.unknown.insert("subroutine dependency limit reached"); result.unboundedWrites = true; }
+            }
+            result.unknown.insert(nested.unknown.begin(), nested.unknown.end());
+            result.unboundedWrites = result.unboundedWrites || nested.unboundedWrites;
+            if (call.hasOutputArgs()) {
+                result.unknown.insert("output, inout or ref argument effects are not expanded");
+                result.unboundedWrites = true;
+                auto args = callee->getArguments();
+                for (size_t i = 0; i < args.size() && i < call.arguments().size(); ++i)
+                    if (args[i]->direction != ArgumentDirection::In) paths(*call.arguments()[i], true, true);
+            }
+        }
+    };
+    const CallSummary& summarize(const SubroutineSymbol& sub) {
+        if (activeCalls.count(&sub)) return recursiveCall;
+        if (auto it = callSummaries.find(&sub); it != callSummaries.end()) return it->second;
+        if (activeCalls.size() >= 32) return limitedCall;
+        activeCalls.insert(&sub);
+        auto& result = callSummaries[&sub];
+        ++m.subroutineSummaries;
+        if (sub.flags.has(MethodFlags::DPIImport | MethodFlags::InterfaceExtern) || sub.isVirtual()) {
+            result.unknown.insert("external or virtual subroutine has no resolved body"); result.unboundedWrites = true;
+        } else {
+            SummaryVisitor visitor(*this, sub, result);
+            sub.getBody().visit(visitor);
+            if (sub.subroutineKind == SubroutineKind::Function && !returnsValue(sub.getBody(), sub))
+                result.unknown.insert("a return value is not established on every path");
+        }
+        if (!result.writes.empty()) result.unknown.insert("writes to nonlocal state are not expanded as procedural effects");
+        if (sub.hasOutputArgs()) result.unknown.insert("output, inout or ref argument effects are not expanded");
+        activeCalls.erase(&sub);
+        return result;
+    }
+    bool callPathResolved(const Path& path) const {
+        const auto* body = bodyOf(*path.sym);
+        if (!isModuleLevel(*path.sym) || !body) return false; // package state and nonlocal subroutine state need a state model
+        // A summary stores symbols, not a hierarchical instance selection.
+        // Shared bodies need that extra ownership fact before their state can be attached.
+        auto it = bodyInstances.find(body);
+        return it != bodyInstances.end() && it->second.size() == 1;
+    }
+    const CallSummary& summaryFor(const CallExpression& call) {
+        const auto* sub = std::get<const SubroutineSymbol*>(call.subroutine);
+        return sub ? summarize(*sub) : limitedCall;
+    }
+    std::unordered_map<const Expression*, std::vector<const CallExpression*>> expressionCalls;
+    const std::vector<const CallExpression*>& callsIn(const Expression& expr) {
+        auto [it, inserted] = expressionCalls.try_emplace(&expr);
+        if (inserted) {
+            struct Calls : ASTVisitor<Calls, VisitFlags::AllGood> {
+                std::vector<const CallExpression*>& out;
+                explicit Calls(std::vector<const CallExpression*>& calls) : out(calls) {}
+                void handle(const CallExpression& call) {
+                    if (!call.isSystemCall()) out.push_back(&call);
+                    visitDefault(call);
+                }
+            } visitor(it->second);
+            expr.visit(visitor);
+        }
+        return it->second;
+    }
+    // Deliberately small two-state evaluator. Calls (including system calls)
+    // prevent pruning of the whole expression, preserving execution effects.
+    int modeValue(const Expression& e, EvalContext& ec) {
+        struct Calls : ASTVisitor<Calls, VisitFlags::AllGood> {
+            bool found = false;
+            void handle(const CallExpression&) { found = true; }
+        } calls;
+        e.visit(calls);
+        if (calls.found) return -1;
+        auto cv = e.eval(ec);
+        if (cv.isInteger() && !cv.hasUnknown()) return cv.isFalse() ? 0 : 1;
+        if (e.kind == ExpressionKind::NamedValue) {
+            auto it = design.caseConstants.find(&e.as<NamedValueExpression>().symbol);
+            return it == design.caseConstants.end() ? -1 : it->second;
+        }
+        if (e.kind == ExpressionKind::Conversion) {
+            const auto& op = e.as<ConversionExpression>().operand();
+            if (e.type->getBitstreamWidth() >= op.type->getBitstreamWidth()) return modeValue(op, ec);
+        }
+        if (e.kind == ExpressionKind::UnaryOp) {
+            const auto& u = e.as<UnaryExpression>();
+            if (u.op == UnaryOperator::LogicalNot ||
+                (u.op == UnaryOperator::BitwiseNot && u.operand().type->getBitstreamWidth() == 1)) {
+                int v = modeValue(u.operand(), ec);
+                return v < 0 ? -1 : !v;
+            }
+        }
+        if (e.kind == ExpressionKind::BinaryOp) {
+            const auto& op = e.as<BinaryExpression>();
+            int a = modeValue(op.left(), ec), b = modeValue(op.right(), ec);
+            if (op.op == BinaryOperator::LogicalAnd) {
+                if (a == 0 || b == 0) return 0;
+                if (a == 1 && b == 1) return 1;
+            }
+            if (op.op == BinaryOperator::LogicalOr) {
+                if (a == 1 || b == 1) return 1;
+                if (a == 0 && b == 0) return 0;
+            }
+        }
+        return -1;
+    }
+    std::unordered_set<const Expression*> prunedExpressions;
+    const Expression& modeExpr(const Expression& e, EvalContext& ec) {
+        if (design.caseConstants.empty()) return e;
+        if (e.kind == ExpressionKind::Conversion) {
+            // Only remove width-preserving conversions.
+            const auto& op = e.as<ConversionExpression>().operand();
+            if (e.type->getBitstreamWidth() == op.type->getBitstreamWidth()) return modeExpr(op, ec);
+        }
+        if (e.kind == ExpressionKind::ConditionalOp) {
+            const auto& c = e.as<ConditionalExpression>();
+            if (c.conditions.size() == 1 && !c.conditions[0].pattern) {
+                int v = modeValue(*c.conditions[0].expr, ec);
+                if (v >= 0) { m.casePrunedExpressions += prunedExpressions.insert(&e).second; return modeExpr(v ? c.left() : c.right(), ec); }
+            }
+        }
+        return e;
+    }
+    std::vector<Path> pathsOf(const Expression& expr, EvalContext& ec, bool skipSelectors) {
+        const auto& selected = skipSelectors ? expr : modeExpr(expr, ec);
+        if (!skipSelectors && !design.caseConstants.empty() && modeValue(selected, ec) >= 0) return {};
+        auto result = rawPathsOf(selected, ec, skipSelectors);
+        // Only expression reads are expanded. An lvalue call cannot establish
+        // an ordinary target; its effects are recorded separately.
+        if (!skipSelectors)
+            for (const auto* call : callsIn(expr))
+                for (const auto& path : summaryFor(*call).reads)
+                    if (callPathResolved(path)) result.push_back(path);
+        std::sort(result.begin(), result.end()); result.erase(std::unique(result.begin(), result.end()), result.end());
+        return result;
+    }
+    std::vector<uint32_t> callIssues(const Expression& expr, const InstanceSymbol* ctx) {
+        std::vector<uint32_t> ids;
+        for (const auto* call : callsIn(expr)) {
+            auto id = callIssue(*call, ctx);
+            if (id != UINT32_MAX) ids.push_back(id);
+        }
+        std::sort(ids.begin(), ids.end()); ids.erase(std::unique(ids.begin(), ids.end()), ids.end());
+        return ids;
+    }
+    uint32_t callIssue(const CallExpression& call, const InstanceSymbol* ctx) {
+        auto key = std::make_pair(&call, ctx);
+        if (auto it = callIssueIds.find(key); it != callIssueIds.end()) return it->second;
+        const auto& summary = summaryFor(call);
+        std::set<std::string> reasons = summary.unknown;
+        for (const auto& path : summary.reads) if (!callPathResolved(path)) reasons.insert("a body read has unresolved instance or package-state ownership");
+        for (const auto& path : summary.writes) if (!callPathResolved(path)) reasons.insert("a body write has unresolved instance or package-state ownership");
+        if (call.thisClass()) reasons.insert("class-method state is not expanded");
+        if (reasons.empty()) { callIssueIds[key] = UINT32_MAX; return UINT32_MAX; }
+        std::string reason;
+        for (const auto& item : reasons) reason += (reason.empty() ? "" : "; ") + item;
+        uint32_t id = static_cast<uint32_t>(m.callUncertainties.size());
+        m.callUncertainties.push_back({std::string(call.getSubroutineName()), reason, toLoc(*sm, call.sourceRange.start())});
+        callIssueIds[key] = id;
+        fallback("user-function-call", "call to '" + std::string(call.getSubroutineName()) + "': " + reason, call.sourceRange.start());
+        for (const auto& path : summary.writes) {
+            if (callPathResolved(path)) {
+                for (auto node : nodesFor(ctx, path)) m.uncertainCallDrivers[node].push_back(id);
+            } else unknownWriteCalls.push_back(id);
+        }
+        if (summary.unboundedWrites || call.thisClass()) unknownWriteCalls.push_back(id);
+        return id;
     }
 
     static uint64_t pathWidth(const Path& p) { return p.hi - p.lo + 1; }
@@ -350,7 +667,10 @@ private:
 
     void addEdge(NodeId from, NodeId to, EdgeType t, uint32_t proc, bool exact, bool ctrl = false) {
         if (from == to) {
-            if (t == EdgeType::Seq && !exact) m.selfLogic.insert(from);
+            if (t == EdgeType::Seq && !ctrl) {
+                if (exact) m.selfExact.insert(from);
+                else m.selfLogic.insert(from);
+            }
             if (t == EdgeType::Comb && !exact) m.selfComb.emplace(from, proc);
             return;
         }
@@ -398,6 +718,10 @@ private:
     void emitAssign(const InstanceSymbol* ctx, const Assign& a, const std::vector<Path>& targets, EdgeType type,
                     uint32_t proc, slang::SourceLocation loc, const std::set<NodeId>* skipReads = nullptr,
                     NodeId* /*unused*/ = nullptr) {
+        if (!a.uncertainCalls.empty()) for (const auto& target : targets) for (auto node : nodesFor(ctx, target)) {
+            auto& issues = m.uncertainCallDrivers[node];
+            issues.insert(issues.end(), a.uncertainCalls.begin(), a.uncertainCalls.end());
+        }
         curData = &a.dataOps;
         curCtrl = &a.ctrlOps;
         struct Reset { Builder& b; ~Reset() { b.curData = b.curCtrl = nullptr; } } reset{*this};
@@ -439,6 +763,10 @@ private:
             ctrl.push_back(r);
         }
         connect(ctx, ctrl, ctx, targets, type, proc, loc, true);
+        if (type == EdgeType::Comb) {
+            for (const auto& target : targets) for (auto node : nodesFor(ctx, target))
+                m.booleanDrivers[node].push_back({a.booleanValue, a.booleanGuards.empty() && a.ctrlReads.empty()});
+        }
         if (type == EdgeType::Seq) {
             bool hasData = false;
             if (a.pairsValid) { for (auto& pr : a.pairs) hasData = hasData || (pr.second.sym != nullptr); }
@@ -447,6 +775,14 @@ private:
                 std::vector<NodeId> g;
                 for (auto& r : ctrl) for (auto n : nodesFor(ctx, r)) g.push_back(n);
                 for (auto& t : targets) for (auto n : nodesFor(ctx, t)) m.guards[n].push_back(g);
+                std::vector<GuardCondition> conditions;
+                for (const auto& guard : a.booleanGuards) {
+                    bool resetOnly = skipReads && !guard.dependencies.empty() &&
+                        std::all_of(guard.dependencies.begin(), guard.dependencies.end(), [&](NodeId n) { return skipReads->count(n); });
+                    if (!resetOnly) conditions.push_back(guard);
+                }
+                for (const auto& target : targets) for (auto node : nodesFor(ctx, target))
+                    m.qualifierGuards[node].push_back(conditions);
             }
         }
     }
@@ -455,11 +791,26 @@ private:
     /// Expands an expression into its ordered (MSB first) bit sources when it is a pure bit move:
     /// static selects of one symbol, concatenations, constants and zero-extension. Returns false otherwise.
     bool bitList(const Expression& e, EvalContext& ec, std::vector<BitRef>& out) {
-        const Expression* x = &e;
+        const Expression* x = &modeExpr(e, ec);
+        if (!design.caseConstants.empty() && x->type->getBitstreamWidth() == 1) {
+            int v = modeValue(*x, ec);
+            if (v >= 0) { out.push_back({nullptr, 0, v ? '1' : '0'}); return true; }
+        }
         uint64_t want = x->type ? x->type->getBitstreamWidth() : 0;
         if (x->kind == ExpressionKind::Conversion && x->as<ConversionExpression>().isImplicit()) {
             const Expression& op = x->as<ConversionExpression>().operand();
             uint64_t ow = op.type ? op.type->getBitstreamWidth() : 0;
+            // A sized assignment conversion of a literal is an exact constant too
+            // (including truncation, sign extension and four-state values).
+            auto cv = x->eval(ec);
+            if (want && cv.isInteger()) {
+                for (uint64_t i = 0; i < want; i++) {
+                    logic_t bit = cv.integer()[static_cast<int32_t>(want - 1 - i)];
+                    out.push_back({nullptr, 0, bit.value == 0 ? '0' : bit.value == 1 ? '1' :
+                                                bit.value == logic_t::z.value ? 'z' : 'x'});
+                }
+                return true;
+            }
             if (!want || !ow || ow > want) return false;
             if (ow < want && op.type->isSigned()) return false;   // sign-extension replicates the MSB
             for (uint64_t i = ow; i < want; i++) out.push_back({nullptr, 0, '0'});   // zero extension
@@ -500,6 +851,72 @@ private:
         return true;
     }
 
+    BoolFactPtr boolFact(BoolFact::Kind kind, std::vector<BoolFactPtr> args = {}, NodeId node = kNoNode,
+                         bool value = false, bool opaque = false) {
+        auto result = std::make_shared<BoolFact>();
+        result->kind = kind; result->args = std::move(args); result->node = node;
+        result->value = value; result->opaque = opaque;
+        return result;
+    }
+    BoolFactPtr unknownBoolean(const Expression& expr, EvalContext& ec, const InstanceSymbol* ctx) {
+        std::vector<BoolFactPtr> refs;
+        for (const auto& path : pathsOf(expr, ec, false))
+            for (auto node : nodesFor(ctx, path)) refs.push_back(boolFact(BoolFact::Kind::Node, {}, node));
+        struct Calls : ASTVisitor<Calls, VisitFlags::AllGood> {
+            Builder& builder;
+            const InstanceSymbol* ctx;
+            bool opaque = false;
+            Calls(Builder& builder, const InstanceSymbol* ctx) : builder(builder), ctx(ctx) {}
+            void handle(const CallExpression& call) {
+                if (call.isSystemCall() || builder.callIssue(call, ctx) != UINT32_MAX) opaque = true;
+                visitDefault(call);
+            }
+        } calls(*this, ctx);
+        expr.visit(calls);
+        return boolFact(BoolFact::Kind::Unknown, std::move(refs), kNoNode, false, calls.opaque);
+    }
+    BoolFactPtr booleanOf(const Expression& expr, EvalContext& ec, const InstanceSymbol* ctx) {
+        if (!design.caseConstants.empty()) {
+            int v = modeValue(expr, ec);
+            if (v >= 0) return boolFact(BoolFact::Kind::Constant, {}, kNoNode, v);
+        }
+        struct Calls : ASTVisitor<Calls, VisitFlags::AllGood> {
+            bool found = false;
+            void handle(const CallExpression&) { found = true; }
+        } calls;
+        expr.visit(calls);
+        auto value = calls.found ? ConstantValue() : expr.eval(ec);
+        if (value.isInteger() && !value.hasUnknown())
+            return boolFact(BoolFact::Kind::Constant, {}, kNoNode, value.isTrue());
+        if (expr.kind == ExpressionKind::Conversion) {
+            const auto& operand = expr.as<ConversionExpression>().operand();
+            if (expr.type->getBitstreamWidth() == operand.type->getBitstreamWidth()) return booleanOf(operand, ec, ctx);
+        }
+        if (expr.kind == ExpressionKind::NamedValue || expr.kind == ExpressionKind::HierarchicalValue ||
+            expr.kind == ExpressionKind::ElementSelect) {
+            auto paths = pathsOf(expr, ec, false);
+            if (paths.size() == 1 && pathWidth(paths[0]) == 1) {
+                auto nodes = nodesFor(ctx, paths[0]);
+                if (nodes.size() == 1) return boolFact(BoolFact::Kind::Node, {}, nodes[0]);
+            }
+        }
+        if (expr.kind == ExpressionKind::UnaryOp) {
+            const auto& unary = expr.as<UnaryExpression>();
+            if (unary.op == UnaryOperator::LogicalNot ||
+                (unary.op == UnaryOperator::BitwiseNot && unary.operand().type->getBitstreamWidth() == 1))
+                return boolFact(BoolFact::Kind::Not, {booleanOf(unary.operand(), ec, ctx)});
+        }
+        if (expr.kind == ExpressionKind::BinaryOp) {
+            const auto& op = expr.as<BinaryExpression>();
+            bool scalar = op.left().type->getBitstreamWidth() == 1 && op.right().type->getBitstreamWidth() == 1;
+            if (op.op == BinaryOperator::LogicalAnd || (scalar && op.op == BinaryOperator::BinaryAnd))
+                return boolFact(BoolFact::Kind::And, {booleanOf(op.left(), ec, ctx), booleanOf(op.right(), ec, ctx)});
+            if (op.op == BinaryOperator::LogicalOr || (scalar && op.op == BinaryOperator::BinaryOr))
+                return boolFact(BoolFact::Kind::Or, {booleanOf(op.left(), ec, ctx), booleanOf(op.right(), ec, ctx)});
+        }
+        return unknownBoolean(expr, ec, ctx);
+    }
+
     // ---------------------------------------------------------------- statement walking
     struct StmtVisitor : ASTVisitor<StmtVisitor, VisitFlags::AllGood> {
         StmtVisitor(Builder& b, EvalContext& ec, std::vector<Assign>& out, const InstanceSymbol* ctx)
@@ -512,38 +929,78 @@ private:
             std::vector<Path> paths;
             OpMap ops;
             Branch br = Branch::None;
+            BoolFactPtr predicate;
+            std::vector<uint32_t> uncertainCalls;
         };
         std::vector<Ctl> control;
 
         void addReads(const Expression& e, std::vector<Path>& dst) {
             for (auto& p : b.pathsOf(e, ec, false)) dst.push_back(p);
         }
-        void pushControl(const Expression& e, Branch br = Branch::None) {
+        void pushControl(const Expression& e, Branch br = Branch::None, bool boolean = true) {
+            for (const auto* call : b.callsIn(e)) callEffects(*call);
             control.emplace_back();
             addReads(e, control.back().paths);
             classify(e, Op::None, 0, control.back().ops);
             control.back().br = br;
+            control.back().uncertainCalls = b.callIssues(e, ctx);
+            control.back().predicate = boolean ? b.booleanOf(e, ec, ctx) : b.unknownBoolean(e, ec, ctx);
         }
 
+        // A constant-false conjunct cannot enable a branch, even when the
+        // other operand is not constant. Do not invent a control edge for it.
+        bool alwaysFalse(const Expression& expr) {
+            // A call in the condition still runs, whatever the branch does, so its effects stay in the model.
+            struct Calls : ASTVisitor<Calls, VisitFlags::AllGood> {
+                bool found = false;
+                void handle(const CallExpression&) { found = true; }
+            } calls;
+            expr.visit(calls);
+            if (calls.found) return false;
+            if (!b.design.caseConstants.empty() && b.modeValue(expr, ec) == 0) return true;
+            auto value = expr.eval(ec);
+            if (!value.bad() && value.isInteger() && !value.hasUnknown()) return value.isFalse();
+            if (expr.kind == ExpressionKind::Conversion)
+                return alwaysFalse(expr.as<ConversionExpression>().operand());
+            if (expr.kind == ExpressionKind::BinaryOp) {
+                const auto& op = expr.as<BinaryExpression>();
+                if (op.op == BinaryOperator::LogicalAnd)
+                    return alwaysFalse(op.left()) || alwaysFalse(op.right());
+            }
+            return false;
+        }
         void handle(const ConditionalStatement& s) {
+            if (!b.design.caseConstants.empty() && s.conditions.size() == 1 && !s.conditions[0].pattern) {
+                int v = b.modeValue(*s.conditions[0].expr, ec);
+                if (v >= 0) {
+                    ++b.m.casePrunedBranches;
+                    if (v) s.ifTrue.visit(*this);
+                    else if (s.ifFalse) s.ifFalse->visit(*this);
+                    return;
+                }
+            }
+            if (s.conditions.size() == 1 && !s.conditions[0].pattern && alwaysFalse(*s.conditions[0].expr)) {
+                if (s.ifFalse) s.ifFalse->visit(*this);
+                return;
+            }
             size_t depth = control.size();
-            for (auto& c : s.conditions) pushControl(*c.expr, Branch::Taken);
+            for (auto& c : s.conditions) pushControl(*c.expr, Branch::Taken, s.conditions.size() == 1 && !c.pattern);
             s.ifTrue.visit(*this);
             control.resize(depth);
             if (s.ifFalse) {
-                for (auto& c : s.conditions) pushControl(*c.expr, Branch::NotTaken);
+                for (auto& c : s.conditions) pushControl(*c.expr, Branch::NotTaken, s.conditions.size() == 1 && !c.pattern);
                 s.ifFalse->visit(*this);
                 control.resize(depth);
             }
         }
         void handle(const CaseStatement& s) {
             size_t depth = control.size();
-            pushControl(s.expr);
+            pushControl(s.expr, Branch::None, false);
             for (auto& [sym, oi] : control.back().ops) { oi.op = Op::Compare; oi.inv = 2; }   // the selector is compared with the items
             // An arm executes only if no earlier arm matched: it depends on its own and all earlier item expressions.
             for (auto& g : s.items) {
                 size_t first = control.size();
-                for (auto* e : g.expressions) pushControl(*e, Branch::Taken);
+                for (auto* e : g.expressions) pushControl(*e, Branch::Taken, false);
                 g.stmt->visit(*this);
                 for (size_t k = first; k < control.size(); k++) control[k].br = Branch::NotTaken;   // later arms run only if this one did not match
             }
@@ -553,46 +1010,90 @@ private:
         void handle(const ForLoopStatement& s) {
             size_t depth = control.size();
             for (auto* i : s.initializers) i->visit(*this);
-            if (s.stopExpr) pushControl(*s.stopExpr);
+            if (s.stopExpr) pushControl(*s.stopExpr, Branch::None, false);
             s.body.visit(*this);
             for (auto* st : s.steps) st->visit(*this);
             control.resize(depth);
         }
         void handle(const WhileLoopStatement& s) {
             size_t depth = control.size();
-            pushControl(s.cond);
+            pushControl(s.cond, Branch::None, false);
             s.body.visit(*this);
             control.resize(depth);
         }
         void handle(const DoWhileLoopStatement& s) {
             size_t depth = control.size();
-            pushControl(s.cond);
+            pushControl(s.cond, Branch::None, false);
             s.body.visit(*this);
             control.resize(depth);
         }
-        void handle(const CallExpression& c) {
+        void callEffects(const CallExpression& c) {
             if (!c.isSystemCall()) {
-                b.fallback("user-function-call",
-                           "call to '" + std::string(c.getSubroutineName()) + "': the subroutine body's data "
-                           "dependencies are not traced (only argument reads are)", c.sourceRange.start());
+                const auto& summary = b.summaryFor(c);
+                Assign effect;
+                for (const auto& path : summary.writes) if (b.callPathResolved(path)) effect.targets.push_back(path);
+                const auto* sub = std::get<const SubroutineSymbol*>(c.subroutine);
+                if (sub && c.hasOutputArgs()) {
+                    auto args = sub->getArguments();
+                    for (size_t i = 0; i < args.size() && i < c.arguments().size(); ++i) {
+                        if (args[i]->direction == ArgumentDirection::In) continue;
+                        const Expression* target = c.arguments()[i];
+                        if (target->kind == ExpressionKind::Assignment) target = &target->as<AssignmentExpression>().left();
+                        auto paths = b.rawPathsOf(*target, ec, true);
+                        effect.targets.insert(effect.targets.end(), paths.begin(), paths.end());
+                    }
+                }
+                if (!effect.targets.empty()) {
+                    // The write set is known, but procedural ordering / output
+                    // argument transfer is not expanded. Preserve each affected
+                    // state element as unresolved instead of inventing data edges.
+                    effect.uncertainCalls = b.callIssues(c, ctx);
+                    effect.loc = toLoc(*b.sm, c.sourceRange.start());
+                    for (const auto& ctl : control) {
+                        effect.ctrlReads.insert(effect.ctrlReads.end(), ctl.paths.begin(), ctl.paths.end());
+                        effect.uncertainCalls.insert(effect.uncertainCalls.end(), ctl.uncertainCalls.begin(), ctl.uncertainCalls.end());
+                    }
+                    out.push_back(std::move(effect));
+                } else b.callIssue(c, ctx);
             }
+        }
+        void handle(const CallExpression& c) {
+            callEffects(c);
             visitDefault(c);
         }
         void handle(const AssignmentExpression& a) {
+            for (const auto* call : b.callsIn(a.left())) callEffects(*call);
             Assign as;
             as.loc = toLoc(*b.sm, a.sourceRange.start());
             as.nonBlocking = a.isNonBlocking();
+            as.booleanValue = b.booleanOf(a.right(), ec, ctx);
+            as.uncertainCalls = b.callIssues(a.right(), ctx);
+            auto selectorCalls = b.callIssues(a.left(), ctx);
+            as.uncertainCalls.insert(as.uncertainCalls.end(), selectorCalls.begin(), selectorCalls.end());
             as.targets = b.pathsOf(a.left(), ec, true);
             // selector reads on the LHS (e.g. mem[addr] <= d) influence the write
             auto all = b.pathsOf(a.left(), ec, false);
             for (auto& p : all)
                 if (!std::binary_search(as.targets.begin(), as.targets.end(), p)) as.ctrlReads.push_back(p);
             for (auto& p : b.pathsOf(a.right(), ec, false)) as.dataReads.push_back(p);
-            classify(a.right(), Op::None, 0, as.dataOps);
+            classify(b.modeExpr(a.right(), ec), Op::None, 0, as.dataOps);
             if (a.isCompound())
                 for (auto& t : as.targets) { as.dataReads.push_back(t); noteOp(as.dataOps, t.sym, Op::Arith, 2); }
             for (auto& p : as.ctrlReads) noteOp(as.ctrlOps, p.sym, Op::Select, 2);   // selector reads on the left-hand side
+            if (!as.ctrlReads.empty()) {
+                GuardCondition selector;
+                selector.predicate = b.unknownBoolean(a.left(), ec, ctx);
+                for (const auto& path : as.ctrlReads)
+                    for (auto node : b.nodesFor(ctx, path)) selector.dependencies.push_back(node);
+                as.booleanGuards.push_back(std::move(selector));
+            }
             for (auto& c : control) {
+                as.uncertainCalls.insert(as.uncertainCalls.end(), c.uncertainCalls.begin(), c.uncertainCalls.end());
+                GuardCondition fact;
+                fact.predicate = c.br == Branch::NotTaken ? b.boolFact(BoolFact::Kind::Not, {c.predicate}) : c.predicate;
+                for (const auto& path : c.paths)
+                    for (auto node : b.nodesFor(ctx, path)) fact.dependencies.push_back(node);
+                as.booleanGuards.push_back(std::move(fact));
                 for (auto& p : c.paths) as.ctrlReads.push_back(p);
                 for (auto& [sym, oi] : c.ops) noteOp(as.ctrlOps, sym, oi.op, oi.inv, c.br);
             }
@@ -628,19 +1129,22 @@ private:
         return nullptr;
     }
 
-    struct Event { int edge; Path path; bool ok; slang::SourceLocation loc; std::vector<Path> iff; };
+    struct Event { int edge; Path path; bool ok; slang::SourceLocation loc; std::vector<Path> iff; std::vector<uint32_t> uncertainCalls; };
 
-    void collectEvents(const TimingControl& t, EvalContext& ec, std::vector<Event>& out) {
+    void collectEvents(const TimingControl& t, EvalContext& ec, std::vector<Event>& out, const InstanceSymbol* ctx) {
         if (t.kind == TimingControlKind::SignalEvent) {
             auto& se = t.as<SignalEventControl>();
-            Event e{0, {}, false, t.sourceRange.start(), {}};
+            Event e{0, {}, false, t.sourceRange.start(), {}, {}};
+            if (se.iffCondition) e.uncertainCalls = callIssues(*se.iffCondition, ctx);
             if (se.iffCondition) e.iff = pathsOf(*se.iffCondition, ec, false);
             e.edge = se.edge == EdgeKind::PosEdge ? 1 : se.edge == EdgeKind::NegEdge ? 2 : se.edge == EdgeKind::BothEdges ? 3 : 0;
-            auto ps = pathsOf(se.expr, ec, false);
+            // Read sets do not prove a call's clock value or edge polarity.
+            // Keep the existing clock-root extraction separate from body reads.
+            auto ps = rawPathsOf(se.expr, ec, false);
             if (ps.size() == 1) { e.path = ps[0]; e.ok = true; }
             out.push_back(e);
         } else if (t.kind == TimingControlKind::EventList) {
-            for (auto* c : t.as<EventListControl>().events) collectEvents(*c, ec, out);
+            for (auto* c : t.as<EventListControl>().events) collectEvents(*c, ec, out, ctx);
         }
     }
 
@@ -654,7 +1158,7 @@ private:
         std::vector<Event> events;
         bool sequential = false;
         if (first && first->kind == StatementKind::Timed) {
-            collectEvents(first->as<TimedStatement>().timing, ec, events);
+            collectEvents(first->as<TimedStatement>().timing, ec, events, ctx);
             for (auto& e : events) if (e.edge) sequential = true;
         }
         if (pk == ProceduralBlockKind::AlwaysFF) sequential = true;
@@ -805,37 +1309,205 @@ private:
             }
         }
 
+        // A final, else-free constant override is equivalent to a reset-first branch, but only
+        // for bits with one unconditional exact nonblocking data write earlier in the block.
+        // Keep the control edges: a reset driven from another domain is still a crossing.
+        std::set<NodeId> trailingResetBits;
+        NodeId trailingReset = kNoNode;
+        bool trailingLow = false;
+        bool unqualifiedClock = std::all_of(events.begin(), events.end(), [](const Event& e) { return e.iff.empty(); });
+        if (resets.empty() && unqualifiedClock && first && first->kind == StatementKind::Timed) {
+            auto statements = [](const Statement* stmt) {
+                std::vector<const Statement*> result;
+                while (stmt && stmt->kind == StatementKind::Block) stmt = &stmt->as<BlockStatement>().body;
+                if (stmt && stmt->kind == StatementKind::List) {
+                    for (auto* item : stmt->as<StatementList>().list)
+                        if (item->kind != StatementKind::VariableDeclaration) result.push_back(item);
+                } else if (stmt) result.push_back(stmt);
+                return result;
+            };
+            auto list = statements(&first->as<TimedStatement>().stmt);
+            if (list.size() >= 2 && list.back()->kind == StatementKind::Conditional) {
+                const auto& last = list.back()->as<ConditionalStatement>();
+                if (!last.ifFalse && last.conditions.size() == 1 && !last.conditions[0].pattern) {
+                    const Expression* cond = last.conditions[0].expr;
+                    while (cond->kind == ExpressionKind::Conversion) cond = &cond->as<ConversionExpression>().operand();
+                    if (cond->kind == ExpressionKind::UnaryOp) {
+                        const auto& unary = cond->as<UnaryExpression>();
+                        if (unary.op == UnaryOperator::LogicalNot || unary.op == UnaryOperator::BitwiseNot) {
+                            trailingLow = true;
+                            cond = &unary.operand();
+                            while (cond->kind == ExpressionKind::Conversion) cond = &cond->as<ConversionExpression>().operand();
+                        }
+                    }
+                    auto cp = pathsOf(*last.conditions[0].expr, ec, false);
+                    if (cond->kind == ExpressionKind::NamedValue && cp.size() == 1 && pathWidth(cp[0]) == 1) {
+                        auto guards = nodesFor(ctx, cp[0]);
+                        auto branch = statements(&last.ifTrue);
+                        std::set<NodeId> overrides, exactData;
+                        std::map<NodeId, NodeId> dataSource;
+                        std::map<NodeId, unsigned> priorWrites;
+                        bool valid = guards.size() == 1 && !branch.empty();
+                        for (auto* stmt : branch) {
+                            if (stmt->kind != StatementKind::ExpressionStatement) { valid = false; break; }
+                            const auto& expr = stmt->as<ExpressionStatement>().expr;
+                            if (expr.kind != ExpressionKind::Assignment) { valid = false; break; }
+                            const auto& assignment = expr.as<AssignmentExpression>();
+                            std::vector<Assign> a;
+                            StmtVisitor visitor(*this, ec, a, ctx);
+                            stmt->visit(visitor);
+                            std::vector<BitRef> targets;
+                            auto value = assignment.right().eval(ec);
+                            if (!assignment.isNonBlocking() || assignment.isCompound() || !value.isInteger() ||
+                                a.size() != 1 || !a[0].ctrlReads.empty() ||
+                                !bitList(assignment.left(), ec, targets) || targets.empty()) { valid = false; break; }
+                            for (const auto& target : targets) {
+                                if (!target.sym) { valid = false; break; }
+                                overrides.insert(nodeForBit(ctx, target));
+                            }
+                        }
+                        for (size_t i = 0; valid && i + 1 < list.size(); ++i) {
+                            std::vector<Assign> prior;
+                            StmtVisitor visitor(*this, ec, prior, ctx);
+                            list[i]->visit(visitor);
+                            for (const auto& a : prior)
+                                for (const auto& target : a.targets)
+                                    for (auto bit : nodesFor(ctx, target)) ++priorWrites[bit];
+                            if (list[i]->kind != StatementKind::ExpressionStatement || prior.size() != 1) continue;
+                            const auto& a = prior[0];
+                            if (!a.nonBlocking || !a.pairsValid || !a.ctrlReads.empty()) continue;
+                            for (const auto& [target, source] : a.pairs)
+                                if (target.sym && source.sym) {
+                                    NodeId targetBit = nodeForBit(ctx, target);
+                                    exactData.insert(targetBit);
+                                    dataSource[targetBit] = nodeForBit(ctx, source);
+                                }
+                        }
+                        if (valid) {
+                            trailingReset = guards[0];
+                            for (auto bit : overrides)
+                                if (priorWrites[bit] == 1 && exactData.count(bit) && dataSource[bit] != trailingReset)
+                                    trailingResetBits.insert(bit);
+                        }
+                    }
+                }
+            }
+        }
+
         // --- `@(posedge clk iff cond)`: the qualifier is an enable, i.e. a control dependency of every target
         for (auto& e : events)
             for (auto& a : assigns)
-                for (auto& p : e.iff) a.ctrlReads.push_back(p);
+                for (auto& p : e.iff) {
+                    a.ctrlReads.push_back(p);
+                    GuardCondition qualifier;
+                    std::vector<BoolFactPtr> refs;
+                    for (auto node : nodesFor(ctx, p)) {
+                        qualifier.dependencies.push_back(node);
+                        refs.push_back(boolFact(BoolFact::Kind::Node, {}, node));
+                    }
+                    qualifier.predicate = boolFact(BoolFact::Kind::Unknown, std::move(refs));
+                    a.booleanGuards.push_back(std::move(qualifier));
+                }
+
+        for (const auto& event : events) for (auto& assignment : assigns)
+            assignment.uncertainCalls.insert(assignment.uncertainCalls.end(), event.uncertainCalls.begin(), event.uncertainCalls.end());
+
+        // Establish exact asynchronous transitions separately from the reset-value heuristic.
+        // Only straight-line assignment branches are certified: no enables, loops, timing or calls.
+        struct Transition { char asserted = '?'; BitRef released{}; };
+        std::map<NodeId, Transition> transitions;
+        auto straight = [&](auto&& self, const Statement& stmt) -> bool {
+            if (stmt.kind == StatementKind::Block) return self(self, stmt.as<BlockStatement>().body);
+            if (stmt.kind == StatementKind::List) {
+                for (auto* child : stmt.as<StatementList>().list) if (!self(self, *child)) return false;
+                return true;
+            }
+            return stmt.kind == StatementKind::ExpressionStatement &&
+                   stmt.as<ExpressionStatement>().expr.kind == ExpressionKind::Assignment;
+        };
+        // firstMeaningful intentionally selects the first statement; do not certify hidden siblings.
+        auto only = [&](auto&& self, const Statement* stmt) -> const Statement* {
+            if (!stmt) return nullptr;
+            if (stmt->kind == StatementKind::Block) return self(self, &stmt->as<BlockStatement>().body);
+            if (stmt->kind == StatementKind::List) {
+                const Statement* found = nullptr;
+                for (auto* child : stmt->as<StatementList>().list) {
+                    if (child->kind == StatementKind::VariableDeclaration) continue;
+                    if (found) return nullptr;
+                    found = child;
+                }
+                return self(self, found);
+            }
+            return stmt;
+        };
+        const Statement* sole = only(only, &pb.getBody());
+        if (sole && sole->kind == StatementKind::Timed) sole = only(only, &sole->as<TimedStatement>().stmt);
+        bool plainEvents = true;
+        for (const auto& e : events) if (!e.iff.empty() || !e.uncertainCalls.empty()) plainEvents = false;
+        if (plainEvents && sole == topIf && resets.size() == 1 && topIf && topIf->ifFalse &&
+            topIf->conditions.size() == 1 && !topIf->conditions[0].pattern &&
+            straight(straight, topIf->ifTrue) && straight(straight, *topIf->ifFalse)) {
+            auto cond = booleanOf(*topIf->conditions[0].expr, ec, ctx);
+            bool low = false;
+            if (cond && cond->kind == BoolFact::Kind::Not && cond->args.size() == 1) {
+                low = true;
+                cond = cond->args[0];
+            }
+            if (cond && cond->kind == BoolFact::Kind::Node && cond->node == resets[0].signal) {
+                bool assertionTrue = low == resets[0].activeLow;
+                std::vector<Assign> asserted, released;
+                StmtVisitor av(*this, ec, asserted, ctx), rv(*this, ec, released, ctx);
+                (assertionTrue ? topIf->ifTrue : *topIf->ifFalse).visit(av);
+                (assertionTrue ? *topIf->ifFalse : topIf->ifTrue).visit(rv);
+                auto bits = [&](const std::vector<Assign>& writes) {
+                    std::map<NodeId, BitRef> result;
+                    std::set<NodeId> bad;
+                    for (auto& a : writes) {
+                        bool exact = a.nonBlocking && a.pairsValid && a.ctrlReads.empty() && a.uncertainCalls.empty();
+                        for (auto& t : a.targets) for (auto n : nodesFor(ctx, t)) if (!exact) bad.insert(n);
+                        if (!exact) continue;
+                        for (auto& [t, src] : a.pairs) {
+                            auto n = nodeForBit(ctx, t);
+                            if (!result.emplace(n, src).second) bad.insert(n);
+                        }
+                    }
+                    for (auto n : bad) result.erase(n);
+                    return result;
+                };
+                auto aa = bits(asserted), rr = bits(released);
+                for (auto& [n, src] : aa) {
+                    auto it = rr.find(n);
+                    if (!src.sym && (src.value == '0' || src.value == '1') && it != rr.end())
+                        transitions[n] = {src.value, it->second};
+                }
+            }
+        }
 
         // --- edges and flops
         std::set<NodeId> qs;
+        // Decide once per symbol: later conditional writes can make an earlier
+        // blocking assignment stateful. Mixing Comb and Seq for the same symbol
+        // would hide the first assignment from the register's fan-in cone.
         std::set<const ValueSymbol*> blockingState;
         std::set<const ValueSymbol*> readSoFar;
-        for (size_t ai = 0; ai < assigns.size(); ai++) {
-            auto& a = assigns[ai];
+        for (const auto& a : assigns) {
             for (auto* v : {&a.dataReads, &a.ctrlReads})
                 for (auto& r : *v) readSoFar.insert(r.sym);
+            if (a.nonBlocking) continue;
+            for (auto& t : a.targets)
+                if (isModuleLevel(*t.sym) &&
+                    (!a.uncertainCalls.empty() || !a.ctrlReads.empty() || readSoFar.count(t.sym) || readByOther(t.sym, &pb)))
+                    blockingState.insert(t.sym);
+        }
+        for (auto* sym : blockingState)
+            fallback("blocking-assignment-register",
+                     "'" + std::string(sym->name) + "' is assigned with a blocking assignment in a clocked "
+                     "block and keeps state; treated as a register but never as a synchroniser stage", pb.location);
+        for (auto& a : assigns) {
             std::vector<Path> moduleTargets, localTargets;
             for (auto& t : a.targets) {
                 bool modLevel = isModuleLevel(*t.sym);
-                if (modLevel && !a.nonBlocking) {
-                    // A module-level variable written with a blocking assignment: it is a register only if it
-                    // keeps state (read before/while written, or written conditionally). An unconditional write that is
-                    // not read earlier in the block is a combinational temporary (no flop).
-                    bool conditional = !a.ctrlReads.empty();
-                    bool readBefore = readSoFar.count(t.sym) > 0;
-                    if (!conditional && !readBefore && !readByOther(t.sym, &pb)) modLevel = false;
-                    else {
-                        blockingState.insert(t.sym);
-                        fallback("blocking-assignment-register",
-                                 "'" + std::string(t.sym->name) + "' is assigned with a blocking assignment in a clocked "
-                                 "block and keeps state; treated as a register but never as a synchroniser stage",
-                                 pb.location);
-                    }
-                }
+                if (modLevel && !a.nonBlocking && !blockingState.count(t.sym)) modLevel = false;
                 (modLevel ? moduleTargets : localTargets).push_back(t);
             }
             if (!localTargets.empty()) emitAssign(ctx, a, localTargets, EdgeType::Comb, proc, pb.location);
@@ -852,6 +1524,7 @@ private:
         }
         for (NodeId q : qs) {
             if (m.flopOfQ.count(q)) {
+                m.multiSequential.insert(q);
                 fallback("multiple-sequential-drivers",
                          "register '" + m.nameOf(q) + "' is assigned by more than one sequential block; only the first "
                          "block's clock is used", pb.location);
@@ -880,9 +1553,18 @@ private:
                 f.resetValues.push_back(ch);
                 f.resetKinds.push_back(ch == '0' ? 0 : ch == '1' ? 1 : 2);
             }
-            f.hasSyncResetCandidate = syncCand;
-            f.syncActiveLow = syncLow;
-            f.syncReset = syncSig;
+            if (auto it = transitions.find(q); it != transitions.end()) {
+                f.resetTransitionKnown = true;
+                f.resetValues[0] = it->second.asserted;
+                f.resetKinds[0] = it->second.asserted == '1' ? 1 : 0;
+                const auto& src = it->second.released;
+                if (src.sym) f.releasedSource = nodeForBit(ctx, src);
+                else f.releasedValue = src.value;
+            }
+            bool trailing = trailingResetBits.count(q) != 0;
+            f.hasSyncResetCandidate = syncCand || trailing;
+            f.syncActiveLow = trailing ? trailingLow : syncLow;
+            f.syncReset = trailing ? trailingReset : syncSig;
             f.blocking = blockingState.count(m.nodes[q].sym) > 0;
             m.flopOfQ[q] = static_cast<uint32_t>(m.flops.size());
             m.flops.push_back(std::move(f));
@@ -963,6 +1645,9 @@ private:
                         Assign as;
                         as.targets = {t};
                         as.dataReads = reads;
+                        classify(modeExpr(*init, ec), Op::None, 0, as.dataOps);
+                        as.booleanValue = booleanOf(*init, ec, ctx);
+                        as.uncertainCalls = callIssues(*init, ctx);
                         std::vector<BitRef> R;
                         uint64_t w = widthOf(net);
                         if (w && bitList(*init, ec, R) && R.size() == w) {
@@ -1030,6 +1715,11 @@ private:
             for (auto i : ins) {
                 if (o == i) continue;
                 connect(ctx, paths[i], ctx, paths[o], EdgeType::Comb, proc, pi.location);
+                auto issues = callIssues(*conns[i], ctx);
+                for (const auto& path : paths[o]) for (auto node : nodesFor(ctx, path)) {
+                    auto& targetIssues = m.uncertainCallDrivers[node];
+                    targetIssues.insert(targetIssues.end(), issues.begin(), issues.end());
+                }
             }
     }
 
@@ -1048,9 +1738,12 @@ private:
             for (auto& p : cell.ports) if (p.name == pn) return p.dir != "in";
             return false;
         };
+        std::vector<uint32_t> connectionIssues;
         std::map<std::string, std::vector<NodeId>> conn;
         for (auto* pc : ci.getPortConnections()) {
             if (!pc || !pc->getExpression()) continue;
+            auto issues = callIssues(*pc->getExpression(), ctx);
+            connectionIssues.insert(connectionIssues.end(), issues.begin(), issues.end());
             std::string pn(pc->port.name);
             for (auto& p : pathsOf(*pc->getExpression(), ec, declaredOut(pn)))
                 for (auto n : nodesFor(ctx, p)) conn[pn].push_back(n);
@@ -1060,6 +1753,11 @@ private:
             auto f = conn.find(pn);
             return f == conn.end() ? none : f->second;
         };
+        if (!connectionIssues.empty()) for (const auto& [name, nodes] : conn) if (declaredOut(name))
+            for (auto node : nodes) {
+                auto& issues = m.uncertainCallDrivers[node];
+                issues.insert(issues.end(), connectionIssues.begin(), connectionIssues.end());
+            }
         auto roleOf = [](const std::string& r) {
             if (r == "clock") return PortRole::Clock;
             if (r == "reset") return PortRole::Reset;
@@ -1107,6 +1805,8 @@ private:
                     ri.fromEdge = false;
                     f.resets.push_back(ri);
                     f.resetValues.push_back(cell.resetValue);
+                    f.resetTransitionKnown = true; // declared flop contract
+                    f.releasedSource = src;
                     f.resetKinds.push_back(cell.resetValue == '1' ? 1 : 0);
                     addEdge(ri.signal, q, EdgeType::AsyncCtl, proc, false);
                 }
@@ -1217,6 +1917,7 @@ private:
             auto emitPort = [&](const InstanceSymbol* actCtx, const InstanceSymbol* fmCtx, bool actualIsSource) {
                 Assign as;
                 std::vector<Path> actual = pathsOf(*act, pec, !actualIsSource);
+                as.uncertainCalls = callIssues(*act, actCtx);
                 std::vector<BitRef> A;
                 bool listOk = iw && bitList(*act, pec, A) && A.size() == iw;
                 if (listOk) {
@@ -1252,6 +1953,10 @@ private:
                        slang::SourceLocation loc, bool actualIsSource) {
         const InstanceSymbol* srcCtx = actualIsSource ? parent : child;
         const InstanceSymbol* tgtCtx = actualIsSource ? child : parent;
+        if (!as.uncertainCalls.empty()) for (const auto& target : as.targets) for (auto node : nodesFor(tgtCtx, target)) {
+            auto& issues = m.uncertainCallDrivers[node];
+            issues.insert(issues.end(), as.uncertainCalls.begin(), as.uncertainCalls.end());
+        }
         if (as.pairsValid) {
             for (auto& [t, src] : as.pairs) {
                 if (!src.sym || !t.sym) continue;
@@ -1394,6 +2099,21 @@ NodeId Model::aliasRoot(NodeId n) const {
         n = e.from;
     }
     return n;
+}
+
+char Model::constantValue(NodeId n) const {
+    if (n == kNoNode) return '?';
+    if (auto it = modeConstants.find(n); it != modeConstants.end()) return it->second;
+    n = aliasRoot(n);
+    if (auto it = modeConstants.find(n); it != modeConstants.end()) return it->second;
+    if (!in[n].empty()) return '?';
+    auto it = constDrivers.find(n);
+    if (it == constDrivers.end() || it->second.size() != 1) return '?';
+    const auto& d = it->second[0];
+    // Procedural constants may be conditional or retain state.
+    if (d.type != EdgeType::Comb || (procs[d.proc].kind != ProcKind::Continuous &&
+                                   procs[d.proc].kind != ProcKind::PortConnection)) return '?';
+    return d.value;
 }
 
 const Flop* Model::flopBehind(NodeId n, uint32_t* idx) const {

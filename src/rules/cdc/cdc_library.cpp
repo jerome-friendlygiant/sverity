@@ -34,7 +34,9 @@ void Shared::libraryCells() {
                           rel == Relation::Unknown ? Confidence::Unresolved : Confidence::Established);
         d.evidence.push_back({"source_domain", m->domains[src].name, {}});
         d.evidence.push_back({"destination_domain", m->domains[dst].name, {}});
-        d.nextStep = "Synchronise the signal in the receiving clock domain, or declare the relationship with --sdc.";
+        d.nextStep = rel == Relation::Unknown
+            ? "Declare the clock intent with --sdc and review whether the crossing needs synchronisation."
+            : "Review receiving-domain synchronisation or justify a waiver; declaring clocks does not repair the crossing.";
         add(std::move(d));
     };
     auto unresolvedCrossing = [&](const char* rule, const std::string& what, const SourceLocation& loc, const std::string& hier, const char* scope) {

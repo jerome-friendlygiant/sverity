@@ -19,7 +19,7 @@ std::vector<std::unique_ptr<Rule>> makeAllRules() {
     };
     append(makeSlangBackedRules());
     append(makeWaiverRules());
-    append(makeStyleRules());
+    append(makeSyntaxLintRules());
     append(makeLintProceduralRules());
     append(makeLintFlowRules());
     append(makeLintSynthRules());

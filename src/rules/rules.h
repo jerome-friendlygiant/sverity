@@ -19,5 +19,5 @@ std::vector<std::unique_ptr<Rule>> makeLintDataflowRules();   // rules/lint/lint
 std::vector<std::unique_ptr<Rule>> makeGraphLintRules();     // rules/lint/graph_lint.cpp
 std::vector<std::unique_ptr<Rule>> makeRdcRules();           // rules/rdc/rdc_pass.cpp
 std::vector<std::unique_ptr<Rule>> makeCdcRules();           // rules/cdc/cdc_pass.cpp (CDC/RDC/CST model-based)
-std::vector<std::unique_ptr<Rule>> makeStyleRules();         // rules/style/style_rules.cpp
+std::vector<std::unique_ptr<Rule>> makeSyntaxLintRules();         // rules/lint/lint_syntax.cpp
 } // namespace sverity

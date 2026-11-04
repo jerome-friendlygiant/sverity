@@ -63,6 +63,8 @@ public:
     void setObjectCount(const std::string& name, uint64_t n) { objectCounts_[name] = n; }
     void addInput(const std::string& key, json::Value v) { inputs_.set(key, std::move(v)); }
     void setToolInfo(std::string version, std::string slangVersion, std::string catalogVersion);
+    /// Files loaded independently of rule selection, for stable source identity.
+    void addIdentityFile(std::string file) { identityFiles_.push_back(std::move(file)); }
     void setPathRoot(std::string root) { pathRoot_ = std::move(root); }
 
     /// Normalize paths, group exact duplicates, sort deterministically, compute fingerprints
@@ -86,16 +88,22 @@ public:
     int exitCode(bool strict = true) const;
 
     // -------- writers
+    std::string ruleSummary() const;
     json::Value toJson() const;
     json::Value toSarif() const;
+    std::string toJsonl(bool strict = true, int extra = 0) const;
+    std::string statistics() const;
+    std::string toHtml() const;
     /// `completeReportHint` names where the complete report was written (shown if the console is truncated).
     std::string toText(bool color = false, size_t maxDiagnostics = 0 /*0 = all*/,
-                       const std::string& completeReportHint = {}) const;
+                       const std::string& completeReportHint = {}, bool group = false, bool verbose = false,
+                       bool strict = true, int extra = 0, bool showStatistics = false) const;
 
 private:
     std::string relativize(const std::string& path) const;
 
     std::vector<Diagnostic> diags_;
+    std::vector<std::string> identityFiles_;
     std::vector<RuleCoverage> ruleCoverage_;
     std::vector<ScopeCoverage> scopes_;
     std::vector<WaiverRecord> waivers_;

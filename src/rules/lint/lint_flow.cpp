@@ -226,12 +226,12 @@ private:
             visitDefault(b);
         }
 
-        void report(slang::SourceLocation at, std::string msg, const Expression* konst) {
+        void report(slang::SourceLocation at, std::string msg, const Expression* konst, std::string identity = {}) {
             Severity sev = konst && referencesSignal(*konst) ? Severity::Info : Severity::Warning;
             l.report(at, std::move(msg),
                      {.severity = sev,
                       .nextStep = "A comparison that never changes is usually a typo or a width mistake; fix the operand or the constant.",
-                      .hierarchy = hier});
+                      .hierarchy = hier, .identityKey = std::move(identity)});
         }
 
         // Result of "a OP a" for known values.
@@ -333,7 +333,7 @@ private:
                    std::string("comparison of a ") + std::to_string(w) + "-bit " + (ot.isSigned() ? "signed" : "unsigned") +
                        " operand with constant " + std::to_string(*c) + " is always " + (*result ? "true" : "false") +
                        " for known values",
-                   konst);
+                   konst, std::to_string(w) + ":" + std::to_string(ot.isSigned()) + ":" + std::to_string(*c));
         }
 
         static BinaryOperator mirror(BinaryOperator op) {

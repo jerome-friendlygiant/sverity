@@ -28,7 +28,7 @@ or error code, see `src/frontend/slang_rule_map.cpp`); nothing slang reports is 
 | `LNT-020` | Register assigned only in its reset branch (reset-only) |
 | `LNT-022` | One signal controls a register on both posedge and negedge |
 | `LNT-024` | Suspicious undriven output, partially assigned struct/array |
-| `LNT-025` | Later conditional write overrides an earlier one when both conditions can hold |
+| `LNT-025` | Potential value conflict between independent conditional writes |
 | `LNT-026` | Sized literal whose digits need more bits than its size (outside a concatenation) |
 | `LNT-027` | Clock net used as data (reaches a register data input or an output) |
 | `LNT-029` | Enum FSM state never assigned, or case arm without a transition |
@@ -73,6 +73,8 @@ or error code, see `src/frontend/slang_rule_map.cpp`); nothing slang reports is 
 | `LNT-072` | Reset net feeding the logic that generates a clock |
 | `LNT-073` | Constant assigned to a narrower target changes its value |
 | `LNT-074` | Unsized literal compared with an operand wider than 32 bits |
+| `LNT-075` | Missing explicit `default_nettype none` before a declaration |
+| `LNT-076` | Plain always procedure |
 
 ## Specification
 
@@ -210,9 +212,9 @@ Slang-backed rules (named below as slang options or codes) are slang's own diagn
 
 ### LNT-025
 - **Trigger:** within one procedure, an earlier conditional write v and a later conditional write w of the same variable, of the same write kind (blocking in combinational, latch and level procedures; nonblocking in clocked procedures), with both writes static (exact bit ranges), v's bit range inside w's range, both guard lists non-empty, neither write inside a loop body, no read of the variable that can see v (`!readBefore`), no timing control between them (`!observed`), neither guard list implying the other, and `!exclusive(v, w)`: when both conditions hold, w replaces v's bits.
-- **Exempt:** conditions exclusive by structure or by comparing one operand with different constants (`Flow::exclusive`; the comparison proof is withdrawn when that operand is written earlier in the procedure); nested or dominating writes (LNT-053 or intended priority); unconditional writes (LNT-053); compound writes.
-- **Severity:** WARNING, Heuristic (the conditions may still be exclusive); Unresolved when a user subroutine call lies between the two writes (`exposed`).
-- **Unknown:** none emitted for the conditions: a call inside a condition is not checked and the finding is kept. A procedure slang cannot analyse (`Flow::bad`): WARNING, Unresolved, once per procedure.
+- **Exempt:** equal known integral literals (including implicit assignment conversions) written to exactly the same range, with no intervening opaque call; conditions exclusive by structure or by comparing one operand with different constants (`Flow::exclusive`; the comparison proof is withdrawn when that operand is written earlier in the procedure); nested or dominating writes (LNT-053 or intended priority); unconditional writes (LNT-053); compound writes.
+- **Severity:** Heuristic, WARNING by default except advisory packed-text priority chains, which are INFO with proof state NOT_APPLICABLE. Recognition requires at least three pairwise independent, not provably exclusive conditional whole-target string-literal writes to an integral target wider than one byte. Every write to that target (including defaults) must be an exact, same-kind, whole-target string literal with a known converted integral value. No opaque, invalid, approximated or loop-involved procedure qualifies. Modelled control sources (conditions, clocks and resets), including their upstream dependencies, are excluded. Numeric constants, nonliteral data, partial writes and shorter chains stay WARNING. Repeated selection among text literals suggests deliberate label formatting more strongly than conflicting control updates; this is an intent heuristic, not a proof of exclusivity or correctness. All pair findings remain in reports; the message states the assumption. `--option LNT-025.priority_chains=warning` raises only this pattern; `--severity LNT-025=WARNING` raises the whole rule.
+- **Unknown:** opaque or approximated flow is WARNING, Unresolved; invalid procedures also produce the procedure-level Unresolved diagnostic. Loop-involved pairs remain outside the trigger; a loop elsewhere prevents advisory recognition. A call in a condition makes Flow opaque and cannot receive INFO.
 
 ### LNT-026
 - **Trigger:** in user code, a sized integer literal outside any concatenation or replication whose digits, as written in the source text, need more bits than its size (a signed decimal literal spends one bit on the sign).
@@ -473,15 +475,27 @@ Slang-backed rules (named below as slang options or codes) are slang's own diagn
 - **Severity:** INFO, Heuristic.
 - **Unknown:** none.
 
+### LNT-075
+- **Trigger:** a module, interface or program lacks a preceding `default_nettype none` directive in the same file.
+- **Exempt:** declarations preceded by the directive.
+- **Severity:** INFO, Established.
+- **Unknown:** included or command-line directives and library units are not evaluated.
+
+### LNT-076
+- **Trigger:** a plain `always` procedure in user source.
+- **Exempt:** specialized procedures.
+- **Severity:** INFO, Established.
+- **Unknown:** library units are not evaluated; choosing an appropriate replacement requires review.
+
 ## Crosswalk and licences
 
 Reference projects were studied for rule inventories only; no source code from any of them is included (SVerity reimplements every check).
 
 | Source (licence) | Reference rules → SVerity |
 |---|---|
-| slang-tidy (MIT) | AlwaysCombNonBlocking, AlwaysFFBlocking → LNT-015/014; NoCaseX → LNT-016; NoLatchesOnDesign → LNT-013; UndrivenRange → LNT-008; OnlyAssignedOnReset, RegisterHasNoReset, AlwaysFFAssignmentOutsideConditional → LNT-020; UnusedSensitiveSignal → LNT-045; StructFieldsInSameProcess → LNT-041; XilinxDoNotCareValues → LNT-039; naming/ANSI/generate-style checks → STY; NoOldAlwaysSyntax → STY-007. Excluded: LoopBeforeResetCheck, CastSignedIndex (no stable semantics), UVM/assertion/constraint checks (out of scope) |
+| slang-tidy (MIT) | AlwaysCombNonBlocking, AlwaysFFBlocking → LNT-015/014; NoCaseX → LNT-016; NoLatchesOnDesign → LNT-013; UndrivenRange → LNT-008; OnlyAssignedOnReset, RegisterHasNoReset, AlwaysFFAssignmentOutsideConditional → LNT-020; UnusedSensitiveSignal → LNT-045; StructFieldsInSameProcess → LNT-041; XilinxDoNotCareValues → LNT-039; naming/ANSI/generate-style checks excluded; NoOldAlwaysSyntax → LNT-076. Excluded: LoopBeforeResetCheck, CastSignedIndex (no stable semantics), UVM/assertion/constraint checks (out of scope) |
 | slang-netlist (MIT) | bit-level netlist dependency graph and combinational-loop reports → `src/domains/model` and LNT-012 (design concept only) |
-| Verible (Apache-2.0) | always-comb(-blocking), always-ff-non-blocking → LNT-015/045; case-missing-default → LNT-016; invalid-system-task-function → LNT-061; truncated-numeric-literal, undersized-binary-literal → LNT-026/056; forbid-defparam, naming, formatting → STY. Excluded: UVM macros, filename and `endif` comment rules |
+| Verible (Apache-2.0) | always-comb(-blocking), always-ff-non-blocking → LNT-015/045; case-missing-default → LNT-016; invalid-system-task-function → LNT-061; truncated-numeric-literal, undersized-binary-literal → LNT-026/056; forbid-defparam, naming, formatting excluded. Excluded: UVM macros, filename and `endif` comment rules |
 | Verilator (LGPL-3.0 / Artistic-2.0) | WIDTH* → LNT-004; LATCH → LNT-013; COMBDLY/BLKSEQ/BLKANDNBLK → LNT-015; ALWCOMBORDER → LNT-044; CASEINCOMPLETE/CASEOVERLAP/CASEX/CASEWITHX → LNT-016/032/040; CMPCONST/UNSIGNED → LNT-038; MULTIDRIVEN → LNT-009; UNDRIVEN, UNUSED* → LNT-008/011; UNOPTFLAT → LNT-012; PIN* → LNT-003/010; SELRANGE → LNT-006; ASSIGNIN → LNT-050; delay and non-synth constructs → LNT-019. Excluded: simulator-performance and C++ naming warnings (UNOPT*, IMPERFECTSCH, SYMRSVDWORD) |
 
 Retired IDs (merged, see `docs/SVerity_RFC.md` §9): LNT-021 → RDC-028, LNT-023 → LNT-003/057, LNT-028 → CST-005, LNT-030 → STY-*, LNT-043 → LNT-025, LNT-046 → LNT-047, LNT-052 (dropped: an inferred enable has no defect semantics; the model exposes enables to CDC-028/039).

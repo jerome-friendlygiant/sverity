@@ -1,4 +1,7 @@
 #include "sverity/catalog.h"
+#include <sstream>
+
+namespace sverity::embedded { extern const unsigned char specs[]; }
 
 #include <cstdio>
 #include <cstdlib>
@@ -54,6 +57,28 @@ const Catalog& Catalog::embedded() {
 const RuleInfo* Catalog::find(std::string_view id) const {
     auto it = index_.find(id);
     return it == index_.end() ? nullptr : &rules_[it->second];
+}
+
+std::string ruleHelp(const std::string& id) {
+    const auto* rule = Catalog::embedded().find(id);
+    if (!rule) return "No offline rule help available.";
+    std::ostringstream out;
+    std::string specs = reinterpret_cast<const char*>(embedded::specs), heading = "\n### " + id + "\n";
+    auto start = specs.find(heading);
+    if (start == std::string::npos) out << "No spec block available.\n";
+    else { start += heading.size(); auto end = specs.find("\n##", start); out << specs.substr(start, end - start) << "\n"; }
+    if (id == "CDC-003") out << R"(
+Advice examples (structural checks, not timing proofs):
+  Bad: a destination samples an asynchronous source with no recognised synchroniser.
+       Review a suitable destination synchroniser and the source stability/pulse contract.
+       Declaring the clocks asynchronous does not repair this structure.
+  Recognised: a two-stage destination chain with no intervening logic or first-stage fanout.
+       Recognition still assumes source stability and metastability resolution; review timing.
+  Unknown: no clock relationship is declared. Declare actual clock intent first, then review
+       synchronisation; absence of intent is not evidence of safety.
+  Waived: retain the accepted owner/reason and review its scope. Waiving does not prove safety.
+)";
+    return out.str();
 }
 
 } // namespace sverity

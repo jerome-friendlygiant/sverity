@@ -42,20 +42,44 @@ struct Evidence {
     SourceLocation location;
 };
 
+// Endpoints describe the representative launch/capture registers of a grouped crossing.
+// Empty SDC names and invalid locations retain their existing unavailable meaning.
+struct CrossingEndpoint {
+    std::string signal;
+    std::string clockDomain;
+    std::string sdcClock;
+    std::string edge = "unknown"; // posedge, negedge, both, unknown
+    SourceLocation location;     // procedure holding the register
+};
+
+struct Crossing {
+    CrossingEndpoint launch, capture;
+    std::string relationship = "UNKNOWN"; // SAME, ASYNC, EXCLUSIVE, UNKNOWN
+    uint64_t widthBits = 0;
+    bool logicOnPath = false;
+};
+
 struct WaiverInfo {
     std::string waiverId;
     std::string reason;
     std::string owner;
     std::string expires;    // ISO date or empty
     std::string scope;      // human-readable description of the matching criteria
+    SourceLocation sourceLocation;
 };
 
 struct Diagnostic {
     std::string ruleId;                 // stable SVerity rule ID (e.g. "LNT-001")
     Severity severity = Severity::Info; // never rewritten by waivers
+    std::optional<Severity> originalSeverity;
+    std::optional<Severity> requestedSeverity;
+    std::string severityOverrideReason;
     std::string message;
+    std::vector<std::string> identityArguments; // upstream argument values, path-normalized at finalize
+    std::string identityKey;            // producer-owned semantic discriminator; never display prose
     SourceLocation location;
     std::string hierarchy;              // hierarchical path of the (first) occurrence
+    std::optional<Crossing> crossing; // shared CDC facts; absent for other diagnostics
     std::vector<Evidence> evidence;
     std::vector<std::string> signals;   // affected signals / clocks / resets
     Confidence confidence = Confidence::Established;
@@ -71,11 +95,18 @@ struct Diagnostic {
     std::vector<std::string> occurrences; // hierarchy paths of every grouped occurrence
     uint32_t count = 1;                 // number of exact-duplicate occurrences grouped here
     std::string fingerprint;            // stable identity (filled by Report::finalize)
+    std::string rootCause;              // console grouping identity, not a waiver key
+    std::string originalFile, originalMessage; // internal, before report-root relativization
+    std::vector<std::string> originalEvidence, originalEvidenceFiles, originalIdentityArguments;
+    bool groupingOriginCaptured = false;
+    std::string groupingUnit;            // internal elaborated module/interface definition
+    uint32_t groupingProcedureOrdinal = 0; // distinguishes procedures sharing a macro expansion
 
     /// Default disposition implied by severity/confidence (Warning/unresolved -> REVIEW_REQUIRED).
     void applyDefaultDisposition();
 };
 
+std::string findingIdentity(const Diagnostic&);
 std::string computeFingerprint(const Diagnostic&);
 
 } // namespace sverity

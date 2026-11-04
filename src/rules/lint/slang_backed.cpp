@@ -38,9 +38,6 @@ private:
 std::vector<std::unique_ptr<Rule>> makeSlangBackedRules() {
     std::vector<std::unique_ptr<Rule>> v;
     auto full = [&](const char* id) { v.push_back(std::make_unique<SlangBackedRule>(id, true, "")); };
-    auto part = [&](const char* id, const char* gap) {
-        v.push_back(std::make_unique<SlangBackedRule>(id, false, gap));
-    };
     full("LNT-001");
     full("LNT-006");
     full("LNT-007");
@@ -55,7 +52,6 @@ std::vector<std::unique_ptr<Rule>> makeSlangBackedRules() {
     full("LNT-005");   // slang sign-conversion/sign-compare/implicit-conv
     full("LNT-065");   // slang case-default/-incomplete/-none/-not-wildcard/-wildcard-2state/-too-complex
     full("LNT-059");   // slang unused-import/-package-*, shadowing, duplicate-import
-    part("STY-010", "slang unnamed-generate only; instance/generate naming policy not covered");
     return v;
 }
 

@@ -23,7 +23,7 @@ using namespace model;
 
 struct SyncInfo {
     int depth = 0;
-    bool recognised = false;   // every stage async-reset, chain in one domain, first stage D constant
+    bool recognised = false;   // exact NBA assertion/release transitions, common reset polarity and clock edge
     std::string why;           // reason when not recognised
     bool logic = false;        // not recognised because a stage's data input is logic / several sources
     std::vector<uint32_t> stages;   // flop indices, last stage first
@@ -43,7 +43,16 @@ public:
         rel_ = std::make_unique<ClockRelations>(*m_, ctx.config);
         ctx.report.declareScope("reset-extraction");
         int minStages = 2;
-        try { minStages = std::max(2, std::stoi(ctx.config.option("RDC-006.min_stages", "2"))); } catch (...) {}
+        {
+            std::string value = ctx.config.option("RDC-006.min_stages", "2");
+            size_t end = 0;
+            minStages = std::stoi(value, &end);
+            if (end != value.size() || minStages < 2) throw std::invalid_argument("RDC-006.min_stages must be an integer >= 2");
+        }
+        for (const auto& user : m_->flops) for (const auto& r : user.resets) {
+            uint32_t idx = 0;
+            if (flopBehind(r.root.node, &idx)) assertedUses_[idx].insert(r.activeLow ? '0' : '1');
+        }
         cones_ = std::make_unique<ConeFinder>(*m_);
         analyse(ctx, minStages);
         structure(ctx);
@@ -54,6 +63,7 @@ public:
     }
 
 private:
+    std::map<uint32_t, std::set<char>> assertedUses_;
     std::unique_ptr<ConeFinder> cones_;
     void structure(RuleContext& ctx);                  // rdc_structure.cpp
     NodeId assertionSource(NodeId root) const;         // follows reset synchronisers back to the asynchronous assertion source
@@ -68,33 +78,55 @@ private:
     /// Walks a candidate reset synchroniser from its last stage back to the constant-D first stage.
     SyncInfo syncChain(uint32_t last) const {
         SyncInfo si;
-        std::set<NodeId> firstResets;
+        std::set<std::pair<NodeId, bool>> firstResets;
         std::set<uint32_t> seen;
         uint32_t cur = last;
+        const auto& output = m_->flops[last];
+        char asserted = output.resetValues.size() == 1 ? output.resetValues[0] : '?';
+        if (asserted != '0' && asserted != '1') { si.why = "asserted value is not binary"; return si; }
+        // All users of this output must agree with its asserted level. Checking here keeps
+        // source tracing, stage exemptions and the structure rules on the same predicate.
+        auto uses = assertedUses_.find(last);
+        if (uses != assertedUses_.end() && (uses->second.size() != 1 || !uses->second.count(asserted))) {
+            si.why = "asserted value disagrees with downstream reset polarity"; return si;
+        }
         for (int guard = 0; guard < 16; guard++) {
             const Flop& f = m_->flops[cur];
             if (!seen.insert(cur).second) { si.why = "cyclic register chain"; return si; }
+            if (f.blocking) { si.why = "a stage uses blocking assignments"; return si; }
             if (!f.clockResolved) { si.why = "a stage has no identified clock"; return si; }
             if (f.resets.empty()) { si.why = "a stage has no asynchronous reset/set (assertion would not be asynchronous)"; return si; }
             si.depth++;
             si.stages.push_back(cur);
-            {
-                std::set<NodeId> rr;
-                for (auto& r : f.resets) rr.insert(r.root.node);
-                if (si.depth == 1) firstResets = rr;
-                else if (rr != firstResets) { si.why = "stages have different asynchronous resets"; return si; }
-            }
+            std::set<std::pair<NodeId, bool>> rr;
+            for (auto& r : f.resets) rr.emplace(r.root.node, r.activeLow);
+            if (si.depth == 1) firstResets = rr;
+            else if (rr != firstResets) { si.why = "stages have different asynchronous resets or polarities"; return si; }
             std::vector<const Edge*> data;
             for (auto ei : m_->in[f.q]) {
                 const Edge& e = m_->edges[ei];
                 if (e.type == EdgeType::Seq) data.push_back(&e);
             }
-            if (data.empty()) { si.recognised = true; si.first = cur; return si; }      // D is constant: reached the first stage
-            if (data.size() != 1 || !data[0]->exact) { si.why = "a stage's data input is not a plain previous stage or a constant"; si.logic = true; return si; }
+            si.logic = data.size() > 1 || (data.size() == 1 && (!data[0]->exact || data[0]->ctrl));
+            if (!f.resetTransitionKnown || f.resetValues.size() != 1 || f.resetValues[0] != asserted) {
+                si.why = "a stage's assertion and release assignments are not established or have inconsistent asserted values"; return si;
+            }
+            char released = f.releasedSource == kNoNode ? f.releasedValue : m_->constantValue(f.releasedSource);
+            if (released == (asserted == '0' ? '1' : '0')) {
+                si.recognised = true; si.first = cur; return si;
+            }
+            if (f.releasedSource == kNoNode || data.size() != 1 || !data[0]->exact || data[0]->ctrl) {
+                si.why = "a stage's data input is not a plain previous stage or the released binary constant";
+                si.logic = !data.empty(); return si;
+            }
             uint32_t prev = 0;
-            const Flop* pf = flopBehind(data[0]->from, &prev);
-            if (!pf) { si.why = "the chain is fed by a non-register source (data input is not constant)"; return si; }
-            if (!pf->clockResolved || pf->domain != f.domain) { si.why = "stages are clocked by different clocks"; return si; }
+            const Flop* pf = flopBehind(f.releasedSource, &prev);
+            if (!pf || m_->aliasRoot(data[0]->from) != m_->aliasRoot(f.releasedSource)) {
+                si.why = "the first stage is not fed the released binary constant"; return si;
+            }
+            if (!pf->clockResolved || pf->domain != f.domain || pf->edge != f.edge) {
+                si.why = "stages are clocked by different clocks or edges"; return si;
+            }
             cur = prev;
         }
         si.why = "chain longer than the analysis limit";

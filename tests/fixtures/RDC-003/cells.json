@@ -1,0 +1,24 @@
+{
+  "cells": [
+    {
+      "name": "RESET_FF_LOW",
+      "kind": "flop",
+      "clock": "CLK",
+      "input": "D",
+      "output": "Q",
+      "reset": "R",
+      "reset_active": "low",
+      "reset_value": 0
+    },
+    {
+      "name": "RESET_FF_HIGH",
+      "kind": "flop",
+      "clock": "CLK",
+      "input": "D",
+      "output": "Q",
+      "reset": "R",
+      "reset_active": "high",
+      "reset_value": 1
+    }
+  ]
+}

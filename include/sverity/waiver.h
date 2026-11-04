@@ -21,6 +21,7 @@ struct Waiver {
     std::string reason;           // required
     std::string owner;            // required
     std::string expires;          // optional ISO date YYYY-MM-DD
+    SourceLocation sourceLocation; // source comment, empty for file entries
     std::string schemaError;      // non-empty: malformed entry (unknown key, wrong type...); never applied
 };
 
@@ -40,6 +41,10 @@ private:
 /// waivers are NOT applied and each yields a WARNING (CST-006 / CST-022) so they stay reviewable.
 /// `today` is an ISO date (YYYY-MM-DD).
 void applyWaivers(Report& report, const WaiverSet& set, const std::string& today);
+
+class Design;
+WaiverSet sourceWaivers(Design& design, const std::string& root);
+json::Value waiverTemplate(const Report& report);
 
 bool globMatch(std::string_view pattern, std::string_view text);
 /// Strict calendar check for YYYY-MM-DD.

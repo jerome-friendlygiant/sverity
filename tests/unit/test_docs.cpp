@@ -10,7 +10,7 @@ using namespace sverity;
 
 TEST(rule_docs_match_catalog) {
     std::map<std::string, std::string> docs;
-    for (const char* fam : {"LNT", "STY", "SVA", "CDC", "RDC", "CST"}) {
+    for (const char* fam : {"LNT", "CDC", "RDC", "CST"}) {
         std::ifstream f(std::string(SVERITY_SOURCE_DIR) + "/docs/rules/" + fam + ".md");
         CHECK(f.good());
         std::string line;

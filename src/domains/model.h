@@ -89,7 +89,12 @@ struct Flop {
     std::vector<int> resetKinds;                         // per reset: value it forces on this register bit: 0 clear, 1 set, 2 unknown (derived from resetValues)
     std::vector<char> resetValues;                       // per reset: the constant this bit gets: '0' '1' 'x' 'z', '?' (assigned a non-constant or conflicting value), 'n' (not assigned by that reset's branch)
 
-    bool hasSyncResetCandidate = false;                  // heuristic: top-level if(!x) q<=const
+    // Exact two-branch asynchronous transition (one unconditional NBA per bit in each branch).
+    bool resetTransitionKnown = false;
+    NodeId releasedSource = kNoNode;                     // exact normal D, or releasedValue for a literal
+    char releasedValue = '?';                           // X/Z retained, never a binary-value proof
+
+    bool hasSyncResetCandidate = false;                  // heuristic: reset-first conditional or final constant override
     int extraStages = 0;                                 // library synchroniser cell: stages beyond this register
     bool blocking = false;                               // assigned with a blocking assignment (never a synchroniser stage)
     bool syncActiveLow = false;                          // polarity of the synchronous reset candidate (condition is a negation)
@@ -163,6 +168,31 @@ struct ConstDriver {
     uint32_t proc = 0;
 };
 
+// Boolean syntax facts for qualifier implication. Unknown retains dependencies;
+// it never asserts Boolean structure for a case, call, or unsupported operator.
+struct BoolFact {
+    enum class Kind { Constant, Node, And, Or, Not, Unknown };
+    Kind kind = Kind::Unknown;
+    NodeId node = kNoNode;
+    bool value = false;
+    bool opaque = false;
+    std::vector<std::shared_ptr<const BoolFact>> args;
+};
+using BoolFactPtr = std::shared_ptr<const BoolFact>;
+struct GuardCondition {
+    BoolFactPtr predicate;
+    std::vector<NodeId> dependencies;
+};
+struct BooleanDriver {
+    BoolFactPtr value;
+    bool unconditional = false;
+};
+
+struct CallUncertainty {
+    std::string call, reason;
+    SourceLocation location;
+};
+
 class Model {
 public:
     std::vector<Node> nodes;
@@ -171,6 +201,11 @@ public:
     std::vector<Flop> flops;
     std::vector<Domain> domains;
     std::vector<Fallback> fallbacks;
+    std::vector<CallUncertainty> callUncertainties;
+    std::unordered_map<NodeId, std::vector<uint32_t>> uncertainCallDrivers;
+    std::unordered_map<NodeId, char> modeConstants;
+    uint64_t casePrunedBranches = 0, casePrunedExpressions = 0;
+    uint64_t subroutineSummaries = 0, subroutineBodyNodes = 0;
     std::vector<BlackBoxInst> blackBoxes;
     std::vector<LibInstance> libInstances;               // instances of declared library cells (every kind)
     std::unordered_map<NodeId, std::vector<ConstDriver>> constDrivers;   // exact constant drivers per node (X/Z kept)
@@ -183,6 +218,10 @@ public:
     std::unordered_map<NodeId, uint32_t> selfComb;       // node -> procedure of a combinational dependency on itself
     /// per register bit: for every data-carrying assignment, the (non-reset) control nodes guarding it; an empty list = unguarded.
     std::unordered_map<NodeId, std::vector<std::vector<NodeId>>> guards;
+    std::unordered_map<NodeId, std::vector<std::vector<GuardCondition>>> qualifierGuards;
+    std::unordered_map<NodeId, std::vector<BooleanDriver>> booleanDrivers;
+    std::unordered_set<NodeId> selfExact;                // exact register self-assignment (a hold)
+    std::unordered_set<NodeId> multiSequential;          // assigned by several sequential blocks: Flop holds only the first block's clock
     std::unordered_set<NodeId> selfLogic;                // registers whose next value depends on their own value through logic (toggle/counter)
     std::vector<uint8_t> blackBoxDriven;                 // per node: 1 = may be driven by an unmodelled black box, 2 = read data of a library RAM
     std::vector<uint8_t> topInput;                       // per node: input port bit of a top instance
@@ -205,6 +244,9 @@ public:
     NodeId aliasRoot(NodeId n) const;
     /// The register whose output `n` is a plain alias of, if any (`idx` receives its index in `flops`).
     const Flop* flopBehind(NodeId n, uint32_t* idx = nullptr) const;
+
+    /// Exact, unconditional combinational literal behind aliases; '?' if not established (X/Z kept).
+    char constantValue(NodeId n) const;
 
     void finish();   // builds adjacency, resolves clock roots, assigns domains
 };

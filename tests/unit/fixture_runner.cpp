@@ -15,6 +15,7 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <set>
 
 #include "sverity/analyzer.h"
 
@@ -76,6 +77,10 @@ int main(int argc, char** argv) {
         o.today = "2026-11-01";
         Report r = analyze(o);
         std::vector<std::string> errs;
+        std::set<std::string> fingerprints;
+        for (const auto& d : r.diagnostics())
+            if (!fingerprints.insert(d.fingerprint).second)
+                errs.push_back("duplicate finding fingerprint: " + d.ruleId + " " + d.fingerprint);
         auto has = [&](const std::string& rule, const std::string& sev, uint32_t line) {
             for (auto& d : r.diagnostics())
                 if (d.ruleId == rule && (sev.empty() || sev == toString(d.severity)) && (!line || d.location.line == line))

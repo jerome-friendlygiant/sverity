@@ -1,9 +1,7 @@
 // SDC (Tcl subset) parser.
 //
-// Two stages. A Tcl-like tokenizer (Scanner) splits the text into commands, each a list of words: bare,
-// {braced}, "quoted" or [bracketed]. Then each interpreted command is decoded from its words. Nothing is
-// substituted: "$x" and "[expr ...]" stay literal text, and the handlers report them as malformed where a
-// number or an object is required. Every command that is not interpreted goes to `unsupported`.
+// Scanner preserves word quoting; the bounded evaluator substitutes before dispatch.
+// Each command is transactional: diagnostics survive, constraint mutations do not.
 #include "sverity/sdc.h"
 
 #include <algorithm>
@@ -13,16 +11,22 @@
 #include <cstdint>
 #include <cstdlib>
 #include <initializer_list>
+#include <filesystem>
+#include <fstream>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <utility>
+#include <unordered_map>
 #include <vector>
 
 namespace sverity::sdc {
 
 void Constraints::merge(Constraints&& o) {
     auto mv = [](auto& dst, auto& src) { for (auto& x : src) dst.push_back(std::move(x)); };
+    mv(sourcedFiles, o.sourcedFiles);
     mv(clocks, o.clocks); mv(clockGroups, o.clockGroups); mv(exceptions, o.exceptions); mv(inputDelays, o.inputDelays);
+    mv(outputDelays, o.outputDelays); mv(caseAnalyses, o.caseAnalyses);
     mv(unsupported, o.unsupported); mv(problems, o.problems);
 }
 
@@ -37,6 +41,8 @@ enum class ArgKind { Bare, Brace, Quoted, Bracket };
 struct Arg {
     ArgKind kind = ArgKind::Bare;
     std::string value;     // Bare/Quoted/Brace: the word text. Bracket: raw text between the brackets.
+    size_t content = 0;
+    std::string script;
     std::vector<Arg> sub;  // Bracket only: the words of the command inside the brackets
 };
 
@@ -44,6 +50,7 @@ struct Cmd {
     std::vector<Arg> words;
     size_t begin = 0, end = 0;  // extent in the top-level text; used to rebuild `unsupported` text
     SourceLocation loc;
+    bool valid = true;
 };
 
 // State shared by one parse() call.
@@ -52,6 +59,10 @@ struct Ctx {
     std::string_view src;  // whole input
     std::string file;
     SourceLocation cur;    // command being tokenised or interpreted; problems are reported here
+    std::unordered_map<std::string, Arg> variables;
+    SourceLocation base;
+    size_t iterations = 0;
+    std::vector<std::filesystem::path> sourceStack;
 };
 
 void addProblem(Ctx& ctx, std::string msg) { ctx.out.problems.push_back({std::move(msg), ctx.cur}); }
@@ -96,7 +107,7 @@ private:
     Arg parseWord(bool listMode, bool inBracket);
     bool atWordEnd(bool listMode, bool inBracket) const;
     Arg parseBraced();
-    Arg parseQuoted();
+    Arg parseQuoted(bool listMode);
     Arg parseBracketWord();
     Arg parseBare(bool listMode, bool inBracket);
     Span skipBrackets(size_t p) const;
@@ -161,7 +172,9 @@ std::vector<Cmd> Scanner::parseScript(bool inBracket) {
         Cmd cmd;
         cmd.loc = ctx_.cur;
         cmd.begin = pos_;
+        const size_t problems = ctx_.out.problems.size();
         WordsEnd we = scanWords(cmd.words, false, inBracket);
+        cmd.valid = ctx_.out.problems.size() == problems;
         cmd.end = we.end;
         if (!cmd.words.empty()) cmds.push_back(std::move(cmd));
         if (we.stop == Stop::CloseBracket) {
@@ -200,14 +213,17 @@ WordsEnd Scanner::scanWords(std::vector<Arg>& words, bool listMode, bool inBrack
 }
 
 Arg Scanner::parseWord(bool listMode, bool inBracket) {
+    const size_t content = pos_ + 1;
     Arg a;
     switch (src_[pos_]) {
     case '{': a = parseBraced(); break;
-    case '"': a = parseQuoted(); break;
-    case '[': a = parseBracketWord(); break;
+    case '"': a = parseQuoted(listMode); break;
+    case '[': if (listMode) return parseBare(listMode, inBracket);
+              a = parseBracketWord(); break;
     default: return parseBare(listMode, inBracket);
     }
-    // Tcl needs a separator right after a braced, quoted or bracketed word. Skip any junk and report it.
+    a.content = content;
+    // Concatenation after a closing delimiter is outside this subset; disclose and reject it.
     if (pos_ < src_.size() && !atWordEnd(listMode, inBracket)) {
         addProblem(ctx_, "extra characters after close-brace, close-quote or close-bracket were ignored");
         while (pos_ < src_.size() && !atWordEnd(listMode, inBracket)) ++pos_;
@@ -251,12 +267,24 @@ Arg Scanner::parseBraced() {
         a.value = std::string(src_.substr(start, p - start));
         pos_ = p + 1;
     }
+    a.script = a.value;
+    // Backslash-newline is the sole substitution performed inside braces.
+    std::string normalized;
+    for (size_t i = 0; i < a.value.size();) {
+        if (size_t len = contLen(a.value, i)) {
+            normalized += ' '; i += len;
+            while (i < a.value.size() && isHSpace(a.value[i])) ++i;
+        } else if (a.value[i] == '\\' && i + 1 < a.value.size()) {
+            normalized += a.value[i++]; normalized += a.value[i++];
+        } else normalized += a.value[i++];
+    }
+    a.value = std::move(normalized);
     return a;
 }
 
 // "...": the raw text between the quotes. Bracketed substitutions inside are skipped as a unit so that a
 // quote inside them does not end the word.
-Arg Scanner::parseQuoted() {
+Arg Scanner::parseQuoted(bool listMode) {
     const size_t n = src_.size();
     size_t p = pos_ + 1;
     Arg a;
@@ -264,13 +292,24 @@ Arg Scanner::parseQuoted() {
     bool closed = false;
     while (p < n) {
         const char c = src_[p];
+        // Braced variable names may contain word/script delimiters literally.
+        if (!listMode && c == '$' && p + 1 < n && src_[p + 1] == '{') {
+            const size_t close = src_.find('}', p + 2);
+            if (close == std::string_view::npos) {
+                addProblem(ctx_, "unbalanced variable name");
+                a.value.append(src_.substr(p)); p = n;
+            } else {
+                a.value.append(src_.substr(p, close - p + 1)); p = close + 1;
+            }
+            continue;
+        }
         if (c == '\\' && p + 1 < n) {
             a.value.append(src_.substr(p, 2));
             p += 2;
         } else if (c == '"') {
             closed = true;
             break;
-        } else if (c == '[') {
+        } else if (c == '[' && !listMode) {
             Span s = skipBrackets(p);
             a.value.append(src_.substr(p, s.end - p));
             p = s.end;
@@ -308,6 +347,7 @@ Arg Scanner::parseBracketWord() {
     const size_t close = inner.closed_ ? inner.pos_ - 1 : n;
     if (!inner.closed_) addProblem(ctx_, "unbalanced '[': missing closing ']'");
     a.value = std::string(src_.substr(start, close - start));
+    if (cmds.size() != 1) addProblem(ctx_, "command substitution requires exactly one command");
     if (!cmds.empty()) a.sub = std::move(cmds.back().words);
     pos_ = inner.pos_;
     return a;
@@ -322,6 +362,17 @@ Arg Scanner::parseBare(bool listMode, bool inBracket) {
     size_t p = pos_;
     while (p < n) {
         const char c = src_[p];
+        // Braced variable names may contain word/script delimiters literally.
+        if (!listMode && c == '$' && p + 1 < n && src_[p + 1] == '{') {
+            const size_t close = src_.find('}', p + 2);
+            if (close == std::string_view::npos) {
+                addProblem(ctx_, "unbalanced variable name");
+                a.value.append(src_.substr(p)); p = n;
+            } else {
+                a.value.append(src_.substr(p, close - p + 1)); p = close + 1;
+            }
+            continue;
+        }
         if (isHSpace(c) || c == '\n') break;
         if (c == ';' && !listMode) break;
         if (c == ']' && inBracket) break;
@@ -330,7 +381,7 @@ Arg Scanner::parseBare(bool listMode, bool inBracket) {
             const size_t len = (p + 1 < n) ? 2 : 1;
             a.value.append(src_.substr(p, len));
             p += len;
-        } else if (c == '[') {
+        } else if (c == '[' && !listMode) {
             Span s = skipBrackets(p);
             if (!s.closed) addProblem(ctx_, "unbalanced '[': missing closing ']'");
             a.value.append(src_.substr(p, s.end - p));
@@ -371,7 +422,8 @@ SourceLocation Scanner::locationAt(size_t pos) const {
     const auto it = std::upper_bound(starts.begin(), starts.end(), pos);
     const size_t line = static_cast<size_t>(it - starts.begin());  // 1-based
     const size_t lineStart = starts[line - 1];
-    return SourceLocation{ctx_.file, static_cast<uint32_t>(line), static_cast<uint32_t>(pos - lineStart + 1)};
+    return SourceLocation{ctx_.file, static_cast<uint32_t>(line + ctx_.base.line),
+                          static_cast<uint32_t>(pos - lineStart + 1 + (line == 1 ? ctx_.base.column : 0))};
 }
 
 // Parses `text` as a Tcl list (used for the words of a brace group or a quoted word).
@@ -379,6 +431,10 @@ std::vector<Arg> listElements(Ctx& ctx, std::string_view text, int depth) {
     std::vector<Arg> words;
     Scanner s(text, ctx, nullptr, depth);
     s.scanWords(words, /*listMode=*/true, /*inBracket=*/false);
+    for (const auto& word : words) {
+        if (word.kind != ArgKind::Brace && word.value.find('\\') != std::string::npos)
+            addProblem(ctx, "backslash escapes in list elements are not interpreted");
+    }
     return words;
 }
 
@@ -411,7 +467,7 @@ bool isObjectCommand(const std::string& name) {
 
 // Option words look like "-name". "-5" is a number and stays a positional value.
 bool isOptionWord(const Arg& a) {
-    return a.kind == ArgKind::Bare && a.value.size() >= 2 && a.value[0] == '-' &&
+    return a.kind != ArgKind::Bracket && a.value.size() >= 2 && a.value[0] == '-' &&
            (std::isalpha(static_cast<unsigned char>(a.value[1])) || a.value[1] == '_');
 }
 
@@ -425,6 +481,11 @@ void expandGetCommand(Ctx& ctx, const Arg& bracket, std::vector<ObjectRef>& out,
         return;
     }
     const std::string& cmdName = bracket.sub[0].value;
+    if (cmdName == "all_inputs") {
+        if (bracket.sub.size() != 1) addProblem(ctx, "all_inputs: options and arguments are unsupported");
+        else out.push_back(ObjectRef{cmdName, ""});
+        return;
+    }
     if (cmdName == "all_clocks") {
         out.push_back(ObjectRef{cmdName, ""});
         return;
@@ -439,7 +500,10 @@ void expandGetCommand(Ctx& ctx, const Arg& bracket, std::vector<ObjectRef>& out,
         if (isOptionWord(bracket.sub[i])) continue;  // e.g. -hierarchical; its value is then a pattern
         std::vector<ObjectRef> names;
         expandObjects(ctx, bracket.sub[i], names, depth + 1);
-        for (const ObjectRef& r : names) out.push_back(ObjectRef{cmdName, r.pattern});
+        for (const ObjectRef& r : names) {
+            if (r.kind == "all_inputs") addProblem(ctx, "all_inputs: nested object collections are unsupported");
+            else out.push_back(ObjectRef{cmdName, r.pattern});
+        }
     }
     if (out.size() == before) addProblem(ctx, "'" + cmdName + "' needs an object name");
 }
@@ -617,6 +681,10 @@ void doCreateGeneratedClock(Ctx& ctx, const Cmd& cmd) {
     if (!p.last("-source")) addProblem(ctx, "create_generated_clock: missing required -source");
     expandOptions(ctx, p, {"-source"}, srcRefs);
     expandOptions(ctx, p, {"-master_clock"}, masterRefs);
+    for (const auto& ref : srcRefs) if (ref.kind == "all_inputs")
+        addProblem(ctx, "create_generated_clock: all_inputs is not a single source object");
+    for (const auto& ref : masterRefs) if (ref.kind == "all_inputs")
+        addProblem(ctx, "create_generated_clock: all_inputs is a port collection, expected a master clock");
     if (!masterRefs.empty()) {
         c.masterClock = masterRefs.front().pattern;
     } else if (!srcRefs.empty()) {
@@ -634,6 +702,17 @@ void doCreateGeneratedClock(Ctx& ctx, const Cmd& cmd) {
     }
     if (!p.last("-divide_by") && !p.last("-multiply_by") && !p.last("-edges")) {
         addProblem(ctx, "create_generated_clock: needs -divide_by, -multiply_by or -edges");
+    }
+    if (const Arg* edges = p.last("-edges")) {
+        const auto values = listElements(ctx, edges->value, 0);
+        long long previous = 0;
+        bool valid = values.size() == 3;
+        for (const auto& edge : values) {
+            long long n = 0;
+            if (!parseInt(edge.value, n) || n <= previous) valid = false;
+            previous = n;
+        }
+        if (!valid) addProblem(ctx, "create_generated_clock: -edges needs three increasing positive integers");
     }
     ctx.out.clocks.push_back(std::move(c));
 }
@@ -666,6 +745,8 @@ void doSetClockGroups(Ctx& ctx, const Cmd& cmd) {
         std::vector<ObjectRef> refs;
         expandObjects(ctx, *a, refs, 0);
         if (refs.empty()) addProblem(ctx, "set_clock_groups: empty -group list");
+        for (const auto& ref : refs) if (ref.kind == "all_inputs")
+            addProblem(ctx, "set_clock_groups: all_inputs is a port collection, expected clocks");
         g.groups.push_back(std::move(refs));
     }
     if (groupArgs.size() < 2) addProblem(ctx, "set_clock_groups: needs at least two -group lists");
@@ -747,16 +828,70 @@ void doInputDelay(Ctx& ctx, const Cmd& cmd) {
                                    {"-rise", false}, {"-fall", false}});
     InputDelay d;
     d.loc = cmd.loc;
-    if (const Arg* c = p.last("-clock")) d.clock = c->value; else addProblem(ctx, "set_input_delay: missing -clock");
+    if (const Arg* c = p.last("-clock")) {
+        std::vector<ObjectRef> refs;
+        expandObjects(ctx, *c, refs, 0);
+        if (refs.size() != 1 || refs.front().pattern.empty()) addProblem(ctx, "set_input_delay: -clock needs one clock");
+        else d.clock = refs.front().pattern;
+    } else addProblem(ctx, "set_input_delay: missing -clock");
     if (p.positional.size() < 2) { addProblem(ctx, "set_input_delay: expected a delay value and a port list"); return; }
     d.valueText = p.positional[0]->value;
     double v = 0;
     if (!parseDouble(d.valueText, v)) addProblem(ctx, "set_input_delay: invalid delay value '" + shortText(d.valueText) + "'");
     for (size_t i = 1; i < p.positional.size(); ++i) expandObjects(ctx, *p.positional[i], d.ports, 0);
+    if (d.ports.empty()) addProblem(ctx, "set_input_delay: empty port list");
     ctx.out.inputDelays.push_back(std::move(d));
 }
 
-void dispatch(Ctx& ctx, const Cmd& cmd) {
+// Unlike input delays, these declarations have no sound analysis consumer yet.
+// Keep them distinct from unsupported commands so valid records survive atomic dispatch.
+void doOutputDelay(Ctx& ctx, const Cmd& cmd) {
+    const Parsed p = parseOptions(ctx, cmd, "set_output_delay", {{"-clock", true}});
+    OutputDelay d;
+    d.loc = cmd.loc;
+    d.text = joinedText(ctx.src, cmd.begin, cmd.end);
+    if (const Arg* c = p.last("-clock")) {
+        std::vector<ObjectRef> refs;
+        expandObjects(ctx, *c, refs, 0);
+        if (refs.size() != 1 || refs.front().pattern.empty() ||
+            (!refs.front().kind.empty() && refs.front().kind != "get_clocks"))
+            addProblem(ctx, "set_output_delay: -clock needs one clock name");
+        else d.clock = refs.front().pattern;
+    } else addProblem(ctx, "set_output_delay: missing -clock");
+    if (p.positional.size() < 2) {
+        addProblem(ctx, "set_output_delay: expected a delay value and a port list"); return;
+    }
+    d.valueText = p.positional[0]->value;
+    double value = 0;
+    if (!parseDouble(d.valueText, value)) addProblem(ctx, "set_output_delay: invalid delay value");
+    for (size_t i = 1; i < p.positional.size(); ++i) expandObjects(ctx, *p.positional[i], d.ports, 0);
+    if (d.ports.empty()) addProblem(ctx, "set_output_delay: empty port list");
+    for (const auto& r : d.ports)
+        if (!r.kind.empty() && r.kind != "get_ports") addProblem(ctx, "set_output_delay: expected output ports");
+    ctx.out.outputDelays.push_back(std::move(d));
+}
+
+void doCaseAnalysis(Ctx& ctx, const Cmd& cmd) {
+    const Parsed p = parseOptions(ctx, cmd, "set_case_analysis", {});
+    if (p.positional.size() < 2) {
+        addProblem(ctx, "set_case_analysis: expected 0 or 1 and an object list"); return;
+    }
+    CaseAnalysis c;
+    c.loc = cmd.loc;
+    c.text = joinedText(ctx.src, cmd.begin, cmd.end);
+    const auto& value = p.positional[0]->value;
+    if (value != "0" && value != "1")
+        addProblem(ctx, "set_case_analysis: only literal 0 or 1 is supported; value '" + shortText(value) + "' is not applied (including rising/falling)");
+    else c.value = value == "1";
+    for (size_t i = 1; i < p.positional.size(); ++i) expandObjects(ctx, *p.positional[i], c.objects, 0);
+    if (c.objects.empty()) addProblem(ctx, "set_case_analysis: empty object list");
+    for (const auto& r : c.objects)
+        if (!r.kind.empty() && r.kind != "get_ports" && r.kind != "get_pins" && r.kind != "get_nets")
+            addProblem(ctx, "set_case_analysis: expected ports, pins or nets");
+    ctx.out.caseAnalyses.push_back(std::move(c));
+}
+
+void handle(Ctx& ctx, const Cmd& cmd) {
     ctx.cur = cmd.loc;
     const Arg& head = cmd.words.front();
     const std::string name = head.kind == ArgKind::Bracket ? "[" + head.value + "]" : head.value;
@@ -768,7 +903,188 @@ void dispatch(Ctx& ctx, const Cmd& cmd) {
     else if (name == "set_max_delay") doDelay(ctx, cmd, PathException::Kind::MaxDelay);
     else if (name == "set_min_delay") doDelay(ctx, cmd, PathException::Kind::MinDelay);
     else if (name == "set_input_delay") doInputDelay(ctx, cmd);
+    else if (name == "set_output_delay") doOutputDelay(ctx, cmd);
+    else if (name == "set_case_analysis") doCaseAnalysis(ctx, cmd);
     else ctx.out.unsupported.push_back(Unsupported{name, joinedText(ctx.src, cmd.begin, cmd.end), cmd.loc});
+}
+
+// Variable substitution is single pass: substituted values are never evaluated again.
+// Arrays, embedded command substitutions and nontrivial backslash escapes are disclosed.
+bool substitute(Ctx& ctx, Arg& a, int depth = 0) {
+    if (depth > kMaxDepth) { addProblem(ctx, "substitution nested too deeply"); return false; }
+    if (a.kind == ArgKind::Brace) return true;
+    if (a.kind == ArgKind::Bracket) {
+        for (auto& word : a.sub) if (!substitute(ctx, word, depth + 1)) return false;
+        if (a.sub.empty()) { addProblem(ctx, "empty command substitution"); return false; }
+        if (isObjectCommand(a.sub[0].value) || a.sub[0].value == "all_clocks" || a.sub[0].value == "all_inputs") return true;
+        // [set name] is the read form only. Assignment substitutions are disclosed.
+        if (a.sub[0].value == "set" && a.sub.size() == 2) {
+            auto it = ctx.variables.find(a.sub[1].value);
+            if (it != ctx.variables.end()) { a = it->second; return true; }
+            addProblem(ctx, "undefined variable '" + shortText(a.sub[1].value) + "'");
+        } else addProblem(ctx, "unsupported object command '" + shortText(a.sub[0].value) + "' (expected get_ports, get_pins, get_nets, get_clocks, get_cells or all_clocks)");
+        return false;
+    }
+    const std::string raw = a.value;
+    std::string value;
+    for (size_t i = 0; i < raw.size();) {
+        if (raw[i] == '\\') {
+            if (i + 1 == raw.size()) { value += raw[i++]; continue; }
+            char c = raw[i + 1];
+            if (c == '\n') {
+                value += ' '; i += 2;
+                while (i < raw.size() && isHSpace(raw[i])) ++i;
+            } else if (c == '$' || c == '[' || c == ']' || c == '{' || c == '}' || c == '"' ||
+                       c == '\\' || c == ' ' || c == ';') { value += c; i += 2; }
+            else { addProblem(ctx, "unsupported backslash substitution"); return false; }
+        } else if (raw[i] == '[') {
+            addProblem(ctx, "embedded command substitution is not interpreted"); return false;
+        } else if (raw[i] == '$') {
+            const size_t dollar = i;
+            size_t start = ++i;
+            std::string name;
+            if (i < raw.size() && raw[i] == '{') {
+                start = ++i;
+                while (i < raw.size() && raw[i] != '}') ++i;
+                if (i == raw.size()) { addProblem(ctx, "unbalanced variable name"); return false; }
+                name = raw.substr(start, i++ - start);
+            } else {
+                while (i < raw.size() && (std::isalnum(static_cast<unsigned char>(raw[i])) || raw[i] == '_')) ++i;
+                name = raw.substr(start, i - start);
+                if (i < raw.size() && (raw[i] == '(' || raw[i] == ':')) {
+                    addProblem(ctx, "array or namespace variable substitution is not interpreted"); return false;
+                }
+                if (name.empty()) { value += '$'; continue; }
+            }
+            auto it = ctx.variables.find(name);
+            if (it == ctx.variables.end()) { addProblem(ctx, "undefined variable '" + shortText(name) + "'"); return false; }
+            if (it->second.kind == ArgKind::Bracket) {
+                if (dollar == 0 && i == raw.size()) { a = it->second; return true; }
+                addProblem(ctx, "embedded object collection substitution is not interpreted"); return false;
+            }
+            value += it->second.value;
+        } else value += raw[i++];
+    }
+    a.value = std::move(value);
+    return true;
+}
+
+void dispatch(Ctx& ctx, const Cmd& original, int depth = 0) {
+    ctx.cur = original.loc;
+    if (!original.valid) { ctx.variables.clear(); return; }
+    if (depth > kMaxDepth) { addProblem(ctx, "script nested too deeply"); return; }
+    Cmd cmd = original;
+    const size_t problems = ctx.out.problems.size();
+    const size_t unsupported = ctx.out.unsupported.size();
+    const size_t clocks = ctx.out.clocks.size(), groups = ctx.out.clockGroups.size();
+    const size_t exceptions = ctx.out.exceptions.size(), delays = ctx.out.inputDelays.size();
+    const size_t outputs = ctx.out.outputDelays.size(), cases = ctx.out.caseAnalyses.size();
+    for (auto& a : cmd.words) if (!substitute(ctx, a)) {
+        // Continuing after an unevaluated script must not reuse stale variable values.
+        ctx.variables.clear();
+        return;
+    }
+    const auto& w = cmd.words;
+    const std::string name = w.front().value;
+    bool sourceEvaluated = false;
+    if (name == "set") {
+        if (w.size() != 2 && w.size() != 3) addProblem(ctx, "set: expected name and optional value");
+        else if (w[1].value.empty() || w[1].value.find_first_of("(:") != std::string::npos)
+            addProblem(ctx, "set: array or namespace variables are not interpreted");
+        else if (w.size() == 3) ctx.variables[w[1].value] = w[2];
+        else if (!ctx.variables.count(w[1].value)) addProblem(ctx, "undefined variable '" + shortText(w[1].value) + "'");
+    } else if (name == "source") {
+        if (w.size() != 2 || w[1].value.empty() || w[1].value[0] == '-') {
+            addProblem(ctx, "source: expected one file path; options are unsupported");
+        } else {
+            namespace fs = std::filesystem;
+            std::error_code ec;
+            auto path = fs::path(w[1].value);
+            if (path.is_relative()) path = fs::path(ctx.file).parent_path() / path;
+            path = fs::weakly_canonical(path, ec);
+            if (ec) addProblem(ctx, "source: cannot resolve file");
+            else if (ctx.sourceStack.size() >= 64) addProblem(ctx, "source: depth limit exceeded");
+            else if (std::find(ctx.sourceStack.begin(), ctx.sourceStack.end(), path) != ctx.sourceStack.end())
+                addProblem(ctx, "source: cycle detected");
+            else {
+                std::ifstream input(path, std::ios::binary);
+                if (!input) addProblem(ctx, "source: file could not be read");
+                else {
+                    std::ostringstream buffer; buffer << input.rdbuf();
+                    if (input.bad()) addProblem(ctx, "source: file could not be read");
+                    else {
+                        sourceEvaluated = true;
+                        const auto savedSrc = ctx.src; const auto savedFile = ctx.file;
+                        const auto savedBase = ctx.base; const auto savedCur = ctx.cur;
+                        std::string text = buffer.str();
+                        ctx.out.sourcedFiles.push_back(path.string());
+                        ctx.sourceStack.push_back(path);
+                        ctx.src = text; ctx.file = path.string(); ctx.base = SourceLocation{ctx.file, 0, 0};
+                        std::vector<size_t> starts{0};
+                        for (size_t i = 0; i < text.size(); ++i) if (text[i] == '\n') starts.push_back(i + 1);
+                        Scanner scanner(ctx.src, ctx, &starts, 0);
+                        for (const auto& child : scanner.parseScript(false)) dispatch(ctx, child, depth + 1);
+                        ctx.sourceStack.pop_back(); ctx.src = savedSrc; ctx.file = savedFile;
+                        ctx.base = savedBase; ctx.cur = savedCur;
+                    }
+                }
+            }
+        }
+    } else if (name == "foreach") {
+        if (w.size() != 4 || original.words[3].kind != ArgKind::Brace) {
+            addProblem(ctx, "foreach: only one variable, one list and a braced body are interpreted");
+        } else {
+            auto vars = listElements(ctx, w[1].value, 0);
+            std::vector<Arg> items;
+            if (w[2].kind == ArgKind::Bracket) {
+                std::vector<ObjectRef> refs;
+                expandObjects(ctx, w[2], refs, 0);
+                for (const auto& ref : refs) { Arg item; item.value = ref.pattern; items.push_back(std::move(item)); }
+            } else items = listElements(ctx, w[2].value, 0);
+            if (vars.size() != 1 || vars[0].value.empty() || vars[0].value.find_first_of("(:") != std::string::npos)
+                addProblem(ctx, "foreach: expected one scalar variable");
+            else if (items.size() > 1000 || ctx.iterations + items.size() > 10000)
+                addProblem(ctx, "foreach: iteration limit exceeded (1000 per loop, 10000 per parse)");
+            if (ctx.out.problems.size() == problems) {
+                // Body offsets are relative to the current script, never the substituted value.
+                const auto savedSrc = ctx.src;
+                const auto savedBase = ctx.base;
+                SourceLocation base = ctx.base;
+                for (size_t i = 0; i < w[3].content; ++i) {
+                    if (ctx.src[i] == '\n') { ++base.line; base.column = 0; }
+                    else ++base.column;
+                }
+                ctx.base = base;
+                ctx.src = w[3].script;
+                std::vector<size_t> starts{0};
+                for (size_t i = 0; i < ctx.src.size(); ++i) if (ctx.src[i] == '\n') starts.push_back(i + 1);
+                Scanner scanner(ctx.src, ctx, &starts, depth + 1);
+                auto body = scanner.parseScript(false);
+                for (auto item : items) {
+                    ++ctx.iterations;
+                    // List parsing does not perform substitutions, including bracket-looking elements.
+                    item.kind = ArgKind::Brace;
+                    ctx.variables[vars[0].value] = std::move(item);
+                    for (const auto& child : body) dispatch(ctx, child, depth + 1);
+                    if (ctx.out.problems.size() != problems || ctx.out.unsupported.size() != unsupported) break;
+                }
+                ctx.src = savedSrc; ctx.base = savedBase;
+            }
+        }
+    } else handle(ctx, cmd);
+    if (ctx.out.problems.size() != problems || ctx.out.unsupported.size() != unsupported) {
+        // A sourced script has the same per-command rejection as inline text.
+        // Diagnostics in a child must not roll back its valid neighbours.
+        if (name == "source") {
+            if (!sourceEvaluated) ctx.variables.clear();
+            return;
+        }
+        if (name == "set" || name == "foreach" || ctx.out.unsupported.size() != unsupported)
+            ctx.variables.clear();
+        ctx.out.clocks.resize(clocks); ctx.out.clockGroups.resize(groups);
+        ctx.out.exceptions.resize(exceptions); ctx.out.inputDelays.resize(delays);
+        ctx.out.outputDelays.resize(outputs); ctx.out.caseAnalyses.resize(cases);
+    }
 }
 
 } // namespace
@@ -776,7 +1092,10 @@ void dispatch(Ctx& ctx, const Cmd& cmd) {
 Constraints parse(std::string_view text, const std::string& fileName) {
     Constraints out;
     try {
-        Ctx ctx{out, text, fileName, SourceLocation{fileName, 0, 0}};
+        Ctx ctx{out, text, fileName, SourceLocation{fileName, 0, 0}, {}, {}, 0};
+        std::error_code ec;
+        auto rootPath = std::filesystem::weakly_canonical(fileName, ec);
+        if (!ec) ctx.sourceStack.push_back(rootPath);
         std::vector<size_t> lineStarts{size_t{0}};
         for (size_t i = 0; i < text.size(); ++i) {
             if (text[i] == '\n') lineStarts.push_back(i + 1);

@@ -264,6 +264,7 @@ struct Parser {
                 ws();
                 std::string k;
                 if (!str(k)) return false;
+                for (auto& member : o) if (member.first == k) return fail("duplicate key");
                 ws();
                 if (i >= s.size() || s[i] != ':') return fail("expected ':'");
                 i++;

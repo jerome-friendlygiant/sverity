@@ -1,4 +1,5 @@
 #include "domains/cone.h"
+#include <algorithm>
 
 namespace sverity::model {
 
@@ -9,7 +10,13 @@ Cone ConeFinder::of(const Flop& d) {
         if (e.type != EdgeType::Seq) continue;   // (a synchronous reset is an ordinary data source here)
         st.push_back({e.from, !e.exact});
     }
-    return walk(st, d.q);
+    auto cone = walk(st, d.q);
+    if (m_.multiSequential.count(d.q)) cone.unresolved.push_back(d.q);
+    if (auto it = m_.uncertainCallDrivers.find(d.q); it != m_.uncertainCallDrivers.end())
+        cone.uncertainCalls.insert(cone.uncertainCalls.end(), it->second.begin(), it->second.end());
+    std::sort(cone.uncertainCalls.begin(), cone.uncertainCalls.end());
+    cone.uncertainCalls.erase(std::unique(cone.uncertainCalls.begin(), cone.uncertainCalls.end()), cone.uncertainCalls.end());
+    return cone;
 }
 
 Cone ConeFinder::ofNodes(const std::vector<NodeId>& nets) {
@@ -28,7 +35,16 @@ Cone ConeFinder::walk(std::vector<std::pair<NodeId, bool>> st, NodeId self) {
         if (stamp[n] == gen_) continue;
         stamp[n] = gen_;
         if (n == self) continue;
-        if (m_.flopOfQ.count(n)) { c.flops.push_back({n, logic}); continue; }
+        if (m_.flopOfQ.count(n)) {
+            c.flops.push_back({n, logic});
+            // Only one of its clocks is known, so its launch domain is not established.
+            if (m_.multiSequential.count(n)) c.unresolved.push_back(n);
+            continue;
+        }
+        // Call uncertainty describes this node's driver, not the next-state
+        // function of a register already reached at the cone boundary.
+        if (auto it = m_.uncertainCallDrivers.find(n); it != m_.uncertainCallDrivers.end())
+            c.uncertainCalls.insert(c.uncertainCalls.end(), it->second.begin(), it->second.end());
         if (n < m_.topInput.size() && m_.topInput[n]) { c.inputs.push_back({n, logic}); continue; }
         // A net touching a black box may be driven by it (or only read by it): record it, but keep tracing the other
         // drivers so that no crossing is lost.

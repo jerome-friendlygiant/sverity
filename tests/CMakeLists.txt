@@ -19,3 +19,14 @@ foreach(dir ${FIXTURE_DIRS})
              COMMAND sverity_fixture_runner ${CMAKE_CURRENT_SOURCE_DIR}/fixtures ${name})
   endif()
 endforeach()
+
+# Exercises the public corpus gate's failure paths without a network connection.
+add_test(NAME public_projects.gate_self_check
+         COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/public_projects/run.sh
+                 $<TARGET_FILE:sverity> ${CMAKE_CURRENT_BINARY_DIR}/gate-self-check --group self-check)
+
+add_test(NAME tutorial.commands COMMAND python3 ${PROJECT_SOURCE_DIR}/docs/tutorial/check.py
+         $<TARGET_FILE:sverity> ${PROJECT_SOURCE_DIR})
+
+add_test(NAME report.interfaces COMMAND python3 ${PROJECT_SOURCE_DIR}/tests/test_interfaces.py
+         $<TARGET_FILE:sverity> ${PROJECT_SOURCE_DIR})

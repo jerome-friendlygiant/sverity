@@ -309,10 +309,10 @@ public:
                 std::string name(v.name);
                 if (writers.size() > 1)
                     l.report(v, "memory '" + name + "' has " + std::to_string(writers.size()) + " write processes: multiple write ports (different clocks make it a dual-clock memory, see CDC-035)",
-                             {.confidence = Confidence::Heuristic, .nextStep = "Confirm the target supports this many write ports; otherwise use one write process.", .signals = {name}});
+                             {.confidence = Confidence::Heuristic, .nextStep = "Confirm the target supports this many write ports; otherwise use one write process.", .signals = {name}, .identityKey = "multiple-writers"});
                 if (comb)
                     l.report(v, "memory '" + name + "' is written by combinational logic: it infers latches/registers, not a RAM",
-                             {.nextStep = "Write memories from a clocked process.", .signals = {name}});
+                             {.nextStep = "Write memories from a clocked process.", .signals = {name}, .identityKey = "combinational-writer"});
             }
             visitDefault(v);
         }

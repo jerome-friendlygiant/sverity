@@ -140,23 +140,25 @@ public:
     void run(RuleContext& ctx) override {
         Model& m = getModel(ctx.design);
         ctx.objectsEvaluated = m.constDrivers.size() + m.flops.size();
-        std::vector<std::pair<NodeId, std::string>> seeds;   // (node, description of the X/Z source)
+        std::vector<std::tuple<NodeId, std::string, std::string>> seeds;   // node and description of the X/Z source
+        std::map<NodeId, SourceLocation> sourceLocations;
         for (auto& [n, ds] : m.constDrivers)
             for (auto& d : ds) {
                 if (d.value != 'x' && d.value != 'z') continue;
                 bool isNet = m.nodes[n].sym && m.nodes[n].sym->kind == slang::ast::SymbolKind::Net;
                 if (d.value == 'z' && isNet) continue;
-                seeds.push_back({n, std::string("constant '") + d.value + "' drives " + m.nameOf(n) + " (" + m.procs[d.proc].loc.file + ":" + std::to_string(m.procs[d.proc].loc.line) + ")"});
+                seeds.push_back({n, std::string("constant '") + d.value + "' drives " + m.nameOf(n), std::string("constant:") + d.value});
+                sourceLocations[n] = m.procs[d.proc].loc;
                 break;
             }
         for (auto& f : m.flops)
             for (size_t i = 0; i < f.resetValues.size(); i++)
                 if (f.resetValues[i] == 'x' || f.resetValues[i] == 'z') {
-                    seeds.push_back({f.q, std::string("reset value '") + f.resetValues[i] + "' of " + m.nameOf(f.q)});
+                    seeds.push_back({f.q, std::string("reset value '") + f.resetValues[i] + "' of " + m.nameOf(f.q), std::string("reset:") + f.resetValues[i]});
                     break;
                 }
         std::sort(seeds.begin(), seeds.end());
-        for (auto& [seed, what] : seeds) {
+        for (auto& [seed, what, identity] : seeds) {
             std::set<NodeId> seen{seed};
             std::vector<NodeId> st{seed};
             const Edge* hit = nullptr;
@@ -173,10 +175,13 @@ public:
             if (!hit) continue;
             Diagnostic d;
             d.ruleId = "LNT-066";
+            d.identityKey = identity;
             d.severity = Severity::Warning;
             d.confidence = Confidence::Heuristic;
             d.message = what + " can reach the condition of an assignment to " + m.nameOf(hit->to) + ": simulation and synthesis may disagree on the branch taken";
             d.location = m.procs[hit->proc].loc;
+            if (auto it = sourceLocations.find(seed); it != sourceLocations.end())
+                d.evidence.push_back({"constant_source", "X/Z source", it->second});
             d.hierarchy = m.procs[hit->proc].instancePath;
             d.signals = {m.nameOf(seed), m.nameOf(hit->to)};
             d.nextStep = "Assign a defined value (not 'x/'z) on every path that can reach a condition, or document the don't-care and guard it.";

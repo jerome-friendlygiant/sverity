@@ -14,6 +14,7 @@ struct Cone {
     std::vector<ConeSrc> inputs;       // top-level input bits
     std::vector<NodeId> bbLeaves;      // nets touching an unmodeled black box (may be driven by it)
     std::vector<NodeId> unresolved;    // nets whose drivers were truncated by a precision fallback
+    std::vector<uint32_t> uncertainCalls; // unresolved subroutines on this capture path (Model issue indices)
     std::vector<NodeId> undriven;      // nets with no driver at all
 };
 

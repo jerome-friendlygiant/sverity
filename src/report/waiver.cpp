@@ -3,10 +3,112 @@
 #include <algorithm>
 #include <cctype>
 #include <set>
+#include <filesystem>
+#include <sstream>
+#include <iomanip>
+#include "sverity/catalog.h"
+#include "sverity/frontend.h"
+#include "slang/driver/Driver.h"
+#include "slang/parsing/Lexer.h"
+#include "slang/text/SourceManager.h"
 
 #include "sverity/json.h"
 
 namespace sverity {
+
+/// Blank or a stand-in nobody can be held to: a waiver needs a real owner and reason.
+static bool isPlaceholder(const std::string& value) {
+    std::string text;
+    for (char c : value)
+        if (!std::isspace(static_cast<unsigned char>(c))) text += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    for (const char* stub : {"", "<required>", "tbd", "todo", "fixme", "xxx", "n/a", "na", "none", "unknown"})
+        if (text == stub) return true;
+    return false;
+}
+
+// Use slang's lexer over its already loaded source-manager buffers. This is not an HDL
+// parser and does not open files; strings, block comments and skipped branches stay lexical.
+WaiverSet sourceWaivers(Design& design, const std::string& root) {
+    WaiverSet out;
+    auto& sm = design.driver->sourceManager;
+    std::set<std::pair<std::string, size_t>> seen;
+    for (auto buffer : sm.getAllBuffers()) {
+        auto kind = sm.getBufferKind(buffer);
+        if (kind != slang::SourceManager::BufferKind::DesignFile &&
+            kind != slang::SourceManager::BufferKind::IncludeFile &&
+            kind != slang::SourceManager::BufferKind::LibraryFile) continue;
+        auto text = sm.getSourceText(buffer);
+        if (text.empty()) continue;
+        auto path = sm.getFullPath(buffer).lexically_normal();
+        auto base = root.empty() ? std::filesystem::current_path() : std::filesystem::path(root);
+        auto file = path.lexically_relative(base).generic_string();
+        slang::BumpAllocator alloc;
+        slang::Diagnostics diagnostics;
+        slang::parsing::LexerOptions options;
+        options.maxErrors = UINT32_MAX; // keep scanning comments even in erroneous source
+        slang::parsing::Lexer lexer({text, sm.getLibraryFor(buffer), buffer}, alloc, diagnostics, sm, options);
+        uint32_t previousLine = 0;
+        while (true) {
+            auto token = lexer.lex();
+            for (const auto& trivia : token.trivia()) {
+                auto raw = trivia.getRawText();
+                if (!raw.starts_with("//") && !raw.starts_with("/*")) continue;
+                auto body = raw.substr(2);
+                auto start = body.find_first_not_of(" \t");
+                if (start == std::string_view::npos || !body.substr(start).starts_with("sverity-waive")) continue;
+                size_t offset = static_cast<size_t>(raw.data() - text.data());
+                if (!seen.emplace(file, offset).second) continue;
+                slang::SourceLocation loc(buffer, offset);
+                Waiver w;
+                w.sourceLocation = {file, static_cast<uint32_t>(sm.getLineNumber(loc)),
+                                   static_cast<uint32_t>(sm.getColumnNumber(loc))};
+                w.id = file + ":" + std::to_string(w.sourceLocation.line) + ":" + std::to_string(w.sourceLocation.column);
+                w.file = file;
+                w.line = previousLine == w.sourceLocation.line ? previousLine :
+                    static_cast<uint32_t>(sm.getLineNumber(token.location()));
+                std::istringstream in(std::string(body.substr(start)));
+                std::string marker;
+                in >> marker >> w.rule;
+                if (marker != "sverity-waive" || !raw.starts_with("//")) w.schemaError = "expected // sverity-waive RULE key=\"value\" ...";
+                std::set<std::string> keys;
+                while (in >> std::ws && in.peek() != EOF) {
+                    std::string key, value;
+                    while (in.peek() != EOF && in.peek() != '=' && !std::isspace(in.peek())) key += char(in.get());
+                    if (in.get() != '=' || in.peek() != '"' || !(in >> std::quoted(value)) ||
+                        !keys.insert(key).second) { w.schemaError = "malformed or duplicate attribute"; break; }
+                    if (key == "owner") w.owner = value;
+                    else if (key == "reason") w.reason = value;
+                    else if (key == "expires") w.expires = value;
+                    else if (key == "signal") w.signal = value;
+                    else if (key == "hierarchy") w.hierarchy = value;
+                    else { w.schemaError = "unknown attribute '" + key + "'"; break; }
+                    if (in.peek() != EOF && !std::isspace(in.peek())) { w.schemaError = "attributes need whitespace"; break; }
+                }
+                if (previousLine != w.sourceLocation.line && token.kind == slang::parsing::TokenKind::EndOfFile)
+                    w.schemaError = "no following token in this file";
+                out.mutableWaivers().push_back(std::move(w));
+            }
+            if (token.kind == slang::parsing::TokenKind::EndOfFile) break;
+            previousLine = static_cast<uint32_t>(sm.getLineNumber(token.location()));
+        }
+    }
+    return out;
+}
+
+json::Value waiverTemplate(const Report& report) {
+    auto result = json::Value::object(), entries = json::Value::array();
+    result.set("note", "Waiving a finding does not prove it; unproved findings remain unproved. Replace every <REQUIRED> owner and reason.");
+    for (const auto& d : report.diagnostics()) {
+        if (d.disposition == Disposition::Waived || d.disposition == Disposition::Resolved) continue;
+        auto entry = json::Value::object();
+        entry.set("rule", d.ruleId).set("fingerprint", d.fingerprint).set("owner", "<REQUIRED>")
+            .set("reason", "<REQUIRED>");
+        if (!d.location.file.empty()) entry.set("file", d.location.file);
+        if (d.location.line) entry.set("line", static_cast<int64_t>(d.location.line));
+        entries.push(entry);
+    }
+    return result.set("waivers", entries);
+}
 
 bool globMatch(std::string_view p, std::string_view t) {
     size_t pi = 0, ti = 0, star = std::string_view::npos, mark = 0;
@@ -74,7 +176,7 @@ bool isValidIsoDate(const std::string& d) {
 }
 
 static bool onlyWildcards(const std::string& g) {
-    return !g.empty() && std::all_of(g.begin(), g.end(), [](char c) { return c == '*'; });
+    return !g.empty() && std::all_of(g.begin(), g.end(), [](char c) { return c == '*' || c == '?'; });
 }
 static std::string describe(const Waiver& w) {
     std::string s = "rule=" + w.rule;
@@ -90,7 +192,7 @@ static std::string describe(const Waiver& w) {
 static bool matchesBase(const Waiver& w, const Diagnostic& d) {
     if (d.ruleId != w.rule) return false;
     if (!w.fingerprint.empty() && w.fingerprint != d.fingerprint) return false;
-    if (!w.file.empty() && !globMatch(w.file, d.location.file)) return false;
+    if (!w.file.empty() && (w.sourceLocation.valid() ? w.file != d.location.file : !globMatch(w.file, d.location.file))) return false;
     if (w.line && w.line != d.location.line) return false;
     if (!w.signal.empty()) {
         bool any = false;
@@ -111,8 +213,10 @@ void applyWaivers(Report& report, const WaiverSet& set, const std::string& today
     std::vector<Diagnostic> extra;
     auto problem = [&](const Waiver& w, const char* rule, const char* state, const std::string& msg) {
         Diagnostic d;
+        d.location = w.sourceLocation;
         d.ruleId = rule;
         d.severity = Severity::Warning;
+        d.identityArguments = {w.id, w.rule, w.fingerprint, w.file, std::to_string(w.line), w.hierarchy, w.signal, state};
         d.message = "Waiver '" + w.id + "' " + msg;
         d.confidence = Confidence::Unresolved;
         d.nextStep = "Fix, renew or remove the waiver; the waived finding (if any) stays open until then.";
@@ -122,10 +226,11 @@ void applyWaivers(Report& report, const WaiverSet& set, const std::string& today
         WaiverRecord r{w.id, w.rule, w.reason, w.owner, w.expires, describe(w), state, 0};
         report.addWaiverRecord(r);
     };
-    std::set<std::string> seenIds;
+    std::map<std::string, size_t> ids, scopes;
+    for (const auto& w : set.waivers()) { ids[w.id]++; scopes[describe(w)]++; }
     for (const auto& w : set.waivers()) {
-        if (!seenIds.insert(w.id).second) {
-            problem(w, "CST-006", "invalid", "duplicates the id of another waiver; not applied");
+        if (ids[w.id] > 1 || scopes[describe(w)] > 1) {
+            problem(w, "CST-006", "invalid", "duplicates the id or scope of another waiver; not applied");
             continue;
         }
         if (!w.schemaError.empty()) {
@@ -133,8 +238,11 @@ void applyWaivers(Report& report, const WaiverSet& set, const std::string& today
             continue;
         }
         if (w.rule.empty() || w.rule.find_first_of("*?") != std::string::npos || w.reason.empty() ||
-            w.owner.empty()) {
-            problem(w, "CST-006", "invalid", "needs an exact rule ID, a reason and an owner; not applied");
+            isPlaceholder(w.owner) || isPlaceholder(w.reason) ||
+            (!Catalog::embedded().find(w.rule) &&
+             !std::any_of(report.diagnostics().begin(), report.diagnostics().end(),
+                          [&](const auto& d) { return d.ruleId == w.rule; }))) {
+            problem(w, "CST-006", "invalid", "needs a known exact rule ID and nonblank, non-placeholder reason and owner; not applied");
             continue;
         }
         if (!w.expires.empty() && !isValidIsoDate(w.expires)) {
@@ -160,9 +268,10 @@ void applyWaivers(Report& report, const WaiverSet& set, const std::string& today
         for (auto& d : report.mutableDiagnostics()) {
             if (d.disposition == Disposition::Waived) continue;
             if (!matchesBase(w, d)) continue;
+            if (d.severity == Severity::Fatal || (d.origin == "slang" && d.severity >= Severity::Error)) continue;
             if (w.hierarchy.empty()) {
                 d.disposition = Disposition::Waived;     // severity, evidence and identity are untouched
-                d.waiver = WaiverInfo{w.id, w.reason, w.owner, w.expires, describe(w)};
+                d.waiver = WaiverInfo{w.id, w.reason, w.owner, w.expires, describe(w), w.sourceLocation};
                 matched += d.count;
                 continue;
             }
@@ -175,7 +284,7 @@ void applyWaivers(Report& report, const WaiverSet& set, const std::string& today
             if (hit.empty()) continue;
             if (rest.empty()) {
                 d.disposition = Disposition::Waived;
-                d.waiver = WaiverInfo{w.id, w.reason, w.owner, w.expires, describe(w)};
+                d.waiver = WaiverInfo{w.id, w.reason, w.owner, w.expires, describe(w), w.sourceLocation};
                 matched += d.count;
                 continue;
             }
@@ -184,7 +293,7 @@ void applyWaivers(Report& report, const WaiverSet& set, const std::string& today
             part.hierarchy = hit.front();
             part.count = static_cast<uint32_t>(hit.size());
             part.disposition = Disposition::Waived;
-            part.waiver = WaiverInfo{w.id, w.reason, w.owner, w.expires, describe(w)};
+            part.waiver = WaiverInfo{w.id, w.reason, w.owner, w.expires, describe(w), w.sourceLocation};
             matched += part.count;
             d.count = d.count > part.count ? d.count - part.count : 1;
             d.occurrences = rest;

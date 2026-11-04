@@ -53,7 +53,7 @@ std::vector<std::unique_ptr<Rule>> makeCdcRules() {
     add("CDC-032", "");
     add("CDC-039", "");
     add("CDC-010", "");
-    add("CDC-012", "");
+    add("CDC-012", "checks RTL synchronizer attributes only; recognized primitive metadata and technology profile bundles are not checked");
     add("CDC-013", "");
     add("CDC-014", "");
     add("CDC-015", "");
@@ -84,6 +84,8 @@ std::vector<std::unique_ptr<Rule>> makeCdcRules() {
     add("CST-009", "");
     add("CST-010", "records only the fallbacks produced by the connectivity/clock/reset model and in-source slang pragmas; constructs the model ignores without a fallback (classes, tasks, initial blocks, primitives) are not enumerated");
     add("CST-011", "clock constraints only; reset and I/O constraint coverage not evaluated");
+    add("CST-012", "Input-side and abstract-IP CDC contracts are not checked; output-boundary contracts only.");
+    add("CST-014", "Cross-mode validation and mutually exclusive clock configuration validation are not implemented.");
     add("CST-018", "parse problems and unreadable files only; semantic validation of option values is limited");
     add("RDC-001", "");
     return v;

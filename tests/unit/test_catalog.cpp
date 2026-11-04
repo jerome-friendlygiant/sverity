@@ -8,7 +8,7 @@ using namespace sverity;
 
 TEST(catalog_shape) {
     auto& c = Catalog::embedded();
-    std::set<std::string> ids, families{"LNT", "STY", "SVA", "CDC", "RDC", "CST"};
+    std::set<std::string> ids, families{"LNT", "CDC", "RDC", "CST"};
     for (auto& r : c.rules()) {
         CHECK(ids.insert(r.id).second);                       // unique ids
         CHECK(!r.title.empty());

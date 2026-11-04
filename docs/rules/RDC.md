@@ -46,7 +46,7 @@ are explicit obligations/unknown markers, never "safe". Reset roots are traced t
 - **Unknown:** the WARNING marks scope reset-extraction INCOMPLETE (the timing relation of R to the domains it resets is unknown).
 
 ### RDC-003
-- **Trigger:** (a) each (asynchronous reset root R, clock domain D) with register bits in D reset by R, where R is a top-level port, a black box, undriven or cycle output, combinational logic with no register behind it, the output of a register with unidentified clock, or the output of a register clocked in D that is not a recognised reset synchroniser (a chain of registers, all async-reset by the same sources, one clock, plain stage-to-stage D, constant first-stage D, depth >= RDC-006.min_stages, default 2). Registers clocked in another domain are RDC-007; shallower recognised chains are RDC-006. (b) each register symbol with an asynchronous reset and no identified clock, one per name.
+- **Trigger:** (a) each (asynchronous reset root R, clock domain D) with register bits in D reset by R, where R is a top-level port, a black box, undriven or cycle output, combinational logic with no register behind it, the output of a register with unidentified clock, or the output of a register clocked in D that is not a recognised reset synchroniser (a chain of nonblocking registers with established assertion/release assignments: all stages asynchronously take the binary asserted level required by downstream reset polarity, share the same raw reset sources and polarities and clock edge, the first stage takes the opposite binary released constant, each later stage takes exactly its predecessor, depth >= RDC-006.min_stages, default 2). Registers clocked in another domain are RDC-007; shallower recognised chains are RDC-006. (b) each register symbol with an asynchronous reset and no identified clock, one per name.
 - **Exempt:** the stage registers of a recognised synchroniser fed by a top-level reset (they take the raw reset by design); under (a), register bits with unidentified clock are skipped (CST-004 reports their paths; (b) reports them).
 - **Severity:** INFO (Informational, proof NOT_ATTEMPTED) for a recognised synchroniser in (a); WARNING (Unresolved) for every other case of (a) and for (b).
 - **Unknown:** every WARNING marks scope reset-extraction INCOMPLETE; the INFO records the trust model and never claims recovery/removal safety.
@@ -61,7 +61,8 @@ are explicit obligations/unknown markers, never "safe". Reset roots are traced t
 - **Trigger:** as RDC-004 for s and d in different clock domains whose ClockRelations relation is not Same (Async, Exclusive or Unknown).
 - **Exempt:** rs a subset of rd; relation Same; bits with unidentified clock (CST-004).
 - **Severity:** WARNING, Heuristic (Exclusive gives WARNING here, not INFO); proof NOT_ATTEMPTED.
-- **Unknown:** none: decided on the model and the SDC relation; the data crossing itself is a CDC question.
+- **Meaning:** a reset-compatibility obligation, not proven destination corruption. Source assertion may change the transmitted value while the destination remains active. A data synchroniser reduces metastability; it does not prove the destination tolerates that functional change. No data-chain exemption or INFO trust model is inferred. Shared assertion sources are structurally covered; otherwise tolerance, masking and reset sequencing need protocol evidence.
+- **Unknown:** destination tolerance is not proved; the obligation stays visible at WARNING with proof NOT_ATTEMPTED. The data crossing itself is a separate CDC question.
 
 ### RDC-006
 - **Trigger:** a reset root R driven by a register chain in the users' clock domain that is a recognised reset synchroniser (see RDC-003) with depth < RDC-006.min_stages (floor 2, default 2); or a same-domain chain that is not recognised because a stage's D has logic or several sources.
@@ -174,14 +175,13 @@ are explicit obligations/unknown markers, never "safe". Reset roots are traced t
 
 ## Crosswalk and licences
 
-Reference projects were studied for rule inventories only; no source code from any of them is included. Altera/AMD/Siemens/Synopsys pages could not be
-fetched when this crosswalk was written (UNVERIFIED); commercial RDC rule IDs are not public, only their categories are mapped.
+Reference projects were studied for rule inventories only; no source code from any of them is included. Commercial RDC rule IDs are not public, so only their categories are mapped. The AMD entry is closest intent, not equivalence; it was read as described in the [CDC crosswalk](CDC.md#crosswalk-and-licences).
 
 | Source (licence) | Reference rules → SVerity |
 |---|---|
 | RTL Buddy CDC RDC-001..008 (BSD-3-Clause) | reset crossings → RDC-004/005; polarity mismatch, deassertion polarity → RDC-028; comb-driven reset → RDC-009; multiple reset sources → RDC-011/026; muxed resets → RDC-017; unsynchronised deassertion → RDC-003 |
 | OpenCDC reset_domain_crossing (Apache-2.0) | → RDC-004/005 |
-| AMD Vivado CDC-7/8/9/11 (vendor, UNVERIFIED) | async clear unsynchronised → RDC-003; ASYNC_REG on reset sync → CDC-012; reset fan-out → RDC-016 |
+| AMD Vivado UG906 (vendor) | CDC-7 → RDC-003; CDC-9 → RDC-003 INFO. **No rule:** CDC-8 (ASYNC_REG on a reset synchroniser): CDC-012 reads data synchronisers only |
 | Verilator SYNCASYNCNET, CDCRSTLOGIC (LGPL-3.0 / Artistic-2.0) | → RDC-019, RDC-009 |
 | Commercial RDC categories (reset synchronisation, glitch, reconvergence, async set/reset, ordering) | → RDC-003, RDC-009, RDC-008, RDC-026, RDC-011 |
 

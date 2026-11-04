@@ -1,10 +1,15 @@
 // CDC protocol / structure recognition helpers used by the crossing analysis (see cdc_shared.h):
 // Gray-coded pointers, binary counters, payloads qualified by a synchronised control, SDC exception lookup.
 #include "rules/cdc/cdc_shared.h"
+
+#include <functional>
 #include "slang/ast/ASTVisitor.h"
 #include "slang/ast/Compilation.h"
 #include "slang/ast/EvalContext.h"
 #include "slang/ast/expressions/AssignmentExpressions.h"
+#include "slang/ast/expressions/CallExpression.h"
+#include "slang/ast/symbols/SubroutineSymbols.h"
+#include "slang/ast/statements/LoopStatements.h"
 #include "slang/ast/expressions/ConversionExpression.h"
 #include "slang/ast/expressions/OperatorExpressions.h"
 #include "slang/ast/expressions/SelectExpressions.h"
@@ -30,9 +35,13 @@ const Expression& strip(const Expression& e) {
 }
 
 bool sameExpr(const Expression& a, const Expression& b) {
+    // A symbol reference alone also matches two different selects of that symbol.
+    const auto whole = [](const Expression& e) {
+        return e.kind == ExpressionKind::NamedValue || e.kind == ExpressionKind::HierarchicalValue;
+    };
     auto* sa = a.getSymbolReference();
     auto* sb = b.getSymbolReference();
-    if (sa && sb && sa == sb && a.kind == b.kind) return true;
+    if (sa && sa == sb && whole(a) && whole(b)) return true;
     return a.syntax && b.syntax && a.syntax->toString() == b.syntax->toString();
 }
 
@@ -75,34 +84,148 @@ bool isBinaryToGray(const Expression& rhs, EvalContext& ec) {
     return constSelect(b.left(), ec, s1, i1) && constSelect(b.right(), ec, s2, i2) && s1 == s2 && (i1 - i2 == 1 || i2 - i1 == 1);
 }
 
-// A symbol is Gray-coded only if EVERY assignment to it is a whole-symbol binary-to-Gray conversion: one partial or
-// differently-shaped assignment (raw data on another branch, a single converted bit) disqualifies it.
+// Only a single, side-effect-free function body that returns the same Gray
+// expression accepted inline can be classified. In particular, a name is no evidence.
+bool isGrayFunction(const Expression& expression, EvalContext& ec) {
+    auto sameType = [](const Type& a, const Type& b) {
+        return a.isIntegral() && b.isIntegral() && a.getBitstreamWidth() == b.getBitstreamWidth() && a.isSigned() == b.isSigned();
+    };
+    auto unwrap = [&](const Expression* x) -> const Expression* {
+        while (x->kind == ExpressionKind::Conversion) {
+            const Expression& operand = x->as<ConversionExpression>().operand();
+            if (!sameType(*x->type, *operand.type)) return nullptr;
+            x = &operand;
+        }
+        return x;
+    };
+    const Expression* x = unwrap(&expression);
+    if (!x || x->kind != ExpressionKind::Call) return false;
+    const auto& call = x->as<CallExpression>();
+    if (call.isSystemCall() || call.thisClass() || call.hasOutputArgs() || call.arguments().size() != 1) return false;
+    const auto* sub = std::get<const SubroutineSymbol*>(call.subroutine);
+    if (!sub || sub->getArguments().size() != 1 || !sameType(sub->getReturnType(), sub->getArguments()[0]->getType()) ||
+        !sameType(sub->getReturnType(), *call.arguments()[0]->type)) return false;
+    const Expression* argument = unwrap(call.arguments()[0]);
+    if (!argument || argument->kind != ExpressionKind::NamedValue) return false;
+    const Statement* body = &sub->getBody();
+    while (body->kind == StatementKind::Block) body = &body->as<BlockStatement>().body;
+    if (body->kind == StatementKind::List) {
+        const auto& list = body->as<StatementList>().list;
+        if (list.size() != 1) return false;
+        body = list[0];
+    }
+    const Expression* result = nullptr;
+    if (body->kind == StatementKind::Return) result = body->as<ReturnStatement>().expr;
+    else if (body->kind == StatementKind::ExpressionStatement) {
+        const auto& e = body->as<ExpressionStatement>().expr;
+        if (e.kind != ExpressionKind::Assignment) return false;
+        const auto& a = e.as<AssignmentExpression>();
+        if (a.isNonBlocking() || a.isCompound() || a.left().getSymbolReference() != sub->returnValVar) return false;
+        result = &a.right();
+    }
+    if (!result || !sameType(*result->type, sub->getReturnType())) return false;
+    // Both occurrences must be the unmodified formal argument. No casts,
+    // free variables, nested calls, or side effects can be hidden in them.
+    const Expression* rhs = unwrap(result);
+    if (!rhs || rhs->kind != ExpressionKind::BinaryOp) return false;
+    const auto& xorExpr = rhs->as<BinaryExpression>();
+    if (xorExpr.op != BinaryOperator::BinaryXor || !sameType(*xorExpr.left().type, sub->getReturnType()) ||
+        !sameType(*xorExpr.right().type, sub->getReturnType())) return false;
+    auto formal = [&](const Expression& e) {
+        const Expression* v = unwrap(&e);
+        return v && v->kind == ExpressionKind::NamedValue && v->getSymbolReference() == sub->getArguments()[0];
+    };
+    auto shiftedFormal = [&](const Expression& e) {
+        const Expression* shift = unwrap(&e);
+        if (!shift || shift->kind != ExpressionKind::BinaryOp) return false;
+        const auto& op = shift->as<BinaryExpression>();
+        if (op.op != BinaryOperator::LogicalShiftRight && op.op != BinaryOperator::ArithmeticShiftRight) return false;
+        // Restrict the shift count to a literal so evaluating it cannot hide
+        // another call or side effect inside the purportedly pure function.
+        if (strip(op.right()).kind != ExpressionKind::IntegerLiteral) return false;
+        auto amount = op.right().eval(ec);
+        return amount.isInteger() && !amount.integer().hasUnknown() && amount.integer() == SVInt(32, 1, false) && formal(op.left());
+    };
+    return (shiftedFormal(xorExpr.left()) && formal(xorExpr.right())) ||
+           (shiftedFormal(xorExpr.right()) && formal(xorExpr.left()));
+}
+
+struct UserCallFinder : ASTVisitor<UserCallFinder, VisitFlags::AllGood> {
+    bool found = false;
+    void handle(const CallExpression& call) {
+        if (!call.isSystemCall()) found = true;
+        visitDefault(call);
+    }
+};
+
+// A symbol is Gray only if all of its nonconstant writes meet the inline or
+// proven-function predicate; mixed writes never inherit a Gray classification.
 struct GrayFinder : ASTVisitor<GrayFinder, VisitFlags::AllGood> {
     std::unordered_set<const ValueSymbol*>& out;
+    std::unordered_set<const ValueSymbol*>& opaque;
     std::unordered_set<const ValueSymbol*> grayWhole, other;
     Compilation& comp;
-    GrayFinder(std::unordered_set<const ValueSymbol*>& o, Compilation& c) : out(o), comp(c) {}
-    void handle(const AssignmentExpression& a) {
+    GrayFinder(std::unordered_set<const ValueSymbol*>& o, std::unordered_set<const ValueSymbol*>& u, Compilation& c)
+        : out(o), opaque(u), comp(c) {}
+    void inspect(const ValueSymbol* sym, const Expression& rhs, bool whole) {
         ASTContext ac(comp.getRoot(), LookupLocation::max);
         EvalContext ec(ac);
-        if (auto* ref = a.left().getSymbolReference(); ref && ref->as_if<ValueSymbol>()) {
-            auto* sym = ref->as_if<ValueSymbol>();
-            bool whole = a.left().kind == ExpressionKind::NamedValue;
-            if (whole && isBinaryToGray(a.right(), ec)) grayWhole.insert(sym);
-            else if (a.right().eval(ec).bad()) other.insert(sym);   // constant assignments (reset values) are neutral
-        }
+        bool grayFunction = whole && isGrayFunction(rhs, ec);
+        UserCallFinder calls;
+        rhs.visit(calls);
+        if (calls.found && !grayFunction) opaque.insert(sym);
+        if (whole && (isBinaryToGray(rhs, ec) || grayFunction)) grayWhole.insert(sym);
+        else if (rhs.eval(ec).bad()) other.insert(sym);
+    }
+    void handle(const AssignmentExpression& a) {
+        if (auto* ref = a.left().getSymbolReference(); ref && ref->as_if<ValueSymbol>())
+            inspect(ref->as_if<ValueSymbol>(), a.right(), a.left().kind == ExpressionKind::NamedValue);
         visitDefault(a);
     }
-    void finish() { for (auto* s : grayWhole) if (!other.count(s)) out.insert(s); }
+    void handle(const NetSymbol& net) {
+        if (const auto* init = net.getInitializer()) inspect(&net, *init, true);
+        visitDefault(net);
+    }
+    void finish() { for (auto* sym : grayWhole) if (!other.count(sym) && !opaque.count(sym)) out.insert(sym); }
 };
 
 } // namespace
 
 void Shared::findGrayNets() {
     if (!design_ || !design_->compilation) return;
-    GrayFinder f(grayNets_, *design_->compilation);
+    GrayFinder f(grayNets_, opaqueFunctionNets_, *design_->compilation);
     design_->compilation->getRoot().visit(f);
     f.finish();
+}
+
+bool Shared::hasOpaqueFunction(NodeId q) const {
+    std::vector<NodeId> pending{q};
+    std::unordered_set<NodeId> seen;
+    while (!pending.empty()) {
+        NodeId node = pending.back(); pending.pop_back();
+        if (!seen.insert(node).second) continue;
+        if (m->nodes[node].sym && opaqueFunctionNets_.count(m->nodes[node].sym)) return true;
+        if (node != q && m->flopOfQ.count(node)) {
+            // Follow an exact register-transfer alias as isGrayFlop does;
+            // stop at independently computed state to avoid conflating it.
+            NodeId source = kNoNode;
+            bool alias = true;
+            for (auto ei : m->in[node]) {
+                const Edge& e = m->edges[ei];
+                if (e.type != EdgeType::Seq || e.ctrl) continue;
+                if (!e.exact || source != kNoNode) { alias = false; break; }
+                source = e.from;
+            }
+            if (alias && source != kNoNode) pending.push_back(source);
+            continue;
+        }
+        for (auto ei : m->in[node]) {
+            const Edge& e = m->edges[ei];
+            if (!e.ctrl && (e.type == EdgeType::Comb || (node == q && e.type == EdgeType::Seq)))
+                pending.push_back(e.from);
+        }
+    }
+    return false;
 }
 
 bool Shared::isGrayFlop(NodeId q) const {
@@ -124,6 +247,21 @@ bool Shared::isGrayFlop(NodeId q) const {
 }
 
 bool Shared::hasCtrlEdge(const Flop& d) const {
+    // A mux with feedback is a hold-enable; arbitrary feedback (e.g. XOR)
+    // is not necessarily an enable and must not be labelled one.
+    if (hasFeedback(d)) {
+        std::vector<NodeId> pending{d.q};
+        std::unordered_set<NodeId> seen{d.q};
+        while (!pending.empty()) {
+            NodeId n = pending.back(); pending.pop_back();
+            for (auto ei : m->in[n]) {
+                const Edge& e = m->edges[ei];
+                if ((n == d.q ? e.type != EdgeType::Seq : e.type != EdgeType::Comb) || e.ctrl) continue;
+                if (e.op == Op::MuxSel) return true;
+                if (!m->flopOfQ.count(e.from) && seen.insert(e.from).second) pending.push_back(e.from);
+            }
+        }
+    }
     for (auto ei : m->in[d.q]) {
         const Edge& e = m->edges[ei];
         if (e.type == EdgeType::Seq && e.ctrl) return true;
@@ -131,31 +269,166 @@ bool Shared::hasCtrlEdge(const Flop& d) const {
     return false;
 }
 
-bool Shared::ctrlFromSynced(const Flop& d, uint32_t srcDomain) const {
-    auto git = m->guards.find(d.q);
-    if (git == m->guards.end() || git->second.empty()) return false;
-    auto reaches = [&](NodeId start) {
-        std::vector<NodeId> st{start};
-        std::unordered_set<NodeId> seen{start};
-        for (size_t i = 0; i < st.size() && st.size() < 64; i++) {
-            NodeId n = st[i];
-            auto it = syncedOut_.find(n);
-            if (it != syncedOut_.end() && it->second.srcDomain == srcDomain) return true;
-            if (m->flopOfQ.count(n)) continue;   // a different register: stop (only combinational qualifier logic is followed)
-            for (auto pi : m->in[n]) {
-                const Edge& pe = m->edges[pi];
-                if (pe.type == EdgeType::Comb && seen.insert(pe.from).second) st.push_back(pe.from);
-            }
-        }
-        return false;
+Shared::QualifierResult Shared::ctrlFromSynced(const Flop& d, uint32_t srcDomain) const {
+    auto git = m->qualifierGuards.find(d.q);
+    if (git == m->qualifierGuards.end() || git->second.empty())
+        return {Qualification::Disproven, "no guarded data-moving assignment"};
+    auto matching = [&](NodeId node) {
+        auto it = syncedOut_.find(node);
+        return it != syncedOut_.end() && it->second.srcDomain == srcDomain && it->second.dstDomain == d.domain;
     };
-    // Every assignment that moves data into the register must be guarded, and every guard must be a synchronised control:
-    // an unguarded assignment, or an enable OR-ed with an unsynchronised signal, is not a qualifier.
-    for (auto& g : git->second) {
-        if (g.empty()) return false;
-        for (auto n : g) if (!reaches(n)) return false;
+    QualifierResult overall{Qualification::ProvenNecessary, {}};
+    for (const auto& assignment : git->second) {
+        if (assignment.empty()) return {Qualification::Disproven, "an unguarded data-moving assignment bypasses synchronized control"};
+        // Expand only supported Boolean syntax. Registers are Boolean atoms,
+        // not combinational substitutes for the state transitions driving them.
+        struct Formula {
+            BoolFact::Kind kind;
+            bool value = false;
+            size_t atom = 0;
+            std::vector<std::shared_ptr<Formula>> args;
+        };
+        using Expr = std::shared_ptr<Formula>;
+        auto make = [](BoolFact::Kind kind, std::vector<Expr> args = {}) {
+            auto f = std::make_shared<Formula>(); f->kind = kind; f->args = std::move(args); return f;
+        };
+        size_t atomCount = 0, facts = 0;
+        bool limited = false, unknown = false, opaque = false, reachableMatching = false, foreignControl = false;
+        std::unordered_set<NodeId> reached, active;
+        std::unordered_map<NodeId, Expr> atoms, cache;
+        std::set<size_t> synchronizedAtoms, stateAtoms;
+        auto atom = [&](NodeId node) {
+            if (node != kNoNode) {
+                auto it = atoms.find(node);
+                if (it != atoms.end()) return it->second;
+            }
+            auto f = make(BoolFact::Kind::Node); f->atom = atomCount++;
+            if (node != kNoNode) atoms[node] = f;
+            return f;
+        };
+        auto reachable = [&](NodeId start) {
+            std::vector<NodeId> pending{start};
+            std::unordered_set<NodeId> visited;
+            bool found = false;
+            while (!pending.empty()) {
+                NodeId node = pending.back(); pending.pop_back();
+                if (!visited.insert(node).second) continue;
+                reached.insert(node);
+                if (reached.size() > 64) { limited = true; return found; }
+                if (matching(node)) { reachableMatching = found = true; continue; }
+                for (auto ei : m->in[node]) {
+                    const auto& e = m->edges[ei];
+                    if (e.type == EdgeType::Comb || e.type == EdgeType::Seq) pending.push_back(e.from);
+                }
+            }
+            return found;
+        };
+        std::function<Expr(NodeId)> expandNode;
+        std::function<Expr(const BoolFactPtr&)> expand;
+        expand = [&](const BoolFactPtr& fact) -> Expr {
+            if (++facts > 256) { limited = true; return atom(kNoNode); }
+            if (!fact) { unknown = true; return atom(kNoNode); }
+            if (fact->kind == BoolFact::Kind::Node) return expandNode(fact->node);
+            if (fact->kind == BoolFact::Kind::Unknown) {
+                unknown = true; opaque = opaque || fact->opaque;
+                for (const auto& dependency : fact->args)
+                    if (dependency->kind == BoolFact::Kind::Node) reachable(dependency->node);
+                return atom(kNoNode);
+            }
+            auto f = make(fact->kind); f->value = fact->value;
+            for (const auto& arg : fact->args) f->args.push_back(expand(arg));
+            return f;
+        };
+        expandNode = [&](NodeId node) -> Expr {
+            if (matching(node)) {
+                reachableMatching = true;
+                auto f = atom(node); synchronizedAtoms.insert(f->atom); return f;
+            }
+            if (auto it = cache.find(node); it != cache.end()) return it->second;
+            bool stateDependency = reachable(node);
+            if (!active.insert(node).second) { unknown = true; return atom(node); }
+            Expr result;
+            if (const auto* control = m->flopAt(node)) {
+                if (!control->clockResolved || control->domain != d.domain) foreignControl = true;
+                result = atom(node);
+                if (stateDependency && control->clockResolved && control->domain == d.domain) stateAtoms.insert(result->atom);
+            } else if (auto it = m->booleanDrivers.find(node); it != m->booleanDrivers.end()) {
+                if (it->second.size() == 1 && it->second[0].unconditional && it->second[0].value)
+                    result = expand(it->second[0].value);
+                else { unknown = true; result = atom(node); }
+            } else {
+                const Edge* alias = nullptr;
+                bool other = false;
+                for (auto ei : m->in[node]) {
+                    const auto& e = m->edges[ei];
+                    if (e.type != EdgeType::Comb || e.ctrl) { other = true; continue; }
+                    if (alias || (!e.exact && !(e.op == Op::Not && e.inv == 1))) other = true;
+                    alias = &e;
+                }
+                if (alias && !other) {
+                    result = expandNode(alias->from);
+                    if (alias->inv == 1) result = make(BoolFact::Kind::Not, {result});
+                } else {
+                    if (alias) unknown = true;
+                    result = atom(node);
+                }
+            }
+            active.erase(node); cache[node] = result; return result;
+        };
+        std::vector<Expr> guards;
+        for (const auto& guard : assignment) guards.push_back(expand(guard.predicate));
+        auto predicate = make(BoolFact::Kind::And, std::move(guards));
+        auto undecided = [&](const std::string& reason) { overall = {Qualification::Undecided, reason}; };
+        if (limited || atomCount > 12) { undecided("qualifier walk or Boolean proof limit was reached"); continue; }
+        if (opaque) { undecided("an opaque call prevents proving capture-control necessity"); continue; }
+        if (foreignControl) return {Qualification::Disproven, "the capture guard contains a control not synchronized into the capture domain"};
+        if (synchronizedAtoms.empty()) {
+            if (reachableMatching) undecided("matching synchronized control is reachable only through state or unsupported Boolean logic");
+            else return {Qualification::Disproven, "no matching source-to-destination synchronized control reaches the guard"};
+            continue;
+        }
+        std::function<bool(const Expr&, size_t)> evaluate = [&](const Expr& f, size_t values) {
+            switch (f->kind) {
+                case BoolFact::Kind::Constant: return f->value;
+                case BoolFact::Kind::Node: return ((values >> f->atom) & 1) != 0;
+                case BoolFact::Kind::Not: return !evaluate(f->args[0], values);
+                case BoolFact::Kind::And:
+                    for (const auto& a : f->args) if (!evaluate(a, values)) return false;
+                    return true;
+                case BoolFact::Kind::Or:
+                    for (const auto& a : f->args) if (evaluate(a, values)) return true;
+                    return false;
+                default: return false; // Unknown was replaced by an unconstrained atom.
+            }
+        };
+        std::map<size_t, unsigned> possible;
+        for (auto id : synchronizedAtoms) possible[id] = 0;
+        for (size_t values = 0; values < (size_t(1) << atomCount); ++values) {
+            if (!evaluate(predicate, values)) continue;
+            for (auto id : synchronizedAtoms) possible[id] |= 1u << ((values >> id) & 1);
+        }
+        bool necessary = false;
+        for (auto [id, values] : possible) if (values != 3) necessary = true;
+        if (necessary) continue; // Holds even with unsupported subexpressions treated as arbitrary values.
+        // State-derived validity can be held after the synchronized input changes.
+        // If it can widen the predicate through OR, Boolean syntax alone does
+        // not establish whether that branch is a legitimate held token.
+        bool heldValidity = false;
+        std::function<void(const Expr&, bool, bool)> findHeld = [&](const Expr& f, bool negated, bool disjunction) {
+            if (f->kind == BoolFact::Kind::Node) {
+                if (disjunction && stateAtoms.count(f->atom)) heldValidity = true;
+                return;
+            }
+            if (f->kind == BoolFact::Kind::Not) { findHeld(f->args[0], !negated, disjunction); return; }
+            bool isOr = (f->kind == BoolFact::Kind::Or && !negated) || (f->kind == BoolFact::Kind::And && negated);
+            for (const auto& arg : f->args) findHeld(arg, negated, disjunction || isOr);
+        };
+        findHeld(predicate, false, false);
+        if (unknown || heldValidity || synchronizedAtoms.size() > 1)
+            undecided("Boolean or state semantics do not establish a necessary synchronized control");
+        else return {Qualification::Disproven, "capture has a Boolean bypass of the synchronized control"};
     }
-    return true;
+    return overall;
 }
 
 bool Shared::counterLike(const std::set<NodeId>& srcBits) {
@@ -270,7 +543,7 @@ void Shared::reconvergence() {
         if (!d.clockResolved) continue;
         Cone c = coneOf(d);
         std::map<std::string, const SyncOut*> synced;
-        std::set<std::string> raw;
+        std::set<std::string> raw, unresolvedQualification;
         std::set<uint32_t> rawDomains;
         for (auto& s : c.flops) {
             const Flop& sf = m->flops[m->flopOfQ.at(s.q)];
@@ -280,8 +553,12 @@ void Shared::reconvergence() {
                 if (it != syncedOut_.end()) synced[m->nameOf(it->second.srcQ)] = &it->second;   // per source bit: bits of one bus are separate signals
                 else if (auto dv = derived.find(s.q); dv != derived.end())                       // a pipeline register behind synchronisers
                     for (auto& [k, so] : dv->second) synced[k] = so;
-            } else if (relation(sf.domain, d.domain) != Relation::Same && !ctrlFromSynced(d, sf.domain)) {
-                raw.insert(stripBit(m->nameOf(s.q)));
+            } else if (relation(sf.domain, d.domain) != Relation::Same) {
+                auto qualification = ctrlFromSynced(d, sf.domain);
+                if (qualification.state == Qualification::ProvenNecessary) continue;
+                std::string name = stripBit(m->nameOf(s.q));
+                raw.insert(name);
+                if (qualification.state == Qualification::Undecided) unresolvedQualification.insert(name);
                 rawDomains.insert(sf.domain);
             }
         }
@@ -295,15 +572,20 @@ void Shared::reconvergence() {
         evaluated[rule]++;
         std::string list;
         for (auto& [n, so] : synced) list += (list.empty() ? "" : ", ") + n + " (synchronised from " + m->domains[so->srcDomain].name + ")";
-        for (auto& n : raw) list += (list.empty() ? "" : ", ") + n + " (NOT synchronised)";
+        for (auto& n : raw) list += (list.empty() ? "" : ", ") + n +
+            (unresolvedQualification.count(n) ? " (capture qualification unresolved)" : " (NOT synchronised)");
         Diagnostic x = mk(rule, Severity::Warning,
                           "register " + dst + " combines " + std::to_string(synced.size() + raw.size()) + " asynchronous influences before sampling: " + list +
                           (std::string(kind) == "same-domain" ? "; independently synchronised signals from one domain can arrive in different cycles and reconverge inconsistently"
                            : std::string(kind) == "multi-domain" ? "; signals from different source domains reconverge in one cone"
+                           : !unresolvedQualification.empty() ? "; capture-control necessity has not been established"
                                                             : "; unsynchronised signals are combined by logic, so glitches/skew are sampled"),
-                          procOf(d).loc, procOf(d).instancePath, Confidence::Heuristic);
+                          procOf(d).loc, procOf(d).instancePath,
+                          unresolvedQualification.empty() ? Confidence::Heuristic : Confidence::Unresolved);
         x.signals = {dst};
         x.evidence.push_back({"reconvergence_kind", kind, {}});
+        if (!unresolvedQualification.empty())
+            x.evidence.push_back({"proof_obligation", "establish the unresolved capture qualification before deciding which asynchronous influences can be sampled together", {}});
         x.proofState = ProofState::NotAttempted;
         x.nextStep = "Merge the related signals in the source domain and synchronise once (or use a handshake/FIFO) before combining them.";
         add(std::move(x));
@@ -441,6 +723,7 @@ void Shared::clockStructure() {
                 if (relLeaf(static_cast<uint32_t>(i), cl) == Relation::Unknown) issue += "relation of output clock to " + leafName(cl) + " is unknown; ";
             if (!issue.empty()) {
                 Diagnostic x = mk("CDC-031", Severity::Warning, "clock mux '" + dom.name + "': " + issue + "the selection crosses clock domains", {}, {}, Confidence::Unresolved);
+                x.identityKey = dom.name;
                 x.nextStep = "Synchronise the select into each input clock domain (handshaked switch) and declare the output clock relationships.";
                 add(std::move(x));
             }
@@ -460,19 +743,23 @@ void Shared::clockStructure() {
                                       "enable " + m->nameOf(n) + " of the gated clock '" + dom.name + "' is launched in another clock domain [" + relName(rel) +
                                       "]: the gate can glitch the clock", procOf(sf).loc, procOf(sf).instancePath,
                                       rel == Relation::Unknown ? Confidence::Unresolved : Confidence::Established);
+                    d.identityKey = dom.name + ":" + stripBit(m->nameOf(n));
                     d.nextStep = "Synchronise the enable to the gated clock's source domain and hold it with a latch-based clock gate.";
                     add(std::move(d));
                 }
             }
             for (auto n : inputLeaves) {
-                add(mk("CDC-020", Severity::Warning, "gated clock '" + dom.name + "' enable " + m->nameOf(n) + " is a primary input with no declared relation to the clock",
-                       {}, {}, Confidence::Unresolved));
+                auto d = mk("CDC-020", Severity::Warning, "gated clock '" + dom.name + "' enable " + m->nameOf(n) + " is a primary input with no declared relation to the clock",
+                       {}, {}, Confidence::Unresolved);
+                d.identityKey = dom.name + ":" + stripBit(m->nameOf(n));
+                add(std::move(d));
             }
             if (!latch && (!flopLeaves.empty() || !inputLeaves.empty())) {
                 evaluated["CDC-045"]++;
                 Diagnostic d = mk("CDC-045", Severity::Warning,
                                   "clock '" + dom.name + "' is gated by combinational logic without an enable latch: a late or changing enable (" + sel +
                                   ") can truncate or glitch the clock pulse", {}, {}, Confidence::Heuristic);
+                d.identityKey = dom.name;
                 d.nextStep = "Use a latch-based integrated clock gate (enable latched while the clock is low).";
                 add(std::move(d));
             } else if (latch) {
@@ -536,7 +823,7 @@ void Shared::protocols() {
     auto isSyncedSingle = [&](const Group& g) {
         if (g.collapsed || g.dstFlops.size() != 1) return false;
         const Chain& ch = chains_[g.dstFlops[0]];
-        return !ch.linkLogic && ch.depth >= 2;
+        return !ch.linkLogic && !ch.feedbackWithFanout && ch.depth >= 2;
     };
     auto withTag = [&](const Group& g) {
         Relation rel = relation(g.srcDomain, g.dstDomain);
@@ -544,6 +831,7 @@ void Shared::protocols() {
     };
     auto ev = [&](Diagnostic& d, const Group& g) {
         d.signals = {g.srcName, g.dstName};
+        d.identityKey = crossingIdentity(g);
         if (relation(g.srcDomain, g.dstDomain) == Relation::Exclusive) d.evidence.push_back({"trust_model", "the two clocks are declared exclusive by constraint (trusted, not verified)", {}});
         d.evidence.push_back({"launch_register", g.srcName + " (clock domain " + m->domains[g.srcDomain].name + ")", {}});
         d.evidence.push_back({"capture_register", g.dstName + " (clock domain " + m->domains[g.dstDomain].name + ")", {}});
@@ -587,7 +875,7 @@ void Shared::protocols() {
                 Diagnostic d = mk("CDC-038", Severity::Warning,
                                   std::string("crossing ") + g.srcName + " -> " + g.dstName + " is cut by " + kind + " (" + ex->loc.file + ":" + std::to_string(ex->loc.line) +
                                   "): an exception removes timing checks, it does not make the crossing safe (a synchroniser is " +
-                                  (isSyncedSingle(g) || (!g.collapsed && chains_[g.dstFlops[0]].depth >= 2) ? "present" : "NOT recognised") + ")",
+                                  (isSyncedSingle(g) || (!g.collapsed && !chains_[g.dstFlops[0]].feedbackWithFanout && chains_[g.dstFlops[0]].depth >= 2) ? "present" : "NOT recognised") + ")",
                                   g.loc, g.hier, Confidence::Established);
                 ev(d, g);
                 d.nextStep = "Keep synchroniser/protocol evidence independent of the exception, and justify the exception.";
@@ -595,7 +883,7 @@ void Shared::protocols() {
             }
         }
         // CDC-037: declared relationship versus observed synchroniser
-        if (exclusive && !g.collapsed && chains_[g.dstFlops[0]].depth >= 2) {
+        if (exclusive && !g.collapsed && !chains_[g.dstFlops[0]].feedbackWithFanout && chains_[g.dstFlops[0]].depth >= 2) {
             evaluated["CDC-037"]++;
             Diagnostic d = mk("CDC-037", Severity::Warning, "clocks " + m->domains[g.srcDomain].name + " and " + m->domains[g.dstDomain].name +
                               " are declared exclusive but a synchroniser was recognised between them: the constraint and the structure disagree", g.loc, g.hier);
@@ -613,10 +901,11 @@ void Shared::protocols() {
             d.nextStep = "Guard dual-clock memory access with a recognised async-FIFO pointer scheme; vendor RAM semantics (read-during-write) are not modelled.";
             add(std::move(d));
         }
-        if (!g.collapsed && g.dstFlops.size() > 1 && !g.memory && g.srcQ != kNoNode && !chains_[g.dstFlops[0]].linkLogic && chains_[g.dstFlops[0]].depth >= 2)
+        if (!g.collapsed && g.dstFlops.size() > 1 && !g.memory && g.srcQ != kNoNode && !chains_[g.dstFlops[0]].linkLogic && !chains_[g.dstFlops[0]].feedbackWithFanout && chains_[g.dstFlops[0]].depth >= 2)
             reset041(g, m->flopAt(g.srcQ), tag);   // multi-bit synchronised groups get the reset check too
-        if (!isSyncedSingle(g) || g.memory) continue;
-        single.push_back(&g);
+        const bool recognised = isSyncedSingle(g);
+        if ((!recognised && !chains_[g.dstFlops[0]].feedbackWithFanout) || g.memory) continue;
+        if (recognised) single.push_back(&g);
         NodeId sq = g.srcQ;
         const Flop* sf = m->flopAt(sq);
 
@@ -667,8 +956,8 @@ void Shared::protocols() {
                 add(std::move(d));
             }
             if (ts > 0 && td > 0 && fast) {
-                Diagnostic d = mk("CDC-013", Severity::Warning, "crossing " + g.srcName + " -> " + g.dstName + " goes from a faster clock (" + std::to_string(ts) +
-                                  " ns) to a slower or comparable one (" + std::to_string(td) + " ns): a pulse or short level can be missed" + tag, g.loc, g.hier);
+                Diagnostic d = mk("CDC-013", Severity::Warning, "crossing " + g.srcName + " -> " + g.dstName + " has source period (" + std::to_string(ts) +
+                                  " ns) comparable to or shorter than the destination period (" + std::to_string(td) + " ns): a pulse or short level can be missed" + tag, g.loc, g.hier);
                 ev(d, g);
                 d.proofState = ProofState::NotAttempted;
                 d.nextStep = "Hold the signal for at least two destination periods, or use a toggle/handshake synchroniser.";
@@ -711,6 +1000,7 @@ void Shared::protocols() {
                 add(std::move(d));
                 evaluated["CDC-024"]++;
                 Diagnostic o = mk("CDC-024", Severity::Info, "functional correctness of the toggle protocol " + g.srcName + " -> " + g.dstName + " is not verified", g.loc, g.hier, Confidence::Heuristic);
+                o.identityKey = g.srcName + ":" + g.dstName;
                 o.proofState = ProofState::NotAttempted;
                 add(std::move(o));
             }
@@ -742,6 +1032,7 @@ void Shared::protocols() {
                 add(std::move(d));
                 evaluated["CDC-024"]++;
                 Diagnostic o = mk("CDC-024", Severity::Info, "functional correctness of the handshake " + a->srcName + " <-> " + b->srcName + " is not verified", a->loc, a->hier, Confidence::Heuristic);
+                o.identityKey = a->srcName + ":" + b->srcName;
                 o.proofState = ProofState::NotAttempted;
                 add(std::move(o));
             } else if (ackFollowsReq != reqFollowsAck) {
@@ -758,7 +1049,7 @@ void Shared::protocols() {
     // CDC-034 / CDC-024: asynchronous-FIFO pointer pairs (Gray pointers in opposite directions) and their resets
     for (auto& [k1, g1] : groups_)
         for (auto& [k2, g2] : groups_) {
-            if (&g1 >= &g2 || !g1.gray || !g2.gray || g1.srcDomain != g2.dstDomain || g1.dstDomain != g2.srcDomain || g1.hier != g2.hier) continue;
+            if (k1 >= k2 || !g1.gray || !g2.gray || g1.srcDomain != g2.dstDomain || g1.dstDomain != g2.srcDomain || g1.hier != g2.hier) continue;
             evaluated["CDC-034"]++; evaluated["CDC-024"]++;
             auto roots = [&](const Group& g) {
                 std::set<NodeId> r; bool unreset = false;
@@ -788,7 +1079,7 @@ void Shared::protocols() {
     // RDC-023: reset release sequencing between the two sides of a recognised FIFO / handshake
     for (auto& [k1, g1] : groups_)
         for (auto& [k2, g2] : groups_) {
-            if (&g1 >= &g2 || !g1.gray || !g2.gray || g1.srcDomain != g2.dstDomain || g1.dstDomain != g2.srcDomain || g1.hier != g2.hier) continue;
+            if (k1 >= k2 || !g1.gray || !g2.gray || g1.srcDomain != g2.dstDomain || g1.dstDomain != g2.srcDomain || g1.hier != g2.hier) continue;
             evaluated["RDC-023"]++;
             auto resetsOf = [&](const Group& g) { std::set<NodeId> r; for (auto q : g.srcBits) if (auto* f = m->flopAt(q)) for (auto& rr : f->resets) r.insert(rr.root.node); return r; };
             std::set<NodeId> ra = resetsOf(g1), rb = resetsOf(g2);
@@ -853,7 +1144,7 @@ void Shared::protocols() {
             if (!busDone.insert(what).second) return;
             evaluated["CDC-009"] += bits;
             Diagnostic d = mk("CDC-009", rel == Relation::Exclusive ? Severity::Info : Severity::Warning,
-                              std::to_string(bits) + " bits of " + what + " are synchronised independently (separate registers/instances): bit skew can capture an inconsistent value",
+                              std::to_string(bits) + " synchroniser captures of " + what + " are independent (separate registers/instances): skew can capture an inconsistent value",
                               g.loc, g.hier, rel == Relation::Unknown ? Confidence::Unresolved : Confidence::Established);
             d.signals = {g.srcName, g.dstName};
             d.proofState = ProofState::NotAttempted;
@@ -865,7 +1156,7 @@ void Shared::protocols() {
             for (auto& [key, g] : groups_) {
                 if (g.collapsed) continue;
                 bool allSynced = true;
-                for (auto di : g.dstFlops) allSynced = allSynced && !chains_[di].linkLogic && chains_[di].depth >= 2;
+                for (auto di : g.dstFlops) allSynced = allSynced && !chains_[di].linkLogic && !chains_[di].feedbackWithFanout && chains_[di].depth >= 2;
                 if (!allSynced) continue;
                 auto& a = byDst[{g.dstName, g.srcDomain, g.dstDomain, g.hier}]; a.first += g.dstFlops.size(); if (!a.second) a.second = &g;
                 auto& b = bySrc[{g.srcName, g.srcDomain, g.dstDomain, g.hier}]; b.first += g.dstFlops.size(); if (!b.second) b.second = &g;
@@ -891,7 +1182,7 @@ void Shared::protocols() {
             std::string ds;
             for (int d : b.depths) ds += (ds.empty() ? "" : "/") + std::to_string(d);
             Diagnostic d = mk("CDC-032", rel == Relation::Async ? Severity::Error : rel == Relation::Exclusive ? Severity::Info : Severity::Warning,
-                              "the " + std::to_string(b.bits) + " bits of " + g.srcName + " are captured with different synchroniser depths (" + ds + " stages): the bundle is not coherent in the destination domain",
+                              std::to_string(b.bits) + " captures of " + g.srcName + " have different synchroniser depths (" + ds + " stages): their values may not be coherent in the destination domain",
                               g.loc, g.hier, rel == Relation::Unknown ? Confidence::Unresolved : Confidence::Established);
             d.signals = {g.srcName};
             d.nextStep = "Give every bit of a bundle the same synchroniser structure, or cross it with a qualifier/handshake.";

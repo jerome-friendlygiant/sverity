@@ -3,6 +3,7 @@
 #include <fstream>
 
 #include "domains/model.h"
+#include "domains/cone.h"
 #include "slang/ast/symbols/ValueSymbol.h"
 #include "sverity/frontend.h"
 #include "testing.h"
@@ -181,4 +182,104 @@ TEST(model_port_connection_edges_carry_the_actual_polarity) {
     auto& m = *l->m;
     auto* e = edgeBetween(m, nodeNamed(m, "top.rst_n"), nodeNamed(m, "top.u.rst"));
     CHECK(e && e->inv == 1);
+}
+
+TEST(model_trailing_reset_is_per_bit_and_retains_guard_dependency) {
+    auto l = load(R"(module top(input logic clk, rst, input logic [1:0] d, output logic [1:0] q);
+        always_ff @(posedge clk) begin q <= d; if (rst) q[0] <= 0; end
+      endmodule)");
+    auto& m = *l->m;
+    auto q0 = nodeNamed(m, "top.q[0]"), q1 = nodeNamed(m, "top.q[1]");
+    auto guard = nodeNamed(m, "top.rst");
+    auto* f0 = m.flopAt(q0); auto* f1 = m.flopAt(q1);
+    CHECK(f0 && f0->hasSyncResetCandidate && f0->syncReset == guard);
+    CHECK(f1 && !f1->hasSyncResetCandidate && f1->syncReset == kNoNode);
+    auto* e = edgeBetween(m, guard, q0);
+    CHECK(e && e->ctrl);
+}
+
+TEST(model_constant_false_conjunct_does_not_add_control_edge) {
+    auto l = load(R"(module top #(parameter MODE = 0)(input logic clk, en, d, output logic q, p);
+        always_ff @(posedge clk) begin
+            q <= d;
+            if (MODE && en) q <= 0;
+            p <= d;
+            if (en) p <= 0;
+        end
+      endmodule)");
+    auto& m = *l->m;
+    auto en = nodeNamed(m, "top.en");
+    CHECK(edgeBetween(m, en, nodeNamed(m, "top.q")) == nullptr);
+    auto* live = edgeBetween(m, en, nodeNamed(m, "top.p"));
+    CHECK(live && live->ctrl);
+}
+
+TEST(model_subroutine_summaries_preserve_hidden_initializer_and_effect_reads) {
+    auto l = load(R"(module top(input logic clk, a, output logic q, side, arg_out);
+      function automatic logic sample(); logic saved = a; return saved; endfunction
+      function automatic logic effect(); side++; return a; endfunction
+      task automatic copy_to(output logic v); v = a; endtask
+      always @(posedge clk) begin q <= sample() ^ effect(); copy_to(arg_out); end
+    endmodule)");
+    const auto& m = *l->m;
+    auto a = nodeNamed(m, "top.a"), q = nodeNamed(m, "top.q");
+    auto side = nodeNamed(m, "top.side"), arg = nodeNamed(m, "top.arg_out");
+    CHECK(a != kNoNode && q != kNoNode && side != kNoNode && arg != kNoNode);
+    CHECK(edgeBetween(m, a, q));
+    CHECK(m.flopAt(arg));
+    CHECK(m.flopAt(side));
+    CHECK(m.uncertainCallDrivers.count(q));
+    CHECK(m.uncertainCallDrivers.count(side));
+    CHECK(m.uncertainCallDrivers.count(arg));
+}
+
+TEST(model_subroutine_recursion_is_path_specific_even_without_dependency_edges) {
+    auto l = load(R"(module top(input logic clk, output logic q);
+      function automatic logic recurse(); return recurse(); endfunction
+      always @(posedge clk) q <= recurse();
+    endmodule)");
+    auto q = nodeNamed(*l->m, "top.q");
+    CHECK(q != kNoNode);
+    CHECK(!l->m->callUncertainties.empty());
+    CHECK(l->m->uncertainCallDrivers.count(q));
+    CHECK_EQ(l->m->subroutineSummaries, 1u);
+}
+
+TEST(model_subroutine_body_is_cached_across_many_calls) {
+    std::string text = R"(module top(input logic clk, a, output logic [127:0] q);
+      function automatic logic sample(); return a; endfunction
+      always @(posedge clk) begin )";
+    for (int i = 0; i < 128; ++i) text += "q[" + std::to_string(i) + "] <= sample();\n";
+    text += "end endmodule";
+    auto l = load(text);
+    CHECK_EQ(l->m->subroutineSummaries, 1u);
+    CHECK(l->m->subroutineBodyNodes < 10);
+    CHECK(l->m->callUncertainties.empty());
+    auto a = nodeNamed(*l->m, "top.a");
+    for (int i = 0; i < 128; ++i)
+        CHECK(edgeBetween(*l->m, a, nodeNamed(*l->m, "top.q[" + std::to_string(i) + "]")));
+}
+
+TEST(model_subroutine_effect_in_a_guard_keeps_its_state_target) {
+    auto l = load(R"(module top(input logic clk, a, output logic q, side);
+      function automatic logic predicate(); side = a; return a; endfunction
+      always @(posedge clk) if (predicate()) q <= 0;
+    endmodule)");
+    auto side = nodeNamed(*l->m, "top.side");
+    CHECK(side != kNoNode);
+    CHECK(l->m->flopAt(side));
+    CHECK(l->m->uncertainCallDrivers.count(side));
+}
+
+TEST(model_subroutine_uncertainty_stops_at_the_register_boundary) {
+    auto l = load(R"(module top(input logic clk, a, output logic q, next_q);
+      function automatic logic sample(logic v); logic saved; saved = v; return saved; endfunction
+      always_ff @(posedge clk) begin q <= sample(a); next_q <= q; end
+    endmodule)");
+    auto q = nodeNamed(*l->m, "top.q"), next = nodeNamed(*l->m, "top.next_q");
+    CHECK(l->m->flopAt(q) && l->m->flopAt(next));
+    if (!l->m->flopAt(q) || !l->m->flopAt(next)) return;
+    ConeFinder cones(*l->m);
+    CHECK(!cones.of(*l->m->flopAt(q)).uncertainCalls.empty());
+    CHECK(cones.of(*l->m->flopAt(next)).uncertainCalls.empty());
 }

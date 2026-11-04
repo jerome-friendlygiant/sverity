@@ -1,5 +1,6 @@
 #include "sverity/waiver.h"
 #include "testing.h"
+#include "sverity/analyzer.h"
 using namespace sverity;
 
 static Report base() {
@@ -83,7 +84,8 @@ TEST(duplicate_waiver_ids_rejected) {
     applyWaivers(r, parse(R"({"waivers":[
       {"id":"W","rule":"CDC-003","file":"rtl/a.sv","reason":"x","owner":"o"},
       {"id":"W","rule":"CDC-003","file":"rtl/b.sv","reason":"x","owner":"o"}]})"), "2026-11-01");
-    CHECK_EQ(count(r, "CST-006"), 1);
+    CHECK_EQ(count(r, "CST-006"), 2); // both duplicate IDs are invalid, including the first
+    CHECK_EQ(r.countDisposition(Disposition::Waived), 0u);
 }
 TEST(date_validation) {
     CHECK(isValidIsoDate("2026-02-28"));
@@ -118,4 +120,97 @@ TEST(hierarchy_waiver_not_applied_to_coalesced_findings) {
                  "2026-11-01");
     CHECK_EQ(r.countDisposition(Disposition::Waived), 0u);
     CHECK_EQ(count(r, "CST-022"), 1);
+}
+
+static Report sourceReport(const char* name, bool enabled = true) {
+    AnalyzerOptions o;
+    std::string root = SVERITY_SOURCE_DIR;
+    o.pathRoot = root;
+    o.frontend.slangArgs = {"--top", "top", root + "/tests/fixtures/CST-006/" + name + ".sv"};
+    o.sdcFiles = {root + "/tests/fixtures/_common/async.sdc"};
+    o.today = "2026-11-01";
+    o.sourceWaivers = enabled;
+    return analyze(o);
+}
+TEST(source_waiver_valid_and_formats) {
+    auto r = sourceReport("source_valid");
+    CHECK_EQ(r.countDisposition(Disposition::Waived), 1u);
+    CHECK_EQ(count(r, "CST-022"), 0);
+    CHECK(r.toJson().dump().find("source_location") != std::string::npos);
+    CHECK(r.toSarif().dump().find("source_valid.sv") != std::string::npos);
+    CHECK(r.toHtml().find("WAIVED") != std::string::npos);
+    CHECK(r.toText(false).find("source_valid.sv:") != std::string::npos);
+}
+#define SOURCE_REJECT_TEST(name, rule) TEST(name) { auto r = sourceReport(#name); CHECK_EQ(count(r, rule), 1); CHECK_EQ(r.countDisposition(Disposition::Waived), 0u); }
+SOURCE_REJECT_TEST(source_missing_owner, "CST-006")
+SOURCE_REJECT_TEST(source_wrong_rule, "CST-006")
+SOURCE_REJECT_TEST(source_malformed, "CST-006")
+SOURCE_REJECT_TEST(source_expired, "CST-022")
+SOURCE_REJECT_TEST(source_stale, "CST-022")
+TEST(source_waiver_multiline_procedure_location) {
+    auto r = sourceReport("source_multiline");
+    bool cdc3 = false, cdc28 = false;
+    for (const auto& d : r.diagnostics()) {
+        if (d.disposition != Disposition::Waived) continue;
+        cdc3 |= d.ruleId == "CDC-003"; cdc28 |= d.ruleId == "CDC-028";
+    }
+    CHECK(cdc3); CHECK(cdc28); CHECK_EQ(count(r, "CST-022"), 1);
+}
+TEST(source_waivers_can_be_disabled) {
+    auto r = sourceReport("source_valid", false);
+    CHECK_EQ(r.countDisposition(Disposition::Waived), 0u);
+    CHECK(!r.toJson()["inputs"]["source_waivers"].asBool());
+}
+TEST(source_waiver_fingerprint_unchanged) {
+    auto a = sourceReport("source_valid"), b = sourceReport("source_valid", false);
+    for (const auto& d : a.diagnostics()) if (d.ruleId == "LNT-076")
+        for (const auto& e : b.diagnostics()) if (e.ruleId == d.ruleId) CHECK_EQ(d.fingerprint, e.fingerprint);
+}
+TEST(source_waiver_coverage_unchanged) {
+    auto a = sourceReport("source_valid"), b = sourceReport("source_valid", false);
+    CHECK_EQ(a.analysisCoverage(), b.analysisCoverage());
+    CHECK_EQ(a.toJson()["coverage"]["scopes"].dump(), b.toJson()["coverage"]["scopes"].dump());
+}
+TEST(template_round_trip_rejects_every_placeholder) {
+    auto r = base(); r.finalize();
+    auto t = waiverTemplate(r);
+    WaiverSet set; std::string err;
+    CHECK(WaiverSet::parse(t.dump(), set, err));
+    applyWaivers(r, set, "2026-11-01");
+    CHECK_EQ(r.countDisposition(Disposition::Waived), 0u);
+    CHECK_EQ(count(r, "CST-006"), 1);
+}
+TEST(template_filled_fields_work) {
+    auto r = base(); r.finalize();
+    auto set = parse(waiverTemplate(r).dump().c_str());
+    set.mutableWaivers()[0].owner = "team"; set.mutableWaivers()[0].reason = "reviewed protocol";
+    applyWaivers(r, set, "2026-11-01");
+    CHECK_EQ(r.countDisposition(Disposition::Waived), 1u);
+}
+TEST(waiver_cannot_hide_frontend_errors_or_fatal) {
+    for (bool fatal : {false, true}) {
+        auto r = base(); auto& d = r.mutableDiagnostics()[0];
+        d.origin = "slang"; d.severity = fatal ? Severity::Fatal : Severity::Error;
+        applyWaivers(r, parse(R"({"waivers":[{"rule":"CDC-003","file":"rtl/a.sv","reason":"reviewed","owner":"team"}]})"), "2026-11-01");
+        CHECK_EQ(r.countDisposition(Disposition::Waived), 0u); CHECK_EQ(count(r, "CST-022"), 1);
+    }
+}
+
+TEST(template_rejects_either_placeholder_independently) {
+    for (bool owner : {false, true}) {
+        auto r = base(); r.finalize(); auto set = parse(waiverTemplate(r).dump().c_str());
+        if (owner) set.mutableWaivers()[0].owner = "team";
+        else set.mutableWaivers()[0].reason = "protocol reviewed";
+        applyWaivers(r, set, "2026-11-01");
+        CHECK_EQ(r.countDisposition(Disposition::Waived), 0u); CHECK_EQ(count(r, "CST-006"), 1);
+    }
+}
+TEST(template_includes_unproved_findings_without_changing_proof) {
+    auto r = base(); r.mutableDiagnostics()[0].proofState = ProofState::NotAttempted;
+    r.mutableDiagnostics()[0].confidence = Confidence::Unresolved; r.finalize();
+    auto t = waiverTemplate(r); CHECK(t["note"].asString().find("does not prove") != std::string::npos);
+    auto set = parse(t.dump().c_str()); set.mutableWaivers()[0].owner = "team"; set.mutableWaivers()[0].reason = "accepted obligation";
+    applyWaivers(r, set, "2026-11-01");
+    CHECK_EQ(r.diagnostics()[0].proofState, ProofState::NotAttempted);
+    CHECK_EQ(r.diagnostics()[0].confidence, Confidence::Unresolved);
 }

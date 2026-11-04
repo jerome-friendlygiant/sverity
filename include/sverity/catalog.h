@@ -17,6 +17,9 @@ struct RuleInfo {
     std::string gap;                      // what a partial rule does not cover (empty if none recorded)
 };
 
+/// Offline rule contract and advice, shared by --explain and SARIF.
+std::string ruleHelp(const std::string& id);
+
 class Catalog {
 public:
     /// Catalog embedded in the binary. Aborts the process on corrupt embedded data

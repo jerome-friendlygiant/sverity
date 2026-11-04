@@ -40,7 +40,6 @@ const std::map<std::string, std::string>& slangRuleTable() {
         {"unsized-concat", "LNT-056"},
         {"unused-import", "LNT-059"}, {"unused-wildcard-import", "LNT-059"}, {"shadow-value", "LNT-059"},
         {"shadow-hierarchy", "LNT-059"}, {"shadow-property", "LNT-059"}, {"dup-import", "LNT-059"},
-        {"unnamed-generate", "STY-010"},
         {"redefinition", "LNT-002"}, {"redefinition-different-type", "LNT-002"}, {"duplicate-definition", "LNT-002"},
         {"unknown-library", "LNT-002"},
         {"implicit-port-type-mismatch", "LNT-003"}, {"port-coercion", "LNT-003"}, {"net-inconsistent", "LNT-003"},

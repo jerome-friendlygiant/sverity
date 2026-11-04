@@ -443,7 +443,8 @@ private:
                                  " bits before shifting: the bits shifted into the sign position differ from the " +
                                  std::to_string(*lw) + "-bit result",
                              {.severity = Severity::Info, .confidence = Confidence::Heuristic,
-                              .nextStep = "Shift in the operand's own width, or make the widening explicit with a cast."});
+                              .nextStep = "Shift in the operand's own width, or make the widening explicit with a cast.",
+                              .identityKey = std::to_string(*lw) + ":" + std::to_string(*ew)});
                 }
             }
             visitDefault(b);
@@ -488,7 +489,8 @@ private:
                          "product truncated: " + std::to_string(*lw) + "-bit and " + std::to_string(*rw) +
                              "-bit operands are evaluated at " + std::to_string(*ew) + " bits, so the upper bits are lost",
                          {.confidence = Confidence::Heuristic,
-                          .nextStep = "Widen the target or cast one operand to the full product width if the full product is intended."});
+                          .nextStep = "Widen the target or cast one operand to the full product width if the full product is intended.",
+                          .identityKey = std::to_string(*lw) + ":" + std::to_string(*rw) + ":" + std::to_string(*ew)});
         }
         void handle(const ConcatenationExpression& c) {
             for (auto* op : c.operands()) {
