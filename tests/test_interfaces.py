@@ -20,7 +20,7 @@ def complete(records):
     return bool(records and records[-1]['type'] == 'run_end' and
                 records[-1]['complete'] and records[-1]['record_count'] == len(records))
 
-with tempfile.TemporaryDirectory(prefix='sverity-interfaces-', dir=os.environ.get('SVERITY_SCRATCH', str(Path.home() / '.cache'))) as tmp:
+with tempfile.TemporaryDirectory(prefix='sverity-interfaces-', dir=os.environ.get('SVERITY_SCRATCH')) as tmp:
     report, sarif = Path(tmp) / 'report.json', Path(tmp) / 'report.sarif'
     proc = run(['--json', str(report), '--sarif', str(sarif), '--jsonl', '-', '--statistics', '--no-color'], capture_output=True, text=True)
     data = json.loads(report.read_text())

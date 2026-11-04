@@ -7,9 +7,11 @@ cache="${XDG_CACHE_HOME:-$HOME/.cache}/sverity"
 build="${SVERITY_BUILD:-$cache/build}"
 scratch="${SVERITY_SCRATCH:-$cache/public}"
 jobs="${SVERITY_JOBS:-6}"
+# CI keeps the whole log, because nobody can rerun a failure there by hand.
+brief() { if [ -n "${CI:-}" ]; then cat; else tail -n "$1"; fi; }
 [ -d "$root/third_party/slang/source" ] || git -C "$root" submodule update --init --recursive
 cmake -S "$root" -B "$build" -G Ninja -DCMAKE_BUILD_TYPE=Release >/dev/null
-cmake --build "$build" -j"$jobs" | tail -1
-ctest --test-dir "$build" -j"$jobs" --output-on-failure | tail -3
+cmake --build "$build" -j"$jobs" | brief 1
+ctest --test-dir "$build" -j"$jobs" --output-on-failure | brief 3
 if [ "${1:-}" != "--no-gate" ]; then "$root/tests/public_projects/run.sh" "$build/sverity" "$scratch"; fi
 echo "check: PASS, binary at $build/sverity"
