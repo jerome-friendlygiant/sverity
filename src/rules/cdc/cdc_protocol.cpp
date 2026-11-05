@@ -20,6 +20,8 @@
 #include "slang/ast/symbols/BlockSymbols.h"
 #include "slang/text/SourceManager.h"
 
+#include "rules/sync_attribute.h"
+
 namespace sverity::cdc {
 
 using namespace slang;
@@ -435,7 +437,8 @@ bool Shared::counterLike(const std::set<NodeId>& srcBits) {
     for (auto q : srcBits) {
         auto it = m->flopOfQ.find(q);
         if (it == m->flopOfQ.end()) continue;
-        Cone c = coneOf(m->flops[it->second]);
+        const auto heldCone = coneOf(m->flops[it->second]);
+        const Cone& c = *heldCone;
         for (auto& s : c.flops)
             if (s.q != q && srcBits.count(s.q)) return true;   // the next value of one bit depends on another bit of the bus: carry chain
     }
@@ -498,7 +501,7 @@ double Shared::periodNs(uint32_t domain) const {
 void Shared::analyseStructure() {
     for (const char* r : {"CDC-010", "CDC-019", "CDC-020", "CDC-030", "CDC-031", "CDC-043",
                           "CDC-012", "CDC-013", "CDC-014", "CDC-015", "CDC-024", "CDC-034", "CDC-035", "CDC-037", "CDC-038",
-                          "CDC-040", "CDC-041", "CDC-044", "CDC-023", "CDC-045", "CDC-046", "RDC-023", "RDC-024"})
+                          "CDC-040", "CDC-041", "CDC-044", "CDC-023", "CDC-045", "CDC-046", "CDC-047", "RDC-023", "RDC-024"})
         evaluated[r] += 0;
     sequentialElements();
     reconvergence();
@@ -530,7 +533,8 @@ void Shared::reconvergence() {
     for (uint32_t di = 0; di < m->flops.size(); di++) {
         const Flop& d = m->flops[di];
         if (!d.clockResolved) continue;
-        Cone c = coneOf(d);
+        const auto heldCone = coneOf(d);
+        const Cone& c = *heldCone;
         for (auto& s : c.flops) {
             const Flop& sf = m->flops[m->flopOfQ.at(s.q)];
             if (!sf.clockResolved || sf.domain != d.domain) continue;
@@ -541,7 +545,8 @@ void Shared::reconvergence() {
     for (uint32_t di = 0; di < m->flops.size(); di++) {
         const Flop& d = m->flops[di];
         if (!d.clockResolved) continue;
-        Cone c = coneOf(d);
+        const auto heldCone = coneOf(d);
+        const Cone& c = *heldCone;
         std::map<std::string, const SyncOut*> synced;
         std::set<std::string> raw, unresolvedQualification;
         std::set<uint32_t> rawDomains;
@@ -832,6 +837,7 @@ void Shared::protocols() {
     auto ev = [&](Diagnostic& d, const Group& g) {
         d.signals = {g.srcName, g.dstName};
         d.identityKey = crossingIdentity(g);
+        d.crossing = crossingOf(g);
         if (relation(g.srcDomain, g.dstDomain) == Relation::Exclusive) d.evidence.push_back({"trust_model", "the two clocks are declared exclusive by constraint (trusted, not verified)", {}});
         d.evidence.push_back({"launch_register", g.srcName + " (clock domain " + m->domains[g.srcDomain].name + ")", {}});
         d.evidence.push_back({"capture_register", g.dstName + " (clock domain " + m->domains[g.dstDomain].name + ")", {}});
@@ -859,6 +865,7 @@ void Shared::protocols() {
         }
     };
     std::vector<const Group*> single;   // recognised single-bit synchronised crossings
+    std::map<const Group*, Diagnostic> toggleObligations;   // CDC-024: resolved after handshakes, which absorb their toggle legs
     for (auto& [key, g] : groups_) {
         Relation rel = relation(g.srcDomain, g.dstDomain);
         bool exclusive = rel == Relation::Exclusive;
@@ -915,11 +922,7 @@ void Shared::protocols() {
             for (auto st : chains_[g.dstFlops[0]].stages) {
                 total++;
                 auto* sym = m->nodes[m->flops[st].q].sym;
-                if (!sym) continue;
-                for (auto* a : design_->compilation->getAttributes(*sym)) {
-                    std::string n = lower(std::string(a->name));
-                    if (n == "async_reg" || n == "sverity_sync" || n == "cdc_sync") { marked++; break; }
-                }
+                if (sym && hasSyncAttribute(*design_->compilation, *sym)) marked++;
             }
             evaluated["CDC-012"]++;
             bool fpga = cfg->profile == "fpga";
@@ -998,11 +1001,10 @@ void Shared::protocols() {
                 d.proofState = ProofState::NotAttempted;
                 d.evidence.push_back({"trust_model", "toggles must be at least two destination clock periods apart, otherwise events are lost", {}});
                 add(std::move(d));
-                evaluated["CDC-024"]++;
                 Diagnostic o = mk("CDC-024", Severity::Info, "functional correctness of the toggle protocol " + g.srcName + " -> " + g.dstName + " is not verified", g.loc, g.hier, Confidence::Heuristic);
                 o.identityKey = g.srcName + ":" + g.dstName;
                 o.proofState = ProofState::NotAttempted;
-                add(std::move(o));
+                toggleObligations.emplace(&g, std::move(o));
             }
         }
 
@@ -1013,7 +1015,8 @@ void Shared::protocols() {
     auto coneHas = [&](NodeId flopQ, const Group& g) {   // does the register's cone contain any stage of g's synchroniser?
         auto it = m->flopOfQ.find(flopQ);
         if (it == m->flopOfQ.end()) return false;
-        Cone c = coneOf(m->flops[it->second]);
+        const auto heldCone = coneOf(m->flops[it->second]);
+        const Cone& c = *heldCone;
         for (auto& s : c.flops)
             for (auto st : chains_[g.dstFlops[0]].stages) if (m->flops[st].q == s.q) return true;
         return false;
@@ -1030,10 +1033,14 @@ void Shared::protocols() {
                 d.proofState = ProofState::NotAttempted;
                 d.evidence.push_back({"trust_model", "the 4-phase protocol (req held until ack, ack held until req drops, data stable while req is high) is not verified", {}});
                 add(std::move(d));
-                evaluated["CDC-024"]++;
                 Diagnostic o = mk("CDC-024", Severity::Info, "functional correctness of the handshake " + a->srcName + " <-> " + b->srcName + " is not verified", a->loc, a->hier, Confidence::Heuristic);
                 o.identityKey = a->srcName + ":" + b->srcName;
                 o.proofState = ProofState::NotAttempted;
+                // the toggle legs of a two-phase handshake are this one structure: one obligation covers them
+                for (const Group* leg : {a, b})
+                    if (toggleObligations.erase(leg))
+                        o.evidence.push_back({"covers_toggle", leg->srcName + " -> " + leg->dstName, leg->loc});
+                evaluated["CDC-024"]++;
                 add(std::move(o));
             } else if (ackFollowsReq != reqFollowsAck) {
                 const Group* req = ackFollowsReq ? a : b;
@@ -1046,6 +1053,42 @@ void Shared::protocols() {
             }
         }
 
+    for (auto& [g, o] : toggleObligations) { evaluated["CDC-024"]++; add(std::move(o)); }
+
+    // CDC-047: one launch bit synchronised more than once into one domain; the copies can disagree for a cycle
+    {
+        std::map<std::pair<NodeId, uint32_t>, std::set<const Group*>> capturesOf;   // (launch bit, destination domain) -> crossing groups
+        for (auto& [key, g] : groups_) {
+            if (g.collapsed) continue;
+            evaluated["CDC-047"] += g.srcBits.size();
+            bool chained = std::any_of(g.dstFlops.begin(), g.dstFlops.end(), [&](uint32_t di) {
+                return !chains_[di].linkLogic && !chains_[di].feedbackWithFanout && chains_[di].depth >= 2;
+            });
+            if (!chained) continue;
+            for (auto bit : g.srcBits) capturesOf[{bit, g.dstDomain}].insert(&g);
+        }
+        std::set<std::vector<std::string>> reported;
+        for (auto& [launch, captures] : capturesOf) {
+            if (captures.size() < 2) continue;
+            std::vector<std::string> names{(*captures.begin())->srcName};
+            for (const Group* g : captures) names.push_back(g->dstName);
+            std::sort(names.begin() + 1, names.end());
+            if (!reported.insert(names).second) continue;
+            const Group& g = **captures.begin();
+            const Relation rel = relation(g.srcDomain, g.dstDomain);
+            Diagnostic d = mk("CDC-047", rel == Relation::Exclusive ? Severity::Info : Severity::Warning,
+                              g.srcName + " is synchronised " + std::to_string(captures.size()) + " times into clock domain '" + m->domains[g.dstDomain].name +
+                              "': the copies can differ for a cycle, so logic that combines them can see a value that never existed" + withTag(g),
+                              g.loc, g.hier, rel == Relation::Unknown ? Confidence::Unresolved : Confidence::Heuristic);
+            ev(d, g);
+            for (size_t i = 1; i < names.size(); i++) d.signals.push_back(names[i]);
+            for (const Group* other : captures) d.evidence.push_back({"capture_chain", other->dstName, other->loc});
+            d.proofState = ProofState::NotAttempted;
+            d.nextStep = "Synchronise once and fan out after the last stage, or show that no logic combines the copies.";
+            add(std::move(d));
+        }
+    }
+
     // CDC-034 / CDC-024: asynchronous-FIFO pointer pairs (Gray pointers in opposite directions) and their resets
     for (auto& [k1, g1] : groups_)
         for (auto& [k2, g2] : groups_) {
@@ -1057,7 +1100,7 @@ void Shared::protocols() {
                 // the binary counter the Gray value is derived from is part of the pointer: it needs a reset too
                 for (auto q : g.srcBits)
                     if (const Flop* f = m->flopAt(q))
-                        for (auto& cs : cones_->of(*f).flops)
+                        for (auto& cs : cones_->of(*f)->flops)
                             if (const Flop* bf = m->flopAt(cs.q); bf && bf->resets.empty()) unreset = true;
                 return std::make_pair(r, unreset);
             };
@@ -1072,6 +1115,7 @@ void Shared::protocols() {
             add(std::move(d));
             Diagnostic o = mk("CDC-024", Severity::Info, "functional correctness of the asynchronous FIFO " + g1.srcName + " / " + g2.srcName + " (pointer arithmetic, full/empty, data path) is not verified",
                               g1.loc, g1.hier, Confidence::Heuristic);
+            o.identityKey = g1.srcName + ":" + g2.srcName;
             o.proofState = ProofState::NotAttempted;
             add(std::move(o));
         }

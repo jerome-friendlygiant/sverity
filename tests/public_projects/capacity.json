@@ -1,0 +1,10 @@
+{
+  "comment": "The capacity target of RFC section 8, run by tools/dev/capacity.py. Pinned public RTL, cloned into scratch space and never vendored.",
+  "url": "https://github.com/lowRISC/opentitan",
+  "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+  "licence": "Apache-2.0",
+  "sparse_paths": ["hw", "util"],
+  "fusesoc": "2.4.5",
+  "core": "lowrisc:systems:top_earlgrey",
+  "tops": ["uart", "aes", "top_earlgrey"]
+}

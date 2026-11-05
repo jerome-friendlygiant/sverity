@@ -40,6 +40,7 @@ struct Evidence {
     std::string kind;       // e.g. "launch_register", "capture_register", "slang_note"
     std::string text;
     SourceLocation location;
+    std::string sourceLine;   // the source text at `location`, for CDC findings; not part of finding identity
 };
 
 // Endpoints describe the representative launch/capture registers of a grouped crossing.
@@ -78,10 +79,14 @@ struct Diagnostic {
     std::vector<std::string> identityArguments; // upstream argument values, path-normalized at finalize
     std::string identityKey;            // producer-owned semantic discriminator; never display prose
     SourceLocation location;
+    std::string sourceLine;             // the source text at `location`, for CDC findings; not part of finding identity
     std::string hierarchy;              // hierarchical path of the (first) occurrence
     std::optional<Crossing> crossing; // shared CDC facts; absent for other diagnostics
     std::vector<Evidence> evidence;
     std::vector<std::string> signals;   // affected signals / clocks / resets
+    std::vector<std::string> alsoRules; // enabled rules this primary finding also stands for: each keeps its own override and waiver
+    std::vector<std::string> waivedFacts; // internal: rules among those that a waiver has covered so far
+    std::vector<std::string> groupedSources; // a signal-scoped waiver must cover all of these, or the destination (signals[0])
     Confidence confidence = Confidence::Established;
     ProofState proofState = ProofState::NotApplicable;
     Disposition disposition = Disposition::Open;

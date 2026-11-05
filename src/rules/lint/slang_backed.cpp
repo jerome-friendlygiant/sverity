@@ -51,7 +51,9 @@ std::vector<std::unique_ptr<Rule>> makeSlangBackedRules() {
     full("LNT-004");   // slang width-trunc/-expand and port-width-* diagnostics; parameter-dependent truncation is also LNT-057
     full("LNT-005");   // slang sign-conversion/sign-compare/implicit-conv
     full("LNT-065");   // slang case-default/-incomplete/-none/-not-wildcard/-wildcard-2state/-too-complex
-    full("LNT-059");   // slang unused-import/-package-*, shadowing, duplicate-import
+    full("LNT-059");   // slang unused-import and duplicate-import
+    full("LNT-077");   // slang unused-package-*
+    full("LNT-078");   // slang shadowing
     return v;
 }
 

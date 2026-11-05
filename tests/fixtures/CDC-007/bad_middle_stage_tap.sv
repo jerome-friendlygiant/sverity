@@ -1,4 +1,4 @@
-// sverity-args: --top top --sdc @FIXTURES@/_common/async.sdc
+// sverity-args: --top top --sdc @FIXTURES@/_common/async.sdc --option CDC-005.min_stages=3
 // revert: assign tap = s2; => assign tap = 1'b0;
 // revert-expect-none: CDC-007 ERROR
 // expect: CDC-007 ERROR

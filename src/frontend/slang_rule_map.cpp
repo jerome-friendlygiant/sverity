@@ -38,16 +38,16 @@ const std::map<std::string, std::string>& slangRuleTable() {
         {"shift-count-overflow", "LNT-035"}, {"shift-count-negative", "LNT-035"},
         {"signed-logical-shift", "LNT-035"}, {"unsigned-arith-shift", "LNT-035"},
         {"unsized-concat", "LNT-056"},
-        {"unused-import", "LNT-059"}, {"unused-wildcard-import", "LNT-059"}, {"shadow-value", "LNT-059"},
-        {"shadow-hierarchy", "LNT-059"}, {"shadow-property", "LNT-059"}, {"dup-import", "LNT-059"},
+        {"unused-import", "LNT-059"}, {"unused-wildcard-import", "LNT-059"}, {"dup-import", "LNT-059"},
+        {"shadow-value", "LNT-078"}, {"shadow-hierarchy", "LNT-078"}, {"shadow-property", "LNT-078"},
         {"redefinition", "LNT-002"}, {"redefinition-different-type", "LNT-002"}, {"duplicate-definition", "LNT-002"},
         {"unknown-library", "LNT-002"},
         {"implicit-port-type-mismatch", "LNT-003"}, {"port-coercion", "LNT-003"}, {"net-inconsistent", "LNT-003"},
         {"bad-procedural-force", "LNT-031"},
         {"multi-write", "LNT-060"}, {"read-write", "LNT-060"},
         {"unknown-sys-name", "LNT-061"},
-        {"unused-package-var", "LNT-059"}, {"unused-package-typedef", "LNT-059"}, {"unused-package-parameter", "LNT-059"},
-        {"unused-package-type-parameter", "LNT-059"}, {"unused-package-assertion-decl", "LNT-059"}, {"unused-package-subroutine", "LNT-059"},
+        {"unused-package-var", "LNT-077"}, {"unused-package-typedef", "LNT-077"}, {"unused-package-parameter", "LNT-077"},
+        {"unused-package-type-parameter", "LNT-077"}, {"unused-package-assertion-decl", "LNT-077"}, {"unused-package-subroutine", "LNT-077"},
     };
     return table;
 }

@@ -485,6 +485,87 @@ TEST(cli_all_inputs_input_delay_includes_clock_ports_captured_as_data) {
     CHECK_EQ(inputs, 3u); CHECK(clockData); CHECK(foreign);
 }
 
+TEST(cli_all_inputs_no_clocks_leaves_out_declared_clocks_only) {
+    // `other` is a declared clock captured as data, so it has no contract; `free` is a clock nothing declares, so it stays in.
+    auto sv = write("no_clocks.sv", "module top(input logic clk, other, free, d, output logic q, c, f, r); always_ff @(posedge clk) begin q <= d; c <= other; f <= free; end always_ff @(posedge free) r <= d; endmodule\n");
+    auto sdc = write("no_clocks.sdc", "set_input_delay -clock clk 1 [all_inputs -no_clocks]\ncreate_clock -name clk -period 10 [get_ports clk]\ncreate_clock -name other -period 7 [get_ports other]\n");
+    auto out = (scratch() / "no_clocks.json").string();
+    run("--top top --sdc " + sdc + " --json " + out + " " + sv);
+    auto j = sverity::json::parse(slurp(out)); CHECK(j.ok);
+    bool declared = false, data = false, undeclared = false;
+    for (const auto& d : j.value["diagnostics"].asArray()) {
+        if (d["rule_id"].asString() != "CDC-029") continue;
+        auto msg = d["message"].asString();
+        const bool contract = msg.find("set_input_delay -clock clk") != std::string::npos;
+        if (msg.find("input 'top.other'") != std::string::npos) { declared = true; CHECK(!contract); }
+        if (msg.find("input 'top.d'") != std::string::npos) { data = true; CHECK(contract); }
+        if (msg.find("input 'top.free'") != std::string::npos) { undeclared = true; CHECK(contract); }
+    }
+    CHECK(declared); CHECK(data); CHECK(undeclared);
+}
+
+TEST(cli_all_inputs_no_clocks_leaves_out_a_clock_declared_on_one_bit) {
+    auto sv = write("no_clocks_bit.sv", "module top(input logic b, input logic [1:0] clk, output logic q); always_ff @(posedge b) q <= clk[0]; endmodule\n");
+    auto sdc = write("no_clocks_bit.sdc", "create_clock -name b -period 7 [get_ports b]\ncreate_clock -name c -period 5 [get_ports {clk[0]}]\nset_clock_groups -asynchronous -group c -group b\nset_input_delay -clock b 1 [all_inputs -no_clocks]\n");
+    auto out = (scratch() / "no_clocks_bit.json").string();
+    run("--top top --sdc " + sdc + " --json " + out + " " + sv);
+    auto j = sverity::json::parse(slurp(out)); CHECK(j.ok);
+    bool reported = false;
+    for (const auto& d : j.value["diagnostics"].asArray()) {
+        if (d["rule_id"].asString() != "CDC-029") continue;
+        reported = true;
+        CHECK(d["message"].asString().find("declared synchronous") == std::string::npos);
+    }
+    CHECK(reported);
+}
+
+TEST(cli_tap_on_a_library_synchroniser_output_is_not_a_first_stage_tap) {
+    auto sv = write("library_tap.sv", "module SYNC2(input CLK, D, output Q); endmodule\nmodule top(input logic a, b, d, output logic y, z); logic s, s2, s3; always_ff @(posedge a) s <= d; SYNC2 u(.CLK(b), .D(s), .Q(s2)); always_ff @(posedge b) s3 <= s2; assign y = s3; assign z = s2; endmodule\n");
+    auto sdc = write("library_tap.sdc", "create_clock -name a -period 10 [get_ports a]\ncreate_clock -name b -period 7 [get_ports b]\nset_clock_groups -asynchronous -group a -group b\n");
+    auto cells = write("library_tap.json", "{\"cells\":[{\"name\":\"SYNC2\",\"kind\":\"synchronizer\",\"clock\":\"CLK\",\"input\":\"D\",\"output\":\"Q\",\"stages\":2}]}\n");
+    auto out = (scratch() / "library_tap.report.json").string();
+    // At the default depth the cell's output is the synchroniser's output, so reading it is no tap at all.
+    run("--top top --sdc " + sdc + " --library " + cells + " --json " + out + " " + sv);
+    auto j = sverity::json::parse(slurp(out)); CHECK(j.ok);
+    for (const auto& d : j.value["diagnostics"].asArray()) CHECK(d["rule_id"].asString() != "CDC-007");
+    // Short of a required depth of three it is a tap, on a later stage rather than the first.
+    run("--top top --option CDC-005.min_stages=3 --sdc " + sdc + " --library " + cells + " --json " + out + " " + sv);
+    j = sverity::json::parse(slurp(out)); CHECK(j.ok);
+    bool intermediate = false;
+    for (const auto& d : j.value["diagnostics"].asArray()) {
+        if (d["rule_id"].asString() != "CDC-007") continue;
+        CHECK(d["message"].asString().find("first-stage") == std::string::npos);
+        intermediate |= d["message"].asString().find("intermediate stage") != std::string::npos;
+    }
+    CHECK(intermediate);
+}
+
+TEST(cli_source_lines_do_not_come_from_a_same_named_file_in_the_working_directory) {
+    const auto design = scratch() / "excerpt_design", other = scratch() / "excerpt_other";
+    std::filesystem::create_directories(design); std::filesystem::create_directories(other);
+    { std::ofstream(design / "x.sv") << "module top(input logic a, b, output logic q);\n  logic s;\n  always_ff @(posedge a) s <= ~s;\n  always_ff @(posedge b) q <= s;\nendmodule\n"; }
+    { std::ofstream unrelated(other / "x.sv"); for (int i = 0; i < 10; ++i) unrelated << "UNRELATED TEXT\n"; }
+    const auto out = (scratch() / "excerpt.json").string();
+    const std::string command = "cd " + other.string() + " && " + SVERITY_BIN + " --no-color --top top --root " + design.string() + " --json " + out + " " + (design / "x.sv").string() + " >/dev/null 2>&1";
+    CHECK(std::system(command.c_str()) != -1);
+    const auto text = slurp(out);
+    CHECK(text.find("UNRELATED") == std::string::npos);
+    CHECK(text.find("always_ff @(posedge b) q <= s;") != std::string::npos);
+}
+
+TEST(cli_tap_on_a_library_synchroniser_of_a_primary_input_is_reported) {
+    auto sv = write("library_input_tap.sv", "module SYNC2(input logic CLK, D, output wire Q); assign Q = D; endmodule\nmodule top(input logic b, d, output logic q, tap); wire w; SYNC2 u(.CLK(b), .D(d), .Q(w)); always_ff @(posedge b) q <= w; assign tap = w; endmodule\n");
+    auto sdc = write("library_input_tap.sdc", "create_clock -name b -period 7 [get_ports b]\n");
+    auto cells = write("library_input_tap.json", "{\"cells\":[{\"name\":\"SYNC2\",\"kind\":\"synchronizer\",\"clock\":\"CLK\",\"input\":\"D\",\"output\":\"Q\",\"stages\":2}]}\n");
+    auto out = (scratch() / "library_input_tap.report.json").string();
+    run("--top top --option CDC-005.min_stages=3 --sdc " + sdc + " --library " + cells + " --json " + out + " " + sv);
+    auto j = sverity::json::parse(slurp(out)); CHECK(j.ok);
+    bool intermediate = false;
+    for (const auto& d : j.value["diagnostics"].asArray())
+        if (d["rule_id"].asString() == "CDC-007") intermediate |= d["message"].asString().find("intermediate") != std::string::npos;
+    CHECK(intermediate);
+}
+
 TEST(cli_all_inputs_false_path_resolves_top_level_reset) {
     auto sv = write("inputs_reset.sv", "module top(input logic clk, rst, d, output logic q); always_ff @(posedge clk or posedge rst) if (rst) q <= 0; else q <= d; endmodule\n");
     auto sdc = write("inputs_reset.sdc", "create_clock -name clk -period 10 [get_ports clk]\nset_false_path -from [all_inputs]\n");
@@ -652,4 +733,21 @@ TEST(cli_cdc003_advice_uses_relation_and_waiver_state) {
         }
         CHECK(seen);
     }
+}
+
+TEST(cli_deck_claims_only_its_rules_and_keeps_every_finding) {
+    const auto root = std::string(SVERITY_SOURCE_DIR);
+    const auto all = (scratch() / "all.json").string(), core = (scratch() / "core.json").string();
+    const auto common = " --top top --sdc " + root + "/docs/tutorial/clocks.sdc --root " + root + " " + root + "/docs/tutorial/bad.sv";
+    run("--json " + all + common);
+    run("--deck core --json " + core + common);
+    auto full = sverity::json::parse(slurp(all)), deck = sverity::json::parse(slurp(core));
+    CHECK(full.ok && deck.ok);
+    CHECK_EQ(full.value["diagnostics"].asArray().size(), deck.value["diagnostics"].asArray().size() );   // nothing is hidden
+    CHECK(deck.value["inputs"]["deck"].asString() == "core");
+    size_t preview = 0;
+    for (const auto& rule : deck.value["coverage"]["rules"].asArray()) preview += rule["preview"].asBool();
+    CHECK(preview > 0);
+    CHECK(deck.value["summary"]["analysis_coverage"].asString() == "INCOMPLETE");   // core rules are still partial
+    CHECK_EQ(run("--deck nonsense" + common), 64);
 }

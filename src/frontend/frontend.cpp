@@ -67,6 +67,8 @@ public:
             d.ruleId = ruleForSlangDiag(rd.originalDiagnostic.code);
             if (d.ruleId.empty()) d.ruleId = "LNT-001";   // syntax / preprocess / other elaboration errors
         }
+        // An unused package member cannot affect behavior; retain slang's original severity separately.
+        if (d.ruleId == "LNT-077") d.severity = Severity::Info;
         // Use upstream code and argument values, never its message format string.
         d.identityKey = std::string(slang::toString(rd.originalDiagnostic.code));
         for (const auto& arg : rd.originalDiagnostic.args) {
@@ -257,6 +259,8 @@ std::unique_ptr<Design> loadDesign(const FrontendOptions& opts, Report& report) 
     design->compilation = drv.createCompilation();
     // getAllDiagnostics() already contains the parse diagnostics (do not issue them twice).
     drv.diagEngine.issue(design->compilation->getAllDiagnostics());
+    // Analysis on a thread pool names whichever instance finishes first in a coalesced finding, so a report would vary between runs.
+    drv.threadPool.reset();
     design->analysis = drv.runAnalysis(*design->compilation);
 
     if (client->sawTooManyErrors) {

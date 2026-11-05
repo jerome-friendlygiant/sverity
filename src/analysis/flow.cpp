@@ -101,9 +101,9 @@ struct Flow::Impl : AbstractFlowAnalysis<Impl, State> {
     State endState;
     std::set<std::pair<uint32_t, uint32_t>> killSeen;
 
-    Impl(Flow& flow, const ProceduralBlockSymbol& p)
-        : Base(p, AnalysisOptions{}, nullptr), f(flow), ec(getEvalContext()), guardMap(p.getBody(), getEvalContext()) {
-        rootStmt = &p.getBody();
+    Impl(Flow& flow, const Symbol& owner, const Statement& body)
+        : Base(owner, AnalysisOptions{}, nullptr), f(flow), ec(getEvalContext()), guardMap(body, getEvalContext()) {
+        rootStmt = &body;
         curGuards = &emptyGuards;
         if (auto* g = guardMap.of(rootStmt)) curGuards = g;
     }
@@ -159,7 +159,7 @@ struct Flow::Impl : AbstractFlowAnalysis<Impl, State> {
         forEachDef([&](uint32_t d) { f.accesses[d - 1].exposed = true; });
     }
     void markOpaque() {
-        f.opaque = true;
+        f.opaque = f.timing = true;
         forEachDef([&](uint32_t d) { f.accesses[d - 1].observed = true; });
     }
     template <typename F>
@@ -450,8 +450,14 @@ Style styleOf(const ProceduralBlockSymbol& p) {
     return other ? Style::Other : Style::Level;
 }
 
-Flow::Flow(const ProceduralBlockSymbol& p) : proc(p), impl_(std::make_unique<Impl>(*this, p)) {
+Flow::Flow(const ProceduralBlockSymbol& p) : impl_(std::make_unique<Impl>(*this, p, p.getBody())) {
     impl_->run(p.getBody());
+    impl_->finish();
+    bad = impl_->bad;
+}
+
+Flow::Flow(const SubroutineSymbol& routine) : impl_(std::make_unique<Impl>(*this, routine, routine.getBody())) {
+    impl_->run(routine.getBody());
     impl_->finish();
     bad = impl_->bad;
 }

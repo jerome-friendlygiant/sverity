@@ -1,7 +1,7 @@
 // sverity-args: --top top --sdc @DIR@/unknown_driven_input.sdc
 // expect: CST-009 WARNING
 // expect-none: CST-014
-// expect: CDC-003 ERROR
+// expect: CDC-028 ERROR
 module top(input wire a, b, en, mode, output logic q);
   assign mode = en;
   logic source_q;

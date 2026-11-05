@@ -1,7 +1,7 @@
 // sverity-args: --top top --sdc @FIXTURES@/_common/async.sdc
 // MUTATION of CDC-039/good_qualified_payload.sv: the capture ignores the synchronised valid.
 // expect: CDC-016 ERROR
-// expect: CDC-004 ERROR
+// CDC-004 is evidence of the primary CDC-016 finding
 module top(input logic clka, clkb, rst_n, load, input logic [3:0] d, output logic [3:0] q);
   logic [3:0] data;
   logic v_a, v1, v2, vq;

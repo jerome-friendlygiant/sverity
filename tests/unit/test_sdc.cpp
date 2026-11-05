@@ -197,7 +197,7 @@ TEST(sdc_unsupported_commands_recorded) {
     // Output delay is rejected for missing -clock; binary case analysis is recorded, not applied.
     CHECK(hasProblem(c, "set_output_delay: missing -clock"));
     CHECK(c.outputDelays.empty()); CHECK_EQ(c.caseAnalyses.size(), 1u);
-    CHECK_EQ(c.unsupported.size(), 3u);
+    CHECK_EQ(c.unsupported.size(), 2u);
     CHECK(c.clocks.empty());
 }
 
@@ -339,8 +339,8 @@ TEST(sdc_object_forms) {
 }
 
 TEST(sdc_unknown_object_command_is_problem) {
-    auto c = sdc::parse("set_false_path -from [expr 1+1] -to [get_clocks]\n", "f");
-    CHECK(hasProblem(c, "unsupported object command 'expr'"));
+    auto c = sdc::parse("set_false_path -from [unknown a] -to [get_clocks]\n", "f");
+    CHECK(hasProblem(c, "unsupported object command 'unknown'"));
     CHECK(c.exceptions.empty());
 }
 
@@ -444,10 +444,71 @@ TEST(sdc_foreach_iteration_limit) {
 }
 
 TEST(sdc_expr_and_unsupported_bracket_disclosed) {
-    for (auto command : {"expr 5+5", "lindex {10} 0", "unknown 10"}) {
+    for (auto command : {"unknown 10"}) {
         auto c = sdc::parse(std::string("create_clock -period [") + command + "] [get_ports a]", "f");
         CHECK(hasProblem(c, "unsupported object command")); CHECK(c.clocks.empty());
     }
+}
+
+TEST(sdc_expr_substitution) {
+    auto c = sdc::parse("set p 10.0; create_clock -name a -period [expr {$p/2}] [get_ports a]", "f");
+    CHECK(c.problems.empty()); CHECK_EQ(c.clocks.size(), 1u);
+    if (!c.clocks.empty()) CHECK(c.clocks[0].periodNs == 5.0);
+}
+
+TEST(sdc_expr_refuses_values_tcl_would_compute_differently) {
+    auto inexact = sdc::parse("create_clock -name a -period [expr {5/2}] [get_ports a]", "f");
+    CHECK(hasProblem(inexact, "expr:")); CHECK_EQ(inexact.clocks.size(), 0u);
+    auto exact = sdc::parse("create_clock -name a -period [expr {6/2}] [get_ports a]\ncreate_clock -name b -period [expr {5.0/2}] [get_ports b]", "f");
+    CHECK(!hasProblem(exact, "expr:")); CHECK_EQ(exact.clocks.size(), 2u);
+    CHECK_EQ(exact.clocks[0].periodNs, 3.0); CHECK_EQ(exact.clocks[1].periodNs, 2.5);
+    auto modulo = sdc::parse("create_clock -name a -period [expr {5.5 % 2}] [get_ports a]", "f");
+    CHECK(hasProblem(modulo, "expr:"));
+    auto small = sdc::parse("create_clock -name a -period [expr {0.0000001*2}] [get_ports a]", "f");
+    CHECK_EQ(small.clocks.size(), 1u); CHECK(small.clocks[0].periodNs > 0);   // no rounding to six decimals
+    auto deep = sdc::parse("create_clock -name a -period [expr {" + std::string(100000, '(') + "1" + std::string(100000, ')') + "}] [get_ports a]", "f");
+    CHECK(hasProblem(deep, "expr:"));   // refused, not a stack overflow
+}
+
+TEST(sdc_expr_refuses_inexact_integers_and_variable_syntax) {
+    auto big = sdc::parse("if {9007199254740993 == 9007199254740992} {create_clock -name a -period 1 [get_ports a]}", "f");
+    CHECK(hasProblem(big, "expr:")); CHECK_EQ(big.clocks.size(), 0u);
+    auto grown = sdc::parse("create_clock -name a -period [expr {9007199254740991 + 5}] [get_ports a]", "f");
+    CHECK(hasProblem(grown, "expr:")); CHECK_EQ(grown.clocks.size(), 0u);
+    auto syntax = sdc::parse("set v {1 + 1}\nif {$v * 0 == 1} {create_clock -name a -period 1 [get_ports a]}", "f");
+    CHECK(hasProblem(syntax, "plain number")); CHECK_EQ(syntax.clocks.size(), 0u);
+    auto negative = sdc::parse("set v -2\ncreate_clock -name a -period [expr {$v * -3}] [get_ports a]", "f");
+    CHECK_EQ(negative.clocks.size(), 1u);
+    if (!negative.clocks.empty()) CHECK_EQ(negative.clocks[0].periodNs, 6.0);
+}
+
+TEST(sdc_expr_float_result_stays_a_float) {
+    auto c = sdc::parse("set v [expr {2.0}]\nif {$v % 2 == 0} {create_clock -name a -period 1 [get_ports a]}", "f");
+    CHECK(hasProblem(c, "expr:")); CHECK_EQ(c.clocks.size(), 0u);
+}
+
+TEST(sdc_lindex_is_not_failed_by_an_earlier_problem) {
+    auto c = sdc::parse("create_clock -period [expr {1/0}] [get_ports a]\ncreate_clock -name [lindex {x y} 1] -period 2 [get_ports b]", "f");
+    CHECK_EQ(c.clocks.size(), 1u);
+    if (!c.clocks.empty()) CHECK(c.clocks[0].name == "y");
+}
+
+TEST(sdc_expr_failure_is_atomic) {
+    auto c = sdc::parse("create_clock -period [expr {1/0}] [get_ports a]\ncreate_clock -period 2 [get_ports b]", "f");
+    CHECK(hasProblem(c, "expr:")); CHECK_EQ(c.clocks.size(), 1u);
+    if (!c.clocks.empty()) CHECK(c.clocks[0].periodNs == 2.0);
+}
+
+TEST(sdc_lindex_substitution) {
+    auto c = sdc::parse("set xs {1 2 3}\ncreate_clock -period [lindex $xs end] [get_ports a]", "f");
+    CHECK(c.problems.empty()); CHECK_EQ(c.clocks.size(), 1u);
+    if (!c.clocks.empty()) CHECK(c.clocks[0].periodNs == 3.0);
+}
+
+TEST(sdc_lindex_failure_is_atomic) {
+    auto c = sdc::parse("create_clock -period [lindex {1 2} 4] [get_ports a]\ncreate_clock -period 2 [get_ports b]", "f");
+    CHECK(hasProblem(c, "lindex:")); CHECK_EQ(c.clocks.size(), 1u);
+    if (!c.clocks.empty()) CHECK(c.clocks[0].periodNs == 2.0);
 }
 
 TEST(sdc_set_read_substitution) {
@@ -469,14 +530,35 @@ TEST(sdc_substituted_text_is_not_evaluated_again) {
 }
 
 TEST(sdc_failed_assignment_does_not_reuse_stale_value) {
-    auto c = sdc::parse("set P 10\nset P [expr 20]\ncreate_clock -period $P [get_ports a]", "f");
-    CHECK(hasProblem(c, "unsupported object command"));
+    auto c = sdc::parse("set P 10\nset P [expr nope]\ncreate_clock -period $P [get_ports a]", "f");
+    CHECK(hasProblem(c, "expr:"));
     CHECK(hasProblem(c, "undefined variable")); CHECK(c.clocks.empty());
 }
 
 TEST(sdc_foreach_failure_is_atomic) {
     auto c = sdc::parse("foreach c {10 bad} {create_clock -name c -period $c [get_ports c]}", "f");
     CHECK(hasProblem(c, "invalid -period")); CHECK(c.clocks.empty());
+}
+
+TEST(sdc_if_taken_else_elseif_and_source_options) {
+    auto c = sdc::parse("set choose 1\n"
+                        "if {$choose} {\n create_clock -name picked -period 2 [get_ports a]\n} elseif {1} {\n create_clock -name wrong -period 3 [get_ports b]\n} else {\n create_clock -name wrong2 -period 4 [get_ports c]\n}\n"
+                        "if {0} {create_clock -period 5 [get_ports d]} elseif {1} {create_clock -name elseif_picked -period 6 [get_ports f]} else {create_clock -period 7 [get_ports e]}\n"
+                        "if {0} {create_clock -period 8 [get_ports d]} else {create_clock -period 9 [get_ports e]}\n",
+                        "f");
+    CHECK(c.problems.empty()); CHECK(c.unsupported.empty()); CHECK_EQ(c.clocks.size(), 3u);
+    if (c.clocks.size() == 3) { CHECK_EQ(c.clocks[0].name, std::string("picked")); CHECK_EQ(c.clocks[0].loc.line, 3u); CHECK_EQ(c.clocks[1].name, std::string("elseif_picked")); CHECK_EQ(c.clocks[2].sources[0].pattern, std::string("e")); }
+    auto sourced = sdc::parse("source -echo -verbose missing.sdc", "f");
+    CHECK(hasProblem(sourced, "file could not be read"));
+    CHECK(!hasProblem(sourced, "only -echo and -verbose"));
+}
+
+TEST(sdc_if_undecidable_is_atomic_and_invalidates_variables) {
+    auto c = sdc::parse("set maybe 7\nif {$unset} {set maybe 9}\ncreate_clock -period $maybe [get_ports a]\n", "f");
+    CHECK(hasProblem(c, "expr: undefined variable"));
+    CHECK(hasProblem(c, "branch outcome is unknown"));
+    CHECK(hasProblem(c, "undefined variable 'maybe'"));
+    CHECK(c.clocks.empty());
 }
 
 TEST(sdc_braced_variable_name_keeps_script_delimiters_literal) {
@@ -519,7 +601,7 @@ TEST(sdc_source_depth_limit_disclosed) {
 
 TEST(sdc_source_options_disclosed) {
     auto c = sdc::parse("set p 10\nsource -encoding utf-8 child.sdc\ncreate_clock -period $p [get_ports clk]\n", "top.sdc");
-    CHECK(hasProblem(c, "options are unsupported"));
+    CHECK(hasProblem(c, "only -echo and -verbose options are accepted"));
     CHECK(c.sourcedFiles.empty()); CHECK(c.clocks.empty());
     CHECK(hasProblem(c, "undefined variable"));
 }
@@ -527,6 +609,14 @@ TEST(sdc_source_options_disclosed) {
 TEST(sdc_all_inputs_options_reject_whole_command) {
     auto c = sdc::parse("set_input_delay -clock clk 1 [all_inputs -clock clk]\n", "f");
     CHECK(hasProblem(c, "all_inputs: options")); CHECK(c.inputDelays.empty());
+}
+
+TEST(sdc_all_inputs_no_clocks_is_a_port_collection_only) {
+    auto c = sdc::parse("set_input_delay -clock clk 1 [all_inputs -no_clocks]\n", "f");
+    CHECK(c.problems.empty()); CHECK_EQ(c.inputDelays.size(), 1u);
+    CHECK(hasProblem(sdc::parse("create_clock -period 10 [all_inputs -no_clocks]\n", "f"), "defined by the clocks"));
+    CHECK(hasProblem(sdc::parse("set_clock_groups -asynchronous -group [all_inputs -no_clocks] -group clk\n", "f"), "all_inputs"));
+    CHECK(hasProblem(sdc::parse("set_case_analysis 0 [all_inputs -no_clocks]\n", "f"), "expected ports"));
 }
 
 TEST(sdc_all_inputs_clock_position_disclosed) {

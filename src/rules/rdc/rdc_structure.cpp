@@ -2,6 +2,7 @@
 // reset synchroniser stage fanout, partially reset state, multiple asynchronous controls, exceptions, polarity and the
 // explicit "not modelled" markers (sequencing, power intent, physical recovery/removal).
 #include "rules/rdc/rdc_shared.h"
+#include "rules/sync_attribute.h"
 
 namespace sverity::rdc {
 
@@ -27,7 +28,7 @@ std::set<NodeId> RdcShared::asyncSources(const Flop& f) const {
 
 void RdcShared::structure(RuleContext& ctx) {
     for (const char* r : {"RDC-002", "RDC-004", "RDC-005", "RDC-008", "RDC-009", "RDC-010", "RDC-011", "RDC-012", "RDC-013", "RDC-014", "RDC-016",
-                          "RDC-017", "RDC-019", "RDC-020", "RDC-025", "RDC-026", "RDC-027", "RDC-028", "RDC-029"})
+                          "RDC-017", "RDC-019", "RDC-020", "RDC-025", "RDC-026", "RDC-027", "RDC-028", "RDC-029", "RDC-030"})
         evaluated[r] += 0;
     auto flopName = [&](const Flop& f) { return m_->nameOf(f.q); };
     auto procLoc = [&](const Flop& f) -> const ProcInfo& { return m_->procs[f.proc]; };
@@ -56,46 +57,74 @@ void RdcShared::structure(RuleContext& ctx) {
         }
     }
 
-    // --- RDC-004 / RDC-005: data leaving a register that can be reset asynchronously into one that is not reset by the same source
-    std::set<std::string> done;
+    // --- RDC-004 / RDC-005: data leaving a register that can be reset asynchronously into one that is not reset by the same source.
+    // One finding per destination register and pair of reset sets: sources of that mismatch share a cause and are listed as evidence.
+    struct ResetMismatch {
+        const Flop* dst = nullptr;
+        std::set<NodeId> sourceResets, destinationResets;
+        Relation relation = Relation::Same;
+        uint32_t launch = 0, capture = 0;
+        int launchEdge = 0;
+        std::map<std::string, const Flop*> sources;
+    };
+    std::map<std::string, ResetMismatch> mismatches;
     for (uint32_t di = 0; di < m_->flops.size(); di++) {
         const Flop& d = m_->flops[di];
         if (!d.clockResolved) continue;
         std::set<NodeId> rd = asyncSources(d);
-        Cone c = cones_->of(d);
+        const auto heldCone = cones_->of(d);
+        const Cone& c = *heldCone;
         for (auto& s : c.flops) {
             const Flop& sf = m_->flops[m_->flopOfQ.at(s.q)];
             if (!sf.clockResolved) continue;
             std::set<NodeId> rs = asyncSources(sf);
             if (rs.empty()) continue;
-            bool covered = std::includes(rd.begin(), rd.end(), rs.begin(), rs.end());
-            if (covered) continue;
-            bool sameClock = sf.domain == d.domain;
-            Relation rel = sameClock ? Relation::Same : rel_->relation(sf.domain, d.domain);
+            if (std::includes(rd.begin(), rd.end(), rs.begin(), rs.end())) continue;
+            const auto pair = worstDomains(sf, d, *rel_);
+            const bool sameClock = pair.launch == pair.capture;
+            if (!sameClock && pair.relation == Relation::Same) continue;
             const char* rule = sameClock ? "RDC-004" : "RDC-005";
-            if (!sameClock && rel == Relation::Same) continue;
-            std::string key = std::string(rule) + stripBit(m_->nameOf(s.q)) + ">" + stripBit(m_->nameOf(d.q));
-            if (!done.insert(key).second) continue;
-            evaluated[rule]++;
-            std::string rsn, rdn;
-            for (auto n : rs) rsn += (rsn.empty() ? "" : ", ") + stripBit(m_->nameOf(n));
-            for (auto n : rd) rdn += (rdn.empty() ? "" : ", ") + stripBit(m_->nameOf(n));
-            Diagnostic x = mk(rule, Severity::Warning,
-                              "register " + stripBit(m_->nameOf(d.q)) + " samples " + stripBit(m_->nameOf(s.q)) + " which is asynchronously reset by [" + rsn + "], but is " +
-                              (rdn.empty() ? "not reset" : "reset by [" + rdn + "]") + (sameClock ? " (same clock)" : " (different clocks: " + std::string(relName(rel)) + ")") +
-                              (sameClock ? ": when that reset asserts the source changes asynchronously to the destination clock" :
-                                           ": asserting the source reset can change the sampled value without resetting the destination"),
-                              procLoc(d).loc, procLoc(d).instancePath, Confidence::Heuristic);
-            x.signals = {stripBit(m_->nameOf(s.q)), stripBit(m_->nameOf(d.q))};
-            x.proofState = ProofState::NotAttempted;
-            if (!sameClock) {
-                x.message += "; reset compatibility is an unproved functional obligation, even with a data synchroniser";
-                x.evidence.push_back({"obligation", "The destination must tolerate the reset-induced value change; metastability synchronisation alone does not establish this.", {}});
-            }
-            x.nextStep = "Reset both registers by the same reset, or ensure the destination value is don't-care while the source is in reset (documented obligation).";
-            add(std::move(x));
+            std::string names;
+            for (auto* set : {&rs, &rd}) { names += ">"; for (auto n : *set) names += stripBit(m_->nameOf(n)) + ","; }
+            auto key = std::string(rule) + ":" + stripBit(m_->nameOf(d.q)) + names + ":" + m_->domains[pair.launch].name + ":" +
+                       std::to_string(sf.edge) + ">" + m_->domains[pair.capture].name + ":" + std::to_string(d.edge) + ":" + relName(pair.relation);
+            auto& mismatch = mismatches[key];
+            if (!mismatch.dst) mismatch = {&d, rs, rd, pair.relation, pair.launch, pair.capture, sf.edge, {}};
+            mismatch.sources.emplace(stripBit(m_->nameOf(s.q)), &sf);
         }
     }
+    for (auto& [key, mismatch] : mismatches) {
+        const bool sameClock = mismatch.launch == mismatch.capture;
+        const char* rule = sameClock ? "RDC-004" : "RDC-005";
+        evaluated[rule] += mismatch.sources.size();
+        std::string rsn, rdn;
+        for (auto n : mismatch.sourceResets) rsn += (rsn.empty() ? "" : ", ") + stripBit(m_->nameOf(n));
+        for (auto n : mismatch.destinationResets) rdn += (rdn.empty() ? "" : ", ") + stripBit(m_->nameOf(n));
+        const std::string dst = stripBit(m_->nameOf(mismatch.dst->q));
+        const std::string first = mismatch.sources.begin()->first;
+        const std::string sampled = mismatch.sources.size() == 1 ? first : std::to_string(mismatch.sources.size()) + " registers including " + first;
+        Diagnostic x = mk(rule, Severity::Warning,
+                          "register " + dst + " samples " + sampled + (mismatch.sources.size() == 1 ? " which is" : " which are") + " asynchronously reset by [" + rsn + "], but is " +
+                          (rdn.empty() ? "not reset" : "reset by [" + rdn + "]") + (sameClock ? " (same clock)" : " (different clocks: " + std::string(relName(mismatch.relation)) + ")") +
+                          (sameClock ? ": when that reset asserts the source changes asynchronously to the destination clock" :
+                                       ": asserting the source reset can change the sampled value without resetting the destination"),
+                          procLoc(*mismatch.dst).loc, procLoc(*mismatch.dst).instancePath, Confidence::Heuristic);
+        x.identityKey = key;
+        x.signals = {dst};
+        for (const auto& [name, source] : mismatch.sources) {
+            x.signals.push_back(name);
+            x.groupedSources.push_back(name);
+            x.evidence.push_back({"source_register", name, procLoc(*source).loc});
+        }
+        x.proofState = ProofState::NotAttempted;
+        if (!sameClock) {
+            x.message += "; reset compatibility is an unproved functional obligation, even with a data synchroniser";
+            x.evidence.push_back({"obligation", "The destination must tolerate the reset-induced value change; metastability synchronisation alone does not establish this.", {}});
+        }
+        x.nextStep = "Reset both registers by the same reset, or ensure the destination value is don't-care while the source is in reset (documented obligation).";
+        add(std::move(x));
+    }
+    std::set<std::string> done;
 
     // --- reset trees built from logic: RDC-008 (combined resets), RDC-009 (gated/muxed), RDC-014 (data flop), RDC-017 (select from another reset domain)
     std::set<NodeId> doneRoots;
@@ -164,6 +193,7 @@ void RdcShared::structure(RuleContext& ctx) {
                                       "' but resets registers in domain '" + m_->domains[uf.domain].name + "' [clock relationship " + relName(rel) + "]: its release is asynchronous to the receiving clock",
                                       procLoc(uf).loc, procLoc(uf).instancePath, rel == Relation::Unknown ? Confidence::Unresolved : Confidence::Established);
                     x.signals = {rname, stripBit(m_->nameOf(n))};
+                    x.identityKey = m_->domains[sf.domain].name + ":" + std::to_string(sf.edge) + ">" + m_->domains[uf.domain].name + ":" + std::to_string(uf.edge) + ":" + relName(rel);
                     add(std::move(x));
                     break;
                 }
@@ -225,6 +255,33 @@ void RdcShared::structure(RuleContext& ctx) {
                     add(std::move(x));
                 }
             }
+        }
+    }
+
+    // --- RDC-030: synchronisation attributes on the stages of a recognised reset synchroniser (same policy as CDC-012)
+    {
+        std::set<uint32_t> checked;
+        for (auto& [root, users] : usersOf) {
+            uint32_t last = 0;
+            if (!flopBehind(root, &last) || !checked.insert(last).second) continue;
+            const SyncInfo si = syncChain(last);
+            if (!si.recognised) continue;
+            evaluated["RDC-030"]++;
+            size_t marked = 0;
+            for (auto stage : si.stages) {
+                const auto* symbol = m_->nodes[m_->flops[stage].q].sym;
+                if (symbol && hasSyncAttribute(*ctx.design.compilation, *symbol)) marked++;
+            }
+            const bool partial = marked && marked < si.stages.size();
+            if (!partial && !(marked == 0 && ctx.config.profile == "fpga")) continue;
+            const Flop& stage = m_->flops[last];
+            Diagnostic d = mk("RDC-030", Severity::Warning, "reset synchroniser " + stripBit(flopName(stage)) + (partial ?
+                              ": only " + std::to_string(marked) + " of " + std::to_string(si.stages.size()) + " stages carry the ASYNC_REG/sverity_sync attribute" :
+                              " has no ASYNC_REG attribute on its stages (profile fpga): placement and timing tools may not keep the stages together"),
+                              procLoc(stage).loc, procLoc(stage).instancePath, Confidence::Established);
+            d.signals = {stripBit(m_->nameOf(root)), stripBit(flopName(stage))};
+            d.nextStep = "Mark every stage of the reset synchroniser with (* ASYNC_REG = \"TRUE\" *).";
+            add(std::move(d));
         }
     }
 
@@ -293,7 +350,8 @@ void RdcShared::structure(RuleContext& ctx) {
     for (uint32_t di = 0; di < m_->flops.size(); di++) {
         const Flop& d = m_->flops[di];
         if (d.resets.empty()) continue;
-        Cone c = cones_->of(d);
+        const auto heldCone = cones_->of(d);
+        const Cone& c = *heldCone;
         for (auto& s : c.flops) {
             const Flop& sf = m_->flops[m_->flopOfQ.at(s.q)];
             if (!isUnreset(sf) || procLoc(sf).instancePath != procLoc(d).instancePath) continue;   // unreset register of the same module instance
@@ -350,18 +408,21 @@ void RdcShared::structure(RuleContext& ctx) {
         std::vector<NodeId> st{n};
         std::unordered_set<NodeId> seen{n};
         std::string bad;
+        const Flop* badFlop = nullptr;
         while (!st.empty() && bad.empty()) {
             NodeId x = st.back(); st.pop_back();
             auto fit = m_->flopOfQ.find(x);
-            if (fit != m_->flopOfQ.end()) { if (isUnreset(m_->flops[fit->second])) bad = stripBit(m_->nameOf(x)); continue; }
+            if (fit != m_->flopOfQ.end()) { if (isUnreset(m_->flops[fit->second])) { bad = stripBit(m_->nameOf(x)); badFlop = &m_->flops[fit->second]; } continue; }
             for (auto ei : m_->in[x]) { const Edge& e = m_->edges[ei]; if (e.type == EdgeType::Comb && seen.insert(e.from).second) st.push_back(e.from); }
         }
         if (bad.empty()) continue;
         done.insert(oname);
         evaluated["RDC-025"]++;
+        const ProcInfo& badProc = procLoc(*badFlop);
         Diagnostic d = mk("RDC-025", Severity::Warning, "primary output " + oname + " depends on register " + bad + " which has no reset: the output is undefined while its side of the interface is in reset",
-                          {}, {}, Confidence::Heuristic);
+                          badProc.loc, badProc.instancePath, Confidence::Heuristic);
         d.signals = {oname, bad};
+        d.evidence.push_back({"capture_register", bad, badProc.loc});
         d.nextStep = "Reset the register, or gate/isolate the output while reset is asserted.";
         add(std::move(d));
     }

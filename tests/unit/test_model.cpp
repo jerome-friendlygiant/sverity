@@ -273,13 +273,103 @@ TEST(model_subroutine_effect_in_a_guard_keeps_its_state_target) {
 
 TEST(model_subroutine_uncertainty_stops_at_the_register_boundary) {
     auto l = load(R"(module top(input logic clk, a, output logic q, next_q);
-      function automatic logic sample(logic v); logic saved; saved = v; return saved; endfunction
+      function automatic logic sample(logic v); static logic saved; saved = v; return saved; endfunction
       always_ff @(posedge clk) begin q <= sample(a); next_q <= q; end
     endmodule)");
     auto q = nodeNamed(*l->m, "top.q"), next = nodeNamed(*l->m, "top.next_q");
     CHECK(l->m->flopAt(q) && l->m->flopAt(next));
     if (!l->m->flopAt(q) || !l->m->flopAt(next)) return;
     ConeFinder cones(*l->m);
-    CHECK(!cones.of(*l->m->flopAt(q)).uncertainCalls.empty());
-    CHECK(cones.of(*l->m->flopAt(next)).uncertainCalls.empty());
+    CHECK(!cones.of(*l->m->flopAt(q))->uncertainCalls.empty());
+    CHECK(cones.of(*l->m->flopAt(next))->uncertainCalls.empty());
+}
+
+namespace {
+bool reaches(const Model& m, const std::string& from, const std::string& to) {
+    for (const auto& e : m.edges)
+        if (e.type == EdgeType::Comb && m.nameOf(e.from) == from && m.nameOf(e.to) == to) return true;
+    return false;
+}
+} // namespace
+
+TEST(model_bitwise_operators_keep_bits_apart) {
+    auto l = load("module top(input logic [1:0] a, b, output logic [1:0] n, m, x);\n"
+                  "  assign n = ~a;\n  assign m = a & b;\n  assign x = {a[0] ^ b[1], a[1]};\nendmodule\n");
+    const Model& m = *l->m;
+    CHECK(reaches(m, "top.a[1]", "top.n[1]"));
+    CHECK(!reaches(m, "top.a[1]", "top.n[0]"));
+    CHECK(reaches(m, "top.a[0]", "top.m[0]") && reaches(m, "top.b[0]", "top.m[0]"));
+    CHECK(!reaches(m, "top.a[0]", "top.m[1]") && !reaches(m, "top.b[1]", "top.m[0]"));
+    CHECK(reaches(m, "top.a[0]", "top.x[1]") && reaches(m, "top.b[1]", "top.x[1]"));
+    CHECK(reaches(m, "top.a[1]", "top.x[0]") && !reaches(m, "top.a[0]", "top.x[0]"));
+}
+
+TEST(model_operators_that_mix_bits_stay_all_to_all) {
+    auto l = load("module top(input logic [1:0] a, b, input logic s, input logic signed [1:0] sa, input logic [2:0] w,\n"
+                  "           output logic [1:0] sum, mux, sh, red, trunc, output logic [3:0] ext);\n"
+                  "  assign sum = a + b;\n  assign mux = s ? a : b;\n  assign sh = a << b[0];\n  assign red = {2{&a}};\n"
+                  "  assign ext = sa;\n  assign trunc = 2'(w);\nendmodule\n");
+    const Model& m = *l->m;
+    CHECK(reaches(m, "top.a[0]", "top.sum[1]"));       // carry
+    CHECK(reaches(m, "top.s", "top.mux[0]") && reaches(m, "top.s", "top.mux[1]"));   // the select reaches every bit
+    CHECK(reaches(m, "top.a[1]", "top.mux[1]") && !reaches(m, "top.a[1]", "top.mux[0]"));
+    CHECK(reaches(m, "top.a[0]", "top.sh[1]"));
+    CHECK(reaches(m, "top.b[0]", "top.sh[0]"));
+    CHECK(reaches(m, "top.a[0]", "top.red[1]"));
+    CHECK(reaches(m, "top.sa[1]", "top.ext[3]") && reaches(m, "top.sa[1]", "top.ext[2]"));   // sign extension copies the top bit
+    CHECK(reaches(m, "top.w[1]", "top.trunc[1]") && !reaches(m, "top.w[2]", "top.trunc[1]"));
+}
+
+TEST(model_selector_read_in_bitwise_operand_reaches_every_bit) {
+    auto l = load("module top(input logic [1:0] a, input logic i, input logic [3:0] v, output logic [1:0] y);\n"
+                  "  assign y = a & v[i +: 2];\nendmodule\n");
+    const Model& m = *l->m;
+    CHECK(reaches(m, "top.i", "top.y[0]") && reaches(m, "top.i", "top.y[1]"));
+    CHECK(reaches(m, "top.v[3]", "top.y[0]"));   // a dynamic select can bring any bit
+    CHECK(reaches(m, "top.a[0]", "top.y[0]") && !reaches(m, "top.a[0]", "top.y[1]"));
+}
+
+TEST(model_hubs_on_a_cycle_keep_every_source_and_finish) {
+    // Two wide all-to-all assignments that feed each other, with one register source and one input on each.
+    auto l = load("module top(input logic clk, input logic [47:0] a, input logic [47:0] b, output logic [47:0] q);\n"
+                  "  logic [47:0] x, y, r, s;\n"
+                  "  always_ff @(posedge clk) begin r <= a; s <= b; end\n"
+                  "  assign x = (y + r) * a;\n"
+                  "  assign y = (x + s) * b;\n"
+                  "  always_ff @(posedge clk) q <= x;\nendmodule\n");
+    Model& m = *l->m;
+    size_t hubs = 0;
+    for (const auto& node : m.nodes) hubs += node.sym == nullptr;
+    CHECK(hubs >= 2);
+    auto q = nodeNamed(m, "top.q[0]");
+    CHECK(q != kNoNode && m.flopAt(q));
+    if (q == kNoNode || !m.flopAt(q)) return;
+    auto cone = sharedCones(m).of(*m.flopAt(q));
+    const auto named = [&](const std::vector<ConeSrc>& sources, const std::string& name) {
+        for (const auto& source : sources) if (m.nameOf(source.q).rfind(name, 0) == 0) return true;
+        return false;
+    };
+    CHECK(named(cone->flops, "top.r[")); CHECK(named(cone->flops, "top.s["));
+    CHECK(named(cone->inputs, "top.a[")); CHECK(named(cone->inputs, "top.b["));
+}
+
+TEST(repeated_edges_keep_what_is_common_whatever_their_order) {
+    using namespace sverity::model;
+    const auto edge = [](Branch branch, uint8_t inv, Op op, bool approximate, bool internalRead) {
+        Edge e; e.from = 1; e.to = 2; e.type = EdgeType::Seq; e.ctrl = true;
+        e.branch = branch; e.inv = inv; e.op = op; e.approximate = approximate; e.internalRead = internalRead;
+        return e;
+    };
+    const Edge taken = edge(Branch::Taken, 0, Op::And, false, true), notTaken = edge(Branch::NotTaken, 1, Op::Or, true, false);
+    for (const auto& pair : {std::vector<Edge>{taken, notTaken}, std::vector<Edge>{notTaken, taken}}) {
+        Model m;
+        m.edges = pair;
+        m.compactEdges();
+        CHECK_EQ(m.edges.size(), size_t{1});
+        CHECK(m.edges[0].branch == Branch::None);
+        CHECK_EQ(int(m.edges[0].inv), 2);
+        CHECK(m.edges[0].op == Op::Other);
+        CHECK(m.edges[0].approximate);
+        CHECK(!m.edges[0].internalRead);
+    }
 }

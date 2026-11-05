@@ -58,9 +58,11 @@ public:
     /// Lazily built by model::getModel(): the shared connectivity/clock/reset model (one per run).
     std::shared_ptr<model::Model> model;
     std::map<std::string, LibCell> libCells;   // by module (definition) name
-    struct CaseResult { bool applied = false; std::string reason; std::vector<std::string> names; };
+    struct CaseResult { bool applied = false; bool assumed = false; std::string reason; std::vector<std::string> names; };
     std::vector<CaseResult> caseResults;
     std::map<const slang::ast::ValueSymbol*, int> caseConstants;
+    std::map<const slang::ast::ValueSymbol*, std::vector<int8_t>> caseBits;   // vector inputs, by bit offset; -1 = no mode fixes the bit
+    bool hasCaseMode() const { return !caseConstants.empty() || !caseBits.empty(); }
     int numUpstreamErrors = 0;
     int numUpstreamWarnings = 0;
 };

@@ -1,5 +1,5 @@
 // sverity-args: --top top
-// expect: LNT-033 WARNING 6
+// expect: LNT-081 WARNING 6
 module top(input logic a, input logic b, output logic y);
   always_comb begin
     y = 1'b0;

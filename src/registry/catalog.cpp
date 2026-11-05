@@ -33,6 +33,7 @@ bool Catalog::parse(std::string_view text, Catalog& out, std::string& error) {
         ri.status = r["status"].asString();
         ri.wave = r["wave"].asString();
         ri.gap = r["gap"].asString();
+        ri.deck = r["deck"].asString();
         out.index_[ri.id] = out.rules_.size();
         out.rules_.push_back(std::move(ri));
     }
@@ -52,6 +53,13 @@ const Catalog& Catalog::embedded() {
         return cat;
     }();
     return c;
+}
+
+static int deckOrder(std::string_view deck) { return deck == "core" ? 1 : deck == "domain" ? 2 : deck == "1.0" ? 3 : 0; }
+bool isDeck(std::string_view name) { return deckOrder(name) != 0; }
+bool inDeck(const RuleInfo& rule, std::string_view deck) {
+    const int order = deckOrder(rule.deck);
+    return order != 0 && order <= deckOrder(deck);
 }
 
 const RuleInfo* Catalog::find(std::string_view id) const {

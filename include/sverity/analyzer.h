@@ -16,6 +16,7 @@ struct AnalyzerOptions {
     bool sourceWaivers = true;
     std::string today;      // ISO date used for waiver expiry; empty = system date
     std::string pathRoot;   // diagnostics paths under this root are reported relative to it
+    std::string timingsFile; // write phase time and peak memory here; empty = do not measure
 };
 
 /// Never throws for design problems: failures are FATAL diagnostics + execution_status ERROR.

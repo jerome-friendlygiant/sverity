@@ -73,16 +73,19 @@ sverity options:
   --jsonl <file|->         write finalized JSON Lines (no completion record = incomplete stream)
   --sarif <file|->         write a SARIF 2.1.0 report ('-' = stdout)
   --html <file>            write a self-contained HTML report
+  --timings <file>         write time and peak memory per phase and rule (never part of the report)
   --profile <name>         generic (default) | asic | fpga
   --library <file>         technology-neutral library cell description (JSON): modules treated as synchronisers
   --sdc <file>             SDC-subset constraints (repeatable): create_clock, create_generated_clock,
-                           set_clock_groups, false-path/multicycle/min/max-delay; others are disclosed
+                           set_clock_groups, false-path/multicycle/min/max-delay, set_input_delay,
+                           set_output_delay, set_case_analysis; others are disclosed
   --no-source-waivers     ignore source waiver comments (recorded in inputs)
   --waiver-template <file> write open findings with rejected owner/reason placeholders
   --waivers <file>         waiver file (repeatable); waived findings stay in every report
   --config <file>          JSON configuration; paths are relative to the file
   --goal <lint|cdc|rdc>    limit rule families (repeatable; union); CLI goals replace config goals
                            goal, file enable/disable, then CLI enable/disable; disabled coverage stays INCOMPLETE
+  --deck <core|domain|1.0> report coverage for a published deck; other rules still run, as preview
   --option <key=value>     override a rule option from the file (repeatable)
   --severity <pattern=level> override severity for matching rules (repeatable)
   --enable-rule <pattern>  enable matching rules (repeatable; narrows file enable list)
@@ -120,7 +123,7 @@ exit code (bit mask):
   1 review_status FAIL   2 REVIEW_REQUIRED   4 analysis INCOMPLETE   8 execution ERROR   64 usage error
 )";
 
-int main(int argc, char** argv) {
+static int runSverity(int argc, char** argv) {
     AnalyzerOptions opts;
     std::string jsonOut, jsonlOut, sarifOut, htmlOut, templateOut;
     std::string colorMode = "auto";
@@ -169,6 +172,7 @@ int main(int argc, char** argv) {
         else if (a == "--jsonl") jsonlOut = need(i, "--jsonl");
         else if (a == "--sarif") sarifOut = need(i, "--sarif");
         else if (a == "--html") htmlOut = need(i, "--html");
+        else if (a == "--timings") opts.timingsFile = need(i, "--timings");
         else if (a == "--profile") opts.config.profile = need(i, "--profile");
         else if (a == "--sdc") opts.sdcFiles.push_back(need(i, "--sdc"));
         else if (a == "--library") opts.libraryFiles.push_back(need(i, "--library"));
@@ -177,6 +181,7 @@ int main(int argc, char** argv) {
         else if (a == "--waivers") opts.waiverFiles.push_back(need(i, "--waivers"));
         else if (a == "--config") { if (!configFile.empty()) { std::fputs("sverity: --config may be specified once\n", stderr); return 64; } configFile = need(i, "--config"); }
         else if (a == "--goal") cliGoals.insert(need(i, "--goal"));
+        else if (a == "--deck") opts.config.deck = need(i, "--deck");
         else if (a == "--option") cliOptions.push_back(pairArg(need(i, "--option"), "--option"));
         else if (a == "--severity") cliSeverities.push_back(pairArg(need(i, "--severity"), "--severity"));
         else if (a == "--enable-rule") cliEnable.insert(need(i, "--enable-rule"));
@@ -229,7 +234,7 @@ int main(int argc, char** argv) {
         if (!parsed.value.isObject()) fail("config must be a JSON object");
         file = std::move(parsed.value);
     }
-    const std::set<std::string> keys = {"options", "severity", "enable", "disable", "sdc", "library", "waivers", "goal"};
+    const std::set<std::string> keys = {"options", "severity", "enable", "disable", "sdc", "library", "waivers", "goal", "deck"};
     for (auto& [key, value] : file.asObject()) if (!keys.count(key)) fail("unknown config key '" + key + "'");
     auto array = [&](const char* key) {
         std::vector<std::string> values;
@@ -243,12 +248,14 @@ int main(int argc, char** argv) {
         return values;
     };
     auto fileEnable = array("enable"), fileDisable = array("disable"), fileGoals = array("goal");
+    if (const auto* deck = file.find("deck"); deck && opts.config.deck.empty()) opts.config.deck = deck->asString();   // the CLI wins
     if (file.find("goal") && fileGoals.empty()) fail("config 'goal' must contain at least one goal");
     auto validGoal = [&](const std::string& goal) {
         if (goal != "lint" && goal != "cdc" && goal != "rdc") fail("unknown goal '" + goal + "' (lint|cdc|rdc)");
     };
     for (const auto& goal : fileGoals) validGoal(goal);
     for (const auto& goal : cliGoals) validGoal(goal);
+    if (!opts.config.deck.empty() && !isDeck(opts.config.deck)) fail("unknown deck '" + opts.config.deck + "' (core|domain|1.0)");
     if (!cliGoals.empty()) opts.config.goals = cliGoals;
     else opts.config.goals.insert(fileGoals.begin(), fileGoals.end());
     auto applyPaths = [&](const char* key, std::vector<std::string>& target) {
@@ -416,4 +423,15 @@ int main(int argc, char** argv) {
     if (summary) text += report.ruleSummary();
     std::fputs(text.c_str(), machineStdout ? stderr : stdout);
     return report.exitCode(strict) | extra;
+}
+
+int main(int argc, char** argv) {
+    // Failures inside a rule are findings. This is for what is left, such as memory running out while building the report:
+    // it must end in a stated execution error and exit bit 8, never a crash that looks like an unexplained stop.
+    try {
+        return runSverity(argc, argv);
+    } catch (const std::exception& e) {
+        std::fprintf(stderr, "sverity: execution ERROR, no complete report was written: %s\n", e.what());
+        return 8;
+    }
 }

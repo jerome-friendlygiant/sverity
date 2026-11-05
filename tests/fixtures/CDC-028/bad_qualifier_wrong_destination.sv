@@ -1,9 +1,9 @@
 // sverity-args: --top top --sdc @FIXTURES@/_common/three_async.sdc
-// expect: CDC-003 ERROR
+// CDC-003 is evidence of the primary CDC-028 finding
 // expect: CDC-028 ERROR
 // expect-none: CDC-039
 // revert: posedge clkc => posedge clkb
-// revert-expect-none: CDC-003 ERROR
+// revert-expect-none: CDC-028 ERROR
 // revert-expect-none: CDC-028 ERROR
 module top(input logic clka, clkb, clkc, rst_n, value, event_in, output logic result);
   logic payload, control, mid, qualified_elsewhere;

@@ -1,5 +1,6 @@
 #include <map>
 
+#include "domains/model.h"
 #include "sverity/rule.h"
 
 namespace sverity {
@@ -10,6 +11,19 @@ void runRules(Design* design, Report& report, const Config& config) {
     std::map<std::string, Rule*, std::less<>> byId;
     for (auto& r : rules) byId[std::string(r->id())] = r.get();
     report.declareScope("rule-execution");
+    // Build the model up front when measuring, so its cost is not charged to whichever rule happens to run first.
+    if (config.timings && design) {
+        const auto start = Timings::Clock::now();
+        try {
+            const auto& model = model::getModel(*design);
+            config.timings->record("model", start);
+            config.timings->count("graph_nodes", model.nodes.size());
+            config.timings->count("graph_edges", model.edges.size());
+            config.timings->count("register_bits", model.flops.size());
+        } catch (const std::exception&) {
+            config.timings->record("model_failed", start);   // the rules that need it report the failure
+        }
+    }
 
     uint32_t counts[6] = {0, 0, 0, 0, 0, 0};
     std::map<std::string, std::map<RuleState, uint32_t>> perCategory;
@@ -33,6 +47,11 @@ void runRules(Design* design, Report& report, const Config& config) {
             rc.reason = "the design could not be loaded";
         } else {
             RuleContext ctx{*design, report, config, 0, {}};
+            const auto start = Timings::Clock::now();
+            struct RecordRule {
+                const Config& config; const std::string& id; Timings::Clock::time_point start;
+                ~RecordRule() { if (config.timings) config.timings->record("rule:" + id, start); }
+            } recordRule{config, id, start};
             try {
                 rule->run(ctx);
                 rc.objectsEvaluated = ctx.objectsEvaluated;
@@ -54,15 +73,16 @@ void runRules(Design* design, Report& report, const Config& config) {
                 report.add(std::move(d));
             }
         }
-        if (rc.state == RuleState::Partial) report.markIncomplete("rule-execution", id + ": " + rc.reason);
-        counts[static_cast<int>(rc.state)]++;
+        if (const auto* info = catalog.find(id); !config.deck.empty() && info && !inDeck(*info, config.deck)) rc.preview = true;
+        if (rc.state == RuleState::Partial && !rc.preview) report.markIncomplete("rule-execution", id + ": " + rc.reason);
+        if (!rc.preview) counts[static_cast<int>(rc.state)]++;   // a preview rule is not part of what this run claims
         return rc;
     };
 
     for (const auto& ri : catalog.rules()) {
         auto it = byId.find(ri.id);
         RuleCoverage rc = evaluate(ri.id, ri.status, it == byId.end() ? nullptr : it->second);
-        perCategory[ri.category][rc.state]++;
+        if (!rc.preview) perCategory[ri.category][rc.state]++;
         report.addRuleCoverage(std::move(rc));
     }
     // Custom rules (registerRule) whose id is not in the catalog are run and listed too.
@@ -100,7 +120,7 @@ void runRules(Design* design, Report& report, const Config& config) {
                     std::to_string(counts[static_cast<int>(RuleState::Disabled)]) + " disabled, " +
                     std::to_string(counts[static_cast<int>(RuleState::NotRun)]) + " not run, " +
                     std::to_string(counts[static_cast<int>(RuleState::Failed)]) +
-                    " failed); the absence of findings for them is NOT evidence of safety";
+                    " failed)" + (config.deck.empty() ? "" : " in deck " + config.deck) + "; the absence of findings for them is NOT evidence of safety";
         for (auto& [cat, m] : perCategory) {
             std::string t;
             for (auto& [st, n] : m)

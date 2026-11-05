@@ -24,7 +24,9 @@ or error code, see `src/frontend/slang_rule_map.cpp`); nothing slang reports is 
 | `LNT-016` | casex statement |
 | `LNT-017` | Incomplete FSM case coverage (enum-typed state: every enumerator handled) |
 | `LNT-018` | Constant condition or unreachable branch |
-| `LNT-019` | Non-synthesizable construct in design RTL |
+| `LNT-019` | Non-synthesizable timing, concurrency or unbounded-loop construct |
+| `LNT-079` | Force, release or procedural continuous assignment |
+| `LNT-080` | Non-synthesizable data type or declaration in design RTL |
 | `LNT-020` | Register assigned only in its reset branch (reset-only) |
 | `LNT-022` | One signal controls a register on both posedge and negedge |
 | `LNT-024` | Suspicious undriven output, partially assigned struct/array |
@@ -34,7 +36,8 @@ or error code, see `src/frontend/slang_rule_map.cpp`); nothing slang reports is 
 | `LNT-029` | Enum FSM state never assigned, or case arm without a transition |
 | `LNT-031` | Illegal or unsafe assignment to net / variable kind |
 | `LNT-032` | Duplicate or overlapping case arms |
-| `LNT-033` | Suspicious `unique`, `unique0`, `priority` claims |
+| `LNT-033` | Overlapping `unique` or `unique0` claim |
+| `LNT-081` | Uncovered `unique` or `priority` claim |
 | `LNT-034` | Conditional expression width/sign ambiguity |
 | `LNT-035` | Shifted or unsized operand widened by its context, and out-of-range shift counts |
 | `LNT-036` | Product narrower than its operands, or carry lost by a self-determined addition |
@@ -43,12 +46,13 @@ or error code, see `src/frontend/slang_rule_map.cpp`); nothing slang reports is 
 | `LNT-039` | Unintentional X/Z assignments in synthesizable RTL |
 | `LNT-040` | X/Z literals in comparisons, case items, inside sets and conditions; ===/!== |
 | `LNT-041` | Incomplete array, struct, union or interface assignments |
-| `LNT-042` | Partial or overlapping output drive through hierarchy |
+| `LNT-042` | Partial output drive through hierarchy |
 | `LNT-044` | Sequential variable read before intended assignment |
 | `LNT-045` | Combinational sensitivity mismatch in legacy `always` |
 | `LNT-047` | Data-driven clock, asynchronous control or event expressions (inferred gated clocks) |
 | `LNT-048` | ASIC versus FPGA initialization assumptions |
-| `LNT-049` | Suspicious inferred RAM or mixed memory access semantics |
+| `LNT-049` | Memory with several writers or a non-clocked writer |
+| `LNT-082` | Memory read semantics depend on the implementation |
 | `LNT-050` | Input/output port direction or interface modport misuse |
 | `LNT-051` | Unreachable generate alternatives for selected configuration |
 | `LNT-053` | Write overwritten before any read |
@@ -57,7 +61,7 @@ or error code, see `src/frontend/slang_rule_map.cpp`); nothing slang reports is 
 | `LNT-056` | Constant concatenation or replication whose width differs from its assignment target |
 | `LNT-057` | Parameter-dependent truncation at an assignment or port connection |
 | `LNT-058` | Asynchronous control polarity does not match its edge |
-| `LNT-059` | Unused package imports / declarations and shadowing |
+| `LNT-059` | Unused or duplicate package import |
 | `LNT-060` | Blocking write in a clocked process read by another process |
 | `LNT-061` | Dependency on non-synthesizable system tasks/functions |
 | `LNT-062` | Nonblocking assignment in a combinational block |
@@ -73,6 +77,8 @@ or error code, see `src/frontend/slang_rule_map.cpp`); nothing slang reports is 
 | `LNT-072` | Reset net feeding the logic that generates a clock |
 | `LNT-073` | Constant assigned to a narrower target changes its value |
 | `LNT-074` | Unsized literal compared with an operand wider than 32 bits |
+| `LNT-077` | Unused package declaration |
+| `LNT-078` | Declaration shadows another |
 | `LNT-075` | Missing explicit `default_nettype none` before a declaration |
 | `LNT-076` | Plain always procedure |
 
@@ -127,10 +133,10 @@ Slang-backed rules (named below as slang options or codes) are slang's own diagn
 - **Unknown:** WARNING, Unresolved ("cannot determine which bits ... are driven") when a write uses a module-level index, a driver is not fully static, or a loop-indexed write exists and a gap is found.
 
 ### LNT-009
-- **Trigger:** (a) slang options multiple-cont-assigns, multiple-always-assigns, mixed-var-assigns and slang codes MultipleUWireDrivers, MultipleUDNTDrivers; (b) a module-level net of kind wire, tri, tri0, tri1 or trireg with two continuous assignment drivers (not instance outputs) that drive an overlapping bit range, reported at the later assignment once per net.
-- **Exempt:** a driver whose right-hand side is a constant that is all z; a tri-state pair whose enables are provably exclusive (`en ? v : 'z` against `!en ? w : 'z`); wand, wor, triand and trior nets; instance-output overlaps (LNT-042). A driver with x bits or with only some z bits drives and is not exempt.
-- **Severity:** (a) slang's severity; (b) WARNING, Established, when no driver has an all-z literal in its assignment; WARNING, Unresolved, when a driver has one and the enables are not proven exclusive.
-- **Unknown:** (b) with an all-z literal in a driver: "driver conflict cannot be excluded" (Unresolved, above).
+- **Trigger:** (a) slang options multiple-cont-assigns, multiple-always-assigns, mixed-var-assigns and slang codes MultipleUWireDrivers, MultipleUDNTDrivers; (b) a module-level net of kind wire, tri, tri0, tri1 or trireg with two continuous assignment drivers (not instance outputs) that drive an overlapping bit range, reported at the later assignment once per net; (c) a user-declared net or variable where an output-port driver (instance output connection) and another continuous driver drive some of the same bits, reported at the later source position, except tri, triand, trior, tri0, tri1, trireg, wand and wor nets and continuous drivers whose RHS contains a 'z literal.
+- **Exempt:** a driver whose right-hand side is a constant that is all z; a tri-state pair whose enables are provably exclusive (`en ? v : 'z` against `!en ? w : 'z`); wand, wor, triand and trior nets. A driver with x bits or with only some z bits drives and is not exempt.
+- **Severity:** (a) slang's severity; (b) WARNING, Established, when no driver has an all-z literal in its assignment; WARNING, Unresolved, when a driver has one and the enables are not proven exclusive; (c) WARNING, Established.
+- **Unknown:** (b) with an all-z literal in a driver: "driver conflict cannot be excluded" (Unresolved, above). (c) WARNING, Unresolved, "driver overlap is not determinable", when a non-constant index writes the symbol or one of its drivers is not fully static.
 
 ### LNT-010
 - **Trigger:** (a) slang options unconnected-input-port, unconnected-output-port, unconnected-inout-port, unconnected-unnamed-port, empty-input-connection, empty-output-connection, empty-inout-connection; (b) an empty entry in a positional instance connection list in user code (`inst(a, , c)`), one finding per empty entry.
@@ -146,9 +152,9 @@ Slang-backed rules (named below as slang options or codes) are slang's own diagn
 
 ### LNT-012
 - **Trigger:** on the shared model (combinational edges only; register and async-control edges end a path): (a) a bit that depends on itself through combinational logic (self-dependency, recorded per procedure or assignment); (b) a strongly connected component of more than one node, through ports and hierarchy.
-- **Exempt:** paths through registers (Seq and AsyncCtl edges).
+- **Exempt:** paths through registers (Seq and AsyncCtl edges); a bit that `Flow` proves its procedure only reads after writing, on every path (its reads see the procedure's own value, not feedback; a loop that continues through other procedures still closes). A cycle that consists only of such values is not reported.
 - **Severity:** (a) WARNING, Heuristic, in a combinational or latch procedure; otherwise ERROR, Established. (b) ERROR, Established, when the cycle spans processes or assignments; WARNING, Heuristic, when all its edges are in one combinational or latch procedure or the cycle contains a collapsed (wide) signal.
-- **Unknown:** signals wider than the per-bit limit are one node: a cycle through them is WARNING, Heuristic ("wide signals are tracked as one node").
+- **Unknown:** signals wider than the per-bit limit are one node: a cycle through them is WARNING, Heuristic ("wide signals are tracked as one node"). An opaque, approximated or invalid `Flow`, or any latch, proves no order, so the finding stays. An edge from an assignment with a computed index or a user call reaches every bit, so a cycle or self-dependency relying on one is WARNING, Unresolved. Each cycle carries an ordered `cycle_step` witness of the shortest loop.
 
 ### LNT-013
 - **Trigger:** (a) slang option inferred-latch (always_comb and slang-analysed latches); (b) a legacy `always` block in user code with style combinational (`always @*`) or level (`always @(a or b)`) in which a module-level variable written by the block has bit ranges that can still hold the value from before the block on some path at its end (`Flow::unassignedAtEnd`). When no such range exists, the block is still reported if its path analysis is opaque (a user subroutine call or a mid-body timing control) or approximated (a `continue`, or a plain case with a constant item that has x or z bits or is wider than the selector).
@@ -187,10 +193,22 @@ Slang-backed rules (named below as slang options or codes) are slang's own diagn
 - **Unknown:** WARNING, Unresolved, for a constant `case` expression with non-constant items (which arms are reachable is not decided) and for a constant condition with a pattern or several conditions ("not analysed").
 
 ### LNT-019
-- **Trigger:** in user code: `#` delays (statement, intra-assignment, continuous assignment); `wait`, `wait fork`, `wait_order`; `fork`/`join` blocks; `disable fork`; event trigger `->`; `force`/`release`; procedural `assign`/`deassign`; `forever`; `for` without a condition; `for`, `repeat`, `while` and `do-while` with a bound that is not constant (a relational test of a name against a constant is accepted for `for`); `program` blocks; class, covergroup, and real, shortreal, string, chandle, dynamic-array, queue and associative variables (class properties are reported with their class).
-- **Exempt:** constructs inside assertions; `initial` blocks (LNT-048); class properties.
+- **Trigger:** in user code: `#` delays (statement, intra-assignment, continuous assignment); `wait`, `wait fork`, `wait_order`; `fork`/`join` blocks; `disable fork`; event trigger `->`; `forever`; `for` without a condition; `for`, `repeat`, `while` and `do-while` with a bound that is not constant (a relational test of a name against a constant is accepted for `for`).
+- **Exempt:** constructs inside assertions; `initial` blocks (LNT-048).
 - **Severity:** WARNING, Established; INFO, Established, inside final blocks and in top-level instances without ports (testbench-like).
 - **Unknown:** a non-constant bound containing a user function call: WARNING, Unresolved; any other non-constant bound: WARNING, Established.
+
+### LNT-079
+- **Trigger:** in user code, `force`/`release` and procedural `assign`/`deassign`.
+- **Exempt:** constructs inside assertions.
+- **Severity:** WARNING, Established; INFO, Established, inside final blocks and in top-level instances without ports (testbench-like).
+- **Unknown:** none.
+
+### LNT-080
+- **Trigger:** in user code, `program` blocks; class and covergroup declarations; real, shortreal, string, chandle, dynamic-array, queue and associative variables.
+- **Exempt:** constructs inside assertions; class properties.
+- **Severity:** WARNING, Established; INFO, Established, inside final blocks and in top-level instances without ports (testbench-like).
+- **Unknown:** none.
 
 ### LNT-020
 - **Trigger:** a sequential block whose asynchronous reset is identified from its edge list (two edge controls, the reset tested by the first if / else-if chain, or chosen by name when neither control is tested) and whose reset branch assigns a module-level variable that the other branch does not assign.
@@ -246,10 +264,16 @@ Slang-backed rules (named below as slang options or codes) are slang's own diagn
 - **Unknown:** WARNING, Unresolved ("'case inside' overlap not determinable"), reported once for the statement, when an item is not an integer constant.
 
 ### LNT-033
-- **Trigger:** a `unique`, `unique0` or `priority` case or if statement in user code. Case: (a) two items of a unique or unique0 case match a common value (overlap); (b) a unique or priority case without default leaves a value uncovered, where the values are the enumerators of an enum selector or every value of a selector of at most 16 bits (X/Z added for a four-state selector). If: (c) a unique or priority chain has no final else; (d) a unique or unique0 chain has two or more conditions that are constant true.
-- **Exempt:** unique0 case: no coverage check; priority case: no overlap check; a case with a default item: no coverage check; priority if: no overlap check; unique0 if chain without else: no finding.
-- **Severity:** ERROR, Established, for (a) and (d); WARNING, Established, for (b) and (c); INFO, Unresolved, for the not-checkable cases below.
-- **Unknown:** INFO, Unresolved ("claim not statically checkable") when a case item or an if condition is not a constant, when the selector is wider than 64 bits, or when a non-enum selector wider than 16 bits has no default (coverage not enumerated).
+- **Trigger:** a user-code `unique` or `unique0` case whose items can match a common value (overlap), or a `unique`/`unique0` if chain with two or more conditions that can both hold (currently constant-true conditions).
+- **Exempt:** priority cases and priority if chains; non-overlapping items.
+- **Severity:** ERROR, Established.
+- **Unknown:** INFO, Unresolved, "claim not statically checkable" when overlap or condition compatibility cannot be decided.
+
+### LNT-081
+- **Trigger:** a unique or priority case without default leaves values uncovered (enum enumerators or all values of selectors up to 16 bits, plus X/Z for four-state); or a unique/priority if chain has no final else.
+- **Exempt:** unique0 case; case with default; unique0 if chain without else.
+- **Severity:** WARNING, Established.
+- **Unknown:** INFO, Unresolved when case coverage cannot be enumerated or an item/condition prevents the coverage check.
 
 ### LNT-034
 - **Trigger:** in user code, a `?:` whose arms have integral types and either (a) differ in width, when neither arm is an unsized literal; or (b) differ in signedness, when a signed arm is a non-literal or a negative literal.
@@ -300,10 +324,9 @@ Slang-backed rules (named below as slang options or codes) are slang's own diagn
 - **Unknown:** WARNING, Unresolved, for a module-indexed write, a non-static driver, or a loop-indexed write with a gap; each undriven member or element is named only when the coverage is decided.
 
 ### LNT-042
-- **Trigger:** a user-declared net or variable with an output-port driver (instance output connection) where either (a) another continuous driver, not an output port, drives some of the same bits, reported at the later source position; or (b) the output-port driver covers a strict slice and some bits of the symbol have no driver at all (any driver).
-- **Exempt:** for (a) only: tri, triand, trior, tri0, tri1, trireg, wand and wor nets, and continuous drivers whose RHS contains a 'z literal; procedural drivers are not compared.
-- **Severity:** WARNING, Established, for (a); INFO, Established, for (b).
-- **Unknown:** WARNING, Unresolved, "overlap and partial drive are not determinable", when a non-constant index writes the symbol or one of its drivers is not fully static.
+- **Trigger:** a user-declared net or variable with an output-port driver (instance output connection) that covers a strict slice, where some bits of the symbol have no driver at all.
+- **Severity:** INFO, Established.
+- **Unknown:** WARNING, Unresolved, "partial drive is not determinable", when a non-constant index writes the symbol or one of its drivers is not fully static.
 
 ### LNT-044
 - **Trigger:** a module-level variable read in a combinational or clocked procedure where the read sees the value from before the procedure on every path (`entryOnly`), and a later whole, non-compound write of the same variable exists in the procedure. Combinational: any later whole write. Clocked: the later write must be blocking and belong to a different assignment than the read.
@@ -330,10 +353,15 @@ Slang-backed rules (named below as slang options or codes) are slang's own diagn
 - **Unknown:** profile generic: WARNING, Unresolved (above).
 
 ### LNT-049
-- **Trigger:** a module-level unpacked-array variable (memory): (a) written by more than one process (more than one non-input-port driver container): WARNING, Heuristic; (b) written by a continuous assignment, `always_comb` or `always_latch`: WARNING, Established; (c) read by a continuous assignment or by an unclocked procedure (not initial or final): INFO, Informational; (d) read and written in one clocked process: INFO, Informational, proof NOT_ATTEMPTED.
+- **Trigger:** a module-level unpacked-array variable written by more than one non-input-port driver process, or written by a continuous assignment, `always_comb` or `always_latch`.
+- **Severity:** WARNING, Heuristic for multiple writers; WARNING, Established for a non-clocked writer.
+- **Unknown:** none.
+
+### LNT-082
+- **Trigger:** a module-level unpacked-array variable read by a continuous assignment or unclocked procedure (not initial/final); or read and written in one clocked process.
 - **Exempt:** a memory with a single clocked writer whose reads are all clocked.
-- **Severity:** WARNING, Heuristic, for (a); WARNING, Established, for (b); INFO, Informational, for (c) and (d).
-- **Unknown:** (d) read-during-write behaviour depends on the target RAM and is an obligation (NOT_ATTEMPTED), not modelled.
+- **Severity:** INFO, Informational, including the read-during-write obligation.
+- **Unknown:** read-during-write behaviour depends on the target RAM and remains NOT_ATTEMPTED.
 
 ### LNT-050
 - **Trigger:** slang codes InputPortAssign, InOutPortCannotBeVariable, InOutUWirePort, DirectionOnInterfacePort, DirectionWithInterfacePort, InvalidModportAccess, NotAllowedInModport, RefPortMustBeVariable, WriteToInputClockVar.
@@ -383,8 +411,18 @@ Slang-backed rules (named below as slang options or codes) are slang's own diagn
 - **Unknown:** none.
 
 ### LNT-059
-- **Trigger:** slang options unused-import, unused-wildcard-import, unused-package-var, unused-package-typedef, unused-package-parameter, unused-package-type-parameter, unused-package-assertion-decl, unused-package-subroutine, shadow-value, shadow-hierarchy, shadow-property, dup-import.
+- **Trigger:** slang options unused-import, unused-wildcard-import and dup-import.
 - **Severity:** slang's severity (WARNING), Established.
+- **Unknown:** none: decided by slang.
+
+### LNT-077
+- **Trigger:** slang options unused-package-var, unused-package-typedef, unused-package-parameter, unused-package-type-parameter, unused-package-assertion-decl and unused-package-subroutine.
+- **Severity:** INFO, Established. `upstream_severity` retains slang's WARNING; unused package members have no behavioral effect.
+- **Unknown:** none: decided by slang.
+
+### LNT-078
+- **Trigger:** slang options shadow-value, shadow-hierarchy and shadow-property.
+- **Severity:** slang's severity, Established.
 - **Unknown:** none: decided by slang.
 
 ### LNT-060
@@ -496,7 +534,7 @@ Reference projects were studied for rule inventories only; no source code from a
 | slang-tidy (MIT) | AlwaysCombNonBlocking, AlwaysFFBlocking → LNT-015/014; NoCaseX → LNT-016; NoLatchesOnDesign → LNT-013; UndrivenRange → LNT-008; OnlyAssignedOnReset, RegisterHasNoReset, AlwaysFFAssignmentOutsideConditional → LNT-020; UnusedSensitiveSignal → LNT-045; StructFieldsInSameProcess → LNT-041; XilinxDoNotCareValues → LNT-039; naming/ANSI/generate-style checks excluded; NoOldAlwaysSyntax → LNT-076. Excluded: LoopBeforeResetCheck, CastSignedIndex (no stable semantics), UVM/assertion/constraint checks (out of scope) |
 | slang-netlist (MIT) | bit-level netlist dependency graph and combinational-loop reports → `src/domains/model` and LNT-012 (design concept only) |
 | Verible (Apache-2.0) | always-comb(-blocking), always-ff-non-blocking → LNT-015/045; case-missing-default → LNT-016; invalid-system-task-function → LNT-061; truncated-numeric-literal, undersized-binary-literal → LNT-026/056; forbid-defparam, naming, formatting excluded. Excluded: UVM macros, filename and `endif` comment rules |
-| Verilator (LGPL-3.0 / Artistic-2.0) | WIDTH* → LNT-004; LATCH → LNT-013; COMBDLY/BLKSEQ/BLKANDNBLK → LNT-015; ALWCOMBORDER → LNT-044; CASEINCOMPLETE/CASEOVERLAP/CASEX/CASEWITHX → LNT-016/032/040; CMPCONST/UNSIGNED → LNT-038; MULTIDRIVEN → LNT-009; UNDRIVEN, UNUSED* → LNT-008/011; UNOPTFLAT → LNT-012; PIN* → LNT-003/010; SELRANGE → LNT-006; ASSIGNIN → LNT-050; delay and non-synth constructs → LNT-019. Excluded: simulator-performance and C++ naming warnings (UNOPT*, IMPERFECTSCH, SYMRSVDWORD) |
+| Verilator (LGPL-3.0 / Artistic-2.0) | WIDTH* → LNT-004; LATCH → LNT-013; COMBDLY/BLKSEQ/BLKANDNBLK → LNT-015; ALWCOMBORDER → LNT-044; CASEINCOMPLETE/CASEOVERLAP/CASEX/CASEWITHX → LNT-016/032/040; CMPCONST/UNSIGNED → LNT-038; MULTIDRIVEN → LNT-009; UNDRIVEN, UNUSED* → LNT-008/011; UNOPTFLAT → LNT-012; PIN* → LNT-003/010; SELRANGE → LNT-006; ASSIGNIN → LNT-050; delay, concurrency and unbounded-loop constructs → LNT-019; force/release and procedural continuous assignment → LNT-079; non-synthesizable data types/declarations → LNT-080. Excluded: simulator-performance and C++ naming warnings (UNOPT*, IMPERFECTSCH, SYMRSVDWORD) |
 
 Retired IDs (merged, see `docs/SVerity_RFC.md` §9): LNT-021 → RDC-028, LNT-023 → LNT-003/057, LNT-028 → CST-005, LNT-030 → STY-*, LNT-043 → LNT-025, LNT-046 → LNT-047, LNT-052 (dropped: an inferred enable has no defect semantics; the model exposes enables to CDC-028/039).
 Not copied: Verilator documentation text. If code is ever taken from an MIT/Apache-2.0 project, keep its notice and record it here first.

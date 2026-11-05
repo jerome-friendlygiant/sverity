@@ -21,6 +21,8 @@ git clone --recursive https://github.com/jerome-friendlygiant/sverity && cd sver
 cmake -S . -B build -G Ninja && cmake --build build -j && ctest --test-dir build
 ```
 
+`tools/dev/check.sh` is the one verification command. `tools/dev/conformance.py` shows how far each rule is from `validated`, and `tools/dev/capacity.py` measures the OpenTitan capacity target.
+
 Needs CMake ≥ 3.28, a C++20 compiler (tested with GCC 13), and Python 3 at *build and test time only* (slang's code generator, two test scripts).
 slang is a pinned submodule; it fetches its own small dependencies at configure time (set `FETCHCONTENT_SOURCE_DIR_*`
 and `FETCHCONTENT_FULLY_DISCONNECTED=ON` for an offline build).
@@ -51,6 +53,8 @@ Use `--config settings.json`. The optional `sdc`, `library` and `waivers` arrays
 
 Use `--goal lint`, `--goal cdc` or `--goal rdc` to scope a run; repeat the option to select a union. A config file may instead contain `"goal": ["cdc", "rdc"]`; CLI goals replace that array. Goal selection comes first, then file `enable`/`disable`, then CLI `--enable-rule`/`--disable-rule`. An explicit enable can restore a rule outside the goal. Other rules remain DISABLED and coverage stays INCOMPLETE. Slang diagnostics remain visible under every goal, even when their mapped lint rules are disabled. The summary and report inputs identify scoped runs.
 
+Use `--deck core`, `--deck domain` or `--deck 1.0` to report coverage for a published deck ([what each holds](docs/rules/catalog.json), [where it stands](tools/dev/conformance.py)). Rules outside it still run and keep their findings, listed as `preview`, but the run claims nothing about them. A deck run reports COMPLETE only if every rule of the deck executed in full and no analysis scope was limited.
+
 Use `--group --json report.json` (or `--sarif report.sarif`) for a grouped console view; the announcement names the complete report, whose `root_cause` fields link individual findings. Without a successfully written report, the console remains complete. ERROR and FATAL groups appear first, including when `--max-console` limits other groups.
 
 Use `// sverity-waive RULE owner="team" reason="reviewed justification"` before a finding’s reported line, or `--waivers file.json`; waived findings stay visible.
@@ -78,10 +82,10 @@ modelling on [slang-netlist](https://github.com/jameshanlon/slang-netlist) (MIT,
 [Verible](https://github.com/chipsalliance/verible) (Apache-2.0), [Verilator](https://verilator.org), and against the public AMD and Altera rule lists.
 No code from these projects is included; every check is reimplemented (crosswalks and licence notes: `docs/rules/LNT.md`, `CDC.md`, `RDC.md`).
 
-MIT licence.
+MIT licence. To contribute or report a problem, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 Use `sverity --explain CDC-003` for an offline rule description and `--summary` for per-rule run counts.
 
-Use `--html <file>` to write a self-contained HTML report alongside JSON or SARIF.
+Use `--html <file>` to write a self-contained HTML report alongside JSON or SARIF, and `--timings <file>` to record time and peak memory per phase and rule (it varies between runs, so it is kept out of the report).
 
 See the [tutorial](docs/TUTORIAL.md), and the [roadmap](docs/ROADMAP.md) for open work, future goals and [moving from a commercial flow](docs/ROADMAP.md#5-coming-from-a-commercial-flow).

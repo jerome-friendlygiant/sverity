@@ -32,7 +32,7 @@ enum class EdgeType : uint8_t { Comb, Seq, AsyncCtl };
 
 struct Node {
     const slang::ast::InstanceSymbol* inst = nullptr;   // instance context (shared bodies are per-instance)
-    const slang::ast::ValueSymbol* sym = nullptr;
+    const slang::ast::ValueSymbol* sym = nullptr;        // null for a logic hub: many sources reaching many targets through one node
     uint32_t bit = 0;                                    // bit offset within sym (0 for collapsed symbols)
 };
 
@@ -43,16 +43,48 @@ enum class Op : uint8_t { None, And, Or, Xor, Not, Mux, MuxSel, Compare, Arith, 
 /// Where the source sits in the control structure of the assignment (for ctrl edges).
 enum class Branch : uint8_t { None, Taken, NotTaken };
 
+// Large designs hold about 100 million of these, so the flags are packed.
 struct Edge {
     NodeId from = kNoNode, to = kNoNode;
-    EdgeType type = EdgeType::Comb;
-    bool exact = false;
     uint32_t proc = 0;                                   // index into Model::procs
-    bool ctrl = false;                                   // the source is a control-flow condition (enable/select), not data
-    Op op = Op::None;                                    // innermost operator on the source's path (Other when it differs between uses)
-    uint8_t inv = 0;                                     // 0 the source reaches the target true-polarity, 1 inverted (odd number of NOT /
+    EdgeType type : 2 = EdgeType::Comb;
+    bool exact : 1 = false;
+    bool ctrl : 1 = false;                               // the source is a control-flow condition (enable/select), not data
+    Op op : 4 = Op::None;                                // innermost operator on the source's path (Other when it differs between uses)
+    uint8_t inv : 2 = 0;                                 // 0 the source reaches the target true-polarity, 1 inverted (odd number of NOT /
                                                          // XNOR/NAND/NOR/!= on the way), 2 unknown (arithmetic, comparison, mixed uses)
-    Branch branch = Branch::None;                        // ctrl edges: the assignment runs when the condition holds / does not hold
+    Branch branch : 2 = Branch::None;                    // ctrl edges: the assignment runs when the condition holds / does not hold
+    bool approximate : 1 = false;                      // from an assignment with a computed index or a user call: all-to-all may be far more than is real
+    bool internalRead : 1 = false;                       // Comb: Flow proved this bit is never read at its pre-activation value in `proc`,
+                                                         // so the source is the value `proc` itself wrote earlier, not feedback
+};
+static_assert(sizeof(Edge) == 16);
+
+/// Edge indices per node, in one contiguous block.
+class Adjacency {
+public:
+    struct Span {
+        const uint32_t* first; const uint32_t* last;
+        const uint32_t* begin() const { return first; }
+        const uint32_t* end() const { return last; }
+        size_t size() const { return static_cast<size_t>(last - first); }
+        bool empty() const { return first == last; }
+        uint32_t operator[](size_t i) const { return first[i]; }
+    };
+    Span operator[](NodeId n) const { return {data_.data() + offsets_[n], data_.data() + offsets_[n + 1]}; }
+    size_t size() const { return offsets_.empty() ? 0 : offsets_.size() - 1; }
+    template<class NodeOfEdge>
+    void build(size_t nodes, size_t edges, NodeOfEdge nodeOf) {
+        offsets_.assign(nodes + 1, 0);
+        for (size_t e = 0; e < edges; e++) offsets_[nodeOf(e) + 1]++;
+        for (size_t n = 0; n < nodes; n++) offsets_[n + 1] += offsets_[n];
+        data_.resize(edges);
+        std::vector<uint32_t> next(offsets_.begin(), offsets_.end() - 1);
+        for (size_t e = 0; e < edges; e++) data_[next[nodeOf(e)]++] = static_cast<uint32_t>(e);
+    }
+
+private:
+    std::vector<uint32_t> offsets_, data_;
 };
 
 enum class ProcKind : uint8_t { Continuous, Comb, Latch, Sequential, PortConnection, Other };
@@ -100,6 +132,8 @@ struct Flop {
     bool syncActiveLow = false;                          // polarity of the synchronous reset candidate (condition is a negation)
     NodeId syncReset = kNoNode;                          // the candidate's signal (control edges from it are ignored for chain recognition)
     uint32_t domain = 0;                                 // index into Model::domains (valid if clockResolved)
+    std::vector<NodeId> otherClockSignals;               // clocks of further sequential blocks driving this bit (multiSequential)
+    std::vector<uint32_t> otherDomains;                  // their domains; rules must weigh all of them, independently of source order
 };
 
 struct Domain {
@@ -193,8 +227,11 @@ struct CallUncertainty {
     SourceLocation location;
 };
 
+class ConeFinder;
+
 class Model {
 public:
+    std::shared_ptr<ConeFinder> cones;                   // see sharedCones()
     std::vector<Node> nodes;
     std::vector<Edge> edges;
     std::vector<ProcInfo> procs;
@@ -210,18 +247,20 @@ public:
     std::vector<LibInstance> libInstances;               // instances of declared library cells (every kind)
     std::unordered_map<NodeId, std::vector<ConstDriver>> constDrivers;   // exact constant drivers per node (X/Z kept)
     std::vector<ClockGateInst> clockGates;
+    std::unordered_set<const slang::ast::ValueSymbol*> loopVariables;   // procedural loop indices: no driver, and not design state
     std::vector<RamInst> rams;
 
     // adjacency (edge indices), built by finish()
-    std::vector<std::vector<uint32_t>> in, out;
+    Adjacency in, out;
     std::unordered_map<NodeId, uint32_t> flopOfQ;        // Q node -> index in flops
     std::unordered_map<NodeId, uint32_t> selfComb;       // node -> procedure of a combinational dependency on itself
+    std::unordered_set<NodeId> selfCombApproximate;          // ... that exists only through an assignment with a computed index or a user call
     /// per register bit: for every data-carrying assignment, the (non-reset) control nodes guarding it; an empty list = unguarded.
     std::unordered_map<NodeId, std::vector<std::vector<NodeId>>> guards;
     std::unordered_map<NodeId, std::vector<std::vector<GuardCondition>>> qualifierGuards;
     std::unordered_map<NodeId, std::vector<BooleanDriver>> booleanDrivers;
     std::unordered_set<NodeId> selfExact;                // exact register self-assignment (a hold)
-    std::unordered_set<NodeId> multiSequential;          // assigned by several sequential blocks: Flop holds only the first block's clock
+    std::unordered_set<NodeId> multiSequential;          // assigned by several sequential blocks: see Flop::otherDomains
     std::unordered_set<NodeId> selfLogic;                // registers whose next value depends on their own value through logic (toggle/counter)
     std::vector<uint8_t> blackBoxDriven;                 // per node: 1 = may be driven by an unmodelled black box, 2 = read data of a library RAM
     std::vector<uint8_t> topInput;                       // per node: input port bit of a top instance
@@ -249,6 +288,7 @@ public:
     char constantValue(NodeId n) const;
 
     void finish();   // builds adjacency, resolves clock roots, assigns domains
+    void compactEdges();   // sorts edges and removes duplicates; building calls it rather than let the vector keep doubling
 };
 
 /// Returns the design's shared model, building it on first use.

@@ -63,3 +63,16 @@ TEST(fixtures_match_catalog) {
         }
     }
 }
+
+TEST(catalog_every_rule_has_a_deck_or_a_written_exclusion) {
+    auto& c = Catalog::embedded();
+    size_t core = 0, domain = 0, all = 0;
+    for (auto& r : c.rules()) {
+        core += inDeck(r, "core"); domain += inDeck(r, "domain"); all += inDeck(r, "1.0");
+        CHECK(!inDeck(r, "core") || inDeck(r, "domain"));   // decks are cumulative
+        CHECK(!inDeck(r, "domain") || inDeck(r, "1.0"));
+    }
+    CHECK(core > 0 && core < domain && domain < all);
+    CHECK(!inDeck(*c.find("RDC-029"), "1.0"));
+    CHECK(!isDeck("nonsense"));
+}

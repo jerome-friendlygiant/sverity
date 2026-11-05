@@ -28,6 +28,8 @@
 #include "slang/syntax/AllSyntax.h"
 
 namespace sverity {
+void reportOutputPortOverlaps(lint::Lint& l);   // lint_struct.cpp: LNT-009 for instance outputs
+
 namespace {
 
 using namespace slang;
@@ -256,14 +258,19 @@ public:
 
 // ----------------------------------------------------------------------------------------------------------------
 // LNT-049: memories (unpacked arrays) with several write processes or combinational writes
-class MemoryRule final : public LintRule {
+class MemoryRule : public LintRule {
 public:
-    MemoryRule() : LintRule("LNT-049") {}
+    explicit MemoryRule(bool writers) : LintRule(writers ? "LNT-049" : "LNT-082"), writerRule(writers) {}
+private:
+    bool writerRule;
+public:
     struct V : ASTVisitor<V, VisitFlags::AllCanonical> {
         Lint& l;
-        explicit V(Lint& lint) : l(lint) {}
+        bool writerRule;
+        explicit V(Lint& lint, bool writers) : l(lint), writerRule(writers) {}
         static bool isMem(const Symbol* s) { auto* v = s ? s->as_if<VariableSymbol>() : nullptr; return v && isModuleLevel(*v) && v->getType().isUnpackedArray(); }
         template <typename N> void asyncRead(const N& e) {
+            if (writerRule) return;
             Reads r;
             e.visit(r);
             for (auto* ref : r.refs)
@@ -277,7 +284,7 @@ public:
         void handle(const ProceduralBlockSymbol& p) {
             if (l.isUser(p.location)) {
                 if (!isClocked(p) && p.procedureKind != ProceduralBlockKind::Initial && p.procedureKind != ProceduralBlockKind::Final) asyncRead(p.getBody().kind == StatementKind::Timed ? p.getBody().as<TimedStatement>().stmt : p.getBody());
-                else if (isClocked(p)) {
+                else if (isClocked(p) && !writerRule) {
                     Assigns a;
                     p.getBody().visit(a);
                     Reads r;
@@ -307,17 +314,21 @@ public:
                            d->source == analysis::DriverSource::AlwaysLatch;
                 }
                 std::string name(v.name);
-                if (writers.size() > 1)
+                if (writerRule && writers.size() > 1)
                     l.report(v, "memory '" + name + "' has " + std::to_string(writers.size()) + " write processes: multiple write ports (different clocks make it a dual-clock memory, see CDC-035)",
                              {.confidence = Confidence::Heuristic, .nextStep = "Confirm the target supports this many write ports; otherwise use one write process.", .signals = {name}, .identityKey = "multiple-writers"});
-                if (comb)
+                if (writerRule && comb)
                     l.report(v, "memory '" + name + "' is written by combinational logic: it infers latches/registers, not a RAM",
                              {.nextStep = "Write memories from a clocked process.", .signals = {name}, .identityKey = "combinational-writer"});
             }
             visitDefault(v);
         }
     };
-    void check(Lint& l) override { visitDesign<V>(l); }
+    void check(Lint& l) override { visitDesign<V>(l, writerRule); }
+};
+
+class MemorySemanticsRule final : public MemoryRule {
+public: MemorySemanticsRule() : MemoryRule(false) {}
 };
 
 // ----------------------------------------------------------------------------------------------------------------
@@ -506,7 +517,7 @@ public:
 // are reported here: ERROR-free WARNING Established when none of the drivers can release the net (no all-z arm; x and partly-z arms still drive); when a driver can
 // release it (a tri-state bus) the overlap is a conflict unless the enables are provably exclusive, so the finding is WARNING Unresolved
 // ("mutual exclusion not proven"), never silence. wand/wor/triand/trior nets resolve overlaps by definition. Instance-output overlaps are
-// LNT-042.
+// in reportOutputPortOverlaps (lint_struct.cpp), which needs that file's driver helpers.
 // A literal with every bit z releases the net; partial z (8'b0000_zzzz) and x literals still drive bits.
 bool allZ(const SVInt& v) {
     if (v.getBitWidth() == 0) return false;
@@ -602,7 +613,10 @@ public:
             visitDefault(n);
         }
     };
-    void check(Lint& l) override { visitDesign<V>(l); }
+    void check(Lint& l) override {
+        visitDesign<V>(l);
+        reportOutputPortOverlaps(l);
+    }
 };
 
 } // namespace
@@ -617,7 +631,8 @@ std::vector<std::unique_ptr<Rule>> makeLintModelRules() {
     v.push_back(std::make_unique<FsmRule>(FsmRule::Structural));
     v.push_back(std::make_unique<FsmRule>(FsmRule::Obligation));
     v.push_back(std::make_unique<InitRule>());
-    v.push_back(std::make_unique<MemoryRule>());
+    v.push_back(std::make_unique<MemoryRule>(true));
+    v.push_back(std::make_unique<MemorySemanticsRule>());
     v.push_back(std::make_unique<XControlRule>());
     v.push_back(std::make_unique<RaceRule>());
     return v;

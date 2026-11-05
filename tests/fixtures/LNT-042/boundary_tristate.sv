@@ -1,5 +1,6 @@
 // sverity-args: --top top
 // expect-none: LNT-042
+// expect-none: LNT-009
 module leaf(input logic en, input logic a, output tri o);
   assign o = en ? a : 1'bz;
 endmodule

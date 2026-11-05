@@ -1,6 +1,6 @@
 // Native AST lint: structural drive/coverage and case/generate claims.
 //   LNT-008 undriven bits of plain vectors/scalars   LNT-024 undriven or partial output ports
-//   LNT-041 incomplete struct/array/interface drive  LNT-042 partial or overlapping output drive
+//   LNT-041 incomplete struct/array/interface drive  LNT-042 partial output drive
 //   LNT-032 overlapping `case inside` items          LNT-033 unique/priority claims
 //   LNT-051 generate branches not elaborated
 // Coverage is computed from slang's driver analysis (ValueDriver bounds), never from slang diagnostics.
@@ -484,7 +484,58 @@ private:
 };
 
 // ---------------------------------------------------------------------------------------------------------------
-// LNT-042: an output port connected to part of a net, overlapping another driver, or leaving bits of the net
+// LNT-009, instance outputs: an output port and another continuous driver on the same bits (called by LNT-009's rule).
+void outputPortOverlaps(Lint& l) {
+    auto* am = analysisOf(l);
+    if (!am) return;
+    ValueCollector c;
+    l.compilation().getRoot().visit(c);
+    auto dw = dynamicWritesOf(l);
+    for (auto& e : c.vals) {
+        if (!l.isUser(e.sym->location)) continue;
+        auto drivers = am->getDrivers(*e.sym);
+        Drivers conts;
+        bool anyOutput = false;
+        for (auto* d : drivers) {
+            anyOutput = anyOutput || d->flags.has(DriverFlags::OutputPort);
+            if (d->kind == DriverKind::Continuous && !d->isInputPort()) conts.push_back(d);
+        }
+        if (!anyOutput) continue;
+        auto name = std::string(e.sym->name);
+        bool dyn = dw.moduleIdx.count(e.sym) != 0 || dw.loopIdx.count(e.sym) != 0;
+        if (dyn)
+            reportUnresolved(l, e.sym->location, "output port drive into '" + name + "' is combined with a write through a non-constant index: driver overlap is not determinable",
+                             e.sym->getHierarchicalPath());
+        for (auto* d : drivers)
+            if (!isStaticDriver(*d)) {
+                dyn = true;
+                reportUnresolved(l, d->getSourceRange().start(), "output port drive into '" + name + "' uses a non-constant index: driver overlap is not determinable",
+                                 e.sym->getHierarchicalPath());
+            }
+        if (dyn || isTriNet(*e.sym)) continue;
+        auto isOut = [](const ValueDriver* d) { return d->flags.has(DriverFlags::OutputPort); };
+        for (size_t j = 1; j < conts.size(); j++)
+            for (size_t i = 0; i < j; i++) {
+                const ValueDriver *a = conts[i], *b = conts[j];
+                if (!isOut(a) && !isOut(b)) continue;
+                if (assignsZ(*a) || assignsZ(*b)) continue;
+                auto ba = a->getBounds(), bb = b->getBounds();
+                uint64_t lo = std::max(ba.first, bb.first), hi = std::min(ba.second, bb.second);
+                if (lo > hi) continue;
+                // report at the later source position so the finding does not depend on driver order
+                auto at = a->getSourceRange().start().offset() > b->getSourceRange().start().offset() ? a : b;
+                l.report(at->getSourceRange().start(),
+                         "overlapping drive of '" + name + "' bits " + bitsText(e.sym->getType(), {{lo, hi}}) +
+                             ": an output port and another continuous driver",
+                         {.nextStep = "Connect disjoint bit ranges, or make the net a tri-state net if the drivers are meant to share it.",
+                          .hierarchy = e.sym->getHierarchicalPath(), .signals = {name}});
+                j = conts.size();   // one finding per net
+                break;
+            }
+    }
+}
+
+// LNT-042: an output port connected to part of a net, leaving bits of the net
 // without any other driver.
 class PortDriveRule final : public LintRule {
 public:
@@ -500,51 +551,26 @@ private:
         for (auto& e : c.vals) {
             if (!l.isUser(e.sym->location)) continue;
             auto drivers = am->getDrivers(*e.sym);
-            Drivers outs, conts;
-            for (auto* d : drivers) {
+            Drivers outs;
+            for (auto* d : drivers)
                 if (d->flags.has(DriverFlags::OutputPort)) outs.push_back(d);
-                if (d->kind == DriverKind::Continuous && !d->isInputPort()) conts.push_back(d);
-            }
             if (outs.empty()) continue;
             l.count();
             auto name = std::string(e.sym->name);
             bool dyn = dw.moduleIdx.count(e.sym) != 0 || dw.loopIdx.count(e.sym) != 0;
             if (dyn)
-                reportUnresolved(l, e.sym->location, "output port drive into '" + name + "' is combined with a write through a non-constant index: overlap and partial drive are not determinable",
+                reportUnresolved(l, e.sym->location, "output port drive into '" + name + "' is combined with a write through a non-constant index: partial drive is not determinable",
                                  e.sym->getHierarchicalPath());
             for (auto* d : drivers)
                 if (!isStaticDriver(*d)) {
                     dyn = true;
                     reportUnresolved(l, d->getSourceRange().start(),
-                                     "output port drive into '" + name + "' uses a non-constant index: overlap and partial drive are not determinable",
+                                     "output port drive into '" + name + "' uses a non-constant index: partial drive is not determinable",
                                      e.sym->getHierarchicalPath());
                 }
             if (dyn) continue;
 
             const uint64_t width = e.sym->getType().getSelectableWidth();
-            auto isOut = [](const ValueDriver* d) { return d->flags.has(DriverFlags::OutputPort); };
-
-            // Overlapping drive: an output port and another continuous driver on the same bits.
-            if (!isTriNet(*e.sym))
-                for (size_t j = 1; j < conts.size(); j++)
-                    for (size_t i = 0; i < j; i++) {
-                        const ValueDriver *a = conts[i], *b = conts[j];
-                        if (!isOut(a) && !isOut(b)) continue;
-                        if (assignsZ(*a) || assignsZ(*b)) continue;
-                        auto ba = a->getBounds(), bb = b->getBounds();
-                        uint64_t lo = std::max(ba.first, bb.first), hi = std::min(ba.second, bb.second);
-                        if (lo > hi) continue;
-                        // report at the later source position so the finding does not depend on driver order
-                        auto at = a->getSourceRange().start().offset() > b->getSourceRange().start().offset() ? a : b;
-                        l.report(at->getSourceRange().start(),
-                                 "overlapping drive of '" + name + "' bits " + bitsText(e.sym->getType(), {{lo, hi}}) +
-                                     ": an output port and another continuous driver",
-                                 {.nextStep = "Connect disjoint bit ranges, or make the net a tri-state net if the drivers are meant to share it.",
-                                  .hierarchy = e.sym->getHierarchicalPath(), .signals = {name}});
-                        j = conts.size();   // one finding per net
-                        break;
-                    }
-
             // Partial drive through hierarchy: an output port covers a slice and nothing else drives the rest.
             auto cov = coverageOf(drivers);
             if (cov.dynamic) continue;
@@ -692,18 +718,18 @@ private:
 //  - unique/priority case without default: uncovered values (or X/Z of a four-state selector) -> WARNING
 //  - unique/priority if without final else -> WARNING; unique if with two constant true conditions -> ERROR
 //  - non-constant items or conditions, or wide selectors -> INFO Unresolved
-class UniqueClaimRule final : public LintRule {
+class UniqueClaimRule : public LintRule {
 public:
-    UniqueClaimRule() : LintRule("LNT-033") {}
-
+    explicit UniqueClaimRule(bool overlap) : LintRule(overlap ? "LNT-033" : "LNT-081"), overlapRule(overlap) {}
 private:
+    bool overlapRule;
     static constexpr uint32_t kMaxEnumeratedWidth = 16;
 
     static std::string keyword(UniquePriorityCheck c) {
         return c == UniquePriorityCheck::Unique ? "unique" : c == UniquePriorityCheck::Unique0 ? "unique0" : "priority";
     }
 
-    static void checkCase(Lint& l, const CaseStatement& c) {
+    void checkCase(Lint& l, const CaseStatement& c) {
         const UniquePriorityCheck chk = c.check;
         const std::string kw = keyword(chk) + " case";
         const auto& sel = c.expr.unwrapImplicitConversions();
@@ -717,12 +743,15 @@ private:
                 else unresolved = true;
             }
         if (unresolved) {
-            l.report(c.sourceRange.start(), "'" + kw + "' claim not statically checkable: a case item is not a constant or the selector is wider than 64 bits",
-                     {.severity = Severity::Info, .confidence = Confidence::Unresolved,
-                      .nextStep = "Check the claim with simulation or formal analysis."});
+            const bool checkApplies = overlapRule ? chk != UniquePriorityCheck::Priority
+                                                  : chk != UniquePriorityCheck::Unique0 && !c.defaultCase;
+            if (checkApplies)
+                l.report(c.sourceRange.start(), "'" + kw + "' claim not statically checkable: a case item is not a constant or the selector is wider than 64 bits",
+                         {.severity = Severity::Info, .confidence = Confidence::Unresolved,
+                          .nextStep = "Check the claim with simulation or formal analysis."});
             return;
         }
-        if (chk != UniquePriorityCheck::Priority) {
+        if (overlapRule && chk != UniquePriorityCheck::Priority) {
             for (size_t j = 1; j < arms.size(); j++)
                 for (size_t i = 0; i < j; i++)
                     if (overlaps(arms[i], arms[j])) {
@@ -732,7 +761,7 @@ private:
                         break;
                     }
         }
-        if (chk == UniquePriorityCheck::Unique0 || c.defaultCase) return;
+        if (overlapRule || chk == UniquePriorityCheck::Unique0 || c.defaultCase) return;
         std::vector<std::string> missing;
         if (sel.type->isEnum()) {
             for (auto& ev : sel.type->getCanonicalType().as<EnumType>().values()) {
@@ -759,7 +788,7 @@ private:
                  {.nextStep = "Add a default item, or cover the listed values."});
     }
 
-    static void checkIf(Lint& l, const ConditionalStatement& s) {
+    void checkIf(Lint& l, const ConditionalStatement& s) {
         const std::string kw = keyword(s.check) + " if";
         std::vector<const Expression*> conds;
         bool hasElse = true;
@@ -774,10 +803,11 @@ private:
             if (f->kind != StatementKind::Conditional || f->as<ConditionalStatement>().check != UniquePriorityCheck::None) break;
             cur = &f->as<ConditionalStatement>();
         }
-        if (!hasElse && (s.check == UniquePriorityCheck::Unique || s.check == UniquePriorityCheck::Priority))
+        if (!overlapRule && !hasElse && (s.check == UniquePriorityCheck::Unique || s.check == UniquePriorityCheck::Priority))
             l.report(s.sourceRange.start(), "'" + kw + "' chain has no final else: the claim fails when no condition is true",
                      {.nextStep = "Add a final else branch, or use a unique0 check if no-match is allowed.", .identityKey = "missing-else"});
-        if (s.check != UniquePriorityCheck::Unique && s.check != UniquePriorityCheck::Unique0) return;
+        if (!overlapRule && (s.check != UniquePriorityCheck::Unique && s.check != UniquePriorityCheck::Unique0)) return;
+        if (overlapRule && (s.check != UniquePriorityCheck::Unique && s.check != UniquePriorityCheck::Unique0)) return;
         int trueCount = 0;
         bool allConst = true;
         for (auto* e : conds) {
@@ -800,23 +830,28 @@ private:
 
     struct V : ASTVisitor<V, VisitFlags::AllCanonical> {
         Lint& l;
-        explicit V(Lint& lint) : l(lint) {}
+        UniqueClaimRule& rule;
+        explicit V(Lint& lint, UniqueClaimRule& owner) : l(lint), rule(owner) {}
         void handle(const CaseStatement& c) {
             if (c.check != UniquePriorityCheck::None && l.isUser(c.sourceRange.start())) {
                 l.count();
-                checkCase(l, c);
+                rule.checkCase(l, c);
             }
             visitDefault(c);
         }
         void handle(const ConditionalStatement& s) {
             if (s.check != UniquePriorityCheck::None && l.isUser(s.sourceRange.start())) {
                 l.count();
-                checkIf(l, s);
+                rule.checkIf(l, s);
             }
             visitDefault(s);
         }
     };
-    void check(Lint& l) override { visitDesign<V>(l); }
+    void check(Lint& l) override { visitDesign<V>(l, *this); }
+};
+
+class UncoveredClaimRule final : public UniqueClaimRule {
+public: UncoveredClaimRule() : UniqueClaimRule(false) {}
 };
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -884,6 +919,8 @@ private:
 
 } // namespace
 
+void reportOutputPortOverlaps(lint::Lint& l) { outputPortOverlaps(l); }
+
 std::vector<std::unique_ptr<Rule>> makeLintStructRules() {
     std::vector<std::unique_ptr<Rule>> v;
     v.push_back(std::make_unique<UndrivenBitsRule>());
@@ -891,7 +928,8 @@ std::vector<std::unique_ptr<Rule>> makeLintStructRules() {
     v.push_back(std::make_unique<AggregateDriveRule>());
     v.push_back(std::make_unique<PortDriveRule>());
     v.push_back(std::make_unique<InsideOverlapRule>());
-    v.push_back(std::make_unique<UniqueClaimRule>());
+    v.push_back(std::make_unique<UniqueClaimRule>(true));
+    v.push_back(std::make_unique<UncoveredClaimRule>());
     v.push_back(std::make_unique<GenerateBranchRule>());
     return v;
 }

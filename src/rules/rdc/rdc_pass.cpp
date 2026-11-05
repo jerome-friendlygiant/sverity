@@ -52,6 +52,7 @@ std::vector<std::unique_ptr<Rule>> makeRdcRules() {
     add("RDC-026", "");
     add("RDC-027", "");
     add("RDC-028", "");
+    add("RDC-030", "");
     return v;
 }
 

@@ -10,6 +10,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
+#include <cstdio>
 #include <initializer_list>
 #include <filesystem>
 #include <fstream>
@@ -31,6 +32,118 @@ void Constraints::merge(Constraints&& o) {
 }
 
 namespace {
+
+/// Bounded arithmetic for `expr`. Where Tcl's integer semantics would differ from plain arithmetic (5/2 is 2, % of negatives), the
+/// expression is rejected rather than given a value Tcl would not compute. Nothing here can run a command.
+bool isPlainNumber(std::string_view text) {
+    size_t i = !text.empty() && text[0] == '-' ? 1 : 0;
+    bool digit = false, dot = false;
+    for (; i < text.size(); i++) {
+        if (std::isdigit(static_cast<unsigned char>(text[i]))) digit = true;
+        else if (text[i] == '.' && !dot) dot = true;
+        else return false;
+    }
+    return digit;
+}
+
+struct ExprEvaluator {
+    struct Rejected {};
+    struct Number { double value = 0; bool integer = true; };
+    static constexpr int kMaxDepth = 64;
+    std::string_view s;
+    size_t p = 0;
+    int depth = 0;
+
+    Number parse() {
+        Number v = orExpr();
+        ws();
+        if (p != s.size() || !std::isfinite(v.value)) throw Rejected{};
+        return v;
+    }
+    /// Integers are held as doubles, which stop being exact at 2^53: distinct values would compare equal, so refuse them.
+    static Number checked(Number v) {
+        if (v.integer && std::fabs(v.value) >= 9007199254740992.0) throw Rejected{};
+        return v;
+    }
+    void ws() { while (p < s.size() && (s[p] == ' ' || s[p] == '\t')) ++p; }
+    bool take(std::string_view op) {
+        ws();
+        if (s.substr(p, op.size()) != op) return false;
+        p += op.size();
+        return true;
+    }
+    Number boolean(bool b) { return {b ? 1.0 : 0.0, true}; }
+    Number primary() {
+        if (++depth > kMaxDepth) throw Rejected{};
+        struct Leave { int& d; ~Leave() { --d; } } leave{depth};
+        ws();
+        if (take("(")) {
+            Number v = orExpr();
+            if (!take(")")) throw Rejected{};
+            return v;
+        }
+        if (take("-")) { Number v = primary(); v.value = -v.value; return v; }
+        if (take("!")) return boolean(primary().value == 0);
+        const size_t start = p;
+        bool integer = true;
+        for (; p < s.size() && (std::isdigit(static_cast<unsigned char>(s[p])) || s[p] == '.'); ++p)
+            if (s[p] == '.') integer = false;
+        if (start == p) throw Rejected{};
+        double v = 0;
+        auto [end, error] = std::from_chars(s.data() + start, s.data() + p, v);
+        if (error != std::errc{} || end != s.data() + p) throw Rejected{};
+        return checked({v, integer});
+    }
+    Number mulExpr() {
+        Number v = primary();
+        for (;;) {
+            if (take("*")) { Number r = primary(); v = checked({v.value * r.value, v.integer && r.integer}); continue; }
+            if (take("/")) {
+                Number r = primary();
+                if (r.value == 0 || (v.integer && r.integer && std::fmod(v.value, r.value) != 0)) throw Rejected{};
+                v = {v.value / r.value, v.integer && r.integer};
+                continue;
+            }
+            if (take("%")) {
+                Number r = primary();
+                if (!v.integer || !r.integer || r.value <= 0 || v.value < 0) throw Rejected{};
+                v = {std::fmod(v.value, r.value), true};
+                continue;
+            }
+            return v;
+        }
+    }
+    Number addExpr() {
+        Number v = mulExpr();
+        for (;;) {
+            if (take("+")) { Number r = mulExpr(); v = checked({v.value + r.value, v.integer && r.integer}); continue; }
+            if (take("-")) { Number r = mulExpr(); v = checked({v.value - r.value, v.integer && r.integer}); continue; }
+            return v;
+        }
+    }
+    Number compare() {
+        Number v = addExpr();
+        if (take("<=")) return boolean(v.value <= addExpr().value);
+        if (take(">=")) return boolean(v.value >= addExpr().value);
+        if (take("==")) return boolean(v.value == addExpr().value);
+        if (take("!=")) return boolean(v.value != addExpr().value);
+        if (take("<")) return boolean(v.value < addExpr().value);
+        if (take(">")) return boolean(v.value > addExpr().value);
+        return v;
+    }
+    // Both sides always evaluate: a rejected right-hand side rejects the expression even where Tcl would short-circuit.
+    Number andExpr() {
+        Number v = compare();
+        while (take("&&")) { const bool right = compare().value != 0; v = boolean(v.value != 0 && right); }
+        return v;
+    }
+    Number orExpr() {
+        Number v = andExpr();
+        while (take("||")) { const bool right = andExpr().value != 0; v = boolean(v.value != 0 || right); }
+        return v;
+    }
+};
+
 
 // Nesting limit for [..] substitution and for re-reading object lists. Deeper input is reported and left
 // unparsed, which keeps recursion bounded on hostile input.
@@ -174,6 +287,26 @@ std::vector<Cmd> Scanner::parseScript(bool inBracket) {
         cmd.begin = pos_;
         const size_t problems = ctx_.out.problems.size();
         WordsEnd we = scanWords(cmd.words, false, inBracket);
+        // Tcl keeps elseif/else clauses attached to an if across line breaks.
+        if (!cmd.words.empty() && cmd.words[0].value == "if" && we.stop == Stop::Newline) {
+            for (;;) {
+                size_t look = pos_;
+                while (look < n && (isHSpace(src_[look]) || src_[look] == '\n')) ++look;
+                if (look >= n || src_[look] == '#' || src_[look] == ';') break;
+                const size_t saved = pos_;
+                pos_ = look;
+                std::vector<Arg> clause;
+                WordsEnd next = scanWords(clause, false, inBracket);
+                if (clause.empty() || (clause[0].value != "elseif" && clause[0].value != "else")) {
+                    pos_ = saved;
+                    break;
+                }
+                cmd.words.insert(cmd.words.end(), clause.begin(), clause.end());
+                cmd.end = next.end;
+                we = next;
+                if (we.stop != Stop::Newline) break;
+            }
+        }
         cmd.valid = ctx_.out.problems.size() == problems;
         cmd.end = we.end;
         if (!cmd.words.empty()) cmds.push_back(std::move(cmd));
@@ -471,6 +604,8 @@ bool isOptionWord(const Arg& a) {
            (std::isalpha(static_cast<unsigned char>(a.value[1])) || a.value[1] == '_');
 }
 
+bool isAllInputs(const std::string& kind) { return kind == "all_inputs" || kind == "all_inputs -no_clocks"; }
+
 void expandObjects(Ctx& ctx, const Arg& a, std::vector<ObjectRef>& out, int depth);
 
 // [get_ports a b], [get_clocks -of_objects x], [all_clocks]: one ObjectRef per pattern. Non-option
@@ -482,7 +617,8 @@ void expandGetCommand(Ctx& ctx, const Arg& bracket, std::vector<ObjectRef>& out,
     }
     const std::string& cmdName = bracket.sub[0].value;
     if (cmdName == "all_inputs") {
-        if (bracket.sub.size() != 1) addProblem(ctx, "all_inputs: options and arguments are unsupported");
+        if (bracket.sub.size() == 2 && bracket.sub[1].value == "-no_clocks") out.push_back(ObjectRef{"all_inputs -no_clocks", ""});
+        else if (bracket.sub.size() != 1) addProblem(ctx, "all_inputs: options other than -no_clocks and arguments are unsupported");
         else out.push_back(ObjectRef{cmdName, ""});
         return;
     }
@@ -501,7 +637,7 @@ void expandGetCommand(Ctx& ctx, const Arg& bracket, std::vector<ObjectRef>& out,
         std::vector<ObjectRef> names;
         expandObjects(ctx, bracket.sub[i], names, depth + 1);
         for (const ObjectRef& r : names) {
-            if (r.kind == "all_inputs") addProblem(ctx, "all_inputs: nested object collections are unsupported");
+            if (isAllInputs(r.kind)) addProblem(ctx, "all_inputs: nested object collections are unsupported");
             else out.push_back(ObjectRef{cmdName, r.pattern});
         }
     }
@@ -635,6 +771,8 @@ void doCreateClock(Ctx& ctx, const Cmd& cmd) {
     c.loc = cmd.loc;
     if (const Arg* n = p.last("-name")) c.name = n->value;
     expandPositional(ctx, p, c.sources);
+    for (const auto& ref : c.sources) if (ref.kind == "all_inputs -no_clocks")
+        addProblem(ctx, "create_clock: all_inputs -no_clocks is defined by the clocks, so it cannot define one");
     c.name = deriveName(c.name, c.sources);
     if (c.name.empty()) addProblem(ctx, "create_clock: no -name and no source object to name the clock");
 
@@ -681,9 +819,9 @@ void doCreateGeneratedClock(Ctx& ctx, const Cmd& cmd) {
     if (!p.last("-source")) addProblem(ctx, "create_generated_clock: missing required -source");
     expandOptions(ctx, p, {"-source"}, srcRefs);
     expandOptions(ctx, p, {"-master_clock"}, masterRefs);
-    for (const auto& ref : srcRefs) if (ref.kind == "all_inputs")
+    for (const auto& ref : srcRefs) if (isAllInputs(ref.kind))
         addProblem(ctx, "create_generated_clock: all_inputs is not a single source object");
-    for (const auto& ref : masterRefs) if (ref.kind == "all_inputs")
+    for (const auto& ref : masterRefs) if (isAllInputs(ref.kind))
         addProblem(ctx, "create_generated_clock: all_inputs is a port collection, expected a master clock");
     if (!masterRefs.empty()) {
         c.masterClock = masterRefs.front().pattern;
@@ -745,7 +883,7 @@ void doSetClockGroups(Ctx& ctx, const Cmd& cmd) {
         std::vector<ObjectRef> refs;
         expandObjects(ctx, *a, refs, 0);
         if (refs.empty()) addProblem(ctx, "set_clock_groups: empty -group list");
-        for (const auto& ref : refs) if (ref.kind == "all_inputs")
+        for (const auto& ref : refs) if (isAllInputs(ref.kind))
             addProblem(ctx, "set_clock_groups: all_inputs is a port collection, expected clocks");
         g.groups.push_back(std::move(refs));
     }
@@ -914,6 +1052,58 @@ bool substitute(Ctx& ctx, Arg& a, int depth = 0) {
     if (depth > kMaxDepth) { addProblem(ctx, "substitution nested too deeply"); return false; }
     if (a.kind == ArgKind::Brace) return true;
     if (a.kind == ArgKind::Bracket) {
+        if (!a.sub.empty() && (a.sub[0].value == "expr" || a.sub[0].value == "lindex")) {
+            const auto& w = a.sub;
+            if (w[0].value == "lindex") {
+                if (w.size() != 3 || (w[1].kind != ArgKind::Brace && w[1].kind != ArgKind::Bare)) {
+                    addProblem(ctx, "lindex: expected a literal list and index"); return false;
+                }
+                std::string listText = w[1].value;
+                if (listText.size() > 1 && listText[0] == '$') {
+                    auto it = ctx.variables.find(listText.substr(1));
+                    if (it == ctx.variables.end()) { addProblem(ctx, "lindex: undefined list variable"); return false; }
+                    listText = it->second.value;
+                }
+                const size_t problemsBefore = ctx.out.problems.size();
+                auto items = listElements(ctx, listText, depth + 1);
+                if (ctx.out.problems.size() != problemsBefore) return false;
+                size_t index = 0;
+                if (w[2].value == "end") index = items.size() ? items.size() - 1 : 0;
+                else {
+                    auto [p, ec] = std::from_chars(w[2].value.data(), w[2].value.data() + w[2].value.size(), index);
+                    if (ec != std::errc{} || p != w[2].value.data() + w[2].value.size()) { addProblem(ctx, "lindex: invalid index"); return false; }
+                }
+                if (index >= items.size()) { addProblem(ctx, "lindex: index out of range"); return false; }
+                if (items[index].kind == ArgKind::Brace) { addProblem(ctx, "lindex: nested lists are unsupported"); return false; }
+                a.value = items[index].value; a.kind = ArgKind::Bare; return true;
+            }
+            std::string input;
+            for (size_t i = 1; i < w.size(); ++i) { if (i > 1) input += ' '; input += w[i].value; }
+            for (size_t i = 0; i < input.size();) {
+                if (input[i] == '$') {
+                    size_t b = ++i; while (i < input.size() && (std::isalnum(static_cast<unsigned char>(input[i])) || input[i] == '_')) ++i;
+                    if (b == i) { addProblem(ctx, "expr: invalid variable"); return false; }
+                    auto it = ctx.variables.find(input.substr(b, i-b));
+                    if (it == ctx.variables.end()) { addProblem(ctx, "expr: undefined variable"); return false; }
+                    // Tcl substitutes a value, not syntax: `1 + 1` in a variable is not an operand here, so refuse it.
+                    if (!isPlainNumber(it->second.value)) { addProblem(ctx, "expr: variable '" + input.substr(b, i-b) + "' does not hold a plain number"); return false; }
+                    input.replace(b-1, i-(b-1), it->second.value); i = b-1 + it->second.value.size();
+                } else ++i;
+            }
+            try {
+                ExprEvaluator evaluator{input};
+                const ExprEvaluator::Number result = evaluator.parse();
+                char text[64];
+                if (result.integer) std::snprintf(text, sizeof text, "%.0f", result.value);
+                else std::snprintf(text, sizeof text, "%.17g", result.value);
+                a.value = text;
+                // A float stays a float in a later expr: 2.0 % 2 is an error in Tcl, 2 % 2 is not.
+                if (!result.integer && a.value.find_first_of(".en") == std::string::npos) a.value += ".0";
+                a.kind = ArgKind::Bare;
+                return true;
+            }
+            catch (const ExprEvaluator::Rejected&) { addProblem(ctx, "expr: invalid or unsupported expression"); return false; }
+        }
         for (auto& word : a.sub) if (!substitute(ctx, word, depth + 1)) return false;
         if (a.sub.empty()) { addProblem(ctx, "empty command substitution"); return false; }
         if (isObjectCommand(a.sub[0].value) || a.sub[0].value == "all_clocks" || a.sub[0].value == "all_inputs") return true;
@@ -994,12 +1184,14 @@ void dispatch(Ctx& ctx, const Cmd& original, int depth = 0) {
         else if (w.size() == 3) ctx.variables[w[1].value] = w[2];
         else if (!ctx.variables.count(w[1].value)) addProblem(ctx, "undefined variable '" + shortText(w[1].value) + "'");
     } else if (name == "source") {
-        if (w.size() != 2 || w[1].value.empty() || w[1].value[0] == '-') {
-            addProblem(ctx, "source: expected one file path; options are unsupported");
+        size_t pathIndex = 1;
+        while (pathIndex < w.size() && (w[pathIndex].value == "-echo" || w[pathIndex].value == "-verbose")) ++pathIndex;
+        if (pathIndex + 1 != w.size() || w[pathIndex].value.empty() || w[pathIndex].value[0] == '-') {
+            addProblem(ctx, "source: expected one file path; only -echo and -verbose options are accepted");
         } else {
             namespace fs = std::filesystem;
             std::error_code ec;
-            auto path = fs::path(w[1].value);
+            auto path = fs::path(w[pathIndex].value);
             if (path.is_relative()) path = fs::path(ctx.file).parent_path() / path;
             path = fs::weakly_canonical(path, ec);
             if (ec) addProblem(ctx, "source: cannot resolve file");
@@ -1028,6 +1220,67 @@ void dispatch(Ctx& ctx, const Cmd& original, int depth = 0) {
                         ctx.base = savedBase; ctx.cur = savedCur;
                     }
                 }
+            }
+        }
+    } else if (name == "if") {
+        bool syntaxOk = w.size() >= 3;
+        size_t clause = 1;
+        bool first = true;
+        while (syntaxOk && clause < w.size()) {
+            if (!first) {
+                if (w[clause].value == "elseif") ++clause;
+                else if (w[clause].value == "else") {
+                    ++clause;
+                    syntaxOk = clause + 1 == w.size() && w[clause].kind == ArgKind::Brace;
+                    clause = w.size();
+                    break;
+                } else { syntaxOk = false; break; }
+            }
+            if (clause + 1 >= w.size() || w[clause].kind != ArgKind::Brace || w[clause + 1].kind != ArgKind::Brace) {
+                syntaxOk = false; break;
+            }
+            clause += 2;
+            first = false;
+        }
+        if (clause != w.size()) syntaxOk = false;
+        if (!syntaxOk) addProblem(ctx, "if: expected braced conditions and bodies with optional elseif/else clauses");
+        else {
+            auto condition = [&](const Arg& arg, bool& value) {
+                Arg expression;
+                expression.kind = ArgKind::Bracket;
+                Arg command; command.value = "expr";
+                Arg input; input.kind = ArgKind::Brace; input.value = arg.value;
+                expression.sub = {std::move(command), std::move(input)};
+                if (!substitute(ctx, expression)) return false;
+                double number = 0;
+                if (!parseDouble(expression.value, number)) return false;
+                value = number != 0;
+                return true;
+            };
+            size_t i = 1;
+            bool selected = false, undecidable = false;
+            const Arg* bodyArg = nullptr;
+            while (i < w.size()) {
+                if (w[i].value == "else") { bodyArg = &w[i + 1]; selected = true; break; }
+                bool yes = false;
+                if (!condition(w[i], yes)) { undecidable = true; break; }
+                if (yes) { bodyArg = &w[i + 1]; selected = true; break; }
+                i += 2;
+                if (i < w.size() && w[i].value == "elseif") ++i;
+            }
+            if (undecidable) addProblem(ctx, "if: condition could not be evaluated; branch outcome is unknown");
+            else if (selected && bodyArg) {
+                const auto savedSrc = ctx.src; const auto savedBase = ctx.base;
+                SourceLocation base = ctx.base;
+                for (size_t j = 0; j < bodyArg->content; ++j) {
+                    if (ctx.src[j] == '\n') { ++base.line; base.column = 0; } else ++base.column;
+                }
+                ctx.base = base; ctx.src = bodyArg->script;
+                std::vector<size_t> starts{0};
+                for (size_t j = 0; j < ctx.src.size(); ++j) if (ctx.src[j] == '\n') starts.push_back(j + 1);
+                Scanner scanner(ctx.src, ctx, &starts, depth + 1);
+                for (const auto& child : scanner.parseScript(false)) dispatch(ctx, child, depth + 1);
+                ctx.src = savedSrc; ctx.base = savedBase;
             }
         }
     } else if (name == "foreach") {
@@ -1079,7 +1332,7 @@ void dispatch(Ctx& ctx, const Cmd& original, int depth = 0) {
             if (!sourceEvaluated) ctx.variables.clear();
             return;
         }
-        if (name == "set" || name == "foreach" || ctx.out.unsupported.size() != unsupported)
+        if (name == "set" || name == "foreach" || name == "if" || ctx.out.unsupported.size() != unsupported)
             ctx.variables.clear();
         ctx.out.clocks.resize(clocks); ctx.out.clockGroups.resize(groups);
         ctx.out.exceptions.resize(exceptions); ctx.out.inputDelays.resize(delays);

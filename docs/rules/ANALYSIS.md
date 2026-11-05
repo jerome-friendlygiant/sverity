@@ -52,10 +52,48 @@ The evaluator is bounded, not Tcl: its limits are in the [RFC](../SVerity_RFC.md
 | `create_clock`, `create_generated_clock`, `set_clock_groups` | Domain names and relationships | Generated relationships are assumed, not derived (CDC-030) |
 | `set_input_delay` | Input contract for CDC-029 | Does not declare a clock relationship |
 | `set_output_delay` | External capture clock for CST-012 | Does not prove timing |
-| `set_case_analysis 0\|1` | Scalar top-level data inputs: the model is rebuilt with that constant | Internal, driven and multi-bit targets, clock and reset event sources: CST-009 with a reason. Conflicting values apply nothing. |
-| `source`, `foreach`, `set`, `$var`, `all_inputs` | Bounded evaluation | Options, cycles, excessive depth |
+| `set_case_analysis 0\|1` | Top-level data inputs, scalar or named bits of a vector declared `[N:0]` (`mode[0]`, `mode[*]`): the model is rebuilt with those constants. A bit nothing fixes stays unknown, so `mode == 2'b01` is decided only when a fixed bit differs or every bit is fixed. An undriven internal object takes the value as a stated assumption (CST-014 says so, and its lint finding stays). A driven one is accepted only when its one driver already proves the value, counting a child output as a driver, because overriding a driver would let a mistaken constraint delete the defect being checked; a contradiction is not applied. Any procedural write, a force, a declaration initialiser, a primitive and a net alias rule a value out, whatever form the write takes, such as `{<<{m}} = 1` or `m++`. Selections, concatenations, equality and reductions are evaluated; other logic and `case` statements keep every branch, which can only add findings. | Unapplied, CST-009 with a reason: a whole-vector name (tools differ on what it means), other declared ranges, structs, a driven target whose single continuous driver does not prove the same value, one with several or unresolved drivers, an object the model does not see written (see the order below), a register output, an undriven object in a module with shared symbols, and clock and reset event sources. Conflicting values apply nothing. |
+| `source`, `foreach`, `if`/`elseif`/`else`, `set`, `$var`, `all_inputs`, `all_inputs -no_clocks` | Bounded evaluation; conditional branches require a decidable `expr` condition. `-no_clocks` leaves out ports and port bits declared as clocks anywhere in the constraint set, whatever the order, so a clock declared later only removes a contract; a clock nothing declares stays in. | Unsupported options, cycles, excessive depth, undecidable reached conditions |
 
-Case analysis prunes only what it proves: logical AND/OR/NOT, scalar bitwise NOT and non-narrowing conversions, propagated through single unconditional scalar drivers to a fixed point. A call in a condition blocks pruning, even with a false conjunct. Lint still reads the elaborated source.
+Case analysis prunes only what it proves: logical AND/OR/NOT, scalar bitwise NOT, non-narrowing conversions, selects, concatenations, equality and reductions, propagated through single unconditional scalar drivers to a fixed point. A call in a condition blocks pruning, even with a false conjunct. Lint still reads the elaborated source.
+
+**A case value is an assumption, not evidence.** It can remove findings, so a mistaken one must not delete the defect being checked. Each target therefore takes the first answer that applies:
+
+```text
+conflicting values              → nothing applied, CST-018
+struct or interface member      → not applied      not followed as a plain signal
+offset ≠ declared index         → not applied      [0:1] has mode[0] as its top bit
+reset or clock source           → not applied      no state for "stopped" or "held" exists
+register output                 → not applied      nothing shows it holds over time
+written procedurally in any form → not applied      also forced, initialised, or tied to a primitive
+                                                   or alias: a case value only stands in for no driver,
+                                                   or agrees with one continuous driver
+no driver, one instance         → applied, stated as an assumption (the lint finding stays)
+no driver, shared symbol        → not applied      one value would reach the other instances
+more than one driver            → not applied      counting a child's output or inout
+one driver proving the value    → applied
+one driver proving the opposite → not applied, a contradiction
+one driver, value not proved    → not applied      overriding it is not implemented
+```
+
+A declaration is atomic, and a proof may use only declarations that were themselves applied, so they are retried until nothing changes.
+
+A bit nothing fixes stays unknown, and the evaluator has three bit values rather than two:
+
+| Expression, with `mode[1]=1` and `mode[0]` unfixed | Decided as | Why |
+|---|---|---|
+| `if (mode)` | true | one known 1 makes the value non-zero |
+| `&mode` | unknown | the unfixed bit decides it |
+| `\|mode` | 1 | one known 1 decides it |
+| `mode == 2'b01` | false | the top bit already differs |
+| `mode == 2'b11` | unknown | the other bit could still differ |
+| `q <= {mode[1], data}` | keeps `data` | true as a condition, yet the other bit still carries the crossing |
+
+The last row is the trap in this evaluator: being non-zero fixes a condition, not a value. Only a one-bit value drops its reads outright.
+
+Unsafe designs these rules keep flagging: a child output that holds a wired-OR at 1 while `en=0` suggests 0 (`unknown_second_driver_in_child`), `initial force m = 1` (`unknown_forced_net`), `logic m = 1` (`unknown_declaration_initialiser`), a task called from `initial` (`unknown_write_in_called_task`), `buf(m, en)` (`unknown_primitive_driver`), `wire m = 1'b1` with a request for 0 (`unknown_driven_contradicts_driver`), a value on `u0` that must leave sibling `u1` alone (`boundary_sibling_instance`).
+
+Why a clock or reset source stays out: a stopped clock does not make its registers constant, because an asynchronous reset can still change them. A released reset does not say what the registers start from. An asserted one is a statement about initialisation. One net can also reset different registers at opposite polarity, so its value is not a global "reset off". This needs retained state and per-register reset state in the model, and pruning `if (!rn)` alone would leave the event list and the reset metadata disagreeing.
 
 ## The model: what we read from slang
 
@@ -78,7 +116,8 @@ Relation   rel(A, B)  Same | Async | Exclusive | Unknown, from the SDC only
 
 Cone       cone(f) =  { r ∈ F ∪ inputs | r reaches f.D through Seq, then Comb edges }
                       the walk stops at registers; it also collects black boxes,
-                      undriven nets, truncated drivers and unresolved calls
+                      nets with no driver (a constant is a driver, a loop index is not a signal),
+                      truncated drivers and unresolved calls
 ```
 
 For example, `s1 <= d_a; s2 <= s1;` clocked by `clk_b`, with `d_a` launched by `clk_a`, becomes:
@@ -94,13 +133,22 @@ flowchart LR
 rel(clk_a, clk_b) = Async   ⇒   d_a → s1 is a crossing, s1 → s2 is its synchroniser
 ```
 
+A hub stands in for a large all-to-all assignment: `sources -> hub -> targets` states the same dependencies with fewer edges. A signal can be both data and enable of one target, and those stay separate edges, because `if (s) t <= s` holds `t` when `s` is low and so is no synchroniser stage.
+
+**Why bit precision matters twice.** Treating `a & b` as "every bit of `a` and `b` reaches every bit of the result" looks only imprecise, but on OpenTitan AES it invented a dependency that produced a false ERROR, and it accounted for most of the 4.59 million edges. Keeping bits apart where the operator does removed the ERROR and took the graph to 454,185 edges and the run from 118 s to 4.6 s. Wrong edges cost accuracy and time together, so look for one cause before treating them as separate problems.
+
+The same mistake showed up in struct patterns. OpenTitan's `tlul_adapter_sram` builds its response with `'{d_valid: ..., a_ready: ...}`, and treating that as one expression made `a_ready` depend on `d_valid`. That closed an invented combinational loop (a false Established LNT-012 ERROR on `otp_ctrl` and `spi_host`) and a false path from FIFO storage to its `full_q` (two RDC-010 warnings each). The same design written field by field had neither. A pattern's elements come most significant first and already resolved, so written order and `default:` need no separate handling: `'{r: b, d: x}` stays free of a loop, and a real one through `'{d: x, r: s.d}` or `'{default: x}` is still reported.
+
+**Repeated edges are merged, not picked from.** One signal can reach one target several times in one procedure with different attributes. `if (reinit) q <= 0; else if (wr_en) q <= d;` makes `reinit` guard `q` on both branches. Compaction keeps one edge per source, target, type, procedure and role, and the survivor says what the repeats share: differing polarity becomes unknown, differing branch becomes none, differing operator becomes other, `approximate` is kept if any repeat has it, and `internalRead` only if all do. Keeping the first repeat instead made the result depend on input order (see [Determinism](#determinism)).
+
 **Precision loss is recorded, never silent.** It becomes a model fallback (CST-010) or a leaf in the cone, and any rule that reaches it reports Unresolved:
 
 - A signal over 16384 bits collapses to one node, so nothing bit-level can be concluded.
-- A register assigned by several sequential blocks keeps only the first block's clock, so every cone reaching it is unresolved. Its only reported relationship depends on source order: CST-012 can read ERROR or Unresolved, never consistent.
+- A register assigned by several sequential blocks keeps every block's clock. Each relationship takes the least safe of them, so the verdict does not depend on source order. Which block's value the register holds is not modelled, so every cone reaching it stays unresolved.
 - Interface ports and references are not followed as ordinary nets.
-- Subroutines: arguments and nonlocal reads in the body join the cone, cached per elaborated subroutine. Recursion, ambiguous state ownership, unresolved effects or a budget stop leave an uncertain call on that cone. A side-effect write is an unresolved capture, never an exact transfer. The function's name is never evidence.
+- Subroutines: arguments and nonlocal reads in the body join the cone, cached per elaborated subroutine. Automatic locals hold nothing between calls, so they add nothing, provided `Flow` shows each is assigned before every read. Recursion, static locals, a local that can be read unassigned, ambiguous state ownership, unresolved effects or a budget stop leave an uncertain call on that cone. A side-effect write is an unresolved capture, never an exact transfer. The function's name is never evidence.
 - A nested AND/OR mix on an edge is classified `other`.
+- **Bits stay apart only where the operator keeps them apart:** exact moves, `~`, `&`, `|`, `^`, `^~` of equal widths, concatenation, assignment patterns that fill a packed value (`'{d: x, r: b}`, `'{x, b}`, `'{0: x, 1: b}`), conversions (a signed extension copies the top bit) and the data arms of `?:`. Everything else, including arithmetic, shifts, reductions and a `?:` select, is a leaf whose reads reach all its bits. Removing an edge here must be justified by the operator, because a missing edge is a missed crossing.
 
 **Blind spots.** Function values, procedural order inside a call, output and `ref` transfers, persistence of local or package state, and initial and final processes are outside the register model.
 
@@ -153,7 +201,7 @@ flowchart TD
     D -- "< 2" --> Q{"payload qualified?"}
     Q -- proven --> R39["CDC-039 with stability obligation"]
     Q -- undecided --> R39U["CDC-039 Unresolved, INCOMPLETE"]
-    Q -- disproven --> R3["CDC-003 or CDC-004, plus CDC-028 or CDC-016 if they apply"]
+    Q -- disproven --> R3["one primary finding: CDC-017, CDC-032, CDC-028, CDC-016, CDC-004 or CDC-003"]
     OK --> B{"bus?"}
     B -- "1 bit" --> I3["CDC-003 INFO with trust model"]
     B -- "Gray" --> G["CDC-018 skew obligation"]
@@ -175,14 +223,31 @@ next(si, t)  ⇔  dom(t) = dom(si) ∧ t and si are nonblocking
 
 clean        ⇔  each next edge is exact,  otherwise CDC-006
                 ∧ same edge and same resets per stage,  otherwise CDC-026
-                ∧ non-final stages feed only the next stage,  otherwise CDC-007
+                ∧ stages short of min_stages feed only the next one,  otherwise CDC-007
 ```
 
-So `if (s2) held <= 1` makes `held` a consumer, not a stage, and a "reset" driven by a later stage of the chain is feedback, not a reset.
+So `if (s2) held <= 1` makes `held` a consumer, not a stage, and a "reset" driven by a later stage of the chain is feedback, not a reset. CDC-006 and CDC-007 are separate findings on one crossing only when both defects exist, because they have different fixes.
+
+**Where a chain ends is the hard part.** Finding the start is easy; the walk has to decide what counts as the next stage, and whether anything else may read a stage. Four shapes, all after `s1 <= a_q; s2 <= s1;`, with `min_stages` at its default of two:
+
+| What follows | Reading | Result |
+|---|---|---|
+| `consumer <= ~s2;` | Logic after two clean stages: a consumer | Recognised 2-stage chain |
+| `s3 <= s2; tap = ~s2;` | `s2` has reached the required depth, so it is already an output, and `s3` is a pipeline register or a third stage | Recognised, no CDC-007. At `min_stages=3` it is 3 stages with a tap, CDC-007 |
+| `tap = ~s1;` | Read before the required depth | CDC-007 |
+| `s2 <= ~s1;` instead | Logic before the chain has two stages | CDC-006 |
+
+An exact continuation is the next stage wherever it comes in the source, so swapping independent assignments changes nothing. Every stage at the required depth counts as an output, for qualifier and reconvergence checks too, so an unused follower changes no result. Clock edge and reset agreement (CDC-026) are required only of the stages up to that depth.
+
+The second row used to report CDC-007 for any register that had a follower, asking "is this the last register?" rather than "has it been through the required depth?". OpenTitan's `prim_diff_decode` and `uart` show why that is wrong: each follows a clean `prim_flop_2sync` with a pipeline register for edge detection or majority voting and also reads the output directly, and both are correct.
+
+With `min_stages` above two, the first row stops at two stages and reports CDC-005, not CDC-006.
+
+The first row used to be read as a broken third stage. That is what the roadmap's "duplicated broken-chain finding" turned out to be: on OpenTitan `clkmgr`, 8 clean `prim_flop_2sync` crossings each got a false CDC-006 and a false CDC-007, because a capture of the real last stage in another domain then looked like a leak from a middle stage. The public gate designs never showed it.
 
 - **Assumes:** the first stage resolves within one destination cycle, and the source is glitch-free and held long enough. This is the stated trust model, not a proof.
 - **Does not show:** that logic before the first stage is safe. That is CDC-008, and such a chain can still be recognised.
-- **Must stay flagged:** `CDC-003/bad_first_stage_enable`, `bad_first_stage_hold_mux`, `bad_blocking_pipeline`.
+- **Must stay flagged** (as CDC-028 with CDC-003 as evidence): `CDC-003/bad_first_stage_enable`, `bad_first_stage_hold_mux`, `bad_blocking_pipeline`, `CDC-028/bad_stage_enabled_by_its_own_data`.
 
 **4. Synchronous reset candidate.** A register's control edge is ignored for chain recognition only if it looks like a reset:
 
@@ -248,6 +313,8 @@ handshake(a,b) ⇔  a and b are synchronised single bits in opposite directions
                   ∧ each one's source depends on the other's chain     one way only: CDC-015 WARNING
 fifo(g1,g2)    ⇔  gray(g1) ∧ gray(g2), in opposite directions, same instance
 ```
+
+**Same launch bit, several chains (CDC-047).** A launch bit with chains into two or more destination symbols of one domain is reported: the copies can differ for a cycle. This is the structure, not proof that logic combines them.
 
 **8. Reconvergence (CDC-010).** A destination cone with two or more asynchronous influences is reported: separately synchronised source bits, raw unqualified crossings, or signals that passed one pipeline register after their synchronisers. This is a structural heuristic, not a proof of glitch freedom.
 
@@ -324,7 +391,7 @@ mismatch(s, d)  ⇔  s ∈ cone(d) ∧ resets(s) ⊄ resets(d)
 RDC-004  if dom(s) = dom(d)        RDC-005  if rel(dom(s), dom(d)) ≠ Same
 ```
 
-This is a structural mismatch, not proven corruption. Even a recognised data synchroniser leaves it open: its trust model covers metastability, not whether the destination tolerates a reset-induced change. So it stays a WARNING with proof NOT_ATTEMPTED.
+One finding per destination register and pair of reset sets; each source is listed as evidence, because a foreign reset feeding a whole bus is one cause. This is a structural mismatch, not proven corruption. Even a recognised data synchroniser leaves it open: its trust model covers metastability, not whether the destination tolerates a reset-induced change. So it stays a WARNING with proof NOT_ATTEMPTED.
 
 ## Lint
 
@@ -368,7 +435,8 @@ LNT-025 conflict   conditional writes v before w, same kind, static ranges,
 LNT-044 read       read with entryOnly ∧ a later whole write in p
 LNT-053 dead       Kill(v, w), both exact, same kind, range(v) ⊆ range(w),
                    no read between, not observed, not in a loop
-LNT-012 cycle      a Comb-only self-dependency, or a Comb strongly connected component
+LNT-012 cycle      a Comb-only self-dependency, or a Comb strongly connected component, where a bit its
+                   procedure reads only after writing has a separate node for that internal value
 LNT-027 clock      clock root reaches a register D or an output through Comb edges
 ```
 
@@ -379,6 +447,14 @@ LNT-027 clock      clock root reaches a register D or an output through Comb edg
 - A `continue`, or a case whose items cannot all match, makes it `approximated`.
 - Guards are not kept as full AND/OR trees.
 
+**LNT-012 and statement order.** A procedure's own reads of a bit it always writes first are not feedback, so those reads use a second node fed by the procedure's writes. A cycle made only of second nodes is one activation's statement order: no finding. Any cycle that touches a real bit stays, so a loop that leaves the procedure still closes. This relies on a loop back edge carrying only values written inside the procedure: walking a loop once cannot hide a read of the entry value.
+
+- **Must stay flagged:** `LNT-012/bad_read_before_first_write`, `bad_conditional_first_write`, `unknown_call_keeps_warning`, `bad_loop_through_ordered_read`.
+
+**LNT-012 and approximate edges.** An assignment with a computed index or a user call reaches every bit in the model, which may be far more than is real. So a loop that needs such an edge is Unresolved, and a loop that remains without them stays an ERROR. Port connections alone are one net seen from two sides, not a loop, and a constant selector reads nothing, even if it names a signal inside `$bits`.
+
+- **Must stay flagged:** `LNT-012/unknown_cycle_through_computed_index`, `unknown_cycle_through_function_argument`, `bad_precise_loop_beside_a_call`, `bad_cycle_without_computed_index`, `bad_selector_read_is_a_real_dependency`.
+
 **LNT-025 in detail.** Independent `if`s already give last-write priority in SystemVerilog, so an overlap of different values is a review question: Flow proves neither exclusivity nor intent. Two exemptions:
 
 - **Equal values:** two known integral literals, equal after implicit conversions, on the same exact range, with no opaque call between. This proves that pair agrees, not that the protocol is right.
@@ -386,6 +462,94 @@ LNT-027 clock      clock root reaches a register D or an output through Comb edg
 
 **Does not show:** intent, or the behaviour of user functions at the procedure level. The model follows function dependencies, but Flow stays opaque at the call.
 
+## Determinism
+
+One input gives one report, because a fingerprint is what a waiver is attached to. A finding whose identity varies between runs can silently lose its waiver.
+
+Compare a binary with itself before trusting any other comparison. Doing that on OpenTitan IPs found two causes:
+
+- **Order-dependent merging.** See [repeated edges](#the-model-what-we-read-from-slang). The polarity of `reinit` in a crossing's identity flipped between runs, so its fingerprint did too (one run in six on `clkmgr`).
+- **A thread pool.** slang's analysis named whichever instance finished first in a finding it coalesces across identical instances. Parsing still uses threads, because its result does not depend on their order; analysis does not.
+
+The general rule: any "first one found" over an unordered input is a bug waiting for a different input order. Anything iterating over pointers or hash tables must merge or sort before the result can reach a report.
+
+## Cost on a large design
+
+Numbers are from `top_earlgrey` at the pinned commit with no SDC, the worst case for crossings: 3.27 million nodes, 15.5 million edges, 237,159 register bits and 76 clock domains whose relationships are all unknown. The results table is in the [roadmap](../ROADMAP.md#2-mid-term-reaching-10).
+
+### Where the cost comes from
+
+Crossing analysis visits every source of every register's cone, so its work is the sum of cone sizes, not the number of registers. By 112,000 of those register bits the sum was already 650 million sources. Everything inside that loop runs hundreds of millions of times, so operations that look cheap are not.
+
+### How the model stays small
+
+| Technique | Problem it solves | Why it is safe |
+|---|---|---|
+| 16-byte packed edge, adjacency in one block | Pointer-rich graphs at tens of millions of edges | Storage only |
+| Hub node when sources × targets exceeds 1,024 | `n × m` edges for one assignment become `n + m` | Same dependencies; a hub has no symbol, so it matches no design object. It is only correct where every source really reaches every target |
+| Hub for a read set of 32 or more bits shared by many targets | Many targets repeating one large read | As above |
+| Periodic edge compaction during the build | Duplicates growing before the build ends | Repeats are merged (see above) |
+| Bitwise precision | Invented dependencies | Only the operator may remove an edge: a missing edge is a missed defect |
+
+### How cones are computed once
+
+A cone is computed the first time it is needed, kept for all rule families, and stored once when another bit has the same sources: many bits of one bus share a cone. Two caches with two budgets:
+
+| Cache | Budget | Holds |
+|---|---|---|
+| Register cones | 2^29 entries, about 2 GB | One cone per distinct source set |
+| Hub cones | 2^27 entries, about 512 MB | The sources behind one hub |
+
+They have separate budgets because their misses cost very different amounts. One budget went wrong like this:
+
+| Registers done | Elapsed | Cone entries stored | Hubs computed |
+|---:|---:|---:|---:|
+| 96,000 | 49 s | 414 M | 2,241 |
+| 100,000 | 53 s | 465 M | 2,289 |
+| 108,000 | 105 s | 537 M (budget reached) | 2,610 |
+| 112,000 | 213 s | 693 M | 9,217 |
+
+One block, probably a memory, added 4,000 distinct cones of about 16,700 sources per 4,000 bits and filled the budget. Hubs then stopped being stored, and each was recomputed for every register behind it: 108 s for 4,000 registers, after 53 s for the first 100,000. Past a budget the answer is unchanged, only slower, so this showed up as a timeout and never as a wrong result. **Cache what is most expensive to miss, and watch for a cliff rather than a slope.**
+
+Register cones past their budget are still recomputed each time they are needed. The budgets count entries only, and the CDC pass uses far more memory than they allow for, so they do not yet bound a run: `top_earlgrey` still runs out of memory in this pass. Storing a cone as references to hub cones instead of a flat copy might help with both, but that has not been tried.
+
+A walk must not recurse through hubs. The first version did, and revisited shared hubs on combinational cycles exponentially, which looked like a slow run rather than a defect. The walk is now flat, with one visited set.
+
+### Small costs that are not small
+
+- **Names.** The crossing loop built two hierarchical names per source to find its group, about a third of the sampled time. A name is now built once per node and a source and capture pair finds its group once. Report order still comes from the names.
+- **Linear search.** Checking whether a group already held a register scanned its list. Registers are visited in order, so comparing with the last one is enough.
+- **Memory the rest of a run does not need.** The model is freed before the report is finalised.
+
+### How to measure
+
+Time is not distributed evenly, so find its shape before choosing a fix. In order:
+
+1. `--timings` for the phase. All CDC work lands in the first CDC rule, since one pass serves them all.
+2. Stack samples for where it goes. Without a profiler, attach `gdb -batch -ex bt` to the running process every 30 to 60 s; 15 samples are enough to show what dominates. A release build has function names but loses inlined frames.
+3. Temporary counters for why. Samples showed `hubCone`; only progress counters per 4,000 registers showed the cliff, and they corrected a guess that strings were the main cost.
+
+Cap a run's address space with `ulimit -v`, so running out of memory ends in a report rather than in the host's memory guard. Check timestamps on reports: a run stopped early leaves the previous one's JSON in place.
+
+### How to show an optimisation changed nothing
+
+Run the old and new binaries on several real designs and compare full JSON diagnostics. First establish that each binary matches itself, or a difference means nothing. Then look at what differs, by field and by rule, rather than at the counts: counts matched here while 1,661 fingerprints differed. Each change needs its own reason.
+
 ## When changing an analysis
 
 Update this page in the same commit. A new or widened recognition needs an unsafe lookalike fixture listed here first. A design with no findings still needs reading by hand before it counts as evidence.
+
+What has gone wrong in practice, so check it first:
+
+| Check | The failure it catches |
+|---|---|
+| Does a proof account for every source of the value? | A driver the walk does not see, such as a child output, a force or an initial block |
+| Swap two independent statements. Does the result change? | "First candidate wins" in the chain walk |
+| Run the binary twice. Are the reports identical? | Hash, pointer or thread order reaching a report |
+| Does a recognition end at the right place? | A consumer taken for a stage |
+| Does the design use a form the fixtures do not, such as a vector, an instance copy, or `[0:1]`? | A bit offset read as a declared index, or a value reaching a sibling |
+| If a fixture disagrees with the tool, who is right? | Either one: read the design and decide. A fixture of ours expected a value on `u0` to be rejected when the tool was correctly keeping `u1` |
+| Does the same logic written another way give the same answer? | A struct pattern reported a loop that field-by-field assignments did not |
+| Have real designs been run, beyond the gate? | The chain false alarm needed `clkmgr`; the gate's designs all passed |
+
+Count changes are not results. On AES, LNT-012 fell from 777 to 0, RDC-004 from 8,113 to 221 and CST-010 from 5,866 to a handful. Each drop needed its own reason. For LNT-012 it was statement order, and for RDC-004 grouping per symbol.

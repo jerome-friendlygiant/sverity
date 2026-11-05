@@ -60,7 +60,7 @@ public:
     struct SyncOut { uint32_t srcDomain = 0, dstDomain = 0; std::string hier, srcName; NodeId srcQ = kNoNode; uint64_t width = 0; };
     std::unordered_set<const slang::ast::ValueSymbol*> grayNets_;   // nets assigned b ^ (b >> 1) (binary-to-Gray)
     std::unordered_set<const slang::ast::ValueSymbol*> opaqueFunctionNets_;
-    std::map<NodeId, SyncOut> syncedOut_;                           // last-stage Q of every recognised synchroniser
+    std::map<NodeId, SyncOut> syncedOut_;                           // Q of every stage at the required depth of a recognised synchroniser
     void findGrayNets();
     bool isGrayFlop(NodeId q) const;
     bool hasOpaqueFunction(NodeId q) const;
@@ -86,7 +86,7 @@ public:
             report->declareScope(sc);
         design_ = &ctx.design;
         m = &getModel(ctx.design);
-        cones_ = std::make_unique<model::ConeFinder>(*m);
+        cones_ = &model::sharedCones(*m);
         findGrayNets();
         report->setObjectCount("instances", m->numInstances);
         report->setObjectCount("procedures_analysed", m->numProcedures);
@@ -136,6 +136,7 @@ private:
     void mapConstraints() { rel_ = std::make_unique<ClockRelations>(*m, *cfg); }
     Relation relation(uint32_t a, uint32_t b) const { return rel_->relation(a, b); }
     const std::string& domainClockName(uint32_t d) const { return rel_->clockName(d); }
+    bool bitMatches(const std::string& kind, const std::string& pattern, NodeId n) const { return rel_->bitMatches(kind, pattern, n); }
     bool nameMatches(const std::string& kind, const std::string& pattern, NodeId n, const std::string& full) const {
         return rel_->nameMatches(kind, pattern, n, full);
     }
@@ -202,14 +203,14 @@ private:
             add(mk("CST-018", Severity::Warning, message, loc, {}, Confidence::Unresolved));
             report->markIncomplete("constraints", message);
         };
-        auto resolve = [&](const std::vector<sdc::ObjectRef>& refs, bool output, const SourceLocation& loc) {
+        auto resolve = [&](const std::vector<sdc::ObjectRef>& refs, bool output, const SourceLocation& loc, bool bits = false) {
             bool valid = true;
             for (const auto& ref : refs) {
                 bool hit = false;
                 for (NodeId n = 0; n < m->nodes.size() && !hit; ++n) {
                     if (output && !m->topOutput[n]) continue;
                     const auto kind = ref.kind.empty() ? "get_ports" : ref.kind;
-                    hit = nameMatches(kind, ref.pattern, n, stripBit(m->nameOf(n)));
+                    hit = nameMatches(kind, ref.pattern, n, stripBit(m->nameOf(n))) || (bits && bitMatches(kind, ref.pattern, n));
                 }
                 if (!hit) valid = false;
                 if (!hit) problem("constraint object '" + ref.pattern + "' resolves to no " +
@@ -238,7 +239,7 @@ private:
         }
         for (size_t i = 0; i < c.caseAnalyses.size(); ++i) {
             const auto& cse = c.caseAnalyses[i];
-            resolve(cse.objects, false, cse.loc);
+            resolve(cse.objects, false, cse.loc, true);
             const auto& result = design_->caseResults[i];
             if (!result.applied) {
                 if (result.reason.find("conflicting") != std::string::npos) problem(result.reason, cse.loc);
@@ -250,7 +251,8 @@ private:
             for (const auto& name : result.names) { if (!fixed.empty()) fixed += ", "; fixed += name + "=" + std::to_string(cse.value); }
             auto d = mk("CST-014", Severity::Warning, "analysed mode " + fixed +
                         "; alternative value is NOT covered; selected model removed " + std::to_string(m->casePrunedBranches) +
-                        " conditional branches and " + std::to_string(m->casePrunedExpressions) + " mux expressions (run totals); crossings in removed logic are not inventoried", cse.loc, {}, Confidence::Unresolved);
+                        " conditional branches and " + std::to_string(m->casePrunedExpressions) + " mux expressions (run totals); crossings in removed logic are not inventoried" +
+                        (result.assumed ? "; nothing drives the target, so this value is an assumption the design does not establish" : ""), cse.loc, {}, Confidence::Unresolved);
             d.evidence.push_back({"sdc_command", cse.text, cse.loc});
             d.nextStep = "Run each alternative mode separately and review crossings in that run.";
             add(std::move(d));
@@ -314,18 +316,25 @@ private:
                 auto cone = cones_->ofNodes(matched);
                 bool uncertain = cone.flops.empty() || !cone.inputs.empty() || !cone.bbLeaves.empty() ||
                                  !cone.unresolved.empty() || !cone.uncertainCalls.empty() || !cone.undriven.empty();
-                bool async = false;
+                bool async = false, logic = false;
                 std::set<uint32_t> domains;
+                std::set<std::string> relations;
                 auto d = mk("CST-012", Severity::Info, "", decl->loc);
                 d.signals = {name};
                 d.evidence.push_back({"sdc_command", decl->text, decl->loc});
                 for (const auto& src : cone.flops) {
                     const auto& f = *m->flopAt(src.q);
-                    Relation r = f.clockResolved ? rel_->relationByNames(domainClockName(f.domain), decl->clock) : Relation::Unknown;
-                    async |= r == Relation::Async;
-                    uncertain |= r != Relation::Same && r != Relation::Async;
-                    if (f.clockResolved) domains.insert(f.domain);
-                    d.evidence.push_back({"launch_register", flopName(f) + ": " + relName(r), procOf(f).loc});
+                    logic = logic || src.logic;
+                    // Every clock of a register with several sequential drivers counts: a known asynchronous one stays a
+                    // violation whichever block comes first.
+                    for (auto launchDomain : f.clockResolved ? domainsOf(f) : std::vector<uint32_t>{f.domain}) {
+                        Relation r = f.clockResolved ? rel_->relationByNames(domainClockName(launchDomain), decl->clock) : Relation::Unknown;
+                        async |= r == Relation::Async;
+                        uncertain |= r != Relation::Same && r != Relation::Async;
+                        if (f.clockResolved) domains.insert(launchDomain);
+                        relations.insert(relName(r));
+                        d.evidence.push_back({"launch_register", flopName(f) + ": " + relName(r), procOf(f).loc});
+                    }
                 }
                 // Several launch domains may glitch/reconverge even when individually related to capture.
                 uncertain |= domains.size() > 1;
@@ -342,6 +351,20 @@ private:
                     (async ? ": launch domain is declared asynchronous to external capture (boundary crossing)" :
                      uncertain ? ": output-boundary contract unresolved" : ": launch/capture clock contract is consistent; physical timing is not proved") + detail;
                 d.nextStep = "Review the external capture protocol and timing; an upstream synchroniser does not establish output-boundary safety.";
+                d.identityKey = decl->clock;
+                for (const auto& relationship : relations) d.identityKey += ":" + relationship;
+                Crossing boundary;
+                if (!cone.flops.empty()) {
+                    const auto& launch = *m->flopAt(cone.flops[0].q);
+                    boundary.launch = endpoint(launch, stripBit(flopName(launch)), launch.domain);
+                }
+                boundary.capture.signal = name;
+                boundary.capture.sdcClock = decl->clock;
+                boundary.capture.location = decl->loc;
+                boundary.relationship = async ? "ASYNC" : uncertain ? "UNKNOWN" : "SAME";
+                boundary.widthBits = matched.size();
+                boundary.logicOnPath = logic;
+                d.crossing = std::move(boundary);
                 if (uncertain) report->markIncomplete("constraints", "unresolved output-boundary contract for '" + name + "'");
                 add(std::move(d));
             }
@@ -553,12 +576,13 @@ private:
         return false;
     }
 
+    int minStages_ = 2;
     Chain chainFor(uint32_t flopIdx) const {
         Chain ch;
         ch.depth = 1 + m->flops[flopIdx].extraStages;
         ch.stages.push_back(flopIdx);
         const Flop& firstStage = m->flops[flopIdx];
-        if (!cones_->of(firstStage).uncertainCalls.empty()) return ch;
+        if (!cones_->of(firstStage)->uncertainCalls.empty()) return ch;
         const bool feedback = hasFeedback(firstStage);
         const bool feedbackInComb = feedback && proceduralFeedback(firstStage);
         if (feedback && !feedbackInComb) return ch;
@@ -598,7 +622,7 @@ private:
                 auto it = m->flopOfQ.find(tq);
                 if (it == m->flopOfQ.end()) { otherConsumers++; continue; }
                 const Flop& t = m->flops[it->second];
-                bool sole = cones_->of(t).uncertainCalls.empty();
+                bool sole = cones_->of(t)->uncertainCalls.empty();
                 for (auto ei : m->in[tq]) {
                     auto& e = m->edges[ei];
                     if (e.type != EdgeType::Seq) continue;
@@ -608,31 +632,42 @@ private:
                 // a register this stage only enables (`if (s2) held <= 1`) does not carry the value: it is not a stage
                 sole = sole && std::any_of(es.begin(), es.end(), [](const Edge* e) { return !e->ctrl; });
                 bool sameDomain = t.clockResolved && f.clockResolved && t.domain == f.domain && !t.blocking && !f.blocking;
-                if (sole && sameDomain && !next && !visited.count(it->second)) {
-                    next = &t; nextIdx = it->second;
-                    for (auto* e : es) if (!e->exact) nextLogic = true;
+                const bool logic = std::any_of(es.begin(), es.end(), [](const Edge* e) { return !e->exact; });
+                // An exact continuation is the next stage wherever it comes in the source; a register fed through logic is then a tap.
+                if (sole && sameDomain && !visited.count(it->second) && (!next || (nextLogic && !logic))) {
+                    if (next) otherConsumers++;
+                    next = &t; nextIdx = it->second; nextLogic = logic;
                 } else otherConsumers++;
             }
+            // Past two stages the chain is complete, and a register fed through logic is its consumer rather than a broken stage.
+            if (next && nextLogic && ch.depth >= 2) break;
             if (next && !first) {
                 // logic that combines this stage with the next one (stage XOR delayed copy) is an edge detector, not a tap
                 for (auto lt : logicTargets) {
                     bool withNext = false;
                     for (auto ei : m->in[lt]) if (m->edges[ei].from == next->q) withNext = true;
-                    if (withNext) { otherConsumers--; ch.edgeDetector = true; }
+                    if (withNext) ch.edgeDetector = true;
                 }
             }
-            if (first && otherConsumers > 0 && next) ch.extraFanout = true;
+            // A library cell's output is already past its first stage, so a tap on it taps a later stage.
+            if (first && otherConsumers > 0 && next) {
+                if (f.extraStages == 0) ch.extraFanout = true;
+                else if (ch.depth < minStages_) ch.midFanout = true;
+            }
             if (first && !next) ch.extraFanout = otherConsumers > 0 && f.extraStages == 0;   // a library cell's output is its last stage
-            if (!first && next && otherConsumers > 0) ch.midFanout = true;
+            // A stage past the required depth is an output of the synchroniser, whatever registers follow it.
+            if (!first && next && otherConsumers > 0 && ch.depth < minStages_) ch.midFanout = true;
             if (next) {
                 for (auto& [tq, es] : seqTargets) {
                     auto it = m->flopOfQ.find(tq);
                     if (it != m->flopOfQ.end() && m->flops[it->second].clockResolved && f.clockResolved &&
-                        m->flops[it->second].domain != f.domain) ch.leaksDomain = true;
+                        m->flops[it->second].domain != f.domain && ch.depth < minStages_) ch.leaksDomain = true;
                 }
-                if (next->edge != f.edge) ch.clockMismatch = true;
-                auto resetSet = [](const Flop& x) { std::set<NodeId> r; for (auto& rr : x.resets) r.insert(rr.root.node); return r; };
-                if (resetSet(*next) != resetSet(f)) ch.resetMismatch = true;
+                if (ch.depth < minStages_) {   // past the required depth, the next register is not part of the synchroniser
+                    if (next->edge != f.edge) ch.clockMismatch = true;
+                    auto resetSet = [](const Flop& x) { std::set<NodeId> r; for (auto& rr : x.resets) r.insert(rr.root.node); return r; };
+                    if (resetSet(*next) != resetSet(f)) ch.resetMismatch = true;
+                }
             }
             if (!next) break;
             if (nextLogic) { ch.linkLogic = true; break; }   // logic between any two stages
@@ -661,8 +696,8 @@ private:
     }
 
     using Cone = model::Cone;
-    std::unique_ptr<model::ConeFinder> cones_;
-    Cone coneOf(const Flop& d) { return cones_->of(d); }
+    model::ConeFinder* cones_ = nullptr;
+    std::shared_ptr<const Cone> coneOf(const Flop& d) { return cones_->of(d); }
 
     struct Group {
         std::string srcName, dstName;
@@ -682,9 +717,19 @@ private:
     std::string crossingIdentity(const Group& g) const {
         const Flop* launch = m->flopAt(g.srcQ);
         const Flop& capture = m->flops[g.dstFlops[0]];
-        return m->domains[g.srcDomain].name + ":" + std::to_string(launch ? launch->edge : 0) + "->" +
-               m->domains[g.dstDomain].name + ":" + std::to_string(capture.edge) + ":" +
-               relName(relation(g.srcDomain, g.dstDomain));
+        // The capture condition too: `if (!en)` accepts a different interval from `if (en)`.
+        std::set<std::string> guards;
+        for (auto di : g.dstFlops)   // every bit: each can have its own condition
+            for (auto ei : m->in[m->flops[di].q]) {
+                const Edge& e = m->edges[ei];
+                if (e.type == EdgeType::Seq && e.ctrl)
+                    guards.insert(m->nameOf(m->flops[di].q) + "<" + m->nameOf(e.from) + "/" + std::to_string(static_cast<int>(e.branch)) + std::to_string(e.inv));
+            }
+        std::string identity = m->domains[g.srcDomain].name + ":" + std::to_string(launch ? launch->edge : 0) + "->" +
+                               m->domains[g.dstDomain].name + ":" + std::to_string(capture.edge) + ":" +
+                               relName(relation(g.srcDomain, g.dstDomain));
+        for (const auto& guard : guards) identity += ":" + guard;
+        return identity;
     }
 
     std::map<std::pair<std::string, std::string>, Group> groups_;
@@ -704,6 +749,71 @@ private:
     int domainOfClockNode(NodeId clk) const;
     double periodNs(uint32_t domain) const;
 
+    CrossingEndpoint endpoint(const Flop& f, const std::string& signal, uint32_t domain) const {
+        const char* edge = f.edge == 1 ? "posedge" : f.edge == 2 ? "negedge" : f.edge == 3 ? "both" : "unknown";
+        return CrossingEndpoint{signal, m->domains[domain].name, domainClockName(domain), edge, m->procs[f.proc].loc};
+    }
+    static const char* relationshipName(Relation r) {
+        return r == Relation::Same ? "SAME" : r == Relation::Async ? "ASYNC" : r == Relation::Exclusive ? "EXCLUSIVE" : "UNKNOWN";
+    }
+    Crossing crossingOf(const Group& g) const {
+        const Flop& launch = m->flops[m->flopOfQ.at(g.srcQ)];
+        return Crossing{endpoint(launch, g.srcName, g.srcDomain), endpoint(m->flops[g.dstFlops[0]], g.dstName, g.dstDomain),
+                        relationshipName(relation(g.srcDomain, g.dstDomain)), g.dstFlops.size(), g.anyLogicBefore};
+    }
+    // The shortest path from one launch bit to one capture bit, in signal order; endpoints alone do not show where logic sits.
+    std::vector<Evidence> pathWitness(const Group& g) const {
+        constexpr size_t kMaxSteps = 32, kMaxVisited = 100000;
+        for (auto di : g.dstFlops) {
+            NodeId capture = m->flops[di].q;
+            std::unordered_map<NodeId, uint32_t> edgeTo;   // node -> edge towards the capture
+            std::vector<NodeId> queue;
+            for (auto ei : m->in[capture])
+                if (m->edges[ei].type == EdgeType::Seq && edgeTo.emplace(m->edges[ei].from, ei).second) queue.push_back(m->edges[ei].from);
+            for (size_t i = 0; i < queue.size() && i < kMaxVisited; i++) {
+                NodeId n = queue[i];
+                if (g.srcBits.count(n)) {
+                    std::vector<Evidence> steps;
+                    for (NodeId cur = n; cur != capture; cur = m->edges[edgeTo.at(cur)].to) {
+                        const Edge& e = m->edges[edgeTo.at(cur)];
+                        if (steps.size() == kMaxSteps) { steps.push_back({"path_step", "... continues to " + m->nameOf(capture), {}}); break; }
+                        steps.push_back({"path_step", m->nameOf(e.from) + " -> " + m->nameOf(e.to), m->procs[e.proc].loc});
+                    }
+                    return steps;
+                }
+                if (m->flopOfQ.count(n)) continue;   // a register ends the combinational cone
+                for (auto ei : m->in[n])
+                    if (m->edges[ei].type == EdgeType::Comb && edgeTo.emplace(m->edges[ei].from, ei).second) queue.push_back(m->edges[ei].from);
+            }
+        }
+        return {};
+    }
+
+    // Several rules can describe one unsynchronised crossing. The most specific enabled rule is the finding; the others
+    // become its evidence. A disabled rule never takes the crossing with it, so disabling one cannot hide the crossing, and an
+    // absorbed rule keeps its own severity override and waiver, so accepting one description does not accept the others.
+    void reportPrimary(std::vector<Diagnostic> facts) {
+        if (facts.empty()) return;
+        static const char* const order[] = {"CDC-017", "CDC-032", "CDC-028", "CDC-016", "CDC-004", "CDC-003"};
+        auto rank = [](const Diagnostic& d) { return std::find_if(std::begin(order), std::end(order), [&](const char* id) { return d.ruleId == id; }) - std::begin(order); };
+        std::stable_sort(facts.begin(), facts.end(), [&](const Diagnostic& a, const Diagnostic& b) { return rank(a) < rank(b); });
+        auto chosen = std::find_if(facts.begin(), facts.end(), [&](const Diagnostic& d) { return !cfg->disabledRules.count(d.ruleId); });
+        if (chosen == facts.end()) return;   // every description was disabled: coverage records that, CST-019 reports it
+        Diagnostic primary = *chosen;
+        for (auto& other : facts) {
+            if (&other == &*chosen) continue;
+            primary.severity = std::max(primary.severity, other.severity);
+            // A heuristic description of an established violation does not weaken the violation.
+            if (other.confidence == Confidence::Established) primary.confidence = Confidence::Established;
+            primary.evidence.push_back({"also_matches", other.ruleId + ": " + other.message, {}});
+            if (!cfg->disabledRules.count(other.ruleId)) {
+                primary.alsoRules.push_back(other.ruleId);
+                primary.identityKey += "+" + other.ruleId;
+            }
+        }
+        add(std::move(primary));
+    }
+
     void analyseCrossings() {
         evaluated["CDC-026"] = evaluated["CDC-032"] = 0;
         evaluated["CDC-016"] = evaluated["CDC-017"] = evaluated["CDC-018"] = evaluated["CDC-028"] = evaluated["CDC-039"] = 0;
@@ -716,6 +826,7 @@ private:
             minStages = std::stoi(value, &end);
             if (end != value.size() || minStages < 2) throw std::invalid_argument("CDC-005.min_stages must be an integer >= 2");
         }
+        minStages_ = minStages;
 
         auto& groups = groups_;
         std::map<std::pair<NodeId, uint32_t>, std::vector<uint32_t>> inputsToDomain;   // (input node, dst domain) -> dst flops
@@ -724,30 +835,53 @@ private:
         uint64_t unresolvedEnds = 0;
         std::map<std::string, std::vector<uint32_t>> bbCaptures, unresolvedCaptures, undrivenCaptures;
         std::map<std::pair<std::string, uint32_t>, std::vector<uint32_t>> callCaptures;
+        std::map<std::string, std::set<std::string>> undrivenLeaves;
         chains_.assign(m->flops.size(), Chain{});
         haveChain_.assign(m->flops.size(), 0);
         auto& chains = chains_;
         auto& haveChain = haveChain_;
 
+        // The cones hold billions of sources on a large design: names are built once per node, and a pair finds its group once.
+        std::vector<uint32_t> nameIdOf(m->nodes.size(), UINT32_MAX);
+        std::unordered_map<std::string, uint32_t> nameIds;
+        std::vector<const std::string*> names;
+        const auto nameId = [&](NodeId n) {
+            auto& id = nameIdOf[n];
+            if (id == UINT32_MAX) {
+                auto [it, fresh] = nameIds.try_emplace(stripBit(m->nameOf(n)), static_cast<uint32_t>(names.size()));
+                if (fresh) names.push_back(&it->first);
+                id = it->second;
+            }
+            return id;
+        };
+        std::unordered_map<uint64_t, std::remove_reference_t<decltype(groups)>::mapped_type*> groupOf;
+
         for (uint32_t di = 0; di < m->flops.size(); di++) {
             const Flop& d = m->flops[di];
-            Cone cone = coneOf(d);
+            const auto heldCone = coneOf(d);
+            const Cone& cone = *heldCone;
+            const uint32_t dstId = nameId(d.q);
             for (auto& s : cone.flops) {
                 const Flop& sf = m->flops[m->flopOfQ.at(s.q)];
                 if (!sf.clockResolved || !d.clockResolved) { unresolvedEnds++; continue; }
-                if (sf.domain == d.domain) {
+                const auto pair = worstDomains(sf, d, *rel_);
+                if (pair.launch == pair.capture) {
                     if (sf.edge && d.edge && sf.edge != d.edge)
-                        halfCycle_.emplace(std::make_pair(stripBit(m->nameOf(s.q)), stripBit(m->nameOf(d.q))), std::make_pair(s.q, d.q));
+                        halfCycle_.emplace(std::make_pair(*names[nameId(s.q)], *names[dstId]), std::make_pair(s.q, d.q));
                     continue;
                 }
-                Relation rel = relation(sf.domain, d.domain);
-                if (rel == Relation::Same) { sameNameDomainPairs_.insert({sf.domain, d.domain}); continue; }
-                if (rel == Relation::Unknown) { auto key = std::minmax(sf.domain, d.domain); unknownPairs.insert(key); unknownPairCount[key]++; }
-                auto key = std::make_pair(stripBit(m->nameOf(s.q)), stripBit(m->nameOf(d.q)));
-                auto& g = groups[key];
-                g.srcName = key.first; g.dstName = key.second;
-                g.srcDomain = sf.domain; g.dstDomain = d.domain;
-                if (std::find(g.dstFlops.begin(), g.dstFlops.end(), di) == g.dstFlops.end()) g.dstFlops.push_back(di);
+                const Relation rel = pair.relation;
+                if (rel == Relation::Same) { sameNameDomainPairs_.insert({pair.launch, pair.capture}); continue; }
+                if (rel == Relation::Unknown) { auto key = std::minmax(pair.launch, pair.capture); unknownPairs.insert(key); unknownPairCount[key]++; }
+                const uint32_t srcId = nameId(s.q);
+                auto*& known = groupOf[uint64_t{srcId} << 32 | dstId];
+                if (!known) {
+                    known = &groups[std::make_pair(*names[srcId], *names[dstId])];
+                    known->srcName = *names[srcId]; known->dstName = *names[dstId];
+                }
+                auto& g = *known;
+                g.srcDomain = pair.launch; g.dstDomain = pair.capture;
+                if (g.dstFlops.empty() || g.dstFlops.back() != di) g.dstFlops.push_back(di);   // registers are visited in order
                 g.srcBits.insert(s.q);
                 if (g.srcQ == kNoNode) g.srcQ = s.q;
                 if (auto* sy = m->nodes[s.q].sym; sy && sy->getType().isUnpackedArray()) g.memory = true;
@@ -765,11 +899,14 @@ private:
                 if (in.logic) inputLogic_.insert({in.q, d.domain});
                 if (cone.inputs.size() >= 2) multiInputDst_.insert(di);
             }
-            std::string dstSym = stripBit(m->nameOf(d.q));
+            const std::string& dstSym = *names[dstId];
             for (auto issue : cone.uncertainCalls) callCaptures[{dstSym, issue}].push_back(di);
             if (!cone.bbLeaves.empty()) bbCaptures[dstSym].push_back(di);
             if (!cone.unresolved.empty()) unresolvedCaptures[dstSym].push_back(di);
-            if (!cone.undriven.empty()) undrivenCaptures[dstSym].push_back(di);
+            if (!cone.undriven.empty()) {
+                undrivenCaptures[dstSym].push_back(di);
+                for (auto leaf : cone.undriven) undrivenLeaves[dstSym].insert(stripBit(m->nameOf(leaf)));
+            }
         }
 
         // ---- pre-pass: chains and the outputs of recognised synchronisers (needed to recognise qualifiers)
@@ -778,7 +915,16 @@ private:
                 if (!haveChain[di]) { chains[di] = chainFor(di); haveChain[di] = 1; }
                 const Chain& ch = chains[di];
                 if (!ch.linkLogic && !ch.feedbackWithFanout && ch.depth >= 2)
-                    syncedOut_[m->flops[ch.stages.back()].q] = {g.srcDomain, g.dstDomain, g.hier, g.srcName, g.srcQ, g.dstFlops.size()};
+                {
+                    // Every stage at the required depth is an output, not only the last: followers do not change what reads it.
+                    int reached = 0;
+                    for (size_t stage = 0; stage < ch.stages.size(); ++stage) {
+                        const Flop& output = m->flops[ch.stages[stage]];
+                        reached += 1 + output.extraStages;
+                        if (reached >= minStages_ || stage + 1 == ch.stages.size())
+                            syncedOut_[output.q] = {g.srcDomain, g.dstDomain, g.hier, g.srcName, g.srcQ, g.dstFlops.size()};
+                    }
+                }
             }
         }
 
@@ -813,7 +959,8 @@ private:
                     for (auto q : g.srcBits) {
                         auto fit = m->flopOfQ.find(q);
                         if (fit == m->flopOfQ.end()) continue;
-                        Cone gc = coneOf(m->flops[fit->second]);
+                        const auto heldCone = coneOf(m->flops[fit->second]);
+                        const Cone& gc = *heldCone;
                         std::set<NodeId> leaves;
                         for (auto& x : gc.flops) leaves.insert(x.q);
                         if (!leaves.empty() && counterLike(leaves)) fromCounter = true;
@@ -852,6 +999,8 @@ private:
                                   "protocol structure cannot be classified [clock relationship " + relName(rel) + "]",
                                   g.loc, g.hier, Confidence::Unresolved);
                 d.signals = {g.srcName, g.dstName};
+                d.crossing = crossingOf(g);
+                d.identityKey = crossingIdentity(g);
                 d.evidence.push_back({"launch_register", g.srcName + " (clock domain " + m->domains[g.srcDomain].name + ")", {}});
                 d.evidence.push_back({"capture_register", g.dstName + " (clock domain " + m->domains[g.dstDomain].name + ")", procOf(f0).loc});
                 d.nextStep = "Split the bus into narrower signals or review the crossing manually.";
@@ -859,16 +1008,11 @@ private:
                 report->markIncomplete("graph-precision", "wide crossing " + g.srcName + " -> " + g.dstName + " not classified");
                 continue;
             }
+            std::optional<std::vector<Evidence>> witness;   // computed once per group, for the findings it actually gets
             auto base = [&](const char* rule, Severity sev, std::string msg) {
                 Diagnostic d = mk(rule, sev, std::move(msg), g.loc, g.hier, sev == Severity::Info ? Confidence::Informational : conf);
                 const Flop& launch = m->flops[m->flopOfQ.at(g.srcQ)];
-                auto endpoint = [&](const Flop& f, const std::string& signal, uint32_t domain) {
-                    const char* edge = f.edge == 1 ? "posedge" : f.edge == 2 ? "negedge" : f.edge == 3 ? "both" : "unknown";
-                    return CrossingEndpoint{signal, m->domains[domain].name, domainClockName(domain), edge, procOf(f).loc};
-                };
-                d.crossing = Crossing{endpoint(launch, g.srcName, g.srcDomain), endpoint(f0, g.dstName, g.dstDomain),
-                                      rel == Relation::Same ? "SAME" : rel == Relation::Async ? "ASYNC" :
-                                      rel == Relation::Exclusive ? "EXCLUSIVE" : "UNKNOWN", width, g.anyLogicBefore};
+                d.crossing = crossingOf(g);
                 d.signals = {g.srcName, g.dstName};
                 d.identityKey = crossingIdentity(g);
                 if (rel == Relation::Exclusive) d.evidence.push_back({"trust_model", "the two clocks are declared exclusive by constraint (trusted, not verified)", {}});
@@ -879,20 +1023,23 @@ private:
                                       "; SDC clocks '" + domainClockName(g.srcDomain) + "' -> '" + domainClockName(g.dstDomain) + "'", {}});
                 d.evidence.push_back({"data_path", g.anyLogicBefore ? "combinational logic exists on the path from the launch register"
                                                                     : "direct register-to-register path (no logic)", {}});
+                if (!witness) witness = pathWitness(g);
+                d.evidence.insert(d.evidence.end(), witness->begin(), witness->end());
                 return d;
             };
             std::string tag = rel == Relation::Unknown ? " [clock relationship UNKNOWN: treated as potentially asynchronous]" : "";
+            std::vector<Diagnostic> busFacts;   // alternative descriptions of this one crossing: reported as one primary finding
             if (width > 1 && !g.collapsed) {
                 evaluated["CDC-032"] += width;
                 if (maxDepth && minDepth != maxDepth) {
                     Diagnostic d = base("CDC-032", sevViol, "bits of " + g.srcName + " -> " + g.dstName + " are synchronised through chains of different depth (" + std::to_string(minDepth) + " to " +
                                         std::to_string(maxDepth) + " stages): the bundle arrives with a fixed skew and is incoherent for a cycle" + tag);
                     d.nextStep = "Give every bit of a bundle the same synchroniser structure, or cross it with a qualifier/handshake.";
-                    add(std::move(d));
+                    busFacts.push_back(std::move(d));
                 } else if (synced && unsynced) {
                     Diagnostic d = base("CDC-032", sevViol, "part of the bundle " + g.srcName + " -> " + g.dstName + " is synchronised (" + std::to_string(synced) + " bits) and part is not (" +
                                         std::to_string(unsynced) + " bits): the bits are not captured coherently" + tag);
-                    add(std::move(d));
+                    busFacts.push_back(std::move(d));
                 }
             }
             if (unsynced && qualification == Qualification::Undecided) {
@@ -925,7 +1072,7 @@ private:
                                     std::to_string(width) + " bit(s))" + tag);
                 d.nextStep = width > 1 ? "Use a recognised multi-bit scheme (handshake, Gray FIFO pointer, or hold-stable payload with a synchronised enable) and state it in the constraints."
                                         : (rel == Relation::Unknown ? "Declare the clock intent and review the crossing; if asynchronous, add a suitable synchroniser or justify a waiver." : "Add a suitable synchroniser in the destination clock domain, or document and justify a waiver; a clock declaration does not repair the crossing.");
-                add(std::move(d));
+                busFacts.push_back(std::move(d));
             }
             if (shortChain) {
                 Diagnostic d = base("CDC-005", sevViol, "synchroniser for " + g.srcName + " -> " + g.dstName + " has depth " +
@@ -942,7 +1089,7 @@ private:
             if (fanout && (synced || shortChain)) {
                 Diagnostic d = base("CDC-007", sevViol, "first-stage output of the synchroniser " + g.dstName +
                                     " fans out to logic other than the next stage (" + std::to_string(fanout) + " bit(s))" + tag);
-                d.nextStep = "Only the last synchroniser stage may feed functional logic.";
+                d.nextStep = "Only a stage at the required depth may feed functional logic.";
                 add(std::move(d));
             }
             {
@@ -962,7 +1109,7 @@ private:
                 if (mid || leak) {
                     Diagnostic d = base("CDC-007", sevViol, "an intermediate stage of the synchroniser " + g.dstName + " " +
                                         (leak ? "is captured by a register in another clock domain (feedback/leak)" : "feeds logic other than the next stage") + tag);
-                    d.nextStep = "Only the last synchroniser stage may be used; do not tap or feed back intermediate stages.";
+                    d.nextStep = "Only a stage at the required depth may be used; do not tap or feed back earlier stages.";
                     add(std::move(d));
                 }
             }
@@ -982,16 +1129,16 @@ private:
                                         " is qualified by a clock enable that is not synchronised from the source domain: an enable in the "
                                         "destination domain only gates the flop, it does not synchronise the data" + tag);
                     d.nextStep = "Qualify the capture with a control synchronised from the source domain (and hold the data stable), or synchronise the data.";
-                    add(std::move(d));
+                    busFacts.push_back(std::move(d));
                     evaluated["CDC-028"] += width;
                 }
                 // a synchronised control exists between the same domains in the same scope, but this payload is not gated by it
-                for (auto& [q, so] : syncedOut_)
+                if (width > 1) for (auto& [q, so] : syncedOut_)
                     if (so.srcDomain == g.srcDomain && so.dstDomain == g.dstDomain && so.hier == g.hier && so.srcName != g.srcName) {
                         Diagnostic d = base("CDC-016", sevViol, "payload " + g.srcName + " -> " + g.dstName + " crosses ungated although the control " +
                                             so.srcName + " is synchronised between the same clock domains" + tag);
                         d.nextStep = "Capture the payload only when the synchronised control says it is stable.";
-                        add(std::move(d));
+                        busFacts.push_back(std::move(d));
                         evaluated["CDC-016"] += width;
                         break;
                     }
@@ -1015,7 +1162,7 @@ private:
                                         "once, so independently synchronised bits can be captured in an invalid state" + tag);
                     d.confidence = Confidence::Heuristic;
                     d.nextStep = "Convert the pointer to Gray code before the crossing (single bit changes per increment).";
-                    add(std::move(d));
+                    busFacts.push_back(std::move(d));
                 }
                 if (gray) {
                     if (unsynced || shortChain || logicLink) {
@@ -1023,7 +1170,7 @@ private:
                                             " is not fully synchronised (" + std::to_string(unsynced + shortChain + logicLink) + " of " +
                                             std::to_string(width) + " bit(s) lack a clean multi-stage synchroniser)" + tag);
                         d.nextStep = "Every pointer bit needs its own synchroniser chain of the required depth with no logic between stages.";
-                        add(std::move(d));
+                        busFacts.push_back(std::move(d));
                     }
                     if (synced == static_cast<int>(width)) {
                         NodeId sq = *g.srcBits.begin();
@@ -1066,6 +1213,7 @@ private:
                 d.proofState = ProofState::NotAttempted;
                 add(std::move(d));
             }
+            reportPrimary(std::move(busFacts));
         }
 
         // ---- CDC-029: top-level inputs captured by registers
@@ -1097,7 +1245,18 @@ private:
                               std::to_string(dsts.size()) + " register bit(s)" +
                               (allSynced ? " through a recognised synchroniser" : " without a recognised synchroniser") + "; " + contract,
                               procOf(f0).loc, procOf(f0).instancePath, declaredSync || allSynced ? Confidence::Heuristic : Confidence::Unresolved);
-            d.identityKey = stripBit(m->nameOf(inNode)) + ":" + m->domains[dom].name;
+            // What a waiver of this input accepted: changing the capture clock, edge or the declared contract must stale it.
+            const std::string inputIdentity = stripBit(m->nameOf(inNode)) + ":" + endpoint(f0, inFull, dom).clockDomain + ":" +
+                endpoint(f0, inFull, dom).edge + ":" + (decl ? decl->clock : "") + ":" + relName(inRel);
+            Crossing inputCrossing;
+            inputCrossing.launch.signal = inFull;
+            if (decl) inputCrossing.launch.sdcClock = decl->clock;
+            inputCrossing.capture = endpoint(f0, stripBit(flopName(f0)), dom);
+            inputCrossing.relationship = relationshipName(inRel);
+            inputCrossing.widthBits = dsts.size();
+            inputCrossing.logicOnPath = inputLogic_.count({inNode, dom}) != 0;
+            d.identityKey = inputIdentity;
+            d.crossing = inputCrossing;
             d.signals = {inFull};
             d.evidence.push_back({"capture_register", flopName(f0), procOf(f0).loc});
             d.nextStep = declaredSync ? "Review the declared input timing contract against the external source; the declaration is trusted, not independently proved."
@@ -1106,16 +1265,18 @@ private:
                          : "Review a suitable receiving-domain input synchroniser or justify a waiver; a clock declaration does not repair this crossing.";
             // the synchroniser structure checks apply to primary inputs exactly as to register crossings
             if (!declaredSync) {
-                int fan = 0, link = 0;
-                for (auto di : dsts) if (chains[di].depth >= 2 || chains[di].linkLogic) { fan += chains[di].extraFanout; link += chains[di].linkLogic; }
+                int fan = 0, link = 0, mid = 0;
+                for (auto di : dsts) if (chains[di].depth >= 2 || chains[di].linkLogic) { fan += chains[di].extraFanout; link += chains[di].linkLogic; mid += chains[di].midFanout; }
                 auto sx = [&](const char* rule, std::string msg, Confidence cf) {
                     Diagnostic x = mk(rule, Severity::Warning, std::move(msg), procOf(f0).loc, procOf(f0).instancePath, cf);
-                    x.identityKey = stripBit(m->nameOf(inNode)) + ":" + m->domains[dom].name;
+                    x.identityKey = inputIdentity;
+                    x.crossing = inputCrossing;
                     x.signals = {inFull};
                     evaluated[rule]++;
                     add(std::move(x));
                 };
                 if (fan) sx("CDC-007", "first synchroniser stage of input '" + inFull + "' also feeds logic other than the next stage", Confidence::Established);
+                if (mid) sx("CDC-007", "an intermediate synchroniser stage of input '" + inFull + "' also feeds logic other than the next stage", Confidence::Established);
                 if (link) sx("CDC-006", "combinational logic between the synchroniser stages of input '" + inFull + "'", Confidence::Established);
                 if (inputLogic_.count({inNode, dom})) sx("CDC-008", "combinational logic between primary input '" + inFull + "' and its capturing register: glitches on the asynchronous input are sampled", Confidence::Established);
                 bool merged = false;
@@ -1131,7 +1292,8 @@ private:
                 evaluated["CDC-044"]++;
                 Diagnostic st = mk("CDC-044", Severity::Info, "synchronised input '" + inFull + "' feeds an edge detector or a shift chain: it is used as an asynchronous event/serial stream",
                                    procOf(f0).loc, procOf(f0).instancePath, Confidence::Heuristic);
-                st.identityKey = stripBit(m->nameOf(inNode)) + ":" + m->domains[dom].name;
+                st.identityKey = inputIdentity;
+                st.crossing = inputCrossing;
                 st.signals = {inFull};
                 st.proofState = ProofState::NotAttempted;
                 st.evidence.push_back({"proof_obligation", "the stream's bit/pulse period must exceed two destination clock periods (oversampling); neither rate is constrained or checked", {}});
@@ -1150,6 +1312,8 @@ private:
                                   procOf(f0).loc, procOf(f0).instancePath, Confidence::Unresolved);
                 d.identityKey = sym + ":" + (&caps == &bbCaptures ? "blackbox" : &caps == &undrivenCaptures ? "undriven" : "truncated");
                 d.evidence.push_back({"capture_register", sym, procOf(f0).loc});
+                if (&caps == &undrivenCaptures)
+                    for (const auto& leaf : undrivenLeaves[sym]) d.evidence.push_back({"undriven_source", leaf, {}});
                 d.nextStep = "Model the source (provide the module, remove the unsupported construct) or review manually.";
                 add(std::move(d));
                 report->markIncomplete(gapScope, sym + ": " + what);

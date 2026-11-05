@@ -99,9 +99,9 @@ invent a severity where semantics are undetermined.
 - **Fingerprint migration (pre-1.0):** the wording-independent identity replaces the earlier message hash once.
   Existing fingerprint-only waivers become stale and are disclosed by CST-022; regenerate and review them.
   There is no compatibility mode. The report shape is unchanged, so the schema remains `sverity-report/1`.
-- **Severity overrides:** rule patterns select effective severities, with original and requested severity retained in JSON and SARIF. Unresolved findings, `UNKNOWN` proofs and `NOT_ATTEMPTED` obligations have a WARNING floor; FATAL, slang errors and invalid-input errors cannot be downgraded. A blocked downgrade is disclosed. An unwaived ERROR downgraded below ERROR remains REVIEW_REQUIRED: strict exit sets bit 2; the `violations` policy gates only effective ERROR/FATAL and execution errors. Coverage and fingerprints are unchanged by overrides.
+- **Severity overrides:** rule patterns select effective severities, with original and requested severity retained in JSON and SARIF. A finding that also stands for other rules takes the highest severity among them after overrides, so lowering one rule does not lower the others. Unresolved findings, `UNKNOWN` proofs and `NOT_ATTEMPTED` obligations have a WARNING floor; FATAL, slang errors and invalid-input errors cannot be downgraded. A blocked downgrade is disclosed. An unwaived ERROR downgraded below ERROR remains REVIEW_REQUIRED: strict exit sets bit 2; the `violations` policy gates only effective ERROR/FATAL and execution errors. Coverage and fingerprints are unchanged by overrides.
 - **Waiver ≠ deletion.** A waived finding keeps severity, evidence and identity and is shown as `WAIVED`. A waiver needs an exact
-  rule ID, a reason, an owner and at least one non-wildcard narrowing field (fingerprint, file, hierarchy or signal), may
+  rule ID (a finding that also stands for other rules is waived only when each has a waiver, or by its fingerprint), a reason, an owner and at least one non-wildcard narrowing field (fingerprint, file, hierarchy or signal), may
   expire, matches per occurrence, and is rejected (with a warning, finding stays open) when expired, stale, overbroad, malformed
   or duplicated (every duplicate ID or identical scope is rejected). Waivers never turn uncertainty into SAFE or alter analysis coverage.
   FATAL findings and slang errors cannot be waived.
@@ -158,15 +158,20 @@ Earlier report-write failures are reflected in completion execution status and e
 JSONL itself cannot promise a completion record. Human output goes to stderr when JSON, JSONL or SARIF
 uses stdout; only one machine writer may use stdout. Terminal limits never apply to these records.
 
-Shared register-to-register CDC findings optionally carry `crossing`: `launch` and `capture` each contain
-`signal`, `clock_domain`, `sdc_clock`, `edge` and a procedure `location`; the crossing also contains
-`relationship` (`SAME`, `ASYNC`, `EXCLUSIVE`, `UNKNOWN`), `width_bits` and `logic_on_path`.
-Endpoints identify the representative registers of the signal-level group, not a path witness or an
-exhaustive list of bit locations. Edges are `posedge`, `negedge`, `both` or `unknown`; an unconstrained
-SDC name is empty and an unavailable location is `{}`. The optional field is additive within
-`sverity-report/1`. Launch procedure positions participate in structural evidence identity under the
-existing source-position contract; adding them once before release can stale fingerprint waivers.
-Its other presentation fields add no identity inputs.
+CDC findings on registers, primary inputs, wide symbols and protocol structures, and CST-012, optionally carry
+`crossing`: `launch` and `capture` each contain `signal`, `clock_domain`, `sdc_clock`, `edge` and a procedure
+`location`; the crossing also contains `relationship` (`SAME`, `ASYNC`, `EXCLUSIVE`, `UNKNOWN`), `width_bits` and
+`logic_on_path`. Endpoints identify the representative registers of the signal-level group, not an exhaustive list of
+bit locations. A primary input's launch has no domain, edge or location; its `sdc_clock` is the declared input clock.
+An output boundary's capture has only the port as `signal` and the external `sdc_clock`. Edges are `posedge`,
+`negedge`, `both` or `unknown`; an unconstrained SDC name is empty and an unavailable location is `{}`.
+
+Register crossings add ordered `path_step` evidence: the shortest path from one launch bit to one capture bit, as a
+witness rather than the only path. A combinational cycle has ordered `cycle_step` evidence. A finding with `crossing`
+adds `source_line` to itself and to located evidence: the source text at that location. All are additive within
+`sverity-report/1`. Step positions join structural evidence identity under the source-position contract, and clock
+facts are identity for primary-input and RDC findings as for crossings, so adding them once before release can stale
+fingerprint waivers. `source_line` adds no identity input.
 
 **Formal-proof extension contract.** A check may return `PROVEN`, `COUNTEREXAMPLE`, `UNKNOWN` or `NOT_ATTEMPTED`, recording
 assumptions, engine/version, bounded vs unbounded, timeout and witness. `UNKNOWN`/timeout is a WARNING; bounded success or an
@@ -213,7 +218,11 @@ assertion/release, synchronisers, reconvergence, sequencing, CDC/RDC interaction
 
 **Constraints.** The SDC reader interprets clock declarations, clock groups, path exceptions and input delays,
 with scalar `set` (assignment and read), single-pass `$var` / `${var}` substitution in bare and quoted words,
-and one-variable, one-list `foreach` with a literal braced body. Braces suppress substitution except
+and one-variable, one-list `foreach` with a literal braced body, plus `if`/`elseif`/`else` with braced
+conditions and bodies. Conditions use the bounded `expr` evaluator after scalar variable substitution;
+an undecidable reached condition rejects the whole `if` and invalidates remembered variables. Both
+constructs share a nesting bound of 64 and preserve body source lines. `source -echo` and `source -verbose`
+are accepted and have no effect. Braces suppress substitution except
 backslash-newline. Loops retain their variable afterwards; body diagnostics retain their source lines.
 `source` resolves paths relative to the sourcing file and shares scalar variables across nested files.
 Each sourced command is rejected independently, like inline text; cycles, unreadable files, excessive
@@ -226,16 +235,22 @@ A consistent contract is INFO with physical timing explicitly unproved; declared
 are ERROR; unknown relationships and incomplete or mixed cones remain Unresolved and INCOMPLETE.
 Outputs without delays retain existing behavior. Output delays require output ports and a declared clock;
 they do not feed input-only CDC-029. `set_case_analysis 0|1 objects` applies atomically per declaration to
-scalar top-level data inputs: the model is rebuilt with consistent mode constants, the report inputs name the
-applied values and CST-014 discloses unanalysed alternatives, retaining INCOMPLETE coverage. Internal, driven and
-multi-bit targets and clock or reset event sources stay unapplied (CST-009) with a reason; conflicting values apply
-nothing. Every object is checked; unresolved objects and invalid case values produce CST-018. Bare names mean top-level ports.
+top-level data inputs, scalar or named bits of a vector declared `[N:0]`, to undriven internal objects as a stated
+assumption, and to driven objects whose driver already proves the value: the model is rebuilt with consistent mode
+constants, the report inputs name the applied values and CST-014 discloses unanalysed alternatives, retaining
+INCOMPLETE coverage. Other driven targets, register outputs, whole-vector names, other declared ranges and clock or
+reset event sources stay unapplied (CST-009) with a reason; conflicting values apply nothing. Every object is checked; unresolved objects and invalid case values produce CST-018. Bare names mean top-level ports.
 Commands with syntax, substitution or argument problems apply no constraint. A failed loop applies none
 of its constraints. Unsupported commands are disclosed through CST-009 and parse/evaluation failures through
 CST-018; dependent values are never guessed. Relationships without valid declarations remain **unknown**.
 This reads declarations, not a timing proof or verification of the user's clock intent.
 
-The bounded evaluator does not implement general Tcl: `expr`, `if`, `proc`, `lindex`, multiple-variable/list
+The bounded evaluator supports numeric `expr` arithmetic (`+ - * / %`, unary minus), parentheses,
+comparisons, `&&`, `||`, `!`, and scalar `$var` operands; division by zero, non-numeric or unset operands,
+and other syntax reject the containing command. So does integer division that is not exact, and `%` outside non-negative
+integers, because Tcl's integer semantics would give a different value; a nesting past 64 levels, an integer of 2^53 or more, and a `$var` that does not hold a plain number are rejected too. `lindex` supports literal or scalar-variable lists with a
+non-negative integer index or `end`; out-of-range indices and nested lists reject the containing command.
+It does not implement general Tcl: `proc`, multiple-variable/list
 loops, array/namespace variable substitution, embedded command substitutions and nontrivial backslash
 escapes are disclosed. `foreach` allows 1000 iterations per loop and 10000 per parse, with nesting bounded
 at 64; exceeding a bound rejects the loop. Unsupported script commands invalidate remembered variables,
@@ -282,16 +297,19 @@ frozen rule `validated`, or a transparent scope revision *before* freezing.
 
 1.0 is a large target on purpose: it validates the rules we keep, not a small subset. How we get there is in the [roadmap](ROADMAP.md#2-mid-term-reaching-10).
 
+- **Claim:** validated SystemVerilog RTL lint and structural CDC and RDC analysis, for named workflows, configurations and design sizes, with every functional and physical obligation stated and every excluded capability listed. A family claims to replace a commercial tool only after passing its [phase gate](ROADMAP.md#2-mid-term-reaching-10), and the release names the families that have.
+
 - **Build:** C++20 + slang; offline reproducible build from pinned sources; no Python or other tools at runtime.
 - **Interfaces:** deterministic CLI/API, JSON and SARIF; stable rule IDs and finding identity; every finding visible; ASIC and FPGA profiles; explicit clock, reset and black-box contracts.
 - **Frozen deck:** a published list of the rules 1.0 stands behind, covering lint, CDC, RDC and the constraint checks they need. A rule leaves the deck only for a written reason, decided before the freeze. Rules outside it stay available and are labelled preview.
 - **Validated rules:** every deck rule is `validated`, with a written trigger, exceptions and severity policy, good, bad, boundary, unknown and mutation tests, and a passed independent adversarial review; no undocumented disabled or TODO rules. A separate AI reviewer counts as independent, and the release says so: it is not a human signoff.
 - **Honest coverage:** full clock, reset, constraint and graph coverage accounting; no silent "unknown is safe"; proof obligations stay explicit. A run reports `COMPLETE` for the deck when all its rules ran and nothing limited them. Strict exit 0 is then possible on a design with nothing to review, and only then.
 - **Evidence:** curated public-project and mutation suites; the known-good corpus gate passing; false-positive and false-negative investigations written down.
-- **Capacity:** the whole OpenTitan Earl Grey SoC (`top_earlgrey`) at a pinned commit analyses to completion, with time, memory and coverage published for stated hardware and compiler versions.
+- **Accuracy:** an independently labelled, held-out suite reporting false alarms, missed defects and unresolved findings per family, against budgets fixed before evaluation. No seeded critical defect is silently accepted.
+- **Capacity:** the whole OpenTitan Earl Grey SoC (`top_earlgrey`) at a pinned commit analyses to completion within a stated time and memory budget, with time, memory and coverage published for stated hardware and compiler versions.
 - **Reference crosswalk:** each relevant rule of slang, slang-tidy, Verible, Verilator, AMD and Altera is mapped to a native rule or a justified exclusion, and reviewed.
 - **Comparison:** a differential run against a commercial tool if legitimate access exists. Otherwise the release says plainly that no comparison was made.
-- **Governance:** rule proposal template, licensing and provenance policy, security disclosure policy.
+- **Governance:** rule proposal template, licensing and provenance policy.
 
 "Industry standard" is a community adoption goal, not something the project can confer on itself.
 

@@ -1,5 +1,5 @@
 // sverity-args: --top top --sdc @FIXTURES@/_common/async.sdc
-// expect: CDC-004 ERROR
+// expect: CDC-028 ERROR
 // expect-none: CDC-039 INFO
 // Regression from the independent audit: this hazard must never be classified as safe.
 // Payload is captured unconditionally every clkb cycle; the synchronised valid only clears it.

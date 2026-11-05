@@ -1,4 +1,5 @@
 #include "sverity/report.h"
+#include <fstream>
 
 #include <algorithm>
 #include <cstdio>
@@ -141,6 +142,31 @@ void Report::finalize() {
     for (auto& d : diags_)
         if (d.ruleId == "CDC-003" && d.disposition == Disposition::Waived && d.waiver)
             d.nextStep = "Retain and review the waiver justification and its scope; a waiver does not establish synchronisation or timing safety.";
+    // Source lines come from the files on disk, before paths are normalised. Only findings with crossing facts get them.
+    std::map<std::string, std::vector<std::string>> sourceFiles;
+    const auto sourceLineAt = [&](const SourceLocation& loc) -> std::string {
+        if (!loc.valid()) return {};
+        auto [it, fresh] = sourceFiles.try_emplace(loc.file);
+        if (fresh) {
+            std::ifstream in(loc.file);
+            for (std::string line; std::getline(in, line);) it->second.push_back(line);
+        }
+        if (loc.line > it->second.size()) return {};
+        std::string line = it->second[loc.line - 1];
+        const auto first = line.find_first_not_of(" \t");
+        if (first == std::string::npos) return {};
+        line.erase(0, first);
+        while (!line.empty() && (line.back() == '\r' || line.back() == ' ' || line.back() == '\t')) line.pop_back();
+        constexpr size_t kMaxShown = 160;
+        if (line.size() > kMaxShown) line = line.substr(0, kMaxShown) + "...";
+        return line;
+    };
+    for (auto& d : diags_) {
+        // Once only: on a later finalize the paths are already normalised, and could open an unrelated file.
+        if (!d.crossing || d.groupingOriginCaptured) continue;
+        d.sourceLine = sourceLineAt(d.location);
+        for (auto& e : d.evidence) e.sourceLine = sourceLineAt(e.location);
+    }
     // 1. Normalize paths (reports must not leak or depend on the build machine's absolute paths).
     for (auto& d : diags_) {
         if (!d.groupingOriginCaptured) {
@@ -300,7 +326,7 @@ AnalysisCoverage Report::analysisCoverage() const {
         if (s.coverage == AnalysisCoverage::Incomplete) return AnalysisCoverage::Incomplete;
     // A catalog rule that is not executed means an advertised check was not evaluated.
     for (auto& rc : ruleCoverage_)
-        if (rc.state != RuleState::Executed) return AnalysisCoverage::Incomplete;
+        if (rc.state != RuleState::Executed && !rc.preview) return AnalysisCoverage::Incomplete;
     if (executionStatus() == ExecutionStatus::Error) return AnalysisCoverage::Incomplete;
     return AnalysisCoverage::Complete;
 }
@@ -397,6 +423,7 @@ json::Value Report::toJson() const {
     json::Value rcs = json::Value::array();
     for (auto& rc : ruleCoverage_) {
         json::Value r = json::Value::object();
+        if (rc.preview) r.set("preview", true);
         r.set("rule_id", rc.ruleId).set("state", toString(rc.state)).set("catalog_status", rc.catalogStatus)
             .set("objects_evaluated", rc.objectsEvaluated).set("findings", rc.findings);
         json::Value severities = json::Value::object(), dispositions = json::Value::object();
@@ -453,10 +480,12 @@ json::Value Report::toJson() const {
         for (auto& e : d.evidence) {
             json::Value x = json::Value::object();
             x.set("kind", e.kind).set("text", e.text).set("location", locJson(e.location));
+            if (!e.sourceLine.empty()) x.set("source_line", e.sourceLine);
             ev.push(x);
         }
         o.set("evidence", ev);
         if (d.crossing) o.set("crossing", crossingJson(*d.crossing));
+        if (!d.sourceLine.empty()) o.set("source_line", d.sourceLine);
         json::Value sg = json::Value::array();
         for (auto& s : d.signals) sg.push(s);
         o.set("signals", sg);
@@ -839,6 +868,8 @@ std::string Report::toText(bool color, size_t maxDiagnostics, const std::string&
             else if (e.kind == "data_path") label = "path";
             else if (e.kind == "trust_model") label = "assumption";
             else if (e.kind == "proof_obligation") label = "obligation";
+            else if (e.kind == "path_step") label = "step";
+            else if (e.kind == "cycle_step") label = "step";
             else if (verbose) label = e.kind;
             else continue;
             std::string_view text = e.text;
@@ -849,6 +880,7 @@ std::string Report::toText(bool color, size_t maxDiagnostics, const std::string&
             if (d.crossing && e.kind == "capture_register") o << " [" << d.crossing->capture.edge << ']';
             if (e.location.valid()) o << " @" << e.location.file << ':' << e.location.line << ':' << e.location.column;
             o << '\n';
+            if (!e.sourceLine.empty() && e.kind != "path_step") o << "    | " << e.sourceLine << '\n';
         }
         if (d.waiver) {
             o << "  waived by " << d.waiver->waiverId << " (" << d.waiver->owner << "): " << d.waiver->reason;

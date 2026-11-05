@@ -41,8 +41,9 @@ TEST(qualifier_boolean_necessity_preserves_polarity_and_local_restrictions) {
         CHECK(payloadDiagnostic(report, "CDC-003") == nullptr);
     }
     auto report = qualifierCase("wire enabled = (s2 || bypass) && local_ready;", "enabled");
-    auto* defect = payloadDiagnostic(report, "CDC-003");
+    auto* defect = payloadDiagnostic(report, "CDC-028");   // the primary finding; CDC-003 is its evidence
     CHECK(defect && defect->severity == Severity::Error);
+    CHECK(payloadDiagnostic(report, "CDC-003") == nullptr);
     CHECK(payloadDiagnostic(report, "CDC-039") == nullptr);
 }
 

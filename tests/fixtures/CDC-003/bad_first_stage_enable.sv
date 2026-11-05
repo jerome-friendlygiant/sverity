@@ -1,9 +1,9 @@
 // sverity-args: --top top --sdc @FIXTURES@/_common/async.sdc
-// expect: CDC-003 ERROR
+// CDC-003 is evidence of the primary CDC-028 finding
 // expect: CDC-028 ERROR
 // expect-none: CDC-003 INFO
 // revert: if (en) first <= source; => first <= source;
-// revert-expect-none: CDC-003 ERROR
+// revert-expect-none: CDC-028 ERROR
 // revert-expect-none: CDC-028 ERROR
 module top(input logic clka, clkb, en, d, output logic q);
   logic source, first, second;

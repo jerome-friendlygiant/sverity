@@ -1,5 +1,5 @@
 // sverity-args: --top top --sdc @FIXTURES@/_common/async.sdc
-// expect: CDC-003 ERROR
+// CDC-003 is evidence of the primary CDC-028 finding
 // expect: CDC-028 ERROR
 // revert: return source; => return 1'b0;
 // revert-expect-none: CDC-028 ERROR

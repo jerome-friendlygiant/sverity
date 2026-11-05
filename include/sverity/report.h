@@ -35,6 +35,7 @@ struct RuleCoverage {
     std::string reason;              // why disabled/unimplemented/failed
     uint64_t objectsEvaluated = 0;   // design objects the rule looked at
     uint32_t findings = 0;           // diagnostics (all severities) attributed to the rule
+    bool preview = false;            // outside the selected deck: runs if it can, findings stay, coverage not claimed
 };
 
 struct ScopeCoverage {

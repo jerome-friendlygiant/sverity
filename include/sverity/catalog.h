@@ -15,7 +15,13 @@ struct RuleInfo {
     std::string status;                   // proposed | specified | implemented | validated | blocked
     std::string wave;                     // foundation | breadth | advanced (ordering only)
     std::string gap;                      // what a partial rule does not cover (empty if none recorded)
+    std::string deck;                     // earliest deck holding the rule: core | domain | 1.0 (decks are cumulative)
 };
+
+/// True for a known deck name. Decks are cumulative: core is inside domain, domain is inside 1.0.
+bool isDeck(std::string_view name);
+/// True when `rule` belongs to `deck`.
+bool inDeck(const RuleInfo& rule, std::string_view deck);
 
 /// Offline rule contract and advice, shared by --explain and SARIF.
 std::string ruleHelp(const std::string& id);

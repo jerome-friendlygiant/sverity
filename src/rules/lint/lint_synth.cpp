@@ -352,16 +352,19 @@ Branches branchesOf(const SeqView& v) {
 // LNT-019: constructs that have no synthesizable meaning. Final blocks are advisory (INFO); assertions are exempt.
 class NonSynthRule final : public LintRule {
 public:
-    NonSynthRule() : LintRule("LNT-019") {}
+    enum class Family { Timing, ProceduralOverride, DataType };
+    explicit NonSynthRule(Family family) : LintRule(family == Family::Timing ? "LNT-019" : family == Family::ProceduralOverride ? "LNT-079" : "LNT-080"), family(family) {}
 
 private:
+    Family family;
     struct V : ASTVisitor<V, VisitFlags::AllCanonical> {
         Lint& l;
+        Family family;
         bool fpga;
         bool inAssert = false;
         bool testbench = false;   // inside a top-level instance without ports: a testbench-like unit, findings are INFO
         std::vector<slang::SourceRange> finals;   // extent of every final block (declarations inside are found by location)
-        V(Lint& lint, bool isFpga) : l(lint), fpga(isFpga) {}
+        V(Lint& lint, bool isFpga, Family ruleFamily) : l(lint), family(ruleFamily), fpga(isFpga) {}
         bool inFinal(slang::SourceLocation at) const {
             for (auto& r : finals)
                 if (at.buffer() == r.start().buffer() && at.offset() >= r.start().offset() && at.offset() <= r.end().offset())
@@ -369,9 +372,9 @@ private:
             return false;
         }
 
-        void emit(slang::SourceLocation at, const std::string& what, Severity base = Severity::Warning,
+        void emit(Family owner, slang::SourceLocation at, const std::string& what, Severity base = Severity::Warning,
                   Confidence conf = Confidence::Established) {
-            if (inAssert || !l.isUser(at)) return;
+            if (family != owner || inAssert || !l.isUser(at)) return;
             l.count();
             l.report(at, std::string(testbench ? "non-synthesizable construct in a testbench-like top (no ports): " : "non-synthesizable construct in design RTL: ") + what,
                      {.severity = inFinal(at) || testbench ? Severity::Info : base,
@@ -404,7 +407,7 @@ private:
         }
         void checkBound(const Expression& e, bool forLoop, const std::string& what) {
             if (staticBound(e, forLoop)) return;
-            emit(e.sourceRange.start(), what + " is not a compile-time constant", Severity::Warning,
+            emit(Family::Timing, e.sourceRange.start(), what + " is not a compile-time constant", Severity::Warning,
                  hasUserCall(e) ? Confidence::Unresolved : Confidence::Established);
         }
 
@@ -419,51 +422,51 @@ private:
             this->visitDefault(p);
         }
         void handle(const ContinuousAssignSymbol& ca) {
-            if (ca.getDelay()) emit(ca.location, "'#' delay on a continuous assignment");
+            if (ca.getDelay()) emit(Family::Timing, ca.location, "'#' delay on a continuous assignment");
             this->visitDefault(ca);
         }
         void handle(const TimedStatement& t) {
-            if (delayCtl(t.timing)) emit(t.sourceRange.start(), "'#' delay");
+            if (delayCtl(t.timing)) emit(Family::Timing, t.sourceRange.start(), "'#' delay");
             this->visitDefault(t);
         }
         void handle(const AssignmentExpression& a) {
-            if (a.timingControl && delayCtl(*a.timingControl)) emit(a.sourceRange.start(), "intra-assignment '#' delay");
+            if (a.timingControl && delayCtl(*a.timingControl)) emit(Family::Timing, a.sourceRange.start(), "intra-assignment '#' delay");
             this->visitDefault(a);
         }
         void handle(const WaitStatement& s) {
-            emit(s.sourceRange.start(), "'wait' statement");
+            emit(Family::Timing, s.sourceRange.start(), "'wait' statement");
             this->visitDefault(s);
         }
         void handle(const WaitForkStatement& s) {
-            emit(s.sourceRange.start(), "'wait fork'");
+            emit(Family::Timing, s.sourceRange.start(), "'wait fork'");
             this->visitDefault(s);
         }
         void handle(const WaitOrderStatement& s) {
-            emit(s.sourceRange.start(), "'wait_order'");
+            emit(Family::Timing, s.sourceRange.start(), "'wait_order'");
             this->visitDefault(s);
         }
         void handle(const DisableForkStatement& s) {
-            emit(s.sourceRange.start(), "'disable fork'");
+            emit(Family::Timing, s.sourceRange.start(), "'disable fork'");
             this->visitDefault(s);
         }
         void handle(const BlockStatement& b) {
-            if (b.blockKind != StatementBlockKind::Sequential) emit(b.sourceRange.start(), "fork/join");
+            if (b.blockKind != StatementBlockKind::Sequential) emit(Family::Timing, b.sourceRange.start(), "fork/join");
             this->visitDefault(b);
         }
         void handle(const EventTriggerStatement& s) {
-            emit(s.sourceRange.start(), "event trigger ('->')");
+            emit(Family::Timing, s.sourceRange.start(), "event trigger ('->')");
             this->visitDefault(s);
         }
         void handle(const ProceduralAssignStatement& s) {
-            emit(s.sourceRange.start(), s.isForce ? "'force'" : "procedural 'assign'");
+            emit(Family::ProceduralOverride, s.sourceRange.start(), s.isForce ? "'force'" : "procedural 'assign'");
             this->visitDefault(s);
         }
         void handle(const ProceduralDeassignStatement& s) {
-            emit(s.sourceRange.start(), s.isRelease ? "'release'" : "'deassign'");
+            emit(Family::ProceduralOverride, s.sourceRange.start(), s.isRelease ? "'release'" : "'deassign'");
             this->visitDefault(s);
         }
         void handle(const ForeverLoopStatement& s) {
-            emit(s.sourceRange.start(), "'forever' loop has no static bound");
+            emit(Family::Timing, s.sourceRange.start(), "'forever' loop has no static bound");
             this->visitDefault(s);
         }
         void handle(const RepeatLoopStatement& s) {
@@ -479,7 +482,7 @@ private:
             this->visitDefault(s);
         }
         void handle(const ForLoopStatement& s) {
-            if (!s.stopExpr) emit(s.sourceRange.start(), "'for' loop without a condition");
+            if (!s.stopExpr) emit(Family::Timing, s.sourceRange.start(), "'for' loop without a condition");
             else checkBound(*s.stopExpr, true, "'for' loop bound");
             this->visitDefault(s);
         }
@@ -492,15 +495,15 @@ private:
             this->visitDefault(s);
         }
         void handle(const InstanceBodySymbol& b) {
-            if (b.getDefinition().definitionKind == DefinitionKind::Program) emit(b.location, "'program' block");
+            if (b.getDefinition().definitionKind == DefinitionKind::Program) emit(Family::DataType, b.location, "'program' block");
             this->visitDefault(b);
         }
         void handle(const ClassType& c) {
-            emit(c.location, "class declaration");
+            emit(Family::DataType, c.location, "class declaration");
             this->visitDefault(c);
         }
         void handle(const CovergroupType& c) {
-            emit(c.location, "covergroup declaration");
+            emit(Family::DataType, c.location, "covergroup declaration");
             this->visitDefault(c);
         }
         void handle(const VariableSymbol& v) {
@@ -513,13 +516,13 @@ private:
             else if (t.isDynamicallySizedArray()) what = "dynamic array variable";
             else if (t.isQueue()) what = "queue variable";
             else if (t.isAssociativeArray()) what = "associative array variable";
-            if (what) emit(v.location, std::string(what) + " '" + std::string(v.name) + "'");
+            if (what) emit(Family::DataType, v.location, std::string(what) + " '" + std::string(v.name) + "'");
             this->visitDefault(v);
         }
     };
     void check(Lint& l) override {
         bool fpga = l.context().config.profile == "fpga";
-        V v(l, fpga);
+        V v(l, fpga, family);
         forEachProc(l, [&](const ProceduralBlockSymbol& p) {
             if (p.procedureKind == ProceduralBlockKind::Final)
                 v.finals.push_back(slang::SourceRange(p.location, p.getBody().sourceRange.end()));
@@ -1152,7 +1155,9 @@ private:
 
 std::vector<std::unique_ptr<Rule>> makeLintSynthRules() {
     std::vector<std::unique_ptr<Rule>> v;
-    v.push_back(std::make_unique<NonSynthRule>());
+    v.push_back(std::make_unique<NonSynthRule>(NonSynthRule::Family::Timing));
+    v.push_back(std::make_unique<NonSynthRule>(NonSynthRule::Family::ProceduralOverride));
+    v.push_back(std::make_unique<NonSynthRule>(NonSynthRule::Family::DataType));
     v.push_back(std::make_unique<SystemTaskRule>());
     for (auto k : {ResetCodingRule::ResetOnly, ResetCodingRule::NoResetValue, ResetCodingRule::NoResetBlock})
         v.push_back(std::make_unique<ResetCodingRule>(k));

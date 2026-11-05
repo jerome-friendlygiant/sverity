@@ -27,6 +27,7 @@
 
 namespace slang::ast {
 class ProceduralBlockSymbol;
+class SubroutineSymbol;
 class Symbol;
 class ValueSymbol;
 class Expression;
@@ -85,14 +86,16 @@ class Flow {
 public:
     /// Analyses `proc` (any always*, initial or final procedure).
     explicit Flow(const slang::ast::ProceduralBlockSymbol& proc);
+    /// Analyses a subroutine body: the entry value of a local is its value before any assignment.
+    explicit Flow(const slang::ast::SubroutineSymbol& routine);
     ~Flow();
     Flow(const Flow&) = delete;
     Flow& operator=(const Flow&) = delete;
 
-    const slang::ast::ProceduralBlockSymbol& proc;
     std::vector<Access> accesses;     // in evaluation order (right-hand side before the target of an assignment)
     std::vector<Kill> kills;
     bool opaque = false;              // a user subroutine call or a mid-body timing control was seen (see Access::exposed / used)
+    bool timing = false;              // ... specifically a mid-body timing control: other processes can run inside this activation
     bool bad = false;                 // slang could not analyse (invalid statement); results are incomplete
     bool approximated = false;        // a `continue`, or a case whose items cannot all match, makes the path analysis approximate: absence of a latch or of a write is not proven
 

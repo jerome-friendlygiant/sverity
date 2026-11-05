@@ -40,7 +40,7 @@ WaiverSet sourceWaivers(Design& design, const std::string& root) {
         auto text = sm.getSourceText(buffer);
         if (text.empty()) continue;
         auto path = sm.getFullPath(buffer).lexically_normal();
-        auto base = root.empty() ? std::filesystem::current_path() : std::filesystem::path(root);
+        auto base = root.empty() ? std::filesystem::current_path() : std::filesystem::absolute(root).lexically_normal();
         auto file = path.lexically_relative(base).generic_string();
         slang::BumpAllocator alloc;
         slang::Diagnostics diagnostics;
@@ -190,7 +190,7 @@ static std::string describe(const Waiver& w) {
 }
 
 static bool matchesBase(const Waiver& w, const Diagnostic& d) {
-    if (d.ruleId != w.rule) return false;
+    if (d.ruleId != w.rule && std::find(d.alsoRules.begin(), d.alsoRules.end(), w.rule) == d.alsoRules.end()) return false;
     if (!w.fingerprint.empty() && w.fingerprint != d.fingerprint) return false;
     if (!w.file.empty() && (w.sourceLocation.valid() ? w.file != d.location.file : !globMatch(w.file, d.location.file))) return false;
     if (w.line && w.line != d.location.line) return false;
@@ -198,6 +198,10 @@ static bool matchesBase(const Waiver& w, const Diagnostic& d) {
         bool any = false;
         for (auto& s : d.signals) any = any || globMatch(w.signal, s);
         if (!any) return false;
+        // A finding that groups several sources is accepted for its destination or for all of its sources, never for one of them.
+        if (!d.groupedSources.empty() && !globMatch(w.signal, d.signals.front()) &&
+            !std::all_of(d.groupedSources.begin(), d.groupedSources.end(), [&](const std::string& s) { return globMatch(w.signal, s); }))
+            return false;
     }
     if (!w.messageContains.empty() && d.message.find(w.messageContains) == std::string::npos) return false;
     return true;
@@ -269,6 +273,18 @@ void applyWaivers(Report& report, const WaiverSet& set, const std::string& today
             if (d.disposition == Disposition::Waived) continue;
             if (!matchesBase(w, d)) continue;
             if (d.severity == Severity::Fatal || (d.origin == "slang" && d.severity >= Severity::Error)) continue;
+            // A finding that stands for several rules is waived once each has a waiver. A fingerprint names this exact finding,
+            // absorbed rules included, so it covers all of them.
+            if (!d.alsoRules.empty() && w.fingerprint.empty()) {
+                if (!w.hierarchy.empty() && std::any_of(d.occurrences.begin(), d.occurrences.end(), [&](const std::string& o) { return !globMatch(w.hierarchy, o); }))
+                    continue;
+                if (std::find(d.waivedFacts.begin(), d.waivedFacts.end(), w.rule) == d.waivedFacts.end()) d.waivedFacts.push_back(w.rule);
+                std::vector<std::string> missing;
+                for (const auto& rule : d.alsoRules)
+                    if (std::find(d.waivedFacts.begin(), d.waivedFacts.end(), rule) == d.waivedFacts.end()) missing.push_back(rule);
+                if (std::find(d.waivedFacts.begin(), d.waivedFacts.end(), d.ruleId) == d.waivedFacts.end()) missing.push_back(d.ruleId);
+                if (!missing.empty()) { matched += d.count; continue; }
+            }
             if (w.hierarchy.empty()) {
                 d.disposition = Disposition::Waived;     // severity, evidence and identity are untouched
                 d.waiver = WaiverInfo{w.id, w.reason, w.owner, w.expires, describe(w), w.sourceLocation};
@@ -310,6 +326,15 @@ void applyWaivers(Report& report, const WaiverSet& set, const std::string& today
             continue;
         }
         report.addWaiverRecord({w.id, w.rule, w.reason, w.owner, w.expires, describe(w), "applied", matched});
+    }
+    // Say what is still open on a finding only some of whose rules were waived. Advice is not part of its identity.
+    for (auto& d : report.mutableDiagnostics()) {
+        if (d.disposition == Disposition::Waived || d.waivedFacts.empty()) continue;
+        std::string missing;
+        for (const auto& rule : d.alsoRules)
+            if (std::find(d.waivedFacts.begin(), d.waivedFacts.end(), rule) == d.waivedFacts.end()) missing += (missing.empty() ? "" : ", ") + rule;
+        if (std::find(d.waivedFacts.begin(), d.waivedFacts.end(), d.ruleId) == d.waivedFacts.end()) missing += (missing.empty() ? "" : ", ") + d.ruleId;
+        d.nextStep = "This finding stays open: it also stands for " + missing + ", which needs its own waiver, or waive the fingerprint. " + d.nextStep;
     }
     for (auto& d : extra) report.add(std::move(d));
     report.finalize();

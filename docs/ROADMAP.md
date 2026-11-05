@@ -10,41 +10,32 @@ Horizons say what we mean to do next, not how long it takes. Nothing here is dro
 
 These are bugs and unfinished work, not limits of the approach. Each is fixed when its fixture passes and the item is removed from this list.
 
-**Reports and CLI**
-
-- Give findings that have a real source location one, starting with RDC-025, so a finding can be opened from the console.
-- Extend the structured `crossing` data beyond the shared builder: primary inputs, collapsed symbols, protocol findings and CST-012.
-- Add ordered path witnesses and source snippets to CDC findings; today only the endpoints are given.
-
-**Finding quality**
-
-- One primary finding per unsynchronised bus (CDC-016/017/028/032 versus CDC-003/004), and one obligation emitter per structure (CDC-024).
-- Apply the scoping splits: LNT-019, LNT-033, LNT-049, LNT-059; LNT-042's overlap clause belongs to LNT-009.
-- Put clock facts in the identity of findings outside the crossing builders, such as primary-input and RDC findings, so a clock change stales their waivers too. Keep every clock of a register with several sequential drivers, so a known asynchronous one stays a violation whichever block comes first.
-- Assess duplicated broken-chain findings on real designs. The reported case did not reproduce on the available cases.
-- LNT-012 reports a false alarm on a loop that unrolls a temporary: `s = q; for (...) s = {s[0] ^ s[3], s[7:1]};` gives one warning per bit plus a cycle warning, though `s` is written before it is read. Use statement order from `Flow`, and keep the warning where order is not proved.
-- Reduce the rules that dominated the OpenTitan runs, after reading them against the RTL: RDC-004, LNT-059, CST-010 and LNT-012.
-- Decide the AES ERROR: LNT-012 calls a 7,806-bit component an established cycle at `aes.sv:139`, and reading the RTL did not settle it. It needs a reduced reproducer and an ordered cycle witness.
-
-**Test shape** (required by [RFC section 7](SVerity_RFC.md#7-testing))
-
-- Add a "must not fire" assertion to every implemented rule that lacks one.
-- Add a `// revert:` mutation to every CDC and RDC rule that lacks one.
-
-**Constraints**
-
-- Extend `set_case_analysis` beyond scalar top-level data inputs where the semantics are sound: internal, driven and multi-bit targets, clock and reset events.
-- Evaluate more Tcl where real SDC files need it (`expr`, `if`, `lindex`). Everything else stays atomically rejected and disclosed.
-- Add options of `source` and `all_inputs` that real SDC files use.
-
-**Crosswalk gaps** (public vendor checks with no SVerity rule, from the [CDC crosswalk](rules/CDC.md#crosswalk-and-licences))
-
-- Decide for each, adding a rule or a written exclusion as the [1.0 criteria](SVerity_RFC.md#8-acceptance-criteria-for-10) require: fan-out before a synchroniser (AMD CDC-11), `ASYNC_REG` on reset synchronisers (AMD CDC-8), non-flop primitives (AMD CDC-13), LUTRAM collisions (AMD CDC-26), and the delay and skew constraints behind Altera CDC-50002, 50003, 50004 and 50007.
-- Read Altera CDC-50009 and 50010, and recheck the AMD list directly against the page.
+- Case analysis over-collects: a read such as `$display(..., m)` or an index `v[m]` in a procedure rejects a value on `m`, and stops propagation through `wire x = m`. This keeps findings, so it is safe, but it costs a usable constraint. Separate reads from writes.
+- RDC-024 can count one reset use twice when it reads two stages of one synchroniser, as in `s2 & s3`.
+- CDC-041 compares the source's reset with the last register of the walk, which may be a follower past the required depth. RDC-005 still reports such a mismatch.
+- `syncedOut_` also holds the last stage of a chain shorter than the required depth, so that stage can still qualify a payload. CDC-005 reports the short chain as well, so this is not silent, but the meaning should be made exact.
 
 ## 2. Mid term: reaching 1.0
 
 The target is the [1.0 criteria](SVerity_RFC.md#8-acceptance-criteria-for-10). It is deliberately a large one: 1.0 validates the rules we keep, not a small subset.
+
+**What 1.0 claims.** Validated SystemVerilog RTL lint and structural CDC and RDC analysis, for named workflows, configurations and design sizes, with every functional and physical obligation stated. Validating rules against our own specification does not make SVerity a substitute for a commercial tool, because a team could still be unable to switch. So 1.0 is bounded, and replacement is earned family by family in the phases below. **A family claims to replace a commercial tool only after passing its own gate.** Until then the release says it does not.
+
+| Phase | Work | Gate to pass |
+|---|---|---|
+| **1. Measure** | An accuracy suite of independently labelled good, bad and unknown designs that were not used to develop the rules. Budgets for false alarms, missed defects, unresolved findings and review effort per family, fixed before evaluation. Capacity and review budgets on stated hardware. | The suite and budgets are published and a baseline is measured. No seeded critical defect is silently accepted. |
+| **2. Lint replacement** | Name the workflow and the defect classes it needs, and build the lint deck from those rather than from what exists. Migrate a real team's lint policy and waivers. | The deck is validated and meets its budgets, and an independent pilot switches, with every exclusion listed. |
+| **3. CDC replacement** | Complete crossing inventory under reviewed clock intent, then a way to close what structure cannot show: stability of a qualified payload, protocols, reconvergence and glitches. Modes and exceptions, boundary contracts at block level, and library cells. | As for lint. Every obligation has a named closure step, inside the tool or accepted outside it. |
+| **4. RDC replacement** | Reset trees, independently asserted resets, user-declared sequencing, release order, and a model of a stopped clock and a held or released reset. The furthest behind, so it comes last. | As for lint. Sequencing can be stated and checked, not only reported as unresolved. |
+| **5. Integration** | ASIC and FPGA profile bundles, reconciling existing constraints and waivers, baselines and CI, and a full-SoC run with an SDC within budget. | Two independent pilot workflows run end to end, with anything unsupported visible and blocking a safety claim. |
+
+Phases 2 to 4 can overlap, and a phase can draw from the [long-term goals](#3-long-term-beyond-10) what its named workflow proves it needs. Passing every gate is what would make SVerity a good replacement. If only some pass when 1.0 ships, its claim names those families and no others.
+
+**Not in the 1.0 claim.** VHDL and mixed language, gate-level analysis, power-aware analysis, formal proof and reusable block summaries, unless a named workflow pulls one in. A team that relies on one of these keeps its commercial tool for that job, and the release says so.
+
+**Showing it without a commercial licence.** Commercial output is a useful reference but not ground truth, and a licence may forbid publishing it. The evidence is independently labelled designs, held-out cases, reproducible resource measurements, documented closure effort and private adopter trials, with aggregate results published where agreements allow.
+
+**Decisions still needed.** Who the first adopters are and which workflows they need. The numeric budgets, including acceptable false-alarm noise and residual risk. The capacity envelope: 10 minutes and 16 GiB for `top_earlgrey` is a working proposal, not a commercial benchmark. The pilots, which need real teams and cannot be reached by engineering alone.
 
 **Validate in widening decks.** Each deck stays open until every rule in it has a written severity policy, good, bad, boundary, unknown and mutation fixtures, and a passed independent adversarial review. Independent review may be a separate AI reviewer, and the report says so; it is not a human signoff.
 
@@ -54,22 +45,38 @@ The target is the [1.0 criteria](SVerity_RFC.md#8-acceptance-criteria-for-10). I
 | Domain | All structural and protocol CDC and all RDC, with the CST rules they depend on | A meaningful CDC and RDC claim |
 | 1.0 | All of the above, the remaining lint and CST rules | Freezing 1.0. A rule leaves the deck only for a written reason, decided before the freeze |
 
-**Coverage per deck.** A run can report `COMPLETE` for a frozen deck when all its rules ran and every limit it hit was disclosed. Unfinished rules outside the deck stay available as preview. This is what finally allows an honest clean exit, so the deck has to be validated first.
+Each rule's `deck` field in the [catalog](rules/catalog.json) names the earliest deck holding it, and `tools/dev/conformance.py` shows how far each rule and deck is from `validated`. No rule is `validated` yet.
+
+**Coverage per deck.** `--deck` reports coverage for a deck, and no run can yet reach `COMPLETE`, because the decks hold rules that are still partial. A run can report `COMPLETE` for a frozen deck when all its rules ran and every limit it hit was disclosed. Unfinished rules outside the deck stay available as preview. This is what finally allows an honest clean exit, so the deck has to be validated first.
 
 **Capacity: OpenTitan Earl Grey.** 1.0 analyses the whole `top_earlgrey` SoC at a pinned commit, with published time, memory and coverage on stated hardware. Earlier runs measured about 19 MB per PicoRV32 copy, growing linearly, up to 170k register bits in 37 s and 1.3 GB. Steps: pin it in the public project manifest with a reproducible file list, profile bytes per edge and time per rule, and decide the policy for symbols over 16384 bits, which collapse to one node today.
 
-First baseline, 2026-11-04, OpenTitan commit `92f3d03`, no SDC, on a shared machine with about 9 GB free:
+`tools/dev/capacity.py` reproduces these from a clean checkout: OpenTitan commit `92f3d03`, a file list from FuseSoC 2.4.5, `--single-unit`, no SDC, on a shared machine. It caps memory so that running out ends in a reported failure instead of disturbing other processes. `--timings` gives time and peak memory per phase and rule.
 
-| Top | Result | Time | Peak memory | Register bits | Graph |
+| Top, date | Result | Time | Peak memory | Register bits | Graph |
 |---|---|---:|---:|---:|---|
-| `uart` | Finished, INCOMPLETE | 1.6 s | 0.4 GB | 1,093 | 6,896 nodes, 49,277 edges |
-| `aes` | Finished, INCOMPLETE | 118 s | 0.9 GB | 7,478 | 118,344 nodes, 4,589,948 edges |
-| `top_earlgrey` | **Killed by the host's memory guard** | 42 s | 9.1 GB at the kill | Unknown | Unknown |
+| `uart`, 2026-11-04 | Finished, INCOMPLETE | 1.6 s | 0.4 GB | 1,093 | 6,896 nodes, 49,277 edges |
+| `uart`, 2026-11-05 | Finished, INCOMPLETE, no ERROR | 1.6 s | 0.3 GB | 1,093 | 6,930 nodes, 14,579 edges |
+| `aes`, 2026-11-04 | Finished, INCOMPLETE, 1 false ERROR | 118 s | 0.9 GB | 7,478 | 118,344 nodes, 4,589,948 edges |
+| `aes`, 2026-11-05 | Finished, INCOMPLETE, no ERROR | 4.6 s | 0.4 GB | 7,478 | 118,947 nodes, 454,185 edges |
+| `top_earlgrey`, 2026-11-04 | Killed by the host's memory guard | 42 s | 9.1 GB at the kill | Unknown | Unknown |
+| `top_earlgrey`, 2026-11-05 | Lint finished with no ERROR. CDC and RDC ran out of memory at the 13.5 GB limit, so INCOMPLETE | 112 s | 10.7 GB | 237,159 | 3,266,136 nodes, 15,507,552 edges |
 
-So the target is not met and its real cost is unknown: the run was stopped by this machine, so it shows neither how much memory the SoC needs nor whether elaboration finished. AES already shows the shape of the problem, with about 39 edges per node and far more time per bit than earlier designs. Next: where time goes in AES, then a measured `top_earlgrey` run on a machine with enough memory. OpenTitan's macros also need `--single-unit`, and its file list comes from FuseSoC, so a manifest entry needs both, with pinned tool versions and virtual-core choices.
+The target is not met: **`top_earlgrey` has not yet finished with CDC enabled.** The model builds in 9 s and every lint rule completes, including LNT-012, where 368 false ERRORs are now 0 (363 Unresolved and 54 heuristic WARNINGs remain to read). CDC and RDC each fail with `std::bad_alloc` in the fan-in walk at the 13.5 GB limit. The [cone budgets](rules/ANALYSIS.md#how-cones-are-computed-once) come to about 2.5 GB, yet the CDC pass takes the run from 3.6 GB to 10.7 GB, so most of that memory is something the budgets do not count.
+
+Next, in order:
+
+1. Find what holds the memory in the CDC pass, with counters. Candidates, none measured: spare capacity in stored cones, each crossing group's per-source sets, and the per-input lists in `analyseCrossings`.
+2. Finish one `top_earlgrey` run and read its findings against the RTL. Then look at time again: register cones past their budget are recomputed, and name-building shows up in the RDC pass.
+3. Run with an SDC, because 76 clock domains with unknown relationships are the worst case for crossing analysis.
+4. Add a check that a binary reproduces its own report, since [determinism](rules/ANALYSIS.md#determinism) is otherwise only checked by hand.
+
+**Beyond the public gate.** Running OpenTitan's IPs found a false alarm that all six gate designs had passed, so widen what is run regularly. Still open from that sweep: `usbdev` and `spi_device` over a 150 s limit, measured before the cache fix; and `flash_ctrl`, `pwm` and `pattgen`, which did not run cleanly as tops.
 
 **Shared analysis.** Fix these in the analysis, not rule by rule ([AGENTS.md](../AGENTS.md)). Each stays reported as Unresolved until then.
 
+- Model a stopped clock and a held or released reset, so `set_case_analysis` can apply to clock and reset sources. A stopped clock does not make its registers constant, and a released reset does not say what they start from: this needs retained state, per-register reset state and a stated obligation for entering the mode. Until then these stay unapplied (CST-009).
+- Give case values an instance, so a module with several instances can take one on a single instance if its symbols are shared.
 - `Flow` walks loops once and treats mid-body timing controls as opaque.
 - Guards are not kept as AND/OR trees.
 - X and Z values are not propagated through variables.
@@ -87,8 +94,8 @@ So the target is not met and its real cost is unknown: the run was stopped by th
 **Also needed for 1.0**
 
 - ASIC and FPGA profile bundles, including cell metadata for CDC-012. They are undefined today.
-- Written severity policies, including each rule's `default_severity`.
-- A rule proposal template, contribution and provenance policy, and a security contact.
+- Written severity policies for the rules that lack one, and each rule's `default_severity`. `tools/dev/conformance.py` lists them.
+- Implement or drop the CST rules with no emitter: CST-003, 007, 008, 013, 015, 016, 017, 020, 021, 023 and 024. They sit in the decks and keep those decks from COMPLETE.
 - A differential run against a commercial tool, if legitimate access exists. Without it the release says that no comparison was made.
 
 ## 3. Long term: beyond 1.0
@@ -114,7 +121,7 @@ Public-source research and CLI checks were performed on 2026-11-03. Commercial s
 
 SVerity's column was checked against the reviewed `sverity 0.1.0` binary (slang 12.1.0, catalog `0.1-draft`). The [catalog](rules/catalog.json) stays authoritative for individual rules.
 
-There are two different completion targets: delivering SVerity's advertised 1.0 coverage, and matching the wider commercial capability envelope. The charter requires the first; the second is what the long-term goals move towards. The following checklist is a research-based capability assessment, not a replacement for the [catalog](rules/catalog.json). **Present** means exercised or exposed by the checked CLI; **partial** means some capability exists; **absent** means no functioning facility was established; **deferred** means explicitly future work in the RFC; **out of scope** means deliberately excluded by RFC section 1. A marketing page alone does not establish rule depth, soundness or performance.
+There are two different completion targets: delivering SVerity's advertised 1.0 coverage, and matching the wider commercial capability envelope. The [phases to 1.0](#2-mid-term-reaching-10) make replacement a tested claim per family for named workflows; matching the whole envelope is what the long-term goals move towards. The following checklist is a research-based capability assessment, not a replacement for the [catalog](rules/catalog.json). **Present** means exercised or exposed by the checked CLI; **partial** means some capability exists; **absent** means no functioning facility was established; **deferred** means explicitly future work in the RFC; **out of scope** means deliberately excluded by RFC section 1. A marketing page alone does not establish rule depth, soundness or performance.
 
 | Capability to assess | Public capability evidence | SVerity today and verification | What completion would require |
 |---|---|---|---|
@@ -130,7 +137,7 @@ There are two different completion targets: delivering SVerity's advertised 1.0 
 | Power-domain crossings, isolation and retention | UPF-aware CDC is advertised by Synopsys ([S3]); Questa RDC covers isolation/retention ([S7]). | **Absent:** `--explain RDC-012`, `RDC-029` and `--help` establish no UPF/CPF input. Not an explicit RFC section 1 exclusion. | Power-intent parser/model, power-state semantics, cell contracts and crossing checks; agree release scope before advertising power-aware safety. Missing intent must remain disclosed. |
 | Reports, review and waiver integrity | Questa documents reporting/waiver management ([S7]); Synopsys documents cluster-based triage ([S5]). | **Present** for JSON/SARIF/HTML exports and visible waiver disposition (checked runs); **partial** for end-to-end completeness assurance (`--explain CST-020`; [report contract](SVerity_RFC.md#3-diagnostic-contract-non-negotiable)). | Independently reconcile crossing inventories, evidence and report outputs; test that unsupported scopes and waived occurrences cannot disappear. |
 | Interactive debug GUI / schematic and waveform tracing | Synopsys advertises Verdi cross-probing ([S1]); Questa RDC documents schematic/waveform displays ([S7]). | **Absent** as a native interactive design debugger; `--html` is an exported report (`--help`, checked export). The charter promises a CLI/library, not a GUI. | Optional consumer of stable evidence/path APIs; useful for adoption, not required for structural correctness or 1.0 CLI completion. |
-| Flow scale / SoC capacity | Hierarchical scalability is advertised ([S2]); Questa RDC claims billion-gate capacity ([S7]). | **Partial:** flat model with recorded precision limits ([analysis prerequisites](rules/ANALYSIS.md#prerequisites-of-every-run)); the [first baseline](#2-mid-term-reaching-10) did not finish `top_earlgrey`. Comparable capacity is **unknown**. | Publish reproducible public-design resource/coverage benchmarks; address bottlenecks without hiding precision loss, then evaluate summaries/caching. No commercial speed ratio is established. |
+| Flow scale / SoC capacity | Hierarchical scalability is advertised ([S2]); Questa RDC claims billion-gate capacity ([S7]). | **Partial:** flat model with recorded precision limits ([analysis prerequisites](rules/ANALYSIS.md#prerequisites-of-every-run)); the [measured runs](#2-mid-term-reaching-10) have not finished `top_earlgrey`. Comparable capacity is **unknown**. | Publish reproducible public-design resource/coverage benchmarks; address bottlenecks without hiding precision loss, then evaluate summaries/caching. No commercial speed ratio is established. |
 | Formal-assisted functional lint | VC SpyGlass Lint advertises formal depth ([S13]). | **Deferred:** `--explain LNT-071`, [future proof goal](SVerity_RFC.md#1-product-charter). | Optional proof backend and conformance evidence; keep structural lint claims bounded until then. |
 | Style policies / certification rule decks | Synopsys advertises STARC/OpenMORE and safety-related decks ([S1]); OpenTitan distinguishes style lint ([S12]). | Style is **outside 1.0 scope** ([RFC scope and families](SVerity_RFC.md#4-rules)); no certified policy equivalence is established. | Not a 1.0 gap. Any later policy needs public specifications, provenance and independent validation; a checklist is not certification. |
 | Simulation, STA signoff and physical guarantees | Synopsys offers simulation-based CDC support ([S2]); Altera recommends timing-based metastability reporting ([S10]). | **Out of scope:** simulation and STA signoff are explicit [charter exclusions](SVerity_RFC.md#1-product-charter). `--explain RDC-013` preserves physical obligations. | Not a gap to close inside this tool. Supply external timing/MTBF evidence where a project's acceptance process requires it. |
@@ -138,6 +145,8 @@ There are two different completion targets: delivering SVerity's advertised 1.0 
 ### What review has and has not shown
 
 An independent review (2026-11) built the tool and ran it on hand-written cases and public RTL. Crossings through interfaces, functions, hierarchical references, structs, generate loops, memories, latches and clock muxes were all reported; reconvergence, first-stage fan-out, mixed edges, third-clock stages and pulse loss were caught. This is evidence from a few dozen cases, not proof that no false-safe results remain. Cases from earlier audits stay in the rule fixture directories under descriptive names.
+
+Three more independent AI reviews (2026-11-05, a separate model running the binary on about 200 hand-written cases, with the earlier binary for comparison) hunted false-safe results in the changes behind this page. They found real defects each round, which are fixed and kept as fixtures: an override or waiver of one rule accepting another fact of the same crossing, a stage enabled by its own data recognised as a synchroniser, a precise loop lowered by a neighbouring approximate branch. A fourth round has not been run on the last fixes, and these are AI reviews, not human sign-off. The hard parts of the analysis stay unproved by this: the reviews list what they did not reach.
 
 ## 5. Coming from a commercial flow
 
@@ -178,7 +187,7 @@ For a real migration, first reproduce the intended source/configuration set, the
 | AMD `CDC-7` | Async clear/preset lacks known synchronization ([S9]). | `RDC-003` | **Partial:** reset-release recognition and routing of other-domain sources differ; no timing proof. |
 | AMD `CDC-10` | Logic feeds a synchronization circuit ([S9]). | `CDC-008` | **Partial:** capture-cone operator/guard test. Logic *between* stages is separately `CDC-006`; similar names must not be mapped by number. |
 | AMD `CDC-12` | Synchronizer fanin contains multiple source clocks ([S9]). | `CDC-010` | **Partial:** heuristic asynchronous-influence/reconvergence analysis has a broader destination-cone predicate. |
-| AMD `CDC-26` | Possible LUTRAM read/write collision ([S9]). | None established (`CDC-035` is only a candidate inventory check). | **None:** cross-clock memory identification does not establish a LUTRAM collision predicate. |
+| AMD `CDC-26` | Possible LUTRAM read/write collision ([S9]). | None; a [written exclusion](rules/CDC.md#crosswalk-and-licences) (`CDC-035` reports the memory). | **None:** cross-clock memory identification does not establish a LUTRAM collision predicate. |
 | Altera `CDC-50001` | Unsynchronized asynchronous single-bit transfer ([S10]). | `CDC-003`, with `CDC-008` for source logic | **Partial:** Altera also defines asynchronous transfers using parent clocks, false paths and forced synchronizer identification; do not assume SVerity interprets those identically. |
 | Altera `CDC-50005` | CDC bus bits use unequal synchronization lengths ([S11]). | `CDC-032` | **Partial:** overlapping unequal-depth predicate; bus grouping, chain recognition and supported technology are not established as identical. |
 

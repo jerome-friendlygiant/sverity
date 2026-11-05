@@ -1,6 +1,6 @@
 // sverity-args: --top top --sdc @FIXTURES@/_common/async.sdc
 // MUTATION of good_qualified_payload.sv: the capture enable comes from the destination domain (not synchronisation).
-// expect: CDC-004 ERROR
+// CDC-004 is evidence of the primary CDC-028 finding
 // expect: CDC-028 ERROR
 // expect-none: CDC-039
 module top(input logic clka, clkb, rst_n, load, en_b, input logic [3:0] d, output logic [3:0] q);

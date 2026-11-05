@@ -30,3 +30,6 @@ add_test(NAME tutorial.commands COMMAND python3 ${PROJECT_SOURCE_DIR}/docs/tutor
 
 add_test(NAME report.interfaces COMMAND python3 ${PROJECT_SOURCE_DIR}/tests/test_interfaces.py
          $<TARGET_FILE:sverity> ${PROJECT_SOURCE_DIR})
+
+# What each rule must have reached: spec block, must-not-fire, mutation pair; everything for a validated rule.
+add_test(NAME rules.conformance COMMAND python3 ${PROJECT_SOURCE_DIR}/tools/dev/conformance.py --check ${PROJECT_SOURCE_DIR})

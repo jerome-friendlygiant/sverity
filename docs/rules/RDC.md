@@ -31,6 +31,7 @@ are explicit obligations/unknown markers, never "safe". Reset roots are traced t
 | `RDC-027` | Reset-domain false-path exception does not imply safety |
 | `RDC-028` | One reset used with both polarities, or a reset that is the inverted copy of its source |
 | `RDC-029` | Retention or isolation reset boundaries when power intent provided |
+| `RDC-030` | Reset synchroniser stages without consistent synchronisation attributes |
 
 ## Specification
 
@@ -52,7 +53,7 @@ are explicit obligations/unknown markers, never "safe". Reset roots are traced t
 - **Unknown:** every WARNING marks scope reset-extraction INCOMPLETE; the INFO records the trust model and never claims recovery/removal safety.
 
 ### RDC-004
-- **Trigger:** a register bit d and a register bit s in d's fan-in cone (walk through Comb and Seq edges, stopping at registers), both in the same clock domain, where s has asynchronous reset sources rs (traced through recognised synchronisers) and rs is not a subset of the sources rd of d (rd may be empty); one per (s symbol, d symbol).
+- **Trigger:** a register bit d and a register bit s in d's fan-in cone (walk through Comb and Seq edges, stopping at registers), both in the same clock domain, where s has asynchronous reset sources rs (traced through recognised synchronisers) and rs is not a subset of the sources rd of d (rd may be empty); one per destination symbol and pair of reset sets, listing each source symbol as evidence. A waiver scoped by `signal` must name the destination or cover every source.
 - **Exempt:** rs a subset of rd (d is reset by every source that resets s); bits with unidentified clock (CST-004).
 - **Severity:** WARNING, Heuristic; proof NOT_ATTEMPTED.
 - **Unknown:** none: decided on the model; the data crossing itself is a CDC question.
@@ -173,6 +174,12 @@ are explicit obligations/unknown markers, never "safe". Reset roots are traced t
 - **Severity:** -
 - **Unknown:** -
 
+### RDC-030
+- **Trigger:** a recognised reset synchroniser whose stages carry ASYNC_REG, sverity_sync or cdc_sync (case-insensitive) on some but not all stages (any profile), or on none of them under profile fpga.
+- **Exempt:** no attribute on any stage under the asic or generic profile; an unrecognised chain (RDC-003).
+- **Severity:** WARNING Established.
+- **Unknown:** none; attributes are read from the RTL symbols only.
+
 ## Crosswalk and licences
 
 Reference projects were studied for rule inventories only; no source code from any of them is included. Commercial RDC rule IDs are not public, so only their categories are mapped. The AMD entry is closest intent, not equivalence; it was read as described in the [CDC crosswalk](CDC.md#crosswalk-and-licences).
@@ -181,7 +188,7 @@ Reference projects were studied for rule inventories only; no source code from a
 |---|---|
 | RTL Buddy CDC RDC-001..008 (BSD-3-Clause) | reset crossings → RDC-004/005; polarity mismatch, deassertion polarity → RDC-028; comb-driven reset → RDC-009; multiple reset sources → RDC-011/026; muxed resets → RDC-017; unsynchronised deassertion → RDC-003 |
 | OpenCDC reset_domain_crossing (Apache-2.0) | → RDC-004/005 |
-| AMD Vivado UG906 (vendor) | CDC-7 → RDC-003; CDC-9 → RDC-003 INFO. **No rule:** CDC-8 (ASYNC_REG on a reset synchroniser): CDC-012 reads data synchronisers only |
+| AMD Vivado UG906 (vendor) | CDC-7 → RDC-003; CDC-8 → RDC-030; CDC-9 → RDC-003 INFO |
 | Verilator SYNCASYNCNET, CDCRSTLOGIC (LGPL-3.0 / Artistic-2.0) | → RDC-019, RDC-009 |
 | Commercial RDC categories (reset synchronisation, glitch, reconvergence, async set/reset, ordering) | → RDC-003, RDC-009, RDC-008, RDC-026, RDC-011 |
 

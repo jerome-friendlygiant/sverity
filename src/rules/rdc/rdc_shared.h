@@ -53,7 +53,7 @@ public:
             uint32_t idx = 0;
             if (flopBehind(r.root.node, &idx)) assertedUses_[idx].insert(r.activeLow ? '0' : '1');
         }
-        cones_ = std::make_unique<ConeFinder>(*m_);
+        cones_ = &sharedCones(getModel(ctx.design));
         analyse(ctx, minStages);
         structure(ctx);
     }
@@ -64,7 +64,7 @@ public:
 
 private:
     std::map<uint32_t, std::set<char>> assertedUses_;
-    std::unique_ptr<ConeFinder> cones_;
+    ConeFinder* cones_ = nullptr;
     void structure(RuleContext& ctx);                  // rdc_structure.cpp
     NodeId assertionSource(NodeId root) const;         // follows reset synchronisers back to the asynchronous assertion source
     std::set<NodeId> asyncSources(const Flop& f) const;
@@ -195,6 +195,7 @@ private:
                 auto base = [&](const char* rule, Severity sev, std::string msg, Confidence conf) {
                     Diagnostic d = mk(rule, sev, std::move(msg), p0.loc, p0.instancePath, conf);
                     d.signals = {rname, dname};
+                    d.identityKey = rname + ":" + dname + ":" + std::to_string(f0.edge) + ":" + rel_->clockName(dom);
                     d.evidence.push_back({"reset_source", rname + " (" + (use.activeLow ? "active-low" : "active-high") + " by edge polarity)", {}});
                     d.evidence.push_back({"reset_users", std::to_string(use.flops.size()) + " register bit(s) in clock domain '" + dname + "', e.g. " + m_->nameOf(f0.q), p0.loc});
                     return d;

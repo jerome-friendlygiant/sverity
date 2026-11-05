@@ -65,6 +65,7 @@ int main(int argc, char** argv) {
             else if (a == "--sdc" && i + 1 < args.size()) o.sdcFiles.push_back(args[++i]);
             else if (a == "--profile" && i + 1 < args.size()) o.config.profile = args[++i];
             else if (a == "--library" && i + 1 < args.size()) o.libraryFiles.push_back(args[++i]);
+            else if (a == "--disable-rule" && i + 1 < args.size()) o.config.disabledRules.insert(args[++i]);
             else if (a == "--option" && i + 1 < args.size()) {                                    // --option KEY=VALUE
                 auto kv = args[++i];
                 auto eq = kv.find('=');

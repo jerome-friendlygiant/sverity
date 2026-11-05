@@ -31,8 +31,11 @@ static std::string norm(std::string p) {
 
 bool ClockRelations::nameMatches(const std::string& kind, const std::string& pattern, NodeId n,
                                  const std::string& full) const {
+    if (!m_.nodes[n].sym) return false;   // a logic hub is no design object
     std::string p = norm(pattern);
     if (kind == "all_inputs") return n < m_.topInput.size() && m_.topInput[n];
+    // Clocks of the whole constraint set, whatever their order: leaving a port out gives it no contract, which is the cautious side.
+    if (kind == "all_inputs -no_clocks") return n < m_.topInput.size() && m_.topInput[n] && !isDeclaredClock(n);
     if (kind == "get_ports") {
         bool top = n < m_.topInput.size() && (m_.topInput[n] || m_.topOutput[n]);
         return top && (globMatch(p, std::string(m_.nodes[n].sym->name)) || globMatch(p, full));
@@ -40,6 +43,27 @@ bool ClockRelations::nameMatches(const std::string& kind, const std::string& pat
     auto dot = full.find('.');
     std::string rel = dot == std::string::npos ? full : full.substr(dot + 1);
     return globMatch(p, full) || globMatch(p, rel);
+}
+
+bool ClockRelations::isDeclaredClock(NodeId n) const {
+    if (!sdcClockForNode(n).empty()) return true;
+    for (const auto& clock : cfg_.constraints.clocks)
+        for (const auto& source : clock.sources)
+            if ((source.kind == "get_ports" || source.kind == "get_pins" || source.kind == "get_nets") && bitMatches(source.kind, source.pattern, n)) return true;
+    return false;
+}
+
+bool ClockRelations::bitMatches(const std::string& kind, const std::string& pattern, NodeId n) const {
+    if (!m_.nodes[n].sym) return false;
+    const std::string full = m_.nameOf(n), p = norm(pattern);
+    if (kind == "get_ports") {
+        const bool top = n < m_.topInput.size() && (m_.topInput[n] || m_.topOutput[n]);
+        const auto bracket = full.rfind('[');
+        const std::string local = std::string(m_.nodes[n].sym->name) + (bracket == std::string::npos ? "" : full.substr(bracket));
+        return top && (globMatch(p, local) || globMatch(p, full));
+    }
+    auto dot = full.find('.');
+    return globMatch(p, full) || globMatch(p, dot == std::string::npos ? full : full.substr(dot + 1));
 }
 
 std::string ClockRelations::sdcClockForNode(NodeId n) const {
@@ -79,6 +103,28 @@ Relation ClockRelations::relationByNames(const std::string& ca, const std::strin
                  : g.kind == sdc::ClockGroups::Kind::Unspecified ? Relation::Unknown : Relation::Exclusive;
     }
     return Relation::Unknown;
+}
+
+std::vector<uint32_t> domainsOf(const Flop& f) {
+    std::vector<uint32_t> all{f.domain};
+    all.insert(all.end(), f.otherDomains.begin(), f.otherDomains.end());
+    std::sort(all.begin(), all.end());
+    all.erase(std::unique(all.begin(), all.end()), all.end());
+    return all;
+}
+
+DomainPair worstDomains(const Flop& launch, const Flop& capture, const ClockRelations& relations) {
+    const auto risk = [](Relation r) { return r == Relation::Async ? 3 : r == Relation::Unknown ? 2 : r == Relation::Exclusive ? 1 : 0; };
+    if (launch.otherDomains.empty() && capture.otherDomains.empty())
+        return {launch.domain, capture.domain, launch.domain == capture.domain ? Relation::Same : relations.relation(launch.domain, capture.domain)};
+    DomainPair worst{launch.domain, capture.domain, Relation::Same};
+    int worstRisk = -1;
+    for (auto a : domainsOf(launch))
+        for (auto b : domainsOf(capture)) {
+            const Relation r = a == b ? Relation::Same : relations.relation(a, b);
+            if (risk(r) > worstRisk) { worstRisk = risk(r); worst = {a, b, r}; }
+        }
+    return worst;
 }
 
 } // namespace sverity::model

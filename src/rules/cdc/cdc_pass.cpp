@@ -61,6 +61,7 @@ std::vector<std::unique_ptr<Rule>> makeCdcRules() {
     add("CDC-020", "");
     add("CDC-045", "");
     add("CDC-046", "");
+    add("CDC-047", "");
     add("CDC-023", "");
     add("CDC-024", "");
     add("CDC-026", "");

@@ -1,3 +1,7 @@
+#include <slang/ast/ASTVisitor.h>
+#include <slang/ast/Compilation.h>
+#include <slang/ast/symbols/ValueSymbol.h>
+#include <slang/ast/types/Type.h>
 #include "sverity/analyzer.h"
 #include "sverity/json.h"
 
@@ -12,6 +16,80 @@
 #include "domains/relations.h"
 
 namespace sverity {
+
+namespace {
+
+// The objects written by anything but a continuous assignment or port connection: a procedure in any form, a subroutine, a force, a
+// declaration initialiser, a primitive or a net alias. A case value may only stand in for no driver at all, or agree with one continuous
+// driver, so none of these can take one. Collecting every name in a target over-collects a select's index, which only rejects a constraint.
+std::set<const slang::ast::Symbol*> overriddenSymbols(const slang::ast::RootSymbol& root) {
+    using namespace slang::ast;
+    struct Names : ASTVisitor<Names, VisitFlags::AllGood> {
+        std::set<const Symbol*>& found;
+        explicit Names(std::set<const Symbol*>& out) : found(out) {}
+        void add(const Symbol& symbol) {
+            found.insert(&symbol);
+            if (symbol.kind == SymbolKind::ModportPort && symbol.as<ModportPortSymbol>().internalSymbol) found.insert(symbol.as<ModportPortSymbol>().internalSymbol);
+        }
+        void handle(const NamedValueExpression& name) { add(name.symbol); }
+        void handle(const HierarchicalValueExpression& name) { add(name.symbol); }
+    };
+    struct Writes : ASTVisitor<Writes, VisitFlags::AllGood> {
+        std::set<const Symbol*> found;
+        bool procedural = false;
+        void record(const Expression* target) {
+            if (!target) return;
+            Names names(found);
+            target->visit(names);
+        }
+        void handle(const VariableSymbol& variable) {
+            if (variable.getInitializer()) found.insert(&variable);
+            visitDefault(variable);
+        }
+        void handle(const ProceduralBlockSymbol& block) {
+            const bool outer = procedural;
+            procedural = true;
+            visitDefault(block);
+            procedural = outer;
+        }
+        void handle(const SubroutineSymbol& subroutine) {
+            const bool outer = procedural;
+            procedural = true;
+            visitDefault(subroutine);
+            procedural = outer;
+        }
+        void handle(const AssignmentExpression& assignment) {
+            if (procedural) record(&assignment.left());
+            visitDefault(assignment);
+        }
+        void handle(const UnaryExpression& unary) {
+            const bool step = unary.op == UnaryOperator::Preincrement || unary.op == UnaryOperator::Predecrement ||
+                              unary.op == UnaryOperator::Postincrement || unary.op == UnaryOperator::Postdecrement;
+            if (procedural && step) record(&unary.operand());
+            visitDefault(unary);
+        }
+        void handle(const CallExpression& call) {   // output and ref arguments, and tasks such as $readmemh
+            if (procedural) for (auto* argument : call.arguments()) record(argument);
+            visitDefault(call);
+        }
+        void handle(const ProceduralAssignStatement& statement) {
+            if (statement.assignment.kind == ExpressionKind::Assignment) record(&statement.assignment.as<AssignmentExpression>().left());
+            visitDefault(statement);
+        }
+        void handle(const PrimitiveInstanceSymbol& primitive) {
+            for (auto* connection : primitive.getPortConnections()) record(connection);
+            visitDefault(primitive);
+        }
+        void handle(const NetAliasSymbol& alias) {
+            for (auto* net : alias.getNetReferences()) record(net);
+            visitDefault(alias);
+        }
+    } writes;
+    root.visit(writes);
+    return std::move(writes.found);
+}
+
+} // namespace
 
 std::string currentDateIso() {
     std::time_t t = std::time(nullptr);
@@ -52,6 +130,7 @@ Report analyze(const AnalyzerOptions& opts) {
         report.addInput("source_waivers", opts.sourceWaivers);
         report.addInput("source_waiver_scope", "loaded design, include and library buffers only; unloaded library candidates are not read");
         report.addInput("profile", opts.config.profile);
+        if (!opts.config.deck.empty()) report.addInput("deck", opts.config.deck);
         json::Value goals = json::Value::array();
         for (const auto& goal : opts.config.goals) goals.push(goal);
         report.addInput("goals", goals);
@@ -75,6 +154,9 @@ Report analyze(const AnalyzerOptions& opts) {
     }
     // The elaborated design lives as long as the rules need it.
     std::unique_ptr<Design> design;
+    Timings timings;
+    const bool measuring = !opts.timingsFile.empty();
+    const auto loadStart = Timings::Clock::now();
     try {
         design = loadDesign(opts.frontend, report);
     } catch (const std::exception& e) {
@@ -179,11 +261,18 @@ Report analyze(const AnalyzerOptions& opts) {
         design->caseResults.resize(cases.size());
         for (size_t i = 0; i < cases.size(); ++i) {
             for (const auto& ref : cases[i].objects) {
+                const std::string kind = ref.kind.empty() ? "get_ports" : ref.kind;
                 bool hit = false;
                 for (model::NodeId n = 0; n < baseline.nodes.size(); ++n) {
-                    if (!relations.nameMatches(ref.kind.empty() ? "get_ports" : ref.kind, ref.pattern,
-                                               n, model::stripBit(baseline.nameOf(n)))) continue;
-                    hit = true; targets[i].insert(n); values[n].insert(cases[i].value);
+                    const bool vector = baseline.symbolWidth(n) > 1;
+                    const bool whole = relations.nameMatches(kind, ref.pattern, n, model::stripBit(baseline.nameOf(n)));
+                    if (vector ? relations.bitMatches(kind, ref.pattern, n) : whole) {
+                        hit = true; targets[i].insert(n); values[n].insert(cases[i].value);
+                    } else if (vector && whole) {
+                        // Tools differ on whether a bare bus name means its bits, and 1 on all bits is not the value 1.
+                        hit = true;
+                        design->caseResults[i].reason = "'" + ref.pattern + "' names a whole vector; name its bits, such as " + ref.pattern + "[0] or " + ref.pattern + "[*]";
+                    }
                 }
                 if (!hit) design->caseResults[i].reason = "unknown object '" + ref.pattern + "'; entire declaration is NOT applied";
             }
@@ -191,6 +280,7 @@ Report analyze(const AnalyzerOptions& opts) {
         // A clock/reset is not an ordinary Boolean data input. Retain its
         // original model until inactivity and asynchronous-event semantics exist.
         std::set<model::NodeId> eventInputs;
+        std::set<model::NodeId> resetSources;
         auto ancestors = [&](auto&& self, model::NodeId n, bool clock, std::set<model::NodeId>& seen) -> void {
             if (n == model::kNoNode || !seen.insert(n).second) return;
             eventInputs.insert(n);
@@ -205,6 +295,7 @@ Report analyze(const AnalyzerOptions& opts) {
             ancestors(ancestors, flop.clockSignal, true, seen);
             for (const auto& reset : flop.resets) {
                 seen.clear(); ancestors(ancestors, reset.signal, false, seen);
+                resetSources.insert(seen.begin(), seen.end());
             }
         }
         auto protectEvents = [&](const std::vector<model::NodeId>& nodes) {
@@ -214,59 +305,99 @@ Report analyze(const AnalyzerOptions& opts) {
         for (const auto& gate : baseline.clockGates) { protectEvents(gate.clk); protectEvents(gate.enable); }
         for (const auto& instance : baseline.libInstances)
             for (const auto& port : instance.ports)
-                if (port.role == model::PortRole::Clock || port.role == model::PortRole::Reset) protectEvents(port.nodes);
+                if (port.role == model::PortRole::Clock) protectEvents(port.nodes);
+                else if (port.role == model::PortRole::Reset)
+                    for (auto n : port.nodes) { std::set<model::NodeId> seen; ancestors(ancestors, n, false, seen); resetSources.insert(seen.begin(), seen.end()); }
+        const auto offsetIsIndex = [&](model::NodeId n) {
+            const auto& type = baseline.nodes[n].sym->getType().getCanonicalType();
+            if (!type.isSimpleBitVector() || baseline.nameOf(n).back() != ']') return false;
+            const auto range = type.getFixedRange();
+            return range.right == 0 && range.left > 0;
+        };
+        // Shared elaboration symbols across instances cannot hold one value, so only a symbol of one instance gets one.
+        std::map<const slang::ast::ValueSymbol*, uint64_t> counts;
+        for (model::NodeId n = 0; n < baseline.nodes.size(); ++n) ++counts[baseline.nodes[n].sym];
+        // Nothing these write can be proved or assumed constant.
+        const auto overridden = overriddenSymbols(design->compilation->getRoot());
+        const auto isOverridden = [&](model::NodeId n) { return overridden.count(baseline.nodes[n].sym) != 0; };
+        // Each assignment or port connection into the node is a driver of its own, including one from a child's output.
+        const auto driverCount = [&](model::NodeId n) {
+            std::set<uint32_t> procs;
+            for (auto ei : baseline.in[n]) procs.insert(baseline.edges[ei].proc);
+            if (auto it = baseline.constDrivers.find(n); it != baseline.constDrivers.end())
+                for (const auto& driver : it->second) procs.insert(driver.proc);
+            return procs.size();
+        };
+        const auto isDriven = [&](model::NodeId n) {
+            return !baseline.in[n].empty() || baseline.constDrivers.count(n) || baseline.selfComb.count(n) ||
+                   baseline.blackBoxDriven[n] || baseline.unresolvedDriven[n];
+        };
+        // A constraint can say what an undriven object holds. For a driven one it may only agree with what the drivers prove:
+        // overriding them would let a mistaken constraint delete the defect being checked.
+        std::vector<std::vector<model::NodeId>> toProve(cases.size());
+        const auto plainObject = [&](model::NodeId n) {
+            const auto* symbol = baseline.nodes[n].sym;
+            if (!symbol->getType().getCanonicalType().isSimpleBitVector()) return false;
+            for (const auto* scope = symbol->getParentScope(); scope; scope = scope->asSymbol().getParentScope())
+                if (scope->asSymbol().kind == slang::ast::SymbolKind::InstanceBody)
+                    return scope->asSymbol().as<slang::ast::InstanceBodySymbol>().getDefinition().definitionKind != slang::ast::DefinitionKind::Interface;
+            return true;
+        };
         for (size_t i = 0; i < cases.size(); ++i) {
             auto& result = design->caseResults[i];
             for (auto n : targets[i]) {
+                const bool vector = baseline.symbolWidth(n) != 1;
+                const auto drivers = baseline.booleanDrivers.find(n);
                 if (values[n].size() > 1) { result.reason = "conflicting values on '" + baseline.nameOf(n) + "'; apply nothing"; break; }
-                else if (baseline.symbolWidth(n) != 1) result.reason = "multi-bit objects are not supported; no scalar-to-vector interpretation is assumed";
-                else if (!baseline.in[n].empty() || baseline.constDrivers.count(n) || baseline.selfComb.count(n) ||
-                         baseline.blackBoxDriven[n] || baseline.unresolvedDriven[n]) result.reason = "object is driven inside the design; no driver is overwritten";
-                else if (!baseline.topInput[n]) result.reason = "internal targets are not forced: driver replacement and instance-local constant propagation are not established";
-                else if (eventInputs.count(n) || !relations.clockNameOfNode(n).empty()) result.reason = "clock/reset activity semantics are not established; constant event sources remain unapplied (not reclassified as active clocks)";
-            }
-            if (result.reason.empty() && !targets[i].empty()) {
-                result.applied = true;
-                for (auto n : targets[i]) {
-                    design->caseConstants[baseline.nodes[n].sym] = cases[i].value;
-                    result.names.push_back(baseline.nameOf(n));
-                }
+                if (!result.reason.empty()) continue;
+                if (!plainObject(n)) result.reason = "only a plain net or variable in a module is supported: a struct or an interface member is not followed";
+                else if (vector && !offsetIsIndex(n)) result.reason = "only a vector declared [N:0] is supported, where a bit's offset is its index";
+                else if (resetSources.count(n)) result.reason = "constant reset source not applied: reset level, initialization and release semantics are not modeled; reset obligations remain analyzed";
+                else if (eventInputs.count(n) || relations.isDeclaredClock(n)) result.reason = "constant clock source not applied: clock inactivity and retained-state semantics are not modeled; asynchronous controls remain analyzed";
+                else if (baseline.flopOfQ.count(n)) result.reason = "register output not applied: nothing shows it holds this value over time; initialization, updates and asynchronous controls remain analyzed";
+                else if (isOverridden(n)) result.reason = "target is written procedurally, forced, initialised, or tied to a primitive or alias, so its value is not established";
+                else if (!isDriven(n)) {
+                    if (!baseline.topInput[n] && counts[baseline.nodes[n].sym] != baseline.symbolWidth(n)) result.reason = "the module has several instances, and a value on one must not reach the others";
+                } else if (driverCount(n) > 1 || (drivers != baseline.booleanDrivers.end() && drivers->second.size() > 1) || baseline.selfComb.count(n) || baseline.blackBoxDriven[n] ||
+                           baseline.unresolvedDriven[n] || baseline.uncertainCallDrivers.count(n)) {
+                    result.reason = "target has multiple or unresolved drivers; its resolved value is not established";
+                } else toProve[i].push_back(n);
             }
         }
-        if (!design->caseConstants.empty()) {
-            // Propagate only single unconditional scalar continuous drivers.
-            // Shared elaboration symbols across instances cannot use a global value.
-            std::map<const slang::ast::ValueSymbol*, int> counts;
-            std::map<model::NodeId, int> known;
+        std::map<model::NodeId, int> known;
+        std::map<const slang::ast::ValueSymbol*, int> derived;
+        const auto evaluate = [&](auto&& self, const model::BoolFactPtr& fact) -> int {
+            if (!fact || fact->opaque) return -1;
+            using K = model::BoolFact::Kind;
+            if (fact->kind == K::Constant) return fact->value;
+            if (fact->kind == K::Node) { auto it = known.find(fact->node); return it == known.end() ? -1 : it->second; }
+            if (fact->kind == K::Not && fact->args.size() == 1) {
+                int v = self(self, fact->args[0]); return v < 0 ? -1 : !v;
+            }
+            if (fact->kind == K::And || fact->kind == K::Or) {
+                bool unknown = false;
+                for (const auto& arg : fact->args) {
+                    int v = self(self, arg);
+                    if (v < 0) unknown = true;
+                    else if (v == (fact->kind == K::Or)) return v;
+                }
+                return unknown ? -1 : fact->kind == K::And;
+            }
+            return -1;
+        };
+        // Propagates only single unconditional scalar continuous drivers.
+        const auto propagate = [&] {
             for (model::NodeId n = 0; n < baseline.nodes.size(); ++n) {
-                ++counts[baseline.nodes[n].sym];
                 auto it = design->caseConstants.find(baseline.nodes[n].sym);
                 if (it != design->caseConstants.end()) known[n] = it->second;
+                auto bits = design->caseBits.find(baseline.nodes[n].sym);
+                if (bits != design->caseBits.end() && bits->second[baseline.nodes[n].bit] >= 0) known[n] = bits->second[baseline.nodes[n].bit];
             }
-            auto evaluate = [&](auto&& self, const model::BoolFactPtr& fact) -> int {
-                if (!fact || fact->opaque) return -1;
-                using K = model::BoolFact::Kind;
-                if (fact->kind == K::Constant) return fact->value;
-                if (fact->kind == K::Node) { auto it = known.find(fact->node); return it == known.end() ? -1 : it->second; }
-                if (fact->kind == K::Not && fact->args.size() == 1) {
-                    int v = self(self, fact->args[0]); return v < 0 ? -1 : !v;
-                }
-                if (fact->kind == K::And || fact->kind == K::Or) {
-                    bool unknown = false;
-                    for (const auto& arg : fact->args) {
-                        int v = self(self, arg);
-                        if (v < 0) unknown = true;
-                        else if (v == (fact->kind == K::Or)) return v;
-                    }
-                    return unknown ? -1 : fact->kind == K::And;
-                }
-                return -1;
-            };
             bool changed = true;
             while (changed) {
                 changed = false;
                 for (const auto& [n, drivers] : baseline.booleanDrivers) {
-                    if (known.count(n) || drivers.size() != 1 || !drivers[0].unconditional ||
+                    if (known.count(n) || drivers.size() != 1 || !drivers[0].unconditional || driverCount(n) != 1 || isOverridden(n) ||
                         baseline.symbolWidth(n) != 1 || counts[baseline.nodes[n].sym] != 1 ||
                         baseline.flopOfQ.count(n) || baseline.selfComb.count(n) || baseline.blackBoxDriven[n] ||
                         baseline.unresolvedDriven[n] || baseline.uncertainCallDrivers.count(n)) continue;
@@ -278,14 +409,62 @@ Report analyze(const AnalyzerOptions& opts) {
                         for (const auto& driver : it->second) continuous &= validProc(driver.proc);
                     if (!continuous) continue;
                     int v = evaluate(evaluate, drivers[0].value);
-                    if (v >= 0) { known[n] = v; design->caseConstants[baseline.nodes[n].sym] = v; changed = true; }
+                    if (v >= 0) { known[n] = v; derived[baseline.nodes[n].sym] = v; changed = true; }
                 }
             }
+        };
+        const auto apply = [&](size_t i) {
+            auto& result = design->caseResults[i];
+            result.applied = true;
+            for (auto n : targets[i]) {
+                if (baseline.symbolWidth(n) == 1) design->caseConstants[baseline.nodes[n].sym] = cases[i].value;
+                else {
+                    auto& bits = design->caseBits[baseline.nodes[n].sym];
+                    bits.resize(baseline.symbolWidth(n), -1);
+                    bits[baseline.nodes[n].bit] = static_cast<int8_t>(cases[i].value);
+                }
+                result.names.push_back(baseline.nameOf(n));
+                result.assumed = result.assumed || (!baseline.topInput[n] && !isDriven(n));
+            }
+        };
+        for (size_t i = 0; i < cases.size(); ++i)
+            if (design->caseResults[i].reason.empty() && !targets[i].empty() && toProve[i].empty()) apply(i);
+        propagate();
+        // Each declaration applied can prove the next, so repeat until nothing changes.
+        for (bool progress = true; progress;) {
+            progress = false;
+            for (size_t i = 0; i < cases.size(); ++i) {
+                auto& result = design->caseResults[i];
+                if (result.applied || !result.reason.empty() || toProve[i].empty()) continue;
+                bool proved = true;
+                for (auto n : toProve[i]) {
+                    const auto value = known.find(n);
+                    proved = proved && value != known.end() && value->second == cases[i].value;
+                    if (value != known.end() && value->second != cases[i].value)
+                        result.reason = "requested value contradicts a proven RTL driver of '" + baseline.nameOf(n) + "'; declaration not applied";
+                }
+                if (proved) { apply(i); propagate(); progress = true; }
+            }
+        }
+        for (size_t i = 0; i < cases.size(); ++i) {
+            auto& result = design->caseResults[i];
+            if (!result.applied && result.reason.empty() && !toProve[i].empty())
+                result.reason = "driven target is not proved constant in this mode; driver override is not implemented";
+        }
+        if (design->hasCaseMode()) {
+            for (const auto& [symbol, value] : derived) design->caseConstants.emplace(symbol, value);
             design->model.reset();
         }
     }
+    if (measuring) { config.timings = &timings; timings.record("load_and_constraints", loadStart); }
     runRules(design.get(), report, config);
-    if (design && !design->caseConstants.empty()) {
+    if (measuring) {
+        // Measurements are written even for a failed run: that is when they matter most.
+        std::ofstream out(opts.timingsFile);
+        out << timings.toJson() << '\n';
+        if (!out) report.setExecutionError("could not write timings to '" + opts.timingsFile + "'");
+    }
+    if (design && design->hasCaseMode()) {
         json::Value modes = json::Value::array();
         for (size_t i = 0; i < design->caseResults.size(); ++i)
             for (const auto& name : design->caseResults[i].names) {
@@ -298,6 +477,8 @@ Report analyze(const AnalyzerOptions& opts) {
         report.addInput("case_pruned_branches", static_cast<int>(selected.casePrunedBranches));
         report.addInput("case_pruned_expressions", static_cast<int>(selected.casePrunedExpressions));
     }
+    // Nothing below reads the model, and on a large design it is most of the memory in use.
+    if (design) design->model.reset();
     report.finalize();
 
     WaiverSet waivers;
@@ -330,10 +511,22 @@ Report analyze(const AnalyzerOptions& opts) {
     // are applied only after waiver matching and never alter coverage.
     for (auto& d : report.mutableDiagnostics()) {
         auto it = config.severityOverrides.find(d.ruleId);
-        if (it == config.severityOverrides.end()) continue;
+        // A primary finding stands for every rule it absorbed: the highest of their severities decides, and a rule without an
+        // override keeps the severity it has. Lowering only one description therefore does not lower the crossing.
+        bool absorbedOverride = false;
+        for (const auto& rule : d.alsoRules) absorbedOverride = absorbedOverride || config.severityOverrides.count(rule) != 0;
+        if (it == config.severityOverrides.end() && !absorbedOverride) continue;
         d.originalSeverity = d.severity;
-        d.requestedSeverity = it->second;
-        Severity effective = it->second;
+        Severity effective = it != config.severityOverrides.end() ? it->second : d.severity;
+        for (const auto& rule : d.alsoRules) {
+            auto other = config.severityOverrides.find(rule);
+            const Severity fact = other != config.severityOverrides.end() ? other->second : d.severity;
+            if (fact > effective) {
+                effective = fact;
+                d.severityOverrideReason = "rule " + rule + " also describes this crossing and keeps this severity";
+            }
+        }
+        d.requestedSeverity = effective;
         if (effective < d.severity && (d.severity == Severity::Fatal ||
             (d.origin == "slang" && d.severity >= Severity::Error) ||
             (d.severity >= Severity::Error && (d.ruleId == "LNT-001" || d.ruleId == "CST-006" || d.ruleId == "CST-018")))) {

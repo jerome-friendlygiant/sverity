@@ -2,8 +2,11 @@
 
 #include <algorithm>
 #include <map>
+#include <optional>
 #include <set>
 #include <unordered_set>
+
+#include "analysis/flow.h"
 
 #include "slang/ast/ASTVisitor.h"
 #include "slang/ast/Compilation.h"
@@ -34,6 +37,9 @@ namespace {
 
 constexpr uint32_t kMaxBits = 16384;         // wider symbols are collapsed to one node (recorded fallback); exact bit moves stay linear
 constexpr uint64_t kMaxEdgesPerAssign = 1u << 22;
+constexpr uint64_t kHubEdgeThreshold = 1u << 10;
+constexpr size_t kCompactEdgesFrom = size_t{1} << 24;
+constexpr size_t kHubReadSet = 32;
 
 struct Path {
     const ValueSymbol* sym = nullptr;
@@ -211,6 +217,10 @@ struct Assign {
     bool nonBlocking = false;
     bool pairsValid = false;       // dataReads are fully described by exact bit pairs below
     std::vector<std::pair<BitRef, BitRef>> pairs;   // (target bit, source bit or constant)
+    bool approximate = false;      // a computed index or a user call: its bits are not known one by one
+    bool bitDepsValid = false;     // not exact, but dataReads are described bit by bit below
+    std::vector<std::pair<BitRef, std::vector<Path>>> bitDeps;   // (target bit, the reads that can influence that bit)
+    std::vector<char> bitDepExact; // parallel to bitDeps: the bit is a plain move from one source bit
     SourceLocation loc;
     BoolFactPtr booleanValue;
     std::vector<GuardCondition> booleanGuards;
@@ -262,6 +272,8 @@ public:
         for (NodeId n = 0; n < m.nodes.size(); ++n) {
             auto it = design.caseConstants.find(m.nodes[n].sym);
             if (it != design.caseConstants.end()) m.modeConstants[n] = it->second ? '1' : '0';
+            if (auto bits = design.caseBits.find(m.nodes[n].sym); bits != design.caseBits.end() && bits->second[m.nodes[n].bit] >= 0)
+                m.modeConstants[n] = bits->second[m.nodes[n].bit] ? '1' : '0';
         }
         m.finish();
         std::sort(unknownWriteCalls.begin(), unknownWriteCalls.end());
@@ -394,6 +406,7 @@ private:
         CallSummary& result;
         EvalContext ec;
         size_t visited = 0;
+        bool sawAutomaticLocal = false;
         SummaryVisitor(Builder& builder, const SubroutineSymbol& routine, CallSummary& summary)
             : b(builder), sub(routine), result(summary), ec(routine) {}
         bool tick() {
@@ -407,7 +420,12 @@ private:
                     if (path.sym == sub.returnValVar) {
                         if (!write) result.unknown.insert("function return state is read before its value is established");
                     } else if (path.sym->kind != SymbolKind::FormalArgument) {
-                        result.unknown.insert("subroutine-local dataflow or persistent state is not expanded");
+                        // An automatic local holds nothing between calls, and every read it could copy is already in this
+                        // summary. A static local can carry state from an earlier call.
+                        const auto* local = path.sym->as_if<VariableSymbol>();
+                        if (!local || local->lifetime != VariableLifetime::Automatic)
+                            result.unknown.insert("static subroutine-local state is not expanded");
+                        else sawAutomaticLocal = true;
                     }
                     continue;
                 }
@@ -443,7 +461,9 @@ private:
         void handle(const VariableDeclStatement& declaration) {
             if (!tick()) return;
             if (auto* initializer = declaration.symbol.getInitializer()) initializer->visit(*this);
-            result.unknown.insert("subroutine-local dataflow or persistent state is not expanded");
+            if (declaration.symbol.lifetime != VariableLifetime::Automatic)
+                result.unknown.insert("static subroutine-local state is not expanded");
+            else sawAutomaticLocal = true;
         }
         void handle(const UnaryExpression& expr) {
             if (!tick()) return;
@@ -512,11 +532,34 @@ private:
             sub.getBody().visit(visitor);
             if (sub.subroutineKind == SubroutineKind::Function && !returnsValue(sub.getBody(), sub))
                 result.unknown.insert("a return value is not established on every path");
+            if (visitor.sawAutomaticLocal) checkLocalsAssigned(sub, result);
         }
         if (!result.writes.empty()) result.unknown.insert("writes to nonlocal state are not expanded as procedural effects");
         if (sub.hasOutputArgs()) result.unknown.insert("output, inout or ref argument effects are not expanded");
         activeCalls.erase(&sub);
         return result;
+    }
+    /// An automatic local holds no state, but a read before it is assigned on some path has no established value.
+    void checkLocalsAssigned(const SubroutineSymbol& sub, CallSummary& result) {
+        struct LoopIndices : ASTVisitor<LoopIndices, VisitFlags::AllGood> {
+            std::set<const ValueSymbol*> found;
+            void handle(const ForLoopStatement& loop) {
+                for (const auto* variable : loop.loopVars) found.insert(variable);
+                visitDefault(loop);
+            }
+        } indices;
+        sub.getBody().visit(indices);
+        flow::Flow flow(sub);
+        if (flow.bad || flow.approximated) {
+            result.unknown.insert("whether subroutine locals are assigned before use is not established");
+            return;
+        }
+        for (const auto& access : flow.accesses) {
+            if (access.write || !access.entryMaybe || !localTo(*access.sym, sub)) continue;
+            if (access.sym->kind != SymbolKind::Variable || indices.found.count(access.sym)) continue;   // arguments, foreach iterators
+            result.unknown.insert("a subroutine local can be read before it is assigned on some path");
+            return;
+        }
     }
     bool callPathResolved(const Path& path) const {
         const auto* body = bodyOf(*path.sym);
@@ -548,6 +591,49 @@ private:
     }
     // Deliberately small two-state evaluator. Calls (including system calls)
     // prevent pruning of the whole expression, preserving execution effects.
+
+    /// The bits of `e`, most significant first: '0', '1', or '?' where no mode fixes the bit. False unless `e` only moves bits.
+    bool modeBits(const Expression& e, EvalContext& ec, std::string& out) {
+        const uint64_t width = e.type && e.type->isIntegral() ? e.type->getBitstreamWidth() : 0;
+        if (!width || width > kMaxBits) return false;
+        auto cv = e.eval(ec);
+        if (cv.isInteger()) {
+            if (cv.integer().getBitWidth() != width) return false;
+            for (uint64_t i = width; i-- > 0;) {
+                const logic_t bit = cv.integer()[static_cast<int32_t>(i)];
+                out.push_back(bit.value == 0 ? '0' : bit.value == 1 ? '1' : '?');
+            }
+            return true;
+        }
+        if (e.kind == ExpressionKind::Concatenation) {
+            for (auto* op : e.as<ConcatenationExpression>().operands())
+                if (!modeBits(*op, ec, out)) return false;
+            return true;
+        }
+        if (e.kind == ExpressionKind::Conversion) {
+            const auto& op = e.as<ConversionExpression>().operand();
+            const uint64_t from = op.type && op.type->isIntegral() ? op.type->getBitstreamWidth() : 0;
+            if (!from || from > width || (from < width && op.type->isSigned())) return false;
+            out.append(width - from, '0');
+            return modeBits(op, ec, out);
+        }
+        if (e.kind != ExpressionKind::NamedValue && e.kind != ExpressionKind::ElementSelect && e.kind != ExpressionKind::RangeSelect)
+            return false;
+        ValuePath path(e, ec);
+        const ValueSymbol* root = path.rootSymbol();
+        if (!root || !path.lsp || !path.isFullyStatic()) return false;
+        uint64_t lo = path.lspBounds.first, hi = path.lspBounds.second;
+        if (lo > hi) std::swap(lo, hi);
+        if (hi - lo + 1 != width) return false;
+        const auto scalar = design.caseConstants.find(root);
+        const auto vector = design.caseBits.find(root);
+        for (uint64_t b = hi + 1; b-- > lo;) {
+            int value = scalar != design.caseConstants.end() ? scalar->second : -1;
+            if (vector != design.caseBits.end() && b < vector->second.size()) value = vector->second[b];
+            out.push_back(value < 0 ? '?' : value ? '1' : '0');
+        }
+        return true;
+    }
     int modeValue(const Expression& e, EvalContext& ec) {
         struct Calls : ASTVisitor<Calls, VisitFlags::AllGood> {
             bool found = false;
@@ -557,9 +643,12 @@ private:
         if (calls.found) return -1;
         auto cv = e.eval(ec);
         if (cv.isInteger() && !cv.hasUnknown()) return cv.isFalse() ? 0 : 1;
-        if (e.kind == ExpressionKind::NamedValue) {
-            auto it = design.caseConstants.find(&e.as<NamedValueExpression>().symbol);
-            return it == design.caseConstants.end() ? -1 : it->second;
+        if (e.kind == ExpressionKind::NamedValue || e.kind == ExpressionKind::ElementSelect ||
+            e.kind == ExpressionKind::RangeSelect || e.kind == ExpressionKind::Concatenation) {
+            std::string bits;
+            if (!modeBits(e, ec, bits)) return -1;
+            if (bits.find('1') != std::string::npos) return 1;   // true whatever the unfixed bits are
+            return bits.find('?') != std::string::npos ? -1 : 0;
         }
         if (e.kind == ExpressionKind::Conversion) {
             const auto& op = e.as<ConversionExpression>().operand();
@@ -572,9 +661,40 @@ private:
                 int v = modeValue(u.operand(), ec);
                 return v < 0 ? -1 : !v;
             }
+            std::string bits;
+            const bool reduction = u.op == UnaryOperator::BitwiseAnd || u.op == UnaryOperator::BitwiseNand ||
+                                   u.op == UnaryOperator::BitwiseOr || u.op == UnaryOperator::BitwiseNor ||
+                                   u.op == UnaryOperator::BitwiseXor || u.op == UnaryOperator::BitwiseXnor;
+            if (reduction && modeBits(u.operand(), ec, bits)) {
+                const bool zero = bits.find('0') != std::string::npos, one = bits.find('1') != std::string::npos,
+                           unset = bits.find('?') != std::string::npos;
+                if (u.op == UnaryOperator::BitwiseAnd || u.op == UnaryOperator::BitwiseNand) {
+                    if (!zero && unset) return -1;
+                    return zero == (u.op == UnaryOperator::BitwiseNand);
+                }
+                if (u.op == UnaryOperator::BitwiseOr || u.op == UnaryOperator::BitwiseNor) {
+                    if (!one && unset) return -1;
+                    return one == (u.op == UnaryOperator::BitwiseOr);
+                }
+                if (unset) return -1;
+                const bool parity = std::count(bits.begin(), bits.end(), '1') % 2;
+                return parity == (u.op == UnaryOperator::BitwiseXor);
+            }
         }
         if (e.kind == ExpressionKind::BinaryOp) {
             const auto& op = e.as<BinaryExpression>();
+            if (op.op == BinaryOperator::Equality || op.op == BinaryOperator::Inequality ||
+                op.op == BinaryOperator::CaseEquality || op.op == BinaryOperator::CaseInequality) {
+                std::string left, right;
+                if (!modeBits(op.left(), ec, left) || !modeBits(op.right(), ec, right) || left.size() != right.size()) return -1;
+                bool unset = false;
+                for (size_t i = 0; i < left.size(); ++i) {
+                    if (left[i] == '?' || right[i] == '?') unset = true;
+                    else if (left[i] != right[i]) return op.op == BinaryOperator::Inequality || op.op == BinaryOperator::CaseInequality;
+                }
+                if (unset) return -1;
+                return op.op == BinaryOperator::Equality || op.op == BinaryOperator::CaseEquality;
+            }
             int a = modeValue(op.left(), ec), b = modeValue(op.right(), ec);
             if (op.op == BinaryOperator::LogicalAnd) {
                 if (a == 0 || b == 0) return 0;
@@ -589,7 +709,7 @@ private:
     }
     std::unordered_set<const Expression*> prunedExpressions;
     const Expression& modeExpr(const Expression& e, EvalContext& ec) {
-        if (design.caseConstants.empty()) return e;
+        if (!design.hasCaseMode()) return e;
         if (e.kind == ExpressionKind::Conversion) {
             // Only remove width-preserving conversions.
             const auto& op = e.as<ConversionExpression>().operand();
@@ -606,7 +726,8 @@ private:
     }
     std::vector<Path> pathsOf(const Expression& expr, EvalContext& ec, bool skipSelectors) {
         const auto& selected = skipSelectors ? expr : modeExpr(expr, ec);
-        if (!skipSelectors && !design.caseConstants.empty() && modeValue(selected, ec) >= 0) return {};
+        // Only a one-bit value is fixed outright: a true vector can still carry unfixed bits, as in {mode[1], data}.
+        if (!skipSelectors && design.hasCaseMode() && selected.type->getBitstreamWidth() == 1 && modeValue(selected, ec) >= 0) return {};
         auto result = rawPathsOf(selected, ec, skipSelectors);
         // Only expression reads are expanded. An lvalue call cannot establish
         // an ordinary target; its effects are recorded separately.
@@ -664,6 +785,82 @@ private:
 
     const OpMap* curData = nullptr;
     const OpMap* curCtrl = nullptr;
+    bool curApproximate = false;   // the assignment being emitted has a computed index or a user call
+
+    // Per procedure, from Flow: the bit ranges of each written symbol that some read can see at their pre-activation value.
+    // Null when Flow could not establish this (opaque, approximated, invalid) or the procedure never reads what it writes.
+    using EntryReads = std::unordered_map<const ValueSymbol*, std::vector<flow::Range>>;
+    const EntryReads* curEntryReads = nullptr;
+
+    bool readsOwnWrite(NodeId n) const {
+        if (!curEntryReads) return false;
+        auto it = curEntryReads->find(m.nodes[n].sym);
+        if (it == curEntryReads->end()) return false;
+        if (it->second.empty()) return true;
+        if (m.collapsed(n)) return false;   // the node stands for every bit
+        uint64_t bit = m.nodes[n].bit;
+        return std::none_of(it->second.begin(), it->second.end(), [&](const flow::Range& r) { return r.first <= bit && bit <= r.second; });
+    }
+
+    std::optional<EntryReads> entryReadsOf(const ProceduralBlockSymbol& pb, const std::vector<Assign>& assigns) {
+        std::set<const ValueSymbol*> targets;
+        for (auto& a : assigns) for (auto& t : a.targets) targets.insert(t.sym);
+        bool feedbackCandidate = false;
+        for (auto& a : assigns) {
+            for (auto* reads : {&a.dataReads, &a.ctrlReads})
+                for (auto& r : *reads) feedbackCandidate = feedbackCandidate || targets.count(r.sym);
+        }
+        if (!feedbackCandidate) return std::nullopt;
+        flow::Flow fl(pb);
+        if (fl.timing || fl.approximated || fl.bad) return std::nullopt;
+        EntryReads entry;
+        for (auto* sym : fl.writtenSymbols()) entry[sym];
+        // A call is opaque to Flow, but its summary says what it can touch: one that writes nothing is an ordinary read of its
+        // arguments (Flow records those) and of the state its body reads, which counts as a read of the entry value.
+        struct Calls : ASTVisitor<Calls, VisitFlags::AllGood> {
+            std::vector<const CallExpression*> found;
+            void handle(const CallExpression& call) {
+                if (!call.isSystemCall()) found.push_back(&call);
+                visitDefault(call);
+            }
+        } calls;
+        pb.getBody().visit(calls);
+        for (const auto* call : calls.found) {
+            const auto& summary = summaryFor(*call);
+            if (!summary.unknown.empty() || summary.unboundedWrites || !summary.writes.empty() || call->thisClass()) return std::nullopt;
+            const auto* routine = std::get_if<const SubroutineSymbol*>(&call->subroutine);
+            if (!routine || (*routine)->subroutineKind != SubroutineKind::Function) return std::nullopt;
+            for (const auto* formal : (*routine)->getArguments())
+                if (formal->direction != ArgumentDirection::In) return std::nullopt;
+            for (const auto& read : summary.reads) {
+                if (!callPathResolved(read)) return std::nullopt;
+                if (auto it = entry.find(read.sym); it != entry.end()) it->second.push_back({read.lo, read.hi});
+            }
+        }
+        for (const auto& access : fl.accesses)
+            if (!access.write && access.entryMaybe)
+                if (auto it = entry.find(access.sym); it != entry.end()) it->second.push_back(access.range);
+        return entry;
+    }
+
+    // Every source reaches every target, so a node between them says the same with sources + targets edges, not their product.
+    // A hub stands for no signal; its edges are inexact and operator Other, which every rule already treats as logic.
+    void viaHub(const std::vector<NodeId>& sources, const std::unordered_set<NodeId>& targets, EdgeType type, uint32_t proc, bool ctrl,
+                const InstanceSymbol* ctx) {
+        const NodeId hub = static_cast<NodeId>(m.nodes.size());
+        m.nodes.push_back({ctx, nullptr, 0});
+        for (auto source : sources) {
+            if (targets.count(source)) addEdge(source, source, type, proc, false, ctrl);   // keeps the self-dependency facts
+            addEdge(source, hub, EdgeType::Comb, proc, false);
+        }
+        for (auto target : targets) {
+            Edge e;
+            e.from = hub; e.to = target; e.proc = proc; e.type = type; e.ctrl = ctrl; e.approximate = curApproximate;
+            e.op = Op::Other;
+            e.inv = 2;
+            pushEdge(e);
+        }
+    }
 
     void addEdge(NodeId from, NodeId to, EdgeType t, uint32_t proc, bool exact, bool ctrl = false) {
         if (from == to) {
@@ -671,10 +868,16 @@ private:
                 if (exact) m.selfExact.insert(from);
                 else m.selfLogic.insert(from);
             }
-            if (t == EdgeType::Comb && !exact) m.selfComb.emplace(from, proc);
+            if (t == EdgeType::Comb && !exact && !readsOwnWrite(from)) {
+                if (m.selfComb.emplace(from, proc).second && curApproximate) m.selfCombApproximate.insert(from);
+                else if (!curApproximate) m.selfCombApproximate.erase(from);
+            }
             return;
         }
-        Edge e{from, to, t, exact, proc, ctrl};
+        Edge e;
+        e.from = from; e.to = to; e.proc = proc; e.type = t; e.exact = exact; e.ctrl = ctrl;
+        e.approximate = curApproximate;
+        e.internalRead = t == EdgeType::Comb && readsOwnWrite(from);
         if (const OpMap* om = ctrl ? curCtrl : curData) {
             auto it = om->find(m.nodes[from].sym);
             if (it != om->end()) {
@@ -682,6 +885,16 @@ private:
                 e.inv = it->second.inv;
                 e.branch = it->second.br;
             }
+        }
+        pushEdge(e);
+    }
+
+    // A vector that doubles holds both blocks while it copies. Most edges of a large design are repeats, so remove them first
+    // and only grow when that frees too little.
+    void pushEdge(const Edge& e) {
+        if (m.edges.size() == m.edges.capacity() && m.edges.size() >= kCompactEdgesFrom) {
+            m.compactEdges();
+            if (m.edges.size() > m.edges.capacity() / 4 * 3) m.edges.reserve(m.edges.capacity() + m.edges.capacity() / 2);
         }
         m.edges.push_back(e);
     }
@@ -701,11 +914,19 @@ private:
         uint64_t rcount = 0, tcount = 0;
         for (auto& r : reads) { rn.push_back(nodesFor(ctx, r)); rcount += rn.back().size(); }
         for (auto& t : targets) { tn.push_back(nodesFor(tctx, t)); tcount += tn.back().size(); }
-        if (rcount * tcount > kMaxEdgesPerAssign) {
+        if (rcount + tcount > kMaxEdgesPerAssign) {
             fallback("edge-explosion", "dependency set of " + std::to_string(rcount) + " x " + std::to_string(tcount) +
                      " bits exceeds the limit; edges truncated, targets are marked as having unresolved drivers", loc);
             for (auto& tv : tn)
                 for (auto t : tv) pendingFlags.push_back({t, 4});
+            return;
+        }
+        if (rcount * tcount > kHubEdgeThreshold && type != EdgeType::AsyncCtl) {
+            std::unordered_set<NodeId> targets;
+            for (auto& tv : tn) targets.insert(tv.begin(), tv.end());
+            std::vector<NodeId> sources;
+            for (auto& rv : rn) sources.insert(sources.end(), rv.begin(), rv.end());
+            viaHub(sources, targets, type, proc, ctrl, ctx);
             return;
         }
         for (auto& rv : rn)
@@ -724,7 +945,8 @@ private:
         }
         curData = &a.dataOps;
         curCtrl = &a.ctrlOps;
-        struct Reset { Builder& b; ~Reset() { b.curData = b.curCtrl = nullptr; } } reset{*this};
+        curApproximate = a.approximate;
+        struct Reset { Builder& b; ~Reset() { b.curData = b.curCtrl = nullptr; b.curApproximate = false; } } reset{*this};
         if (a.pairsValid) {
             for (auto& [t, src] : a.pairs) {
                 if (!src.sym && t.sym && src.value) {
@@ -740,6 +962,29 @@ private:
                 NodeId sn = nodeForBit(ctx, src);
                 if (skipReads && skipReads->count(sn)) continue;
                 addEdge(sn, nodeForBit(ctx, t), type, proc, true);
+            }
+        } else if (a.bitDepsValid) {
+            // Bits with one large read set (a leaf expression, a shared select) reach it through one hub.
+            std::map<std::vector<Path>, std::vector<NodeId>> sharedReads;
+            for (size_t index = 0; index < a.bitDeps.size(); index++) {
+                const auto& [t, reads] = a.bitDeps[index];
+                if (std::none_of(targets.begin(), targets.end(), [&](const Path& tp) { return tp.sym == t.sym; })) continue;
+                const NodeId target = nodeForBit(ctx, t);
+                if (reads.empty()) m.constDrivers[target].push_back({'?', type, proc});   // e.g. a literal padding bit
+                uint64_t readBits = 0;
+                for (const auto& read : reads) readBits += read.hi - read.lo + 1;
+                if (readBits >= kHubReadSet) { sharedReads[reads].push_back(target); continue; }
+                const bool exact = index < a.bitDepExact.size() && a.bitDepExact[index];
+                for (const auto& read : reads)
+                    for (auto source : nodesFor(ctx, read))
+                        if (!skipReads || !skipReads->count(source)) addEdge(source, target, type, proc, exact);
+            }
+            for (const auto& [reads, targetBits] : sharedReads) {
+                std::vector<NodeId> sources;
+                for (const auto& read : reads)
+                    for (auto source : nodesFor(ctx, read))
+                        if (!skipReads || !skipReads->count(source)) sources.push_back(source);
+                viaHub(sources, std::unordered_set<NodeId>(targetBits.begin(), targetBits.end()), type, proc, false, ctx);
             }
         } else {
             std::vector<Path> data;
@@ -788,11 +1033,27 @@ private:
     }
 
     // ---------------------------------------------------------------- bit lists
+    /// A pattern lists its elements most significant first and keeps them apart, like a concatenation, when they fill the packed value.
+    static std::span<const Expression* const> patternElements(const Expression& e) {
+        return e.kind == ExpressionKind::SimpleAssignmentPattern ? e.as<SimpleAssignmentPatternExpression>().elements()
+                                                                 : e.as<StructuredAssignmentPatternExpression>().elements();
+    }
+    static bool isBitwisePattern(const Expression& e) {
+        if (e.kind != ExpressionKind::SimpleAssignmentPattern && e.kind != ExpressionKind::StructuredAssignmentPattern) return false;
+        if (!e.type || !e.type->isIntegral()) return false;
+        uint64_t total = 0;
+        for (const auto* element : patternElements(e)) {
+            if (!element->type || !element->type->isIntegral()) return false;
+            total += element->type->getBitstreamWidth();
+        }
+        return total == e.type->getBitstreamWidth();
+    }
+
     /// Expands an expression into its ordered (MSB first) bit sources when it is a pure bit move:
     /// static selects of one symbol, concatenations, constants and zero-extension. Returns false otherwise.
     bool bitList(const Expression& e, EvalContext& ec, std::vector<BitRef>& out) {
         const Expression* x = &modeExpr(e, ec);
-        if (!design.caseConstants.empty() && x->type->getBitstreamWidth() == 1) {
+        if (design.hasCaseMode() && x->type->getBitstreamWidth() == 1) {
             int v = modeValue(*x, ec);
             if (v >= 0) { out.push_back({nullptr, 0, v ? '1' : '0'}); return true; }
         }
@@ -840,6 +1101,11 @@ private:
                 if (!bitList(*op, ec, out)) return false;
             return true;
         }
+        if (isBitwisePattern(*x)) {
+            for (auto* element : patternElements(*x))
+                if (!bitList(*element, ec, out)) return false;
+            return true;
+        }
         if (x->kind == ExpressionKind::Streaming || x->kind == ExpressionKind::Replication) return false;
         ValuePath vp(*x, ec);
         const ValueSymbol* rs = vp.rootSymbol();
@@ -849,6 +1115,137 @@ private:
         if (hi - lo + 1 != want) return false;
         for (uint64_t b = hi + 1; b-- > lo;) out.push_back({rs, static_cast<uint32_t>(b)});
         return true;
+    }
+
+    /// The reads that can influence each bit of `e`, most significant bit first. Bitwise operators, conversions, concatenation and
+    /// data arms of ?: keep bits apart; every other expression is a leaf whose reads influence all of its bits, so this only ever
+    /// removes dependencies that the operator cannot create. A ?: select influences every bit. False when past `budget`.
+    bool bitwiseDeps(const Expression& e, EvalContext& ec, std::vector<std::vector<Path>>& out, uint64_t& budget) {
+        const Expression* x = &modeExpr(e, ec);
+        const uint64_t width = x->type ? x->type->getBitstreamWidth() : 0;
+        if (!width || width > budget) return false;
+        std::vector<BitRef> exact;
+        if (bitList(*x, ec, exact) && exact.size() == width) {
+            budget -= width;
+            for (auto& bit : exact) {
+                out.emplace_back();
+                if (bit.sym) out.back().push_back({bit.sym, bit.bit, bit.bit});
+            }
+            return true;
+        }
+        const bool integral = x->type->isIntegral();
+        const auto recurse = [&](const Expression& operand, std::vector<std::vector<Path>>& bits) {
+            return bitwiseDeps(operand, ec, bits, budget) && bits.size() == operand.type->getBitstreamWidth();
+        };
+        std::vector<std::vector<Path>> a, b;
+        if (integral && x->kind == ExpressionKind::UnaryOp) {
+            const auto& u = x->as<UnaryExpression>();
+            if ((u.op == UnaryOperator::BitwiseNot || u.op == UnaryOperator::Plus) && u.operand().type->getBitstreamWidth() == width) {
+                if (!recurse(u.operand(), a)) return false;
+                out.insert(out.end(), a.begin(), a.end());
+                return true;
+            }
+        } else if (integral && x->kind == ExpressionKind::BinaryOp) {
+            const auto& o = x->as<BinaryExpression>();
+            const bool bitwise = o.op == BinaryOperator::BinaryAnd || o.op == BinaryOperator::BinaryOr ||
+                                 o.op == BinaryOperator::BinaryXor || o.op == BinaryOperator::BinaryXnor;
+            if (bitwise && o.left().type->getBitstreamWidth() == width && o.right().type->getBitstreamWidth() == width) {
+                if (!recurse(o.left(), a) || !recurse(o.right(), b)) return false;
+                for (uint64_t i = 0; i < width; i++) {
+                    a[i].insert(a[i].end(), b[i].begin(), b[i].end());
+                    out.push_back(std::move(a[i]));
+                }
+                return true;
+            }
+        } else if (integral && x->kind == ExpressionKind::ConditionalOp) {
+            const auto& c = x->as<ConditionalExpression>();
+            if (c.conditions.size() == 1 && !c.conditions[0].pattern && c.left().type->getBitstreamWidth() == width &&
+                c.right().type->getBitstreamWidth() == width) {
+                auto select = pathsOf(*c.conditions[0].expr, ec, false);
+                if (select.size() * width > budget) return false;
+                budget -= select.size() * width;
+                if (!recurse(c.left(), a) || !recurse(c.right(), b)) return false;
+                for (uint64_t i = 0; i < width; i++) {
+                    a[i].insert(a[i].end(), b[i].begin(), b[i].end());
+                    a[i].insert(a[i].end(), select.begin(), select.end());
+                    out.push_back(std::move(a[i]));
+                }
+                return true;
+            }
+        } else if (integral && isBitwisePattern(*x)) {
+            for (const auto* element : patternElements(*x)) {
+                std::vector<std::vector<Path>> part;
+                if (!recurse(*element, part)) return false;
+                out.insert(out.end(), std::make_move_iterator(part.begin()), std::make_move_iterator(part.end()));
+            }
+            return out.size() >= width;
+        } else if (x->kind == ExpressionKind::Concatenation) {
+            for (const auto* operand : x->as<ConcatenationExpression>().operands()) {
+                std::vector<std::vector<Path>> part;
+                if (!recurse(*operand, part)) return false;
+                out.insert(out.end(), std::make_move_iterator(part.begin()), std::make_move_iterator(part.end()));
+            }
+            return out.size() >= width;
+        } else if (integral && x->kind == ExpressionKind::Conversion) {
+            const Expression& operand = x->as<ConversionExpression>().operand();
+            const uint64_t from = operand.type->getBitstreamWidth();
+            if (operand.type->isIntegral() && from) {
+                if (!recurse(operand, a)) return false;
+                if (from > width) {   // truncation keeps the low bits
+                    out.insert(out.end(), std::make_move_iterator(a.end() - static_cast<std::ptrdiff_t>(width)), std::make_move_iterator(a.end()));
+                    return true;
+                }
+                for (uint64_t i = from; i < width; i++)   // a signed operand's top bit fills the extension
+                    out.push_back(operand.type->isSigned() ? a.front() : std::vector<Path>{});
+                out.insert(out.end(), std::make_move_iterator(a.begin()), std::make_move_iterator(a.end()));
+                return true;
+            }
+        }
+        auto reads = pathsOf(*x, ec, false);
+        if (reads.size() * width > budget) return false;
+        budget -= reads.size() * width;
+        for (uint64_t i = 0; i < width; i++) out.push_back(reads);
+        return true;
+    }
+
+    bool hasDynamicSelect(const Expression& e, EvalContext& ec) {
+        struct Selects : ASTVisitor<Selects, VisitFlags::AllGood> {
+            EvalContext& context;
+            bool found = false;
+            explicit Selects(EvalContext& c) : context(c) {}
+            void handle(const ElementSelectExpression& select) {
+                EvalContext tmp(context.astCtx);
+                found = found || select.selector().eval(tmp).bad();
+                visitDefault(select);
+            }
+            void handle(const RangeSelectExpression& select) {
+                EvalContext tmp(context.astCtx);
+                found = found || select.left().eval(tmp).bad() || select.right().eval(tmp).bad();
+                visitDefault(select);
+            }
+        } selects(ec);
+        e.visit(selects);
+        return selects.found;
+    }
+
+    /// For a top-level concatenation, which result bits (most significant first) are plain bit moves. A concatenation is the only
+    /// shape that mixes moves and logic in one assignment, as in `{s2, s1} <= {s1, a & b}`.
+    std::vector<char> exactBitsOf(const Expression& e, EvalContext& ec, size_t width) {
+        std::vector<char> exact(width, 0);
+        const Expression* x = &modeExpr(e, ec);
+        if (x->kind == ExpressionKind::Conversion && x->as<ConversionExpression>().isImplicit() &&
+            x->as<ConversionExpression>().operand().type->getBitstreamWidth() == width)
+            x = &modeExpr(x->as<ConversionExpression>().operand(), ec);
+        if (x->kind != ExpressionKind::Concatenation) return exact;
+        size_t position = 0;
+        for (const auto* operand : x->as<ConcatenationExpression>().operands()) {
+            const size_t bits = operand->type->getBitstreamWidth();
+            std::vector<BitRef> list;
+            if (bitList(*operand, ec, list) && list.size() == bits)
+                for (size_t i = 0; i < bits && position + i < width; i++) exact[position + i] = list[i].sym != nullptr;
+            position += bits;
+        }
+        return exact;
     }
 
     BoolFactPtr boolFact(BoolFact::Kind kind, std::vector<BoolFactPtr> args = {}, NodeId node = kNoNode,
@@ -876,7 +1273,7 @@ private:
         return boolFact(BoolFact::Kind::Unknown, std::move(refs), kNoNode, false, calls.opaque);
     }
     BoolFactPtr booleanOf(const Expression& expr, EvalContext& ec, const InstanceSymbol* ctx) {
-        if (!design.caseConstants.empty()) {
+        if (design.hasCaseMode()) {
             int v = modeValue(expr, ec);
             if (v >= 0) return boolFact(BoolFact::Kind::Constant, {}, kNoNode, v);
         }
@@ -957,7 +1354,7 @@ private:
             } calls;
             expr.visit(calls);
             if (calls.found) return false;
-            if (!b.design.caseConstants.empty() && b.modeValue(expr, ec) == 0) return true;
+            if (b.design.hasCaseMode() && b.modeValue(expr, ec) == 0) return true;
             auto value = expr.eval(ec);
             if (!value.bad() && value.isInteger() && !value.hasUnknown()) return value.isFalse();
             if (expr.kind == ExpressionKind::Conversion)
@@ -970,7 +1367,7 @@ private:
             return false;
         }
         void handle(const ConditionalStatement& s) {
-            if (!b.design.caseConstants.empty() && s.conditions.size() == 1 && !s.conditions[0].pattern) {
+            if (b.design.hasCaseMode() && s.conditions.size() == 1 && !s.conditions[0].pattern) {
                 int v = b.modeValue(*s.conditions[0].expr, ec);
                 if (v >= 0) {
                     ++b.m.casePrunedBranches;
@@ -1009,6 +1406,7 @@ private:
         }
         void handle(const ForLoopStatement& s) {
             size_t depth = control.size();
+            for (const auto* variable : s.loopVars) b.m.loopVariables.insert(variable);
             for (auto* i : s.initializers) i->visit(*this);
             if (s.stopExpr) pushControl(*s.stopExpr, Branch::None, false);
             s.body.visit(*this);
@@ -1066,13 +1464,16 @@ private:
             Assign as;
             as.loc = toLoc(*b.sm, a.sourceRange.start());
             as.nonBlocking = a.isNonBlocking();
+            as.approximate = b.hasDynamicSelect(a.left(), ec) || b.hasDynamicSelect(a.right(), ec) || !b.callsIn(a.right()).empty();
             as.booleanValue = b.booleanOf(a.right(), ec, ctx);
             as.uncertainCalls = b.callIssues(a.right(), ctx);
             auto selectorCalls = b.callIssues(a.left(), ctx);
             as.uncertainCalls.insert(as.uncertainCalls.end(), selectorCalls.begin(), selectorCalls.end());
             as.targets = b.pathsOf(a.left(), ec, true);
             // selector reads on the LHS (e.g. mem[addr] <= d) influence the write
-            auto all = b.pathsOf(a.left(), ec, false);
+            // A constant selector reads nothing at run time, even if it names a signal inside $bits.
+            std::vector<Path> all;
+            if (as.approximate || b.hasDynamicSelect(a.left(), ec)) all = b.pathsOf(a.left(), ec, false);
             for (auto& p : all)
                 if (!std::binary_search(as.targets.begin(), as.targets.end(), p)) as.ctrlReads.push_back(p);
             for (auto& p : b.pathsOf(a.right(), ec, false)) as.dataReads.push_back(p);
@@ -1102,6 +1503,14 @@ private:
                 if (b.bitList(a.left(), ec, L) && b.bitList(a.right(), ec, R) && L.size() == R.size() && !L.empty()) {
                     as.pairsValid = true;
                     for (size_t i = 0; i < L.size(); i++) as.pairs.push_back({L[i], R[i]});
+                } else if (L.size() > 1 && std::all_of(L.begin(), L.end(), [](const BitRef& bit) { return bit.sym != nullptr; })) {
+                    std::vector<std::vector<Path>> deps;
+                    uint64_t budget = kMaxEdgesPerAssign;
+                    if (b.bitwiseDeps(a.right(), ec, deps, budget) && deps.size() == L.size()) {
+                        as.bitDepsValid = true;
+                        as.bitDepExact = b.exactBitsOf(a.right(), ec, L.size());
+                        for (size_t i = 0; i < L.size(); i++) as.bitDeps.push_back({L[i], std::move(deps[i])});
+                    }
                 }
             }
             for (auto* v : {&as.dataReads, &as.ctrlReads}) {
@@ -1166,6 +1575,12 @@ private:
         std::vector<Assign> assigns;
         StmtVisitor v(*this, ec, assigns, ctx);
         body.visit(v);
+
+        // A latch keeps its pre-activation value by design, so its order proves nothing.
+        std::optional<EntryReads> entryReads;
+        if (pk != ProceduralBlockKind::AlwaysLatch) entryReads = entryReadsOf(pb, assigns);
+        struct ResetEntry { Builder& b; ~ResetEntry() { b.curEntryReads = nullptr; } } resetEntry{*this};
+        curEntryReads = entryReads ? &*entryReads : nullptr;
 
         ProcKind kind = sequential ? ProcKind::Sequential
                       : pk == ProceduralBlockKind::AlwaysLatch ? ProcKind::Latch : ProcKind::Comb;
@@ -1291,10 +1706,8 @@ private:
                 StmtVisitor tv(*this, ec, tmp, ctx);
                 topIf->ifTrue.visit(tv);
                 bool allConst = !tmp.empty();
-                for (auto& a : tmp) {
-                    // constants contribute no data reads
-                    for (auto& r : a.dataReads) if (!(r == cp[0])) allConst = false;
-                }
+                // Constants contribute no data reads. Reading the condition itself (`if (s) t <= s`) is data, not a reset value.
+                for (auto& a : tmp) if (!a.dataReads.empty()) allConst = false;
                 syncCand = allConst;
                 if (syncCand) {
                     auto ns = nodesFor(ctx, cp[0]);
@@ -1525,9 +1938,10 @@ private:
         for (NodeId q : qs) {
             if (m.flopOfQ.count(q)) {
                 m.multiSequential.insert(q);
+                if (clockOk && clockNode != kNoNode) m.flops[m.flopOfQ.at(q)].otherClockSignals.push_back(clockNode);
                 fallback("multiple-sequential-drivers",
-                         "register '" + m.nameOf(q) + "' is assigned by more than one sequential block; only the first "
-                         "block's clock is used", pb.location);
+                         "register '" + m.nameOf(q) + "' is assigned by more than one sequential block; every block's clock "
+                         "is weighed, but what the register holds at any time is not modelled", pb.location);
                 continue;
             }
             Flop f;
@@ -1918,6 +2332,7 @@ private:
                 Assign as;
                 std::vector<Path> actual = pathsOf(*act, pec, !actualIsSource);
                 as.uncertainCalls = callIssues(*act, actCtx);
+                as.approximate = hasDynamicSelect(*act, pec) || !callsIn(*act).empty();
                 std::vector<BitRef> A;
                 bool listOk = iw && bitList(*act, pec, A) && A.size() == iw;
                 if (listOk) {
@@ -1928,6 +2343,14 @@ private:
                         else as.pairs.push_back({A[i], f});                    // formal -> actual
                     }
                     as.pairsValid = true;
+                } else if (iw > 1 && actualIsSource) {
+                    std::vector<std::vector<Path>> deps;
+                    uint64_t budget = kMaxEdgesPerAssign;
+                    if (bitwiseDeps(*act, pec, deps, budget) && deps.size() == iw) {
+                        as.bitDepsValid = true;
+                        for (uint64_t i = 0; i < iw; i++)
+                            as.bitDeps.push_back({BitRef{&internal, static_cast<uint32_t>(iw - 1 - i)}, std::move(deps[i])});
+                    }
                 }
                 if (actualIsSource) {
                     as.targets = {ip};
@@ -1953,14 +2376,24 @@ private:
                        slang::SourceLocation loc, bool actualIsSource) {
         const InstanceSymbol* srcCtx = actualIsSource ? parent : child;
         const InstanceSymbol* tgtCtx = actualIsSource ? child : parent;
+        curApproximate = as.approximate;
+        struct Reset { Builder& b; ~Reset() { b.curApproximate = false; } } reset{*this};
         if (!as.uncertainCalls.empty()) for (const auto& target : as.targets) for (auto node : nodesFor(tgtCtx, target)) {
             auto& issues = m.uncertainCallDrivers[node];
             issues.insert(issues.end(), as.uncertainCalls.begin(), as.uncertainCalls.end());
         }
         if (as.pairsValid) {
             for (auto& [t, src] : as.pairs) {
+                if (!src.sym && t.sym && src.value) m.constDrivers[nodeForBit(tgtCtx, t)].push_back({src.value, EdgeType::Comb, proc});
                 if (!src.sym || !t.sym) continue;
                 addEdge(nodeForBit(srcCtx, src), nodeForBit(tgtCtx, t), EdgeType::Comb, proc, true);
+            }
+        } else if (as.bitDepsValid) {
+            for (const auto& [t, reads] : as.bitDeps) {
+                const NodeId target = nodeForBit(tgtCtx, t);
+                if (reads.empty()) m.constDrivers[target].push_back({'?', EdgeType::Comb, proc});
+                for (const auto& read : reads)
+                    for (auto source : nodesFor(srcCtx, read)) addEdge(source, target, EdgeType::Comb, proc, false);
             }
         } else {
             connect(srcCtx, as.dataReads, tgtCtx, as.targets, EdgeType::Comb, proc, loc);
@@ -2006,6 +2439,7 @@ public:
 std::string Model::nameOf(NodeId id) const {
     if (id == kNoNode || id >= nodes.size()) return "<none>";
     const Node& n = nodes[id];
+    if (!n.sym) return "<logic>";
     std::string s;
     if (n.inst) s = n.inst->getHierarchicalPath();
     std::vector<std::string_view> rel;
@@ -2024,11 +2458,12 @@ std::string Model::nameOf(NodeId id) const {
 }
 
 uint64_t Model::symbolWidth(NodeId id) const {
-    if (id == kNoNode || id >= nodes.size()) return 0;
+    if (id == kNoNode || id >= nodes.size() || !nodes[id].sym) return 0;
     const Type& t = nodes[id].sym->getType();
     return t.isFixedSize() ? t.getBitstreamWidth() : 0;
 }
 bool Model::collapsed(NodeId id) const {
+    if (id != kNoNode && id < nodes.size() && !nodes[id].sym) return false;   // a logic hub stands for no signal
     uint64_t w = symbolWidth(id);
     return w == 0 || w > kMaxBits;
 }
@@ -2046,20 +2481,39 @@ Root Model::traceRoot(NodeId start) const {
     }
 }
 
-void Model::finish() {
-    in.assign(nodes.size(), {});
-    out.assign(nodes.size(), {});
-    // dedupe identical edges
+void Model::compactEdges() {
+    // A signal can be both the data and the enable of one target, and both facts matter: `if (s) t <= s` holds t when s is low,
+    // so it is no synchroniser stage. They stay separate edges. Among repeats of one role, inexact is kept before exact.
     std::sort(edges.begin(), edges.end(), [](const Edge& a, const Edge& b) {
-        return std::tie(a.from, a.to, a.type, a.proc) < std::tie(b.from, b.to, b.type, b.proc);
+        const auto key = [](const Edge& e) { return std::make_tuple(e.from, e.to, static_cast<int>(e.type), e.proc, e.ctrl, e.exact); };
+        return key(a) < key(b);
     });
-    edges.erase(std::unique(edges.begin(), edges.end(), [](const Edge& a, const Edge& b) {
-        return a.from == b.from && a.to == b.to && a.type == b.type && a.proc == b.proc;
-    }), edges.end());
-    for (uint32_t i = 0; i < edges.size(); i++) {
-        out[edges[i].from].push_back(i);
-        in[edges[i].to].push_back(i);
+    // A repeat can differ in what it says, as when one condition guards the assignments on both of its branches. Keeping whichever
+    // came first would depend on the input order, so the survivor says what is common to all of them, as noteOp does for one assignment.
+    size_t kept = 0;
+    for (size_t i = 0; i < edges.size(); ++i) {
+        if (kept) {
+            Edge& last = edges[kept - 1];
+            const Edge& e = edges[i];
+            if (last.from == e.from && last.to == e.to && last.type == e.type && last.proc == e.proc && last.ctrl == e.ctrl) {
+                if (last.op != e.op) last.op = Op::Other;
+                if (last.inv != e.inv) last.inv = 2;
+                if (last.branch != e.branch) last.branch = Branch::None;
+                last.approximate = last.approximate || e.approximate;
+                last.internalRead = last.internalRead && e.internalRead;
+                continue;
+            }
+        }
+        edges[kept++] = edges[i];
     }
+    edges.resize(kept);
+}
+
+void Model::finish() {
+    compactEdges();
+    edges.shrink_to_fit();
+    out.build(nodes.size(), edges.size(), [&](size_t e) { return edges[e].from; });
+    in.build(nodes.size(), edges.size(), [&](size_t e) { return edges[e].to; });
     // resolve clock roots, domains, reset roots
     std::map<NodeId, uint32_t> domainOfRoot;
     for (auto& f : flops) {
@@ -2074,7 +2528,7 @@ void Model::finish() {
         }
         for (auto& r : f.resets) r.root = traceRoot(r.signal);
     }
-    // clocks of library RAMs are clock domains too (a RAM may be the only user of its clock)
+    // clocks of library RAMs and further sequential blocks are clock domains too (one may be the only user of its clock)
     auto domainOf = [&](const std::vector<NodeId>& clk) -> int64_t {
         if (clk.empty()) return -1;
         Root r = traceRoot(clk[0]);
@@ -2085,6 +2539,8 @@ void Model::finish() {
         }
         return it->second;
     };
+    for (auto& f : flops)
+        for (auto clk : f.otherClockSignals) f.otherDomains.push_back(static_cast<uint32_t>(domainOf({clk})));
     for (auto& ram : rams) {
         ram.writeDomain = domainOf(ram.writeClk);
         ram.readDomain = domainOf(ram.readClk);
