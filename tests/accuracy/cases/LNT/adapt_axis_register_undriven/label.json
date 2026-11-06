@@ -1,0 +1,47 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "stream register ready output is left undriven",
+  "sites": [
+    {
+      "line": 31,
+      "signal": "ready_o"
+    }
+  ],
+  "sdc": [],
+  "rationale": "ready_o is a module output but has no continuous, procedural, or sequential assignment, so downstream handshake logic receives an undriven signal.",
+  "mutation": {
+    "operator": "output-left-undriven",
+    "description": "Removed the ready-path assignment from the reduced AXI stream register."
+  },
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "verilog-axis",
+    "commit": "48ff7a7e2ef782cf778d47910cf85835c64b1bce",
+    "path": "rtl/axis_register.v",
+    "licence": "MIT",
+    "adaptation": "Reduced the stream register to one data byte and the valid/ready handshake state."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 32,
+          "signal": "ready_o"
+        }
+      ],
+      "note": "output ready_o never driven"
+    }
+  ]
+}

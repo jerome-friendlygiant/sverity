@@ -1,0 +1,58 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "multicycle exception depends on an unstated enable cadence",
+  "sites": [
+    {
+      "file": "constraints.sdc",
+      "line": 2,
+      "signal": "src_q"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The destination register is conditionally loaded and the source value is held between launch and transfer, but the RTL does not state that enable_i remains low for the two-cycle multicycle window or that launch_i and enable_i obey a fixed protocol. The exception is consequently undecidable without that environment contract.",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_shift_register_gated.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Reduced the gated shift-register behavior to a source holding register and an enable-controlled destination register."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "unknown",
+      "critical": false,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 2,
+          "signal": "src_q"
+        }
+      ]
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 2,
+          "signal": "src_q"
+        },
+        {
+          "file": "constraints.sdc",
+          "line": 3,
+          "signal": "dst_q"
+        }
+      ],
+      "note": "2-cycle setup MCP assumes enable_i delays capture, but RTL lets dst_q capture one cycle after launch; justification depends on an unstated enable protocol."
+    }
+  ]
+}

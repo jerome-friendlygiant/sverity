@@ -1,0 +1,60 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "adapted",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "none; a source pulse is converted to a toggle and edge-detected after two destination stages",
+  "sites": [
+    {
+      "line": 14,
+      "signal": "src_level_q"
+    },
+    {
+      "line": 22,
+      "signal": "dst_pulse_o"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Each accepted source pulse changes a persistent level. The destination synchronizes that level and produces a one-cycle pulse from the settled level transition.",
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "Reduced prim_pulse_sync to its toggle, two-stage synchronizer, and destination edge detector."
+  },
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_pulse_sync.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Self-contained pulse synchronizer with reset ports renamed only for the top fixture."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 14,
+          "signal": "src_level_q"
+        }
+      ],
+      "note": "Structurally correct toggle synchroniser, but source (8ns) is faster than destination (13ns) and pulse spacing is not stated, so consecutive pulses could be lost."
+    },
+    {
+      "by": "gpt-6.1-sol (separate settling reader, the case and both arguments only)",
+      "verdict": "unknown",
+      "critical": true,
+      "note": "The toggle synchroniser is structurally correct but needs enough spacing between source events; the asynchronous 8 ns and 13 ns clocks and unconstrained input do not establish it."
+    }
+  ],
+  "settled_by": "third reading; verdict unknown (2 of 3 readings)"
+}

@@ -1,0 +1,49 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "raw reset deassertion reaches a functional register without synchronization",
+  "sites": [
+    {
+      "line": 15,
+      "signal": "request_q"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The reduced reset generator leaves the asynchronous rst_ni on the functional register, so release can violate recovery or removal timing.",
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_rstgen_bypass.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Reduced the bypass reset generator to the functional register that consumes its reset."
+  },
+  "mutation": {
+    "operator": "reset-sync-removed",
+    "description": "Removed the reset pipeline that should precede request_q and retained the raw reset in its sensitivity list."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 13,
+          "signal": "rst_ni"
+        }
+      ],
+      "note": "Port reset asserts and releases asynchronously on request_q with no release synchroniser."
+    }
+  ]
+}

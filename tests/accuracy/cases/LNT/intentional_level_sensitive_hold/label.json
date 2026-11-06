@@ -1,0 +1,25 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "intentional always_latch storage resembles an incomplete if",
+  "sites": [],
+  "sdc": [],
+  "rationale": "Storage is explicit and intentional; the latch resets and captures only while transparent.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "The latch is explicit via always_latch and documented as intentional; nothing else in the code is wrong (torn only because some flows ban latches outright)."
+    }
+  ]
+}

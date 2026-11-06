@@ -1,0 +1,55 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "the generated clock names clk0_i as master although the mux is fixed to clk1_i",
+  "sites": [
+    {
+      "line": 15,
+      "signal": "mux_clk"
+    },
+    {
+      "file": "constraints.sdc",
+      "line": 3,
+      "signal": "mux_clk"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The fixed selection passes clk1_i to mux_clk. Using clk0_i as the generated-clock source assigns state_q the wrong period and source relationship.",
+  "mutation": {
+    "operator": "generated-master-wrong",
+    "description": "Used clk0_i as the generated-clock source even though the fixed mux selection passes clk1_i."
+  },
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim_generic/rtl/prim_clock_mux2.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Retained the two-input clock mux expression and output-clocked state; reduced the generic model and removed its assertions."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 3,
+          "signal": "mux_clk"
+        }
+      ],
+      "note": "SELECT_ONE=1 makes mux_clk follow clk1_i, but the generated clock uses clk0_i as source."
+    }
+  ]
+}

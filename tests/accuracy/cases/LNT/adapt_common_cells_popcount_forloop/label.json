@@ -1,0 +1,37 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "for-loop popcount can resemble an incomplete combinational assignment",
+  "sites": [],
+  "sdc": [],
+  "rationale": "The accumulator is initialized on every evaluation and every input bit is visited within the declared range, so count_o is fully combinational and has no latch or out-of-range access.",
+  "origin": "adapted",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_popcount.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Reduced the parameterized popcount to its always_comb accumulator and changed the top-level name to top."
+  },
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "A loop accumulator is intentionally updated repeatedly inside always_comb after an explicit default assignment."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "No lint defect found; widths, drivers, and assignments are consistent."
+    }
+  ]
+}

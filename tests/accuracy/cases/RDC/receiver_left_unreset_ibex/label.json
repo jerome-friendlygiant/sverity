@@ -1,0 +1,51 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "a fetch receiver register is left unreset while its source-side valid state resets",
+  "sites": [
+    {
+      "line": 34,
+      "signal": "address_o"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The source valid state is cleared by rst_src_ni, but address_o has no reset in clk_dst and can retain stale data after the sender resets.",
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "ibex",
+    "commit": "2373e5dadcfc4f56672962fa242f6a051acc9aca",
+    "path": "rtl/ibex_fetch_fifo.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced the fetch FIFO to a source valid state, a destination synchronizer, and one output address register."
+  },
+  "mutation": {
+    "operator": "receiver-left-unreset",
+    "description": "Removed the destination reset from address_o while preserving the independent source reset."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Only the unreset data register is gated by the reset valid synchroniser, so it is harmless."
+    },
+    {
+      "by": "gpt-6.1-sol (separate settling reader, the case and both arguments only)",
+      "verdict": "bad",
+      "critical": true,
+      "note": "A source reset clears valid_src_q, but an asserted valid_dst_q persists two destination edges, so address_o captures address_i during the source reset (lines 30-35) and keeps it; nothing masks the stale value."
+    }
+  ],
+  "settled_by": "third reading; verdict bad (2 of 3 readings)"
+}

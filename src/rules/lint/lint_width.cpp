@@ -23,6 +23,8 @@
 #include "slang/ast/symbols/PortSymbols.h"
 #include "slang/ast/types/DeclaredType.h"
 #include "slang/numeric/SVInt.h"
+#include "slang/ast/expressions/SelectExpressions.h"
+#include "slang/ast/statements/LoopStatements.h"
 #include "slang/syntax/AllSyntax.h"
 
 namespace sverity {
@@ -780,6 +782,185 @@ private:
 
 } // namespace
 
+// The values a non-constant operand can take: those of a `for` loop variable bounded by constants, otherwise its type's.
+// Used where slang decides only constant operands: an index (LNT-006) and a divisor (LNT-037).
+// A loop's range bounds the values its variable can take; it does not say each occurs, so a range outside the array or
+// including zero stays Unresolved.
+struct ValueRange { int64_t min = 0, max = 0; };
+
+class OperandRanges {
+public:
+    void enter(const ForLoopStatement& loop, Lint& l) {
+        std::vector<std::pair<const ValueSymbol*, int64_t>> starts;
+        for (auto* v : loop.loopVars)
+            if (auto* init = v->getInitializer()) starts.push_back({v, constant(l, *init).value_or(INT64_MIN)});
+        for (auto* e : loop.initializers)
+            if (e->kind == ExpressionKind::Assignment) {
+                const auto& a = e->as<AssignmentExpression>();
+                if (a.left().kind == ExpressionKind::NamedValue)
+                    starts.push_back({&a.left().as<NamedValueExpression>().symbol, constant(l, a.right()).value_or(INT64_MIN)});
+            }
+        if (!loop.stopExpr || loop.stopExpr->kind != ExpressionKind::BinaryOp) return;
+        const auto& stop = loop.stopExpr->as<BinaryExpression>();
+        if (stop.left().kind != ExpressionKind::NamedValue) return;
+        const auto* var = &stop.left().as<NamedValueExpression>().symbol;
+        auto bound = constant(l, stop.right());
+        // Only a loop that steps towards its bound, and whose body never writes the variable, stays inside [start, bound].
+        const int direction = stepDirection(loop, var, l);
+        if (direction == 0 || writes(loop.body, var)) return;
+        for (auto [symbol, start] : starts) {
+            if (symbol != var || !bound || start == INT64_MIN) continue;
+            if (direction > 0 && stop.op == BinaryOperator::LessThan && start < *bound) loops_[var] = {start, *bound - 1};
+            else if (direction > 0 && stop.op == BinaryOperator::LessThanEqual && start <= *bound) loops_[var] = {start, *bound};
+            else if (direction < 0 && stop.op == BinaryOperator::GreaterThan && start > *bound) loops_[var] = {*bound + 1, start};
+            else if (direction < 0 && stop.op == BinaryOperator::GreaterThanEqual && start >= *bound) loops_[var] = {*bound, start};
+        }
+    }
+    /// +1 when the loop's only step moves `var` up by a positive constant, -1 down, 0 otherwise.
+    static int stepDirection(const ForLoopStatement& loop, const ValueSymbol* var, Lint& l) {
+        if (loop.steps.size() != 1) return 0;
+        const Expression& step = *loop.steps[0];
+        const auto isVar = [&](const Expression& e) { return e.kind == ExpressionKind::NamedValue && &e.as<NamedValueExpression>().symbol == var; };
+        if (step.kind == ExpressionKind::UnaryOp) {
+            const auto& u = step.as<UnaryExpression>();
+            if (!isVar(u.operand())) return 0;
+            if (u.op == UnaryOperator::Preincrement || u.op == UnaryOperator::Postincrement) return 1;
+            if (u.op == UnaryOperator::Predecrement || u.op == UnaryOperator::Postdecrement) return -1;
+            return 0;
+        }
+        if (step.kind != ExpressionKind::Assignment) return 0;
+        const auto& a = step.as<AssignmentExpression>();
+        if (!isVar(a.left()) || !a.op) return 0;
+        // slang stores `i += c` with its right-hand side as `<lvalue reference> + c`.
+        const Expression* rhs = &unwrap(a.right());
+        if (rhs->kind == ExpressionKind::BinaryOp) {
+            const auto& left = unwrap(rhs->as<BinaryExpression>().left());
+            if (left.kind == ExpressionKind::LValueReference || isVar(left)) rhs = &rhs->as<BinaryExpression>().right();
+        }
+        auto amount = constant(l, *rhs);
+        if (!amount || *amount <= 0) return 0;
+        return *a.op == BinaryOperator::Add ? 1 : *a.op == BinaryOperator::Subtract ? -1 : 0;
+    }
+    static bool writes(const Statement& body, const ValueSymbol* var) {
+        struct W : ASTVisitor<W, VisitFlags::AllGood> {
+            const ValueSymbol* var; bool found = false;
+            explicit W(const ValueSymbol* v) : var(v) {}
+            bool names(const Expression& e) const {
+                bool hit = false;
+                e.visitSymbolReferences([&](const Expression&, const Symbol& s) { hit = hit || &s == var; });
+                return hit;
+            }
+            void handle(const AssignmentExpression& a) { found = found || names(a.left()); visitDefault(a); }
+            void handle(const UnaryExpression& u) {
+                const bool step = u.op == UnaryOperator::Preincrement || u.op == UnaryOperator::Postincrement ||
+                                  u.op == UnaryOperator::Predecrement || u.op == UnaryOperator::Postdecrement;
+                found = found || (step && names(u.operand()));
+                visitDefault(u);
+            }
+        } w(var);
+        body.visit(w);
+        return w.found;
+    }
+    void leave(const ForLoopStatement& loop) {
+        for (auto* v : loop.loopVars) loops_.erase(v);
+        if (loop.stopExpr && loop.stopExpr->kind == ExpressionKind::BinaryOp) {
+            const auto& left = loop.stopExpr->as<BinaryExpression>().left();
+            if (left.kind == ExpressionKind::NamedValue) loops_.erase(&left.as<NamedValueExpression>().symbol);
+        }
+    }
+    /// The range of `e` with implicit conversions removed, or nothing for a non-integral or very wide operand.
+    std::optional<ValueRange> of(const Expression& e) const {
+        const Expression& operand = unwrap(e);
+        if (operand.kind == ExpressionKind::NamedValue)
+            if (auto it = loops_.find(&operand.as<NamedValueExpression>().symbol); it != loops_.end()) return it->second;
+        const Type& type = *operand.type;
+        if (!type.isIntegral()) return std::nullopt;
+        const auto width = type.getBitWidth();
+        if (width == 0 || width > 62) return std::nullopt;
+        if (type.isSigned()) return ValueRange{-(int64_t{1} << (width - 1)), (int64_t{1} << (width - 1)) - 1};
+        return ValueRange{0, (int64_t{1} << width) - 1};
+    }
+    static std::optional<int64_t> constant(Lint& l, const Expression& e) {
+        auto cv = l.evalConst(e);
+        if (!cv.isInteger() || cv.integer().hasUnknown()) return std::nullopt;
+        return cv.integer().as<int64_t>();
+    }
+
+private:
+    std::unordered_map<const ValueSymbol*, ValueRange> loops_;
+};
+
+std::string operandText(const Expression& e, Lint& l) {
+    const auto& operand = unwrap(e);
+    if (operand.kind == ExpressionKind::NamedValue) return std::string(operand.as<NamedValueExpression>().symbol.name);
+    return std::string(l.sm().getSourceText(operand.sourceRange.start().buffer()).substr(
+        operand.sourceRange.start().offset(), operand.sourceRange.end().offset() - operand.sourceRange.start().offset()));
+}
+
+// LNT-006, non-constant part: an index whose values reach outside the array. Constant indexes are slang's (LNT-006 above).
+class IndexRangeRule final : public LintRule {
+public:
+    IndexRangeRule() : LintRule("LNT-006", "", true) {}
+
+private:
+    struct V : ASTVisitor<V, VisitFlags::AllCanonical> {
+        Lint& l;
+        OperandRanges ranges;
+        explicit V(Lint& lint) : l(lint) {}
+        void handle(const ForLoopStatement& s) { ranges.enter(s, l); visitDefault(s); ranges.leave(s); }
+        void handle(const ElementSelectExpression& e) {
+            visitDefault(e);
+            const Type& array = e.value().type->getCanonicalType();
+            if (!l.isUser(e.sourceRange.start()) || !array.hasFixedRange() || OperandRanges::constant(l, e.selector())) return;
+            l.count();
+            const auto bounds = array.getFixedRange();
+            auto values = ranges.of(e.selector());
+            if (values && values->min >= bounds.lower() && values->max <= bounds.upper()) return;
+            const std::string index = operandText(e.selector(), l);
+            l.report(e.selector().sourceRange.start(),
+                     "index '" + index + "' " + (values ? "can take values " + std::to_string(values->min) + " to " + std::to_string(values->max)
+                                                         : "has no bounded range") +
+                     ", outside the selected range [" + std::to_string(bounds.lower()) + ":" + std::to_string(bounds.upper()) +
+                     "]: an out-of-range read returns X and an out-of-range write is lost, unless the design keeps the index in range",
+                     {.confidence = Confidence::Unresolved, .proof = ProofState::NotAttempted,
+                      .nextStep = "Size the array to cover every index value, or clamp the index and state the range the inputs keep.",
+                      .signals = {index}});
+        }
+    };
+    // Opt-in: whether a free operand stays in range is an input contract that simulation or formal checks, not lint.
+    void check(Lint& l) override { if (l.option("dynamic_index", "false") == "true") visitDesign<V>(l); }
+};
+
+// LNT-037, non-constant part: a divisor not shown to be non-zero. A constant zero divisor is slang's (LNT-037 above).
+class DivisorRule final : public LintRule {
+public:
+    DivisorRule() : LintRule("LNT-037", "", true) {}
+
+private:
+    struct V : ASTVisitor<V, VisitFlags::AllCanonical> {
+        Lint& l;
+        OperandRanges ranges;
+        explicit V(Lint& lint) : l(lint) {}
+        void handle(const ForLoopStatement& s) { ranges.enter(s, l); visitDefault(s); ranges.leave(s); }
+        void handle(const BinaryExpression& e) {
+            visitDefault(e);
+            if (e.op != BinaryOperator::Divide && e.op != BinaryOperator::Mod) return;
+            if (!l.isUser(e.sourceRange.start()) || !e.right().type->isIntegral() || OperandRanges::constant(l, e.right())) return;
+            l.count();
+            auto values = ranges.of(e.right());
+            if (values && (values->min > 0 || values->max < 0)) return;
+            const std::string divisor = operandText(e.right(), l);
+            l.report(e.right().sourceRange.start(),
+                     "divisor '" + divisor + "' is not shown to be non-zero: a zero divisor makes the result X, and synthesis gives it no defined value",
+                     {.confidence = Confidence::Unresolved, .proof = ProofState::NotAttempted,
+                      .nextStep = "Guard the division against a zero divisor, or state the input contract that excludes zero.",
+                      .signals = {divisor}});
+        }
+    };
+    // Opt-in: whether a free operand stays in range is an input contract that simulation or formal checks, not lint.
+    void check(Lint& l) override { if (l.option("dynamic_divisor", "false") == "true") visitDesign<V>(l); }
+};
+
 std::vector<std::unique_ptr<Rule>> makeLintWidthRules() {
     std::vector<std::unique_ptr<Rule>> v;
     for (auto k : {LiteralSizeRule::Overflow, LiteralSizeRule::Narrowing, LiteralSizeRule::UnsizedCompare})
@@ -790,6 +971,8 @@ std::vector<std::unique_ptr<Rule>> makeLintWidthRules() {
     v.push_back(std::make_unique<WraparoundRule>());
     v.push_back(std::make_unique<ConstantConcatRule>());
     v.push_back(std::make_unique<ParamTruncationRule>());
+    v.push_back(std::make_unique<IndexRangeRule>());
+    v.push_back(std::make_unique<DivisorRule>());
     return v;
 }
 

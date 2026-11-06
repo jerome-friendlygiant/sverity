@@ -1,0 +1,55 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "divided_clk has no timing clock definition",
+  "sites": [
+    {
+      "line": 22,
+      "signal": "divided_clk"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "divided_clk is a sequential clock signal derived from ref_clk and clocks status; without a clock definition, timing analysis has no period or relationship for status.",
+  "mutation": {
+    "operator": "clock-missing",
+    "description": "Omitted the generated-clock definition for divided_clk from constraints.sdc."
+  },
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_clk_int_div_static.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Retained the counter-based divided-clock structure and a downstream clocked register; removed the configurable handshake and technology cells."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 1,
+          "signal": "ref_clk"
+        },
+        {
+          "file": "design.sv",
+          "line": 23,
+          "signal": "divided_clk"
+        }
+      ],
+      "note": "divided_clk is a counter bit clocking status but has no generated clock, so that flop is unclocked."
+    }
+  ]
+}

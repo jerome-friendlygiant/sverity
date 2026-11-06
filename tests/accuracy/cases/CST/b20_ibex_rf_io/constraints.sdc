@@ -1,0 +1,5 @@
+create_clock -name rf_clk -period 4.000 [get_ports clk_i]
+set_input_delay  -clock rf_clk -min 0.400 [get_ports {raddr_a_i raddr_b_i waddr_i wdata_i we_i}]
+set_input_delay  -clock rf_clk -max 1.200 [get_ports {raddr_a_i raddr_b_i waddr_i wdata_i we_i}]
+set_output_delay -clock rf_clk -min 0.300 [get_ports {rdata_a_o rdata_b_o}]
+set_output_delay -clock rf_clk -max 1.000 [get_ports {rdata_a_o rdata_b_o}]

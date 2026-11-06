@@ -1,0 +1,37 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "foreign context implementation unavailable",
+  "sites": [
+    {
+      "line": 3,
+      "signal": "sample_state"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The context function may consult foreign state or access exported simulator objects. Its implementation is absent, preventing a complete accounting of the state dependencies feeding state_o.",
+  "origin": "authored",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind lint reviewer)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "state_o"
+        }
+      ],
+      "note": "The context foreign call may depend on invisible state and implementation."
+    }
+  ]
+}

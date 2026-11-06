@@ -1,0 +1,43 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "The payload capture uses unsynchronized tx.valid; the otherwise present two-stage valid chain is bypassed.",
+  "mutation": {
+    "operator": "packet_struct_valid_bypass",
+    "description": "The payload capture uses unsynchronized tx.valid; the otherwise present two-stage valid chain is bypassed."
+  },
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 10,
+      "signal": "tx"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The payload capture uses unsynchronized tx.valid; the otherwise present two-stage valid chain is bypassed.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 10,
+          "signal": "tx.valid"
+        }
+      ],
+      "note": "The sink uses raw asynchronous valid despite an available synchronized copy, and captures changing raw payload."
+    }
+  ]
+}

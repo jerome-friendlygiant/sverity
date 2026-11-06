@@ -1,0 +1,43 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "generated clock is attributed to an independent clock with no physical path",
+  "sites": [
+    {
+      "line": 9,
+      "signal": "sample_clk"
+    },
+    {
+      "file": "constraints.sdc",
+      "line": 3,
+      "signal": "sample_clk"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "sample_clk is the inverted sample_ref input. The generated declaration instead derives it from independent debug_ref, whose 40 ns period replaces the actual 6 ns clock timing and establishes a false clock relationship.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author, replacement set)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 3,
+          "signal": "sample_clk"
+        }
+      ],
+      "note": "The generated clock on sample_clk names debug_ref as its source, but sample_clk is the inversion of sample_ref, so the reading path is timed against the wrong 40 ns master."
+    }
+  ]
+}

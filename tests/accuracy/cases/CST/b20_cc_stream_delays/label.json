@@ -1,0 +1,38 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "none",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The ready/valid storage is single-clock synchronous and every non-reset input and output in the stream interface has explicit minimum and maximum delays.",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_stream_register.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Reduced the stream register to a 16-bit ready/valid stage with synchronous clear."
+  },
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "The output data register is not rewritten when valid is low, but its valid bit still defines when the data is meaningful."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Single clock, all ports constrained."
+    }
+  ]
+}

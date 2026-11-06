@@ -1,0 +1,32 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "origin": "authored",
+  "defect": "The counter flush is synchronous; no asynchronous reset control is inferred from its name or value.",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The counter flush is synchronous; no asynchronous reset control is inferred from its name or value.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-synchronous-flush-counter",
+    "description": "The counter flush is synchronous; no asynchronous reset control is inferred from its name or value."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Flush is a timed local synchronous control."
+    }
+  ]
+}

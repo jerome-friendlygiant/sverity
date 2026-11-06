@@ -1,0 +1,48 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "The generated clock is attached to the divider register's D input instead of its Q output.",
+  "sites": [
+    {
+      "line": 47,
+      "signal": "slow_clk"
+    },
+    {
+      "file": "constraints.sdc",
+      "line": 2,
+      "signal": "top/u_div/count_d"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The datapath is clocked by slow_clk, which is produced from the divider state. A generated clock on count_d does not describe the clock waveform observed at the divider output and can leave the real generated-clock pin unconstrained.",
+  "mutation": {
+    "operator": "generated-clock-on-divider-d",
+    "description": "Attached create_generated_clock to the divider's combinational D signal rather than the divided clock Q/output pin."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CST reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 2,
+          "signal": "count_d"
+        }
+      ],
+      "note": "The generated clock targets count_d, an unused combinational next-bit signal. The actual clock driving the datapath is clk_o from count_q[2]. The actual clock is also divide-by-eight rather than the stated divide-by-two."
+    }
+  ]
+}

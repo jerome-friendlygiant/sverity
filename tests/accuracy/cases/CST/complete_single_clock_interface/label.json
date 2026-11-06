@@ -1,0 +1,27 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "ordinary constrained register pipeline",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The clock and both synchronous interface directions have explicit minimum and maximum delays.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Clock, input and output min/max delays are all present and consistent."
+    }
+  ]
+}

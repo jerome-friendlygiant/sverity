@@ -1,0 +1,49 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "a control register is released from the first stage of a reset synchronizer",
+  "sites": [
+    {
+      "line": 24,
+      "signal": "release_ni"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The control output's reset is driven by the first stage of a two-stage asynchronous-reset release chain, exposing it to metastability during release.",
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_lc_sync.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced the life-cycle control receiver to a two-stage release chain and one buffered control register."
+  },
+  "mutation": {
+    "operator": "reset-release-stage-tapped",
+    "description": "Tapped release_q[0] for the control register's asynchronous reset instead of the final stage."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 22,
+          "signal": "release_q[0]"
+        }
+      ],
+      "note": "Functional flop reset uses first (metastable) synchroniser stage release_q[0]."
+    }
+  ]
+}

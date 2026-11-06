@@ -1,0 +1,55 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "the FIFO data bypass is removed from timing analysis",
+  "sites": [
+    {
+      "line": 20,
+      "signal": "out_rdata_o"
+    },
+    {
+      "file": "constraints.sdc",
+      "line": 2,
+      "signal": "out_rdata_o"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "When valid_q is empty, in_rdata_i directly supplies out_rdata_o, and the same data is also stored for a later cycle. The false path suppresses timing on this live FIFO transfer and bypass.",
+  "mutation": {
+    "operator": "false-path-over-live-path",
+    "description": "Added a false path from the input FIFO data port to the output FIFO data port."
+  },
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "ibex",
+    "commit": "2373e5dadcfc4f56672962fa242f6a051acc9aca",
+    "path": "rtl/ibex_fetch_fifo.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Retained the fetch FIFO's valid/data bypass and one-entry storage behavior; removed instruction alignment, error metadata, and multi-entry bookkeeping."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 2,
+          "signal": "in_rdata_i->out_rdata_o"
+        }
+      ],
+      "note": "in_rdata_i reaches out_rdata_o combinationally when valid_q=0 (bypass mux), so the false path hides a live path."
+    }
+  ]
+}

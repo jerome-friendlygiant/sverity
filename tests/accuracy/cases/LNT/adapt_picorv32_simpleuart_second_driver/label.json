@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "UART divisor output has both continuous and procedural drivers",
+  "sites": [
+    {
+      "line": 38,
+      "signal": "divisor_o"
+    }
+  ],
+  "sdc": [],
+  "rationale": "divisor_o is continuously driven from the stored divisor and is also assigned procedurally in the read block, so the register interface has conflicting drivers.",
+  "mutation": {
+    "operator": "second-driver",
+    "description": "Added a procedural read-path assignment to the already continuously driven divisor output."
+  },
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "picorv32",
+    "commit": "ef203c2b0a3fb793280f5114941416c425c5b461",
+    "path": "picosoc/simpleuart.v",
+    "licence": "ISC",
+    "adaptation": "Reduced the UART divisor register and readback path to a single clocked register."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 36,
+          "signal": "divisor_o"
+        },
+        {
+          "line": 39,
+          "signal": "divisor_o"
+        },
+        {
+          "line": 41,
+          "signal": "divisor_o"
+        }
+      ],
+      "note": "divisor_o driven by both continuous assign and always_comb"
+    }
+  ]
+}

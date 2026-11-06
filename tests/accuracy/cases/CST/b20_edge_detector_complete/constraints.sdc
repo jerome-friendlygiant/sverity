@@ -1,0 +1,5 @@
+create_clock -name edge_clk -period 5.000 [get_ports clk_i]
+set_input_delay  -clock edge_clk -min 0.500 [get_ports d_i]
+set_input_delay  -clock edge_clk -max 1.500 [get_ports d_i]
+set_output_delay -clock edge_clk -min 0.300 [get_ports {q_sync_o q_posedge_pulse_o q_negedge_pulse_o}]
+set_output_delay -clock edge_clk -max 1.000 [get_ports {q_sync_o q_posedge_pulse_o q_negedge_pulse_o}]

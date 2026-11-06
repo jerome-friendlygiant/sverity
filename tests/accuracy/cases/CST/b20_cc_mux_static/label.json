@@ -1,0 +1,38 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "none",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Both source clocks and both mux-output clock modes are declared, the modes are logically exclusive, and the strap is explicitly static before the selected-clock interface delays are applied.",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_clk_mux_glitch_free.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Reduced the two-input glitch-free mux to a static-strap clock selector and one capture register."
+  },
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "The static strap selects the first clock in this test configuration; the alternate clock remains constrained as an exclusive mode."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Clock-mux pattern with exclusive groups and strap tied by case analysis; strap is static by nature."
+    }
+  ]
+}

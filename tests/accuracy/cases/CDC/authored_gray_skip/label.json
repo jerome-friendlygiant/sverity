@@ -1,0 +1,43 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "cross-domain counter uses a Gray-looking code that skips with multiple bits changing",
+  "mutation": {
+    "operator": "gray-transition-skip",
+    "description": "The source updates the advertised pointer with a three-bit XOR mask instead of the next binary-to-Gray value."
+  },
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 17,
+      "signal": "gray_count"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The destination samples a purported Gray pointer, but the source can change two bits in one transition, so bitwise synchronizers cannot guarantee a valid pointer code.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 17,
+          "signal": "gray_count"
+        }
+      ],
+      "note": "Every advance toggles two Gray bus bits, so independent synchronization permits incoherent intermediate code."
+    }
+  ]
+}

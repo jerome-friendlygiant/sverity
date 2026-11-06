@@ -1,0 +1,11 @@
+create_clock -name wr_clk -period 8.000 [get_ports clk_wr_i]
+create_clock -name rd_clk -period 11.000 [get_ports clk_rd_i]
+set_clock_groups -asynchronous -group {wr_clk} -group {rd_clk}
+set_input_delay  -clock wr_clk -min 0.800 [get_ports {wvalid_i wdata_i}]
+set_input_delay  -clock wr_clk -max 2.000 [get_ports {wvalid_i wdata_i}]
+set_input_delay  -clock rd_clk -min 1.000 [get_ports rready_i]
+set_input_delay  -clock rd_clk -max 2.500 [get_ports rready_i]
+set_output_delay -clock wr_clk -min 0.400 [get_ports wready_o]
+set_output_delay -clock wr_clk -max 1.500 [get_ports wready_o]
+set_output_delay -clock rd_clk -min 0.500 [get_ports {rvalid_o rdata_o}]
+set_output_delay -clock rd_clk -max 1.800 [get_ports {rvalid_o rdata_o}]

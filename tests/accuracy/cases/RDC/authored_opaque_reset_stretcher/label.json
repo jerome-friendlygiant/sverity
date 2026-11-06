@@ -1,0 +1,43 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "origin": "authored",
+  "defect": "A correct release chain follows an opaque pulse stretcher. Its ability to capture and stretch the incoming reset pulse is unavailable, so assertion completeness is unknown.",
+  "sites": [
+    {
+      "line": 4,
+      "signal": "request_n"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "A correct release chain follows an opaque pulse stretcher. Its ability to capture and stretch the incoming reset pulse is unavailable, so assertion completeness is unknown.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-opaque-reset-stretcher",
+    "description": "A correct release chain follows an opaque pulse stretcher. Its ability to capture and stretch the incoming reset pulse is unavailable, so assertion completeness is unknown."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 6,
+          "signal": "request_n"
+        }
+      ],
+      "note": "The opaque reset stretcher may not capture short requests; pulse acceptance semantics are missing."
+    }
+  ]
+}

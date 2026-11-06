@@ -1,0 +1,41 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "combinational state decode can glitch before synchronization",
+  "sites": [
+    {
+      "line": 9,
+      "signal": "decoded"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Binary state transitions can briefly assert the decode; synchronizer stages do not remove a captured false event.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 9,
+          "signal": "decoded"
+        },
+        {
+          "line": 11,
+          "signal": "decoded"
+        }
+      ],
+      "note": "Combinational decode of a multi-bit counter feeds the synchroniser directly and can glitch during counter transitions."
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "one register has asynchronous reset sources from different domains and polarities",
+  "sites": [
+    {
+      "line": 14,
+      "signal": "debug_reset_i"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The flop can enter reset from either source, but neither source has a domain-local synchronized release and the reset values disagree.",
+  "author": "gpt-5.6-luna",
+  "mutation": {
+    "operator": "mixed-reset-event-control",
+    "description": "Added an independent active-high debug reset to a flop already asynchronously reset by active-low POR."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 14,
+          "signal": "debug_reset_i"
+        }
+      ],
+      "note": "Independent raw asynchronous set/reset-like controls release directly into the same register with no synchronization."
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "an asynchronous FIFO pointer crosses as binary code instead of a Gray-coded pointer",
+  "sites": [
+    {
+      "line": 34,
+      "signal": "wptr_bin_b"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "wptr_bin_a can change multiple bits at one source transition, so direct sampling in clk_b can create an invalid FIFO position and full indication.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 34,
+          "signal": "wptr_bin_a"
+        }
+      ],
+      "note": "A multi-bit binary write pointer is sampled across domains, so several bits changing at once can be captured inconsistently; Gray coding is required."
+    }
+  ],
+  "origin": "adapted",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_fifo_async.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Kept the independent write and read pointer domains and destination full comparison, reduced the storage path and assertions, and exposed the pointer transfer in a self-contained top module."
+  },
+  "mutation": {
+    "operator": "gray-to-binary-pointer",
+    "description": "Transferred wptr_bin_a directly into the read clock domain instead of converting and synchronizing a Gray-coded write pointer."
+  }
+}

@@ -1,0 +1,7 @@
+create_clock -name clk_main -period 8.0 [get_ports clk_main]
+create_clock -name clk_cfg -period 13.0 [get_ports clk_cfg]
+create_generated_clock -name gated_clk -source [get_ports clk_main] -divide_by 1 [get_ports gated_clk]
+set_clock_groups -asynchronous -group [get_clocks clk_main] -group [get_clocks clk_cfg]
+set_input_delay 1.0 -clock [get_clocks clk_cfg] [get_ports enable_request]
+set_input_delay 1.0 -clock [get_clocks clk_cfg] [get_ports arst_n]
+set_output_delay 1.0 -clock [get_clocks gated_clk] [get_ports work_count[*]]

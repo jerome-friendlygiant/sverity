@@ -1,0 +1,13 @@
+create_clock -name clk_a -period 10.000 [get_ports clk_a_i]
+create_clock -name clk_b -period 12.000 [get_ports clk_b_i]
+create_generated_clock -name mux_a_clk -source [get_ports clk_a_i] [get_ports clk_o]
+create_generated_clock -name mux_b_clk -source [get_ports clk_b_i] -add [get_ports clk_o]
+set_clock_groups -logically_exclusive -group {clk_a mux_a_clk} -group {clk_b mux_b_clk}
+set_input_delay  -clock mux_a_clk -min 1.000 [get_ports data_i]
+set_input_delay  -clock mux_a_clk -max 3.000 [get_ports data_i]
+set_input_delay  -clock mux_b_clk -min 1.000 -add_delay [get_ports data_i]
+set_input_delay  -clock mux_b_clk -max 3.000 -add_delay [get_ports data_i]
+set_output_delay -clock mux_a_clk -min 0.500 [get_ports data_o]
+set_output_delay -clock mux_a_clk -max 2.000 [get_ports data_o]
+set_output_delay -clock mux_b_clk -min 0.500 -add_delay [get_ports data_o]
+set_output_delay -clock mux_b_clk -max 2.000 -add_delay [get_ports data_o]

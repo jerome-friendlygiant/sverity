@@ -1,0 +1,36 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "register-file generate bounds and RV32E address gating can resemble an out-of-range read",
+  "sites": [],
+  "rationale": "The write decoder iterates over exactly NumWords entries and the flop generate starts at one, leaving x0 as the constant zero entry. The read condition rejects x0 and, in RV32E mode, rejects addresses with the high bank bit before the width-matched slice indexes the array.",
+  "origin": "adapted",
+  "provenance": {
+    "repository": "ibex",
+    "commit": "2373e5dadcfc4f56672962fa242f6a051acc9aca",
+    "path": "rtl/ibex_register_file_ff.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced the plain flip-flop register-file branch to its decoder, generated registers, x0 behavior, and RV32E read guard."
+  },
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "A parameterized generated register array is accessed through a mode-dependent slice only after an explicit invalid-address guard."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "No lint defect found; widths, drivers, and assignments are consistent."
+    }
+  ]
+}

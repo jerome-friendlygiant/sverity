@@ -1,0 +1,35 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "two-stage synchronized level feeds registered edge detection",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The asynchronous serial input is captured by two destination-clocked stages marked as synchronizer registers, and functional edge detection consumes only the resolved second stage.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "The asynchronous serial_i goes through a clean 2-flop synchroniser and edge detection uses only the second stage and its delayed copy."
+    }
+  ],
+  "origin": "adapted",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_sync_wedge.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Kept the wedge's two-stage level synchronizer and registered edge detector, inlined the small synchronization primitive, and reduced the interface to a self-contained top module."
+  }
+}

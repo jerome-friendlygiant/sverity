@@ -1,0 +1,40 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "Disabling the live capture register timing is unjustified for an always-active data path.",
+  "sites": [
+    {
+      "file": "constraints.sdc",
+      "line": 6,
+      "signal": "capture"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Disabling the live capture register timing is unjustified for an always-active data path.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CST reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 6,
+          "signal": "capture"
+        }
+      ],
+      "note": "The exception disables timing through live capture registers in an every-cycle pipeline, contrary to the explicit no-false-path operating contract."
+    }
+  ]
+}

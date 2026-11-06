@@ -1,0 +1,5 @@
+create_clock -name src_clk -period 11.000 [get_ports src_clk_i]
+create_clock -name dst_clk -period 7.000 [get_ports dst_clk_i]
+set_input_delay 2.000 -clock src_clk [get_ports event_i]
+set_output_delay 2.000 -clock dst_clk [get_ports seen_o]
+set_false_path -from [get_ports rst_ni]

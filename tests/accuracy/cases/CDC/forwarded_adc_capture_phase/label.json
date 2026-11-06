@@ -1,0 +1,41 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "forwarded-clock sample timing depends on an unspecified board phase relationship",
+  "sites": [
+    {
+      "line": 13,
+      "signal": "sample"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "adc_data is launched by adc_clk and captured by capture_clk without synchronization. Equal nominal periods alone do not establish phase, skew, or setup/hold margins. A board with controlled phase can make this transfer valid; an unrelated or poorly phased clock cannot. No relationship or board timing contract is given.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author, replacement set)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 13,
+          "signal": "adc_data"
+        },
+        {
+          "line": 14,
+          "signal": "adc_data"
+        }
+      ],
+      "note": "12-bit adc_data crosses from adc_clk to capture_clk with no synchroniser; the two equal-period clocks are declared independently with no stated phase/frequency relationship, so safety depends on an undeclared board clock contract (and the parity reconvergence makes it fatal if they are asynchronous)."
+    }
+  ]
+}

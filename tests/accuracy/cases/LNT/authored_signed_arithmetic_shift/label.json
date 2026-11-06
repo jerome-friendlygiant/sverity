@@ -1,0 +1,26 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "none",
+  "sites": [],
+  "sdc": [],
+  "rationale": "The signed left operand and arithmetic right shift preserve sign for negative samples.",
+  "origin": "authored",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-sol (blind lint reviewer)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "The left operand is explicitly signed and arithmetic shift preserves sign."
+    }
+  ]
+}

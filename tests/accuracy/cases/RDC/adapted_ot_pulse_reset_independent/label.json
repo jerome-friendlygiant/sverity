@@ -1,0 +1,53 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "adapted",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "pulse interpretation after an isolated reset is unspecified",
+  "sites": [
+    {
+      "line": 25,
+      "signal": "rst_dst_ni"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The source toggle and destination history can be reset independently; without a system rule for whether either reset is allowed during an outstanding event, the receiver may legitimately see a pulse or miss one and the RTL cannot decide which behavior is required.",
+  "mutation": {
+    "operator": "isolated-pulse-reset-unknown",
+    "description": "Kept separate source and destination resets around the pulse synchronizer state."
+  },
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_pulse_sync.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Removed the reset coupling and assertion scaffolding from the reduced pulse synchronizer."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "unknown",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 18,
+          "signal": "src_level_q"
+        },
+        {
+          "line": 25,
+          "signal": "sync_1_q"
+        }
+      ],
+      "note": "Toggle pulse sync with independent resets: resetting only one side leaves a toggle mismatch and a spurious pulse; sequencing is unstated."
+    }
+  ]
+}

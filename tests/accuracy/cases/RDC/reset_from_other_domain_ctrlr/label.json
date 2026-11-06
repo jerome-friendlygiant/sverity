@@ -1,0 +1,49 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "a clear-generated reset is transferred directly from one CDC side to the other",
+  "sites": [
+    {
+      "line": 26,
+      "signal": "rst_b_ni"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "rst_b_ni changes only on clk_a and asynchronously controls state_o in the unrelated clk_b domain, so the reset-domain boundary is unsynchronized.",
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_cdc_reset_ctrlr.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Reduced the two-sided clear controller to one source-side clear state and one destination register."
+  },
+  "mutation": {
+    "operator": "reset-from-other-domain",
+    "description": "Drove the destination asynchronous reset directly from the source-side clear state."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 27,
+          "signal": "rst_b_ni"
+        }
+      ],
+      "note": "clk_b reset is a clk_a flop output, asynchronous to clk_b with unsynchronised release."
+    }
+  ]
+}

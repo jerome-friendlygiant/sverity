@@ -1,0 +1,7 @@
+create_clock -name clk_a_i -period 8 [get_ports clk_a_i]
+create_clock -name clk_b_i -period 12 [get_ports clk_b_i]
+set_clock_groups -asynchronous -group [get_clocks clk_a_i] -group [get_clocks clk_b_i]
+set_input_delay 2 -clock clk_a_i [get_ports data_a_i]
+set_input_delay 2 -clock clk_b_i [get_ports event_b_i]
+set_output_delay 2 -clock clk_a_i [get_ports flag_o]
+set_false_path -from [get_ports reset_a_ni]

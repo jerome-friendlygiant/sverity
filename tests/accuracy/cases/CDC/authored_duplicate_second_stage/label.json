@@ -1,0 +1,43 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "one synchronizer first stage fans out to two independent second stages",
+  "mutation": {
+    "operator": "duplicated-second-stage",
+    "description": "The metastability-exposed first stage drives two separately resolving second flops before the event is consumed by divergent logic."
+  },
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 30,
+      "signal": "disagreement"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The two second stages can resolve differently for one destination edge, so the router can see mutually inconsistent copies of the event.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 24,
+          "signal": "first_stage"
+        }
+      ],
+      "note": "A metastable first stage fans out to independently sampling second stages whose disagreement reconverges as a functional fault."
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "adapted",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "whether the direct held-data path is safe cannot be decided without the source/destination clock relationship",
+  "sites": [
+    {
+      "line": 28,
+      "signal": "data_q"
+    },
+    {
+      "line": 36,
+      "signal": "ack_q"
+    },
+    {
+      "line": 39,
+      "signal": "src_ready_o"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The design resembles the isochronous spill register, but the constraints declare both clocks without a frequency ratio or generated-clock relationship. Safety of sampling data_q in the destination domain is therefore undecidable.",
+  "mutation": {
+    "operator": "undecidable-contract",
+    "description": "Removed the source-module's required isochronous timing relationship while retaining its direct held-data crossing."
+  },
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_isochronous_spill_register.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Reduced to a one-entry held-data crossing whose timing depends on the omitted clock relationship."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 29,
+          "signal": "valid_q"
+        },
+        {
+          "line": 36,
+          "signal": "ack_q"
+        }
+      ],
+      "note": "src_ready returns high as soon as valid_q clears while the level ack is still high/stale in ack_sync_q, so a new word is accepted and immediately cleared, and data_q can change while valid_sync_q is still high; ack deassertion is never waited for (and no clock relationship is declared)."
+    },
+    {
+      "by": "gpt-6.1-sol (separate settling reader, the case and both arguments only)",
+      "verdict": "bad",
+      "critical": true,
+      "note": "Clearing valid_q permits another acceptance before the acknowledgement and destination valid return low, so data_q can change while the destination still advertises the previous transfer."
+    }
+  ],
+  "settled_by": "third reading; verdict bad (2 of 3 readings)"
+}

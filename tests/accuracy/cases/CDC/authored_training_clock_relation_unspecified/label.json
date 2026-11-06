@@ -1,0 +1,43 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "Equal nominal clock periods do not prove a PLL phase relationship; the mode and generated-clock contract are absent.",
+  "mutation": {
+    "operator": "training_clock_relation_unspecified",
+    "description": "Equal nominal clock periods do not prove a PLL phase relationship; the mode and generated-clock contract are absent."
+  },
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 6,
+      "signal": "training_q"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Equal nominal clock periods do not prove a PLL phase relationship; the mode and generated-clock contract are absent.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 6,
+          "signal": "training_q"
+        }
+      ],
+      "note": "Board PLL mode and clock relation are unspecified; the same direct transfer could be timed synchronous or unsafe asynchronous."
+    }
+  ]
+}

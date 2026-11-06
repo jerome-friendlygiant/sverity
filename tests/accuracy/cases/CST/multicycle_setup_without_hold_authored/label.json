@@ -1,0 +1,48 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "The two-cycle setup exception has no matching one-cycle hold exception.",
+  "sites": [
+    {
+      "line": 21,
+      "signal": "stage_b_q"
+    },
+    {
+      "file": "constraints.sdc",
+      "line": 4,
+      "signal": "stage_a_q"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The pipeline only transfers data on alternate enable phases, so a two-cycle setup relationship is intentional. Without the corresponding -hold 1 exception, the hold check is shifted incorrectly and the constraint pair is incomplete.",
+  "mutation": {
+    "operator": "multicycle-setup-without-hold",
+    "description": "Added the two-cycle setup exception but omitted its required matching hold exception."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CST reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 4,
+          "signal": "stage_a_q"
+        }
+      ],
+      "note": "The two-cycle setup exception lacks the corresponding one-cycle hold adjustment, moving the hold reference away from the intended zero-cycle edge for these every-other-cycle registers."
+    }
+  ]
+}

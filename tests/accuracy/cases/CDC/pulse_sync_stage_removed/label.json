@@ -1,0 +1,49 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "pulse toggle crosses into the destination through one receiving stage",
+  "sites": [
+    {
+      "line": 32,
+      "signal": "dst_level"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The source pulse is converted to a level toggle, but the asynchronous level is captured by only one destination-domain register before functional edge detection.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 46,
+          "signal": "dst_level"
+        }
+      ],
+      "note": "dst_level is the only synchroniser stage and is also used by the pulse XOR, so the crossing has one stage and exposes the metastable flop to logic."
+    }
+  ],
+  "origin": "adapted",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_pulse_sync.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Kept the source pulse-to-toggle conversion and destination edge detector, reduced the primitive dependency, and exposed the destination capture logic in a self-contained top module."
+  },
+  "mutation": {
+    "operator": "sync-stage-removed",
+    "description": "Removed the second destination synchronizer stage so src_level is captured directly into dst_level."
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "Multi-bit counter decoding directly drives an asynchronous reset. Bit skew at transitions can create reset glitches and release is not conditioned after the decoder.",
+  "sites": [
+    {
+      "line": 10,
+      "signal": "assign block_ni"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Multi-bit counter decoding directly drives an asynchronous reset. Bit skew at transitions can create reset glitches and release is not conditioned after the decoder.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-reset-source-toggle-counter",
+    "description": "Multi-bit counter decoding directly drives an asynchronous reset. Bit skew at transitions can create reset glitches and release is not conditioned after the decoder."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 10,
+          "signal": "block_ni"
+        }
+      ],
+      "note": "A multibit counter decode drives asynchronous reset and may glitch on multi-bit counter transitions; no conditioning follows it."
+    }
+  ]
+}

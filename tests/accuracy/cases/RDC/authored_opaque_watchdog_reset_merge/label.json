@@ -1,0 +1,43 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "origin": "authored",
+  "defect": "The downstream release chain is visible, but the watchdog reset merger is opaque; whether every timeout asserts a sufficiently long reset is unknown.",
+  "sites": [
+    {
+      "line": 2,
+      "signal": "request_n"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The downstream release chain is visible, but the watchdog reset merger is opaque; whether every timeout asserts a sufficiently long reset is unknown.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-opaque-watchdog-reset-merge",
+    "description": "The downstream release chain is visible, but the watchdog reset merger is opaque; whether every timeout asserts a sufficiently long reset is unknown."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 6,
+          "signal": "request_n"
+        }
+      ],
+      "note": "The opaque watchdog merge lacks a reset pulse capture and priority contract."
+    }
+  ]
+}

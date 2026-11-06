@@ -1,0 +1,6 @@
+create_clock -name clk_core_i -period 7 [get_ports clk_core_i]
+create_clock -name clk_io_i -period 13 [get_ports clk_io_i]
+set_clock_groups -asynchronous -group [get_clocks clk_core_i] -group [get_clocks clk_io_i]
+set_input_delay 2 -clock clk_core_i [get_ports command_i]
+set_output_delay 2 -clock clk_core_i [get_ports result_o]
+set_false_path -from [get_ports ext_rst_ni]

@@ -8,12 +8,7 @@ Horizons say what we mean to do next, not how long it takes. Nothing here is dro
 
 ## 1. Short term: fixes and finishing what is started
 
-These are bugs and unfinished work, not limits of the approach. Each is fixed when its fixture passes and the item is removed from this list.
-
-- Case analysis over-collects: a read such as `$display(..., m)` or an index `v[m]` in a procedure rejects a value on `m`, and stops propagation through `wire x = m`. This keeps findings, so it is safe, but it costs a usable constraint. Separate reads from writes.
-- RDC-024 can count one reset use twice when it reads two stages of one synchroniser, as in `s2 & s3`.
-- CDC-041 compares the source's reset with the last register of the walk, which may be a follower past the required depth. RDC-005 still reports such a mismatch.
-- `syncedOut_` also holds the last stage of a chain shorter than the required depth, so that stage can still qualify a payload. CDC-005 reports the short chain as well, so this is not silent, but the meaning should be made exact.
+These are bugs and unfinished work, not limits of the approach. Each is fixed when its fixture passes and the item is removed from this list. None is open.
 
 ## 2. Mid term: reaching 1.0
 
@@ -36,6 +31,8 @@ Phases 2 to 4 can overlap, and a phase can draw from the [long-term goals](#3-lo
 **Showing it without a commercial licence.** Commercial output is a useful reference but not ground truth, and a licence may forbid publishing it. The evidence is independently labelled designs, held-out cases, reproducible resource measurements, documented closure effort and private adopter trials, with aggregate results published where agreements allow.
 
 **Decisions still needed.** Who the first adopters are and which workflows they need. The numeric budgets, including acceptable false-alarm noise and residual risk. The capacity envelope: 10 minutes and 16 GiB for `top_earlgrey` is a working proposal, not a commercial benchmark. The pilots, which need real teams and cannot be reached by engineering alone.
+
+**Phase 1: where it stands.** The [accuracy suite](../tests/accuracy/README.md) contains 426 independently AI-labelled cases, mixing reduced public RTL and authored designs. `tools/dev/accuracy.py` measures the baseline without changing the tool: 59 critical cases are missed or silent, so the phase gate is not met. The labels pass validation and the repository verification passes. Numeric budgets and human review of a label sample remain outstanding; the suite is evidence for improvement, not sign-off.
 
 **Validate in widening decks.** Each deck stays open until every rule in it has a written severity policy, good, bad, boundary, unknown and mutation fixtures, and a passed independent adversarial review. Independent review may be a separate AI reviewer, and the report says so; it is not a human signoff.
 
@@ -146,7 +143,7 @@ There are two different completion targets: delivering SVerity's advertised 1.0 
 
 An independent review (2026-11) built the tool and ran it on hand-written cases and public RTL. Crossings through interfaces, functions, hierarchical references, structs, generate loops, memories, latches and clock muxes were all reported; reconvergence, first-stage fan-out, mixed edges, third-clock stages and pulse loss were caught. This is evidence from a few dozen cases, not proof that no false-safe results remain. Cases from earlier audits stay in the rule fixture directories under descriptive names.
 
-Three more independent AI reviews (2026-11-05, a separate model running the binary on about 200 hand-written cases, with the earlier binary for comparison) hunted false-safe results in the changes behind this page. They found real defects each round, which are fixed and kept as fixtures: an override or waiver of one rule accepting another fact of the same crossing, a stage enabled by its own data recognised as a synchroniser, a precise loop lowered by a neighbouring approximate branch. A fourth round has not been run on the last fixes, and these are AI reviews, not human sign-off. The hard parts of the analysis stay unproved by this: the reviews list what they did not reach.
+Three more independent AI reviews (2026-11-05, a separate model running the binary on about 200 hand-written cases, with the earlier binary for comparison) hunted false-safe results in the changes behind this page. They found real defects each round, which are fixed and kept as fixtures: an override or waiver of one rule accepting another fact of the same crossing, a stage enabled by its own data recognised as a synchroniser, a precise loop lowered by a neighbouring approximate branch. A fourth round has not been run on those fixes, and these are AI reviews, not human sign-off. A further round (2026-11-06, GPT-6.1 Sol, 58 probes) reviewed the fixes made from the accuracy suite and found six false-safe or false-alarm defects, among them loop ranges taken on trust and any combination of two stages taken for an edge detector. All are fixed with fixtures; the fixes themselves have not been reviewed again. The hard parts of the analysis stay unproved by this: the reviews list what they did not reach.
 
 ## 5. Coming from a commercial flow
 

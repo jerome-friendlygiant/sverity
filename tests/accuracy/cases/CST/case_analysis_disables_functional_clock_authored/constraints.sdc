@@ -1,0 +1,7 @@
+create_clock -name func_clk -period 10.000 [get_ports func_clk_i]
+create_clock -name test_clk -period 20.000 [get_ports test_clk_i]
+set_clock_groups -logically_exclusive -group [get_clocks func_clk] -group [get_clocks test_clk]
+set_case_analysis 0 [get_ports func_clk_i]
+set_input_delay 2.000 -clock func_clk [get_ports data_i]
+set_output_delay 2.000 -clock func_clk [get_ports data_o]
+set_false_path -from [get_ports {reset_i test_mode_i}]

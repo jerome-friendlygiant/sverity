@@ -1,0 +1,7 @@
+create_clock -name clk_aon_i -period 9 [get_ports clk_aon_i]
+create_clock -name clk_sw_i -period 12 [get_ports clk_sw_i]
+set_clock_groups -asynchronous -group [get_clocks clk_aon_i] -group [get_clocks clk_sw_i]
+set_input_delay 2 -clock clk_aon_i [get_ports state_i]
+set_output_delay 2 -clock clk_aon_i [get_ports retained_o]
+set_output_delay 2 -clock clk_sw_i [get_ports active_o]
+set_false_path -from [get_ports {aon_rst_ni switched_rst_ni}]

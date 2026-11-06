@@ -1,0 +1,43 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "generated-clock period is twice the RTL divider period",
+  "sites": [
+    {
+      "line": 14,
+      "signal": "divided_clk"
+    },
+    {
+      "file": "constraints.sdc",
+      "line": 2,
+      "signal": "divided_clk"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The two-bit binary prescaler advances every ref_clk edge; phase[1] has one rising edge every four reference cycles. The generated clock declares divide_by 8 instead of 4, allowing twice the real period for slow_count timing.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author, replacement set)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 2,
+          "signal": "divided_clk"
+        }
+      ],
+      "note": "divided_clk is phase[1] of a 2-bit counter, i.e. ref_clk/4, but the generated clock declares -divide_by 8."
+    }
+  ]
+}

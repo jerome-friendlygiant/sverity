@@ -1,0 +1,8 @@
+create_clock -name dst_clk -period 10.000 [get_ports dst_clk_i]
+create_clock -name src_clk -period 7.500 [get_ports src_clk_i]
+set_clock_groups -asynchronous -group [get_clocks dst_clk] -group [get_clocks src_clk]
+set_input_delay 2.000 -clock dst_clk [get_ports request_i]
+set_output_delay 2.000 -clock dst_clk [get_ports status_o]
+set_output_delay 2.000 -clock src_clk [get_ports returned_o]
+set_false_path -through [get_nets shared_net]
+set_false_path -from [get_ports rst_ni]

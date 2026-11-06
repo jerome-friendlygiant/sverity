@@ -1,0 +1,40 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "The exception suppresses real same-clock accumulator transfers.",
+  "sites": [
+    {
+      "file": "constraints.sdc",
+      "line": 6,
+      "signal": "core"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The exception suppresses real same-clock accumulator transfers.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CST reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 6,
+          "signal": "core"
+        }
+      ],
+      "note": "The same-clock false path removes timing checks from ordinary every-cycle state transitions; the explicit environment excludes false-path exemptions."
+    }
+  ]
+}

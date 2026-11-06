@@ -1,0 +1,43 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "A raw asynchronous reset is sampled through only one data flop; that flop directly drives consumer reset. The unrelated correct pipeline is unused.",
+  "sites": [
+    {
+      "line": 7,
+      "signal": "delayed_reset <="
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "A raw asynchronous reset is sampled through only one data flop; that flop directly drives consumer reset. The unrelated correct pipeline is unused.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-external-reset-registered-data-bypass",
+    "description": "A raw asynchronous reset is sampled through only one data flop; that flop directly drives consumer reset. The unrelated correct pipeline is unused."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 7,
+          "signal": "delayed_reset"
+        }
+      ],
+      "note": "A single unreset capture of raw reset bypasses the present two-stage chain and does not guarantee asynchronous assertion or contained release."
+    }
+  ]
+}

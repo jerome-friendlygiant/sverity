@@ -1,0 +1,27 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "one power-on reset feeds separate domain release chains",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Each domain synchronizes reset release on its own clock; no functional data crosses between the independently released domains.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Each domain has its own reset synchroniser on its own clock, and the domains do not interact."
+    }
+  ]
+}

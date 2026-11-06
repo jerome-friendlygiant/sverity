@@ -1,0 +1,43 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "allow_q is only updated on a clock, so asynchronous source reset can reach the receiver during the cycle before allow_q clears.",
+  "sites": [
+    {
+      "line": 11,
+      "signal": "out_o <= allow_q"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "allow_q is only updated on a clock, so asynchronous source reset can reach the receiver during the cycle before allow_q clears.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-mask-tracks-reset-too-late",
+    "description": "allow_q is only updated on a clock, so asynchronous source reset can reach the receiver during the cycle before allow_q clears."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 11,
+          "signal": "allow_q"
+        }
+      ],
+      "note": "The registered mask can remain high for a cycle after asynchronous source reset asserts, exposing its data transition."
+    }
+  ]
+}

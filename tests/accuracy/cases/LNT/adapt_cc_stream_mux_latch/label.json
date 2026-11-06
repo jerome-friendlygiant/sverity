@@ -1,0 +1,47 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "combinational stream data retains its previous value when the selected input is invalid",
+  "sites": [
+    {
+      "line": 20,
+      "signal": "data_o"
+    }
+  ],
+  "sdc": [],
+  "rationale": "data_o is assigned only on the valid branch of an always_comb block, so an idle or invalid selected stream infers storage instead of producing a defined combinational value.",
+  "mutation": {
+    "operator": "latch-from-missing-default",
+    "description": "Removed the default assignment to data_o from the stream multiplexer combinational block."
+  },
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_stream_mux.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Reduced the two-input valid-ready multiplexer to its combinational selection logic."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 21,
+          "signal": "data_o"
+        }
+      ],
+      "note": "data_o not assigned when valid_i[sel_i] is false: latch"
+    }
+  ]
+}

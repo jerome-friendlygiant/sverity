@@ -1,0 +1,39 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "logical exclusivity depends on an absent clock-select protocol",
+  "sites": [
+    {
+      "file": "constraints.sdc",
+      "line": 3,
+      "signal": "destination"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The timing exception assumes the clock choices are exclusive operating modes; RTL permits dynamic selection, and no environment contract establishes whether selection occurs only with stopped clocks.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 3,
+          "signal": "active_clock",
+          "file": "constraints.sdc"
+        }
+      ],
+      "note": "The logically_exclusive mux grouping is correct only if select_clock switches under an external protocol (static or glitch-free), which is not given."
+    }
+  ]
+}

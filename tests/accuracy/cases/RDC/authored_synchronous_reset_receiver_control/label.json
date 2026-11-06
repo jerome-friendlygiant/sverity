@@ -1,0 +1,32 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "origin": "authored",
+  "defect": "Both stored state and receiver are reset synchronously on the only clock; enable gating does not create an asynchronous reset transition.",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Both stored state and receiver are reset synchronously on the only clock; enable gating does not create an asynchronous reset transition.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-synchronous-reset-receiver-control",
+    "description": "Both stored state and receiver are reset synchronously on the only clock; enable gating does not create an asynchronous reset transition."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Data and consumer share a timed synchronous reset."
+    }
+  ]
+}

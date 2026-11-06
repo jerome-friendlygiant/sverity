@@ -1,0 +1,37 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "shift-register FIFO loop indexing can resemble an off-end write",
+  "sites": [],
+  "sdc": [],
+  "rationale": "The shift loop runs only while i is less than DEPTH-1, so i+1 is at most DEPTH-1. The count width can represent DEPTH, and m_data is irrelevant when m_valid is false.",
+  "origin": "adapted",
+  "provenance": {
+    "repository": "verilog-axis",
+    "commit": "48ff7a7e2ef782cf778d47910cf85835c64b1bce",
+    "path": "rtl/axis_srl_fifo.v",
+    "licence": "MIT",
+    "adaptation": "Reduced the SRL FIFO to its count, shift loop, and ready/valid control while retaining the source's array indexing structure."
+  },
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "A parameterized shift loop writes data_reg[i+1] under a bound that proves the index remains inside the FIFO."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "No lint defect found; widths, drivers, and assignments are consistent."
+    }
+  ]
+}

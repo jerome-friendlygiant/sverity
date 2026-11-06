@@ -1,0 +1,49 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "adapted",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "event preservation depends on an unstated minimum spacing between source pulses",
+  "sites": [
+    {
+      "line": 14,
+      "signal": "src_level_q"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The toggle synchronizer is structurally sound for separated pulses, but no environment contract limits how soon src_pulse_i may recur. Two source pulses before the destination observes the first can cancel in the toggle and lose an event, so the design cannot be classified without that assumption.",
+  "mutation": {
+    "operator": "undecidable-contract",
+    "description": "Removed the source-side pulse-spacing guarantee documented for prim_pulse_sync."
+  },
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_pulse_sync.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Kept the pulse synchronizer but left source event spacing unconstrained."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 14,
+          "signal": "src_level_q"
+        }
+      ],
+      "note": "Toggle pulse sync with source 3ns and destination 17ns clocks; correct only if pulse spacing exceeds the destination period, which is not stated."
+    }
+  ]
+}

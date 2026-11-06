@@ -1,0 +1,40 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "The environment permits every d value; constraining it to zero removes live paths.",
+  "sites": [
+    {
+      "file": "constraints.sdc",
+      "line": 6,
+      "signal": "d"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The environment permits every d value; constraining it to zero removes live paths.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CST reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 6,
+          "signal": "d"
+        }
+      ],
+      "note": "The declared interface changes every cycle and has no straps; forcing all d bits to zero wrongly removes real input dependencies."
+    }
+  ]
+}

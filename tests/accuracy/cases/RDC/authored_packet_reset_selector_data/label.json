@@ -1,0 +1,43 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "An asynchronous external select can switch from bypass to an asserted reset and can also release reset without a release pipeline after the mux. The output reset recovery is uncontrolled.",
+  "sites": [
+    {
+      "line": 7,
+      "signal": "assign reset_n"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "An asynchronous external select can switch from bypass to an asserted reset and can also release reset without a release pipeline after the mux. The output reset recovery is uncontrolled.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-packet-reset-selector-data",
+    "description": "An asynchronous external select can switch from bypass to an asserted reset and can also release reset without a release pipeline after the mux. The output reset recovery is uncontrolled."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 7,
+          "signal": "reset_n"
+        }
+      ],
+      "note": "A changing select input bypasses the conditioned reset and can release it asynchronously."
+    }
+  ]
+}

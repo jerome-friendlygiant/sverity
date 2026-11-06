@@ -1,0 +1,36 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "enum FSM omits a declared state from next-state logic",
+  "sites": [
+    {
+      "line": 20,
+      "signal": "next_state"
+    }
+  ],
+  "sdc": [],
+  "rationale": "FLUSH is a legal state and is entered from RUN, but it has no case item, so the FSM remains in FLUSH forever instead of defining its exit behavior.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind lint reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 20,
+          "signal": "state"
+        }
+      ],
+      "note": "Reachable FLUSH state has no transition case or default and becomes absorbing under next_state=state."
+    }
+  ]
+}

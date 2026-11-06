@@ -1,0 +1,36 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "task output is unassigned on the bypass path",
+  "sites": [
+    {
+      "line": 13,
+      "signal": "result"
+    }
+  ],
+  "sdc": [],
+  "rationale": "When skip is asserted, compute_checksum never assigns its output argument, so the caller's combinational checksum retains an old value instead of representing bypass behavior.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind lint reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 13,
+          "signal": "result"
+        }
+      ],
+      "note": "The automatic task output is unassigned when skip is true and is copied to checksum."
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "destination edge detection uses the first synchronizer stage",
+  "sites": [
+    {
+      "line": 31,
+      "signal": "event_b"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "level_a is asynchronous to clk_b, but event_b is formed from stage0_b before the second receiving stage has isolated metastability.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 31,
+          "signal": "stage0_b"
+        }
+      ],
+      "note": "The edge detect uses the first synchroniser stage stage0_b."
+    }
+  ],
+  "origin": "adapted",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_edge_detector.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Kept the synchronized input and edge-history structure, reduced the parameterization and assertion dependencies, and exposed a scalar top module."
+  },
+  "mutation": {
+    "operator": "first-stage-tapped",
+    "description": "Formed event_b from stage0_b rather than the fully synchronized stage1_b signal."
+  }
+}

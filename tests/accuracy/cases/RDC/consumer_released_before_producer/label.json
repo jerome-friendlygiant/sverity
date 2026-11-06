@@ -1,0 +1,43 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "reset sequencing releases a consumer before its producer",
+  "sites": [
+    {
+      "line": 28,
+      "signal": "consumer_reset_ni"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "consumer_q can capture producer_q while the producer is still held in reset, exposing an invalid startup value to downstream logic.",
+  "author": "gpt-5.6-luna",
+  "mutation": {
+    "operator": "reset-sequence-order",
+    "description": "Changed the sequence FSM so the consumer release precedes producer release."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 28,
+          "signal": "consumer_reset_ni"
+        }
+      ],
+      "note": "The consumer is exposed to producer reset changes and starts sampling before producer validity; sequencing has no valid/isolation guard."
+    }
+  ]
+}

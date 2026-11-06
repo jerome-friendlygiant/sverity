@@ -1,0 +1,43 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "an unsynchronised PLL lock indication controls reset release",
+  "sites": [
+    {
+      "line": 18,
+      "signal": "pll_lock_i"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "pll_lock_i can change asynchronously to clk_i, so the AND gate can release local_reset_ni at an unsafe edge even though POR release is pipelined.",
+  "author": "gpt-5.6-luna",
+  "mutation": {
+    "operator": "unsynchronised-lock-qualification",
+    "description": "Qualified the synchronized POR reset directly with a raw PLL lock status signal."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 18,
+          "signal": "local_reset_ni"
+        }
+      ],
+      "note": "Raw PLL lock gates the reset after conditioning and can cause asynchronous release."
+    }
+  ]
+}

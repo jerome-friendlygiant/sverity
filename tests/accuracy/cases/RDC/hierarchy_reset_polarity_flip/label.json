@@ -1,0 +1,43 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "reset polarity flips at a hierarchy boundary",
+  "sites": [
+    {
+      "line": 11,
+      "signal": "child_reset_ni"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The child treats child_reset_ni as active-low, but the parent inversion asserts it whenever the top-level active-low reset is asserted and deasserts it during reset operation.",
+  "author": "gpt-5.6-luna",
+  "mutation": {
+    "operator": "hierarchy-polarity-inversion",
+    "description": "Inserted an inversion on an active-low reset while preserving the child's active-low port contract."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 11,
+          "signal": "child_reset_ni"
+        }
+      ],
+      "note": "An active-low parent reset is inverted into an active-low child port, reversing assertion and normal operation."
+    }
+  ]
+}

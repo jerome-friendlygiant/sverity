@@ -1,0 +1,53 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "address decode result is supplied by an unspecified map implementation",
+  "sites": [
+    {
+      "line": 23,
+      "signal": "idx_o"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The reduced decoder instantiates a stub for the configured address map. Its matching ranges, default behavior, overlap priority, and output drive are not given, so whether idx_o and valid_o are correct for any address is undecidable.",
+  "origin": "adapted",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_addr_decode.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Kept the address-decoder wrapper shape but represented its dynamic map provider as an intentionally opaque stub."
+  },
+  "mutation": {
+    "operator": "unknown-black-box",
+    "description": "The address map implementation is omitted, leaving its ranges and drive behavior unspecified."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 23,
+          "signal": "idx_o"
+        }
+      ]
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 26,
+          "signal": "idx_o"
+        }
+      ],
+      "note": "Stub module has no body so output driving behaviour cannot be decided."
+    }
+  ]
+}

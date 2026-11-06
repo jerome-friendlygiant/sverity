@@ -1,0 +1,5 @@
+create_clock -name core -period 4 [get_ports clk]
+set_input_delay -clock core 0.5 [get_ports input_word*]
+set_output_delay -clock core 0.5 [get_ports result_q*]
+set_multicycle_path 3 -setup -from [get_cells source_q*] -to [get_cells result_q*]
+set_multicycle_path 2 -hold -from [get_cells source_q*] -to [get_cells result_q*]

@@ -1,0 +1,49 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "adapted",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "the black-box arbitration and reset behavior of the register CDC primitive are not specified",
+  "sites": [
+    {
+      "line": 24,
+      "signal": "u_arb"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The reduced design exposes simultaneous software and hardware update requests through a stub standing in for the register CDC arbiter. Without the stub's conflict priority, data-hold, and reset semantics, the crossing cannot be classified as safe or unsafe.",
+  "mutation": {
+    "operator": "black-box-stub",
+    "description": "Replaced the source arbiter implementation with an explicit black-box boundary whose behavior is not given."
+  },
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_reg_cdc_arb.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Kept the source/destination request and data interface while making the arbiter a behaviorally unspecified stub."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 24,
+          "signal": "u_arb"
+        }
+      ],
+      "note": "CDC logic is inside a black box; crossings cannot be judged."
+    }
+  ]
+}

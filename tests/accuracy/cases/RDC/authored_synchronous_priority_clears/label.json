@@ -1,0 +1,32 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "origin": "authored",
+  "defect": "Both controls are synchronous data-path clears on the only clock; neither introduces an asynchronous reset domain.",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Both controls are synchronous data-path clears on the only clock; neither introduces an asynchronous reset domain.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-synchronous-priority-clears",
+    "description": "Both controls are synchronous data-path clears on the only clock; neither introduces an asynchronous reset domain."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Both priority clears are timed synchronous inputs."
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "good",
+  "critical": false,
+  "defect": "A persistent source alarm is synchronized through two destination stages regardless of which source edge registers it.",
+  "mutation": {
+    "operator": "negedge_source_sticky",
+    "description": "A persistent source alarm is synchronized through two destination stages regardless of which source edge registers it."
+  },
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "A persistent source alarm is synchronized through two destination stages regardless of which source edge registers it. Startup initial blocks express FPGA initialization; plain edge-triggered always procedures preserve it without violating always_ff single-writer restrictions.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Persistent falling-edge source status traverses two destination registers; source edge polarity does not break synchronization."
+    }
+  ]
+}

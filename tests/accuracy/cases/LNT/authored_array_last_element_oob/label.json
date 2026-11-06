@@ -1,0 +1,37 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "constant unpacked array subscript exceeds bound",
+  "sites": [
+    {
+      "line": 7,
+      "signal": "last_o"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The unpacked array only has indices 0 through 3. Reading element 4 does not read the last byte.",
+  "origin": "authored",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind lint reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 7,
+          "signal": "last_o"
+        }
+      ],
+      "note": "Static index four is outside the declared zero-through-three array."
+    }
+  ]
+}

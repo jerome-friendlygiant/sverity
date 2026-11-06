@@ -1,0 +1,53 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "case analysis assumes a static mode pin without an environment contract",
+  "sites": [
+    {
+      "file": "constraints.sdc",
+      "line": 2,
+      "signal": "mode_i"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Case analysis of mode_i is valid only if the board strap never changes while the clock is active. The RTL identifies no static source or lock protocol, so the exception cannot be classified as safe or unsafe from the design alone.",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_gate_gen.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced the primitive's registered datapath to a mode-selected input register whose case-analysis safety depends on the board strap."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "unknown",
+      "critical": false,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 2,
+          "signal": "mode_i"
+        }
+      ]
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 2,
+          "signal": "mode_i"
+        }
+      ],
+      "note": "Case analysis fixes mode_i=0 though it is a data-select input that toggles; data_b_i path is hidden unless the environment keeps it static."
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "multi-bit mux condition accidentally narrowed",
+  "sites": [
+    {
+      "line": 4,
+      "signal": "select"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The four-bit pending mask narrows to its least significant bit. Pending lane 3 alone therefore selects slow_i even though pending_i is nonzero.",
+  "origin": "authored",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind lint reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 5,
+          "signal": "select"
+        }
+      ],
+      "note": "Assigning four pending bits to a one-bit selector silently keeps only bit zero."
+    }
+  ]
+}

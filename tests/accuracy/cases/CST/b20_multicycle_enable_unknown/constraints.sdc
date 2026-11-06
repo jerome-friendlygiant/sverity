@@ -1,0 +1,7 @@
+create_clock -name pipeline_clk -period 5.000 [get_ports clk_i]
+set_multicycle_path 2 -setup -from [get_registers src_q] -to [get_registers dst_q]
+set_multicycle_path 1 -hold  -from [get_registers src_q] -to [get_registers dst_q]
+set_input_delay  -clock pipeline_clk -min 0.500 [get_ports {launch_i enable_i data_i}]
+set_input_delay  -clock pipeline_clk -max 1.500 [get_ports {launch_i enable_i data_i}]
+set_output_delay -clock pipeline_clk -min 0.300 [get_ports {data_o valid_o}]
+set_output_delay -clock pipeline_clk -max 1.200 [get_ports {data_o valid_o}]

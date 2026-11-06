@@ -1,0 +1,36 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "interface signal has multiple producer drivers",
+  "sites": [
+    {
+      "line": 24,
+      "signal": "bus.valid"
+    }
+  ],
+  "sdc": [],
+  "rationale": "Both stream_source instances use the producer modport on the same interface instance and procedurally drive valid (and data), so the stream has no unique owner.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind lint reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 48,
+          "signal": "stream"
+        }
+      ],
+      "note": "Two independent producer instances drive the same interface fields."
+    }
+  ]
+}

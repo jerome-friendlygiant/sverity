@@ -1,0 +1,5 @@
+create_clock -name filter_clk -period 10.000 [get_ports clk_i]
+set_input_delay  -clock filter_clk -min 0.500 [get_ports {enable_i filter_i}]
+set_input_delay  -clock filter_clk -max 3.500 [get_ports {enable_i filter_i}]
+set_output_delay -clock filter_clk -min 0.500 [get_ports filter_o]
+set_output_delay -clock filter_clk -max 2.000 [get_ports filter_o]

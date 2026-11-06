@@ -1,0 +1,5 @@
+create_clock -name source_clk -period 6.000 [get_ports clk_i]
+create_generated_clock -name slow_clk -source [get_ports clk_i] -divide_by 3 [get_pins top/u_div/divided_clk_o]
+set_input_delay 1.000 -clock slow_clk [get_ports in_i]
+set_output_delay 1.000 -clock slow_clk [get_ports out_o]
+set_false_path -from [get_ports rst_ni]

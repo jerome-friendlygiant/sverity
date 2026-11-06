@@ -1,0 +1,54 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": false,
+  "defect": "external AXI-stream input timing contract is unstated",
+  "sites": [
+    {
+      "file": "constraints.sdc",
+      "line": 2,
+      "signal": "s_axis_tdata"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The RTL is a valid single-clock stream register, but no board or upstream-clock contract gives the launch phase and min/max delay of the AXI inputs; the numeric input-delay values therefore cannot be judged from this case.",
+  "provenance": {
+    "repository": "verilog-axis",
+    "commit": "48ff7a7e2ef782cf778d47910cf85835c64b1bce",
+    "path": "rtl/axis_register.v",
+    "licence": "MIT",
+    "adaptation": "Reduced the AXI register to one 32-bit elastic stage while leaving the external timing contract unspecified."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "unknown",
+      "critical": false,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 2,
+          "signal": "s_axis_tdata"
+        }
+      ]
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Single clock, all synchronous ports have input/output delays; feedthrough tready path fits the period."
+    },
+    {
+      "by": "gpt-6.1-sol (third settling reading)",
+      "verdict": "unknown",
+      "critical": false,
+      "note": "The SDC supplies numeric delays but no upstream launch or board contract. Completeness of command coverage does not establish that those values describe the environment."
+    }
+  ],
+  "settled_by": "Third reading: gpt-6.1-sol; The SDC supplies numeric delays but no upstream launch or board contract. Completeness of command coverage does not establish that those values describe the environment."
+}

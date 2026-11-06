@@ -1,0 +1,36 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "signed parameter is compared as an unsigned value",
+  "sites": [
+    {
+      "line": 12,
+      "signal": "sample"
+    }
+  ],
+  "sdc": [],
+  "rationale": "sample is unsigned, so the mixed comparison converts the negative LIMIT to an unsigned value instead of comparing signed temperatures; the guard can assert for almost every ordinary sample.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind lint reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 12,
+          "signal": "LIMIT"
+        }
+      ],
+      "note": "An unsigned sample forces the negative signed threshold into an unsigned comparison, making -2 compare as 254."
+    }
+  ]
+}

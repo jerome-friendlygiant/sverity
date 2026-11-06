@@ -1,0 +1,7 @@
+create_clock -name src_clk_i -period 10.000 [get_ports src_clk_i]
+create_clock -name dst_clk_i -period 7.000 [get_ports dst_clk_i]
+set_input_delay 0.000 -clock src_clk_i [get_ports {src_valid_i src_data_i}]
+set_input_delay 0.000 -clock dst_clk_i [get_ports dst_ready_i]
+set_output_delay 0.000 -clock src_clk_i [get_ports src_ready_o]
+set_output_delay 0.000 -clock dst_clk_i [get_ports {dst_valid_o dst_data_o}]
+set_false_path -from [get_ports {src_rst_ni dst_rst_ni}]

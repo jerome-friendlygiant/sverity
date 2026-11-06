@@ -1,0 +1,60 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "the edge detector timing clock is declared on d_i instead of clk_i",
+  "sites": [
+    {
+      "line": 18,
+      "signal": "clk_i"
+    },
+    {
+      "file": "constraints.sdc",
+      "line": 1,
+      "signal": "d_i"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The synchronizer and edge-history register are clocked by clk_i. d_i is the signal being sampled, so constraining it as a clock leaves the actual detector clock unconstrained.",
+  "mutation": {
+    "operator": "clock-on-wrong-port",
+    "description": "Placed create_clock on the sampled d_i input rather than the clk_i clock port."
+  },
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_edge_detect.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Retained the synchronized input and previous-sample edge detector; removed the reusable synchronizer module boundary and technology-cell macros."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 1,
+          "signal": "d_i"
+        },
+        {
+          "file": "design.sv",
+          "line": 9,
+          "signal": "clk_i"
+        }
+      ],
+      "note": "Clock is created on data input d_i, leaving clk_i unclocked."
+    }
+  ]
+}

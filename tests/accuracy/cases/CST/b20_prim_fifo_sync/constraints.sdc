@@ -1,0 +1,5 @@
+create_clock -name fifo_clk -period 6.000 [get_ports clk_i]
+set_input_delay  -clock fifo_clk -min 0.600 [get_ports {clr_i wvalid_i wdata_i rready_i}]
+set_input_delay  -clock fifo_clk -max 1.500 [get_ports {clr_i wvalid_i wdata_i rready_i}]
+set_output_delay -clock fifo_clk -min 0.300 [get_ports {wready_o rvalid_o rdata_o}]
+set_output_delay -clock fifo_clk -max 1.200 [get_ports {wready_o rvalid_o rdata_o}]

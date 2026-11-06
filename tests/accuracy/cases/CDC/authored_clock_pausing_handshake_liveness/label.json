@@ -1,0 +1,43 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "The request handshake structurally contains metastability, but delivery liveness with an externally stoppable destination clock requires the missing clock-service contract.",
+  "mutation": {
+    "operator": "clock_pausing_handshake_liveness",
+    "description": "The request handshake structurally contains metastability, but delivery liveness with an externally stoppable destination clock requires the missing clock-service contract."
+  },
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 7,
+      "signal": "req_q"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The request handshake structurally contains metastability, but delivery liveness with an externally stoppable destination clock requires the missing clock-service contract.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 11,
+          "signal": "req_q"
+        }
+      ],
+      "note": "The four-phase handshake preserves safety but delivery/progress depends on the unstated destination-clock restart contract."
+    }
+  ]
+}

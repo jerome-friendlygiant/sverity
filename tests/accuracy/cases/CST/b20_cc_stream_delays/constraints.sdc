@@ -1,0 +1,5 @@
+create_clock -name stream_clk -period 8.000 [get_ports clk_i]
+set_input_delay  -clock stream_clk -min 0.800 [get_ports {clr_i valid_i ready_i data_i}]
+set_input_delay  -clock stream_clk -max 2.000 [get_ports {clr_i valid_i ready_i data_i}]
+set_output_delay -clock stream_clk -min 0.400 [get_ports {ready_o valid_o data_o}]
+set_output_delay -clock stream_clk -max 1.600 [get_ports {ready_o valid_o data_o}]

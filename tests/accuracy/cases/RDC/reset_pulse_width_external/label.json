@@ -1,0 +1,37 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "external reset pulse width is not specified",
+  "sites": [
+    {
+      "line": 8,
+      "signal": "local_n"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The release topology is sound, but whether every stage reliably asserts depends on an absent minimum pulse-width and technology contract.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 7,
+          "signal": "narrow_reset_n"
+        }
+      ],
+      "note": "The synchroniser structure is correct, but whether a narrow reset pulse meets the minimum assertion width is not supplied."
+    }
+  ]
+}

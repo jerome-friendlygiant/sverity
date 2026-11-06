@@ -1,0 +1,5 @@
+create_clock -name csr_clk -period 10.000 [get_ports clk_i]
+set_input_delay  -clock csr_clk -min 1.000 [get_ports {counter_inc_i counterh_we_i counter_we_i counter_val_i}]
+set_input_delay  -clock csr_clk -max 3.000 [get_ports {counter_inc_i counterh_we_i counter_we_i counter_val_i}]
+set_output_delay -clock csr_clk -min 0.500 [get_ports {counter_val_o counter_val_upd_o}]
+set_output_delay -clock csr_clk -max 2.500 [get_ports {counter_val_o counter_val_upd_o}]

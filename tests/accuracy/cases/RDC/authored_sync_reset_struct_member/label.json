@@ -1,0 +1,32 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "origin": "authored",
+  "defect": "The clear changes only registered data at the shared clock; conditional payload masking does not introduce an asynchronous reset crossing.",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The clear changes only registered data at the shared clock; conditional payload masking does not introduce an asynchronous reset crossing.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-sync-reset-struct-member",
+    "description": "The clear changes only registered data at the shared clock; conditional payload masking does not introduce an asynchronous reset crossing."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "The structure is updated only by synchronous timed controls."
+    }
+  ]
+}

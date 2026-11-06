@@ -1,0 +1,51 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "compressed decoder instruction output has no assignment for invalid or unsupported encodings",
+  "sites": [
+    {
+      "line": 16,
+      "signal": "instr_o"
+    }
+  ],
+  "sdc": [],
+  "rationale": "instr_o is assigned only for two recognized compressed quadrants; all other input combinations leave a combinational output holding its previous value.",
+  "mutation": {
+    "operator": "latch-from-missing-default",
+    "description": "Removed the default instruction assignment from the reduced compressed decoder."
+  },
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "ibex",
+    "commit": "2373e5dadcfc4f56672962fa242f6a051acc9aca",
+    "path": "rtl/ibex_compressed_decoder.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced compressed instruction expansion to two recognized quadrants and an illegal-status output."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 17,
+          "signal": "instr_o"
+        },
+        {
+          "line": 19,
+          "signal": "instr_o"
+        }
+      ],
+      "note": "instr_o unassigned in fall-through path: latch"
+    }
+  ]
+}

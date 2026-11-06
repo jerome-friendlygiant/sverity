@@ -1,0 +1,43 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "a watchdog reset bypasses the synchronized release chain",
+  "sites": [
+    {
+      "line": 18,
+      "signal": "watchdog_trip_i"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "watchdog_trip_i can deassert at an arbitrary time and directly releases the async reset of status_q without a local synchronizer.",
+  "author": "gpt-5.6-luna",
+  "mutation": {
+    "operator": "watchdog-reset-bypass",
+    "description": "ORed a raw watchdog trip into the reset net after a valid POR release pipeline."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 18,
+          "signal": "reset_ni"
+        }
+      ],
+      "note": "Raw watchdog reset is appended after conditioning, bypassing release synchronization."
+    }
+  ]
+}

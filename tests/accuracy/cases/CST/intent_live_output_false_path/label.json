@@ -1,0 +1,40 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "A required synchronous result is cut from timing without any mode or protocol exemption.",
+  "sites": [
+    {
+      "file": "constraints.sdc",
+      "line": 6,
+      "signal": "q"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "A required synchronous result is cut from timing without any mode or protocol exemption.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CST reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 6,
+          "signal": "q"
+        }
+      ],
+      "note": "A false path to the ordinary every-cycle output q suppresses the externally required output path checks."
+    }
+  ]
+}

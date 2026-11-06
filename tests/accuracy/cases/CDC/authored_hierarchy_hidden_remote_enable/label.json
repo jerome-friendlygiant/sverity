@@ -1,0 +1,43 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "A source-domain enable reaches a destination register through a child module without synchronization.",
+  "mutation": {
+    "operator": "hierarchy_hidden_remote_enable",
+    "description": "A source-domain enable reaches a destination register through a child module without synchronization."
+  },
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 8,
+      "signal": "enable_q"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "A source-domain enable reaches a destination register through a child module without synchronization.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 3,
+          "signal": "en"
+        }
+      ],
+      "note": "Hierarchy hides a raw source-domain enable used by a destination flop."
+    }
+  ]
+}

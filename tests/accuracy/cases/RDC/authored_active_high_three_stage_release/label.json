@@ -1,0 +1,32 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "origin": "authored",
+  "defect": "Active-high assertion is propagated asynchronously; deassertion traverses three clocked stages before reaching the receiver.",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Active-high assertion is propagated asynchronously; deassertion traverses three clocked stages before reaching the receiver.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-active-high-three-stage-release",
+    "description": "Active-high assertion is propagated asynchronously; deassertion traverses three clocked stages before reaching the receiver."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Three stages assert high asynchronously and shift low on the receiving clock before release."
+    }
+  ]
+}

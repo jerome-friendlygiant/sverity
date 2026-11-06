@@ -1,0 +1,27 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "held data bus bypasses bit synchronizers under a closed handshake",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The producer holds payload until a synchronized acknowledgement returns; the receiver samples after two request stages plus a further cycle. The payload settling bound is explicit.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Toggle req/ack handshake with both directions double-synchronised; held is stable while req != ack, and the datapath max_delay bounds the payload path."
+    }
+  ]
+}

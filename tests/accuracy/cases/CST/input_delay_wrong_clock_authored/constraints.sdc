@@ -1,0 +1,7 @@
+create_clock -name core_clk -period 5.000 [get_ports core_clk_i]
+create_clock -name io_clk -period 12.000 [get_ports io_clk_i]
+set_clock_groups -asynchronous -group [get_clocks core_clk] -group [get_clocks io_clk]
+set_input_delay 1.000 -clock core_clk [get_ports command_i]
+set_input_delay 1.000 -clock core_clk [get_ports io_data_i]
+set_output_delay 1.000 -clock core_clk [get_ports result_o]
+set_false_path -from [get_ports rst_ni]

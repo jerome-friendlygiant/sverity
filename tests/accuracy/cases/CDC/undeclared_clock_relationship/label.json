@@ -1,0 +1,37 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "clock relationship is absent",
+  "sites": [
+    {
+      "line": 11,
+      "signal": "received"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Two clock periods alone do not establish whether these ports are phase-related or asynchronous.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 11,
+          "signal": "launched"
+        }
+      ],
+      "note": "The two 10 ns clocks have no declared relationship (synchronous or asynchronous), so whether the unsynchronised capture is safe is undecidable."
+    }
+  ]
+}

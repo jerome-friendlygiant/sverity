@@ -1,0 +1,49 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "an asynchronous select directly gates and multiplexes two unrelated clocks",
+  "sites": [
+    {
+      "line": 14,
+      "signal": "clk_out"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "sel_ctrl can change while either clock is active, allowing a runt pulse or overlapping clock transition at clk_out.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 14,
+          "signal": "sel_ctrl"
+        }
+      ],
+      "note": "Clock mux select sel_ctrl is unsynchronised to either clock and the gate-level mux can glitch or produce runt pulses when it changes."
+    }
+  ],
+  "origin": "adapted",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim_generic/rtl/prim_clock_mux2.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Kept the generic two-clock mux expression and reduced assertions and technology-specific buffering to a self-contained top module."
+  },
+  "mutation": {
+    "operator": "unsynchronised-clock-mux",
+    "description": "Used sel_ctrl directly in the combinational clock selection expression without break-before-make gating or per-clock synchronization."
+  }
+}

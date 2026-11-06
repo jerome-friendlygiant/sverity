@@ -1,0 +1,43 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "a parameter-selected CDC bypass is the elaborated default configuration",
+  "mutation": {
+    "operator": "parameterised-synchronizer-bypass",
+    "description": "USE_SYNC defaults false, selecting a combinational async-to-destination path even though the module also contains a valid synchronizer branch."
+  },
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 22,
+      "signal": "flag_dst"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "With the top-level default parameter, flag_dst is directly driven by flag_src; the safe branch exists but is not the implemented configuration.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 22,
+          "signal": "flag_dst"
+        }
+      ],
+      "note": "Default parameter elaborates the bypass, sending source-clock input directly to a destination-clock output interface."
+    }
+  ]
+}

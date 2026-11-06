@@ -21,7 +21,8 @@ namespace {
 
 // The objects written by anything but a continuous assignment or port connection: a procedure in any form, a subroutine, a force, a
 // declaration initialiser, a primitive or a net alias. A case value may only stand in for no driver at all, or agree with one continuous
-// driver, so none of these can take one. Collecting every name in a target over-collects a select's index, which only rejects a constraint.
+// driver, so none of these can take one. Only the written roots of a target count: a select's index, a call's input argument
+// and a displayed value are reads. A target form not listed below falls back to every name in it, which only rejects a constraint.
 std::set<const slang::ast::Symbol*> overriddenSymbols(const slang::ast::RootSymbol& root) {
     using namespace slang::ast;
     struct Names : ASTVisitor<Names, VisitFlags::AllGood> {
@@ -39,8 +40,27 @@ std::set<const slang::ast::Symbol*> overriddenSymbols(const slang::ast::RootSymb
         bool procedural = false;
         void record(const Expression* target) {
             if (!target) return;
-            Names names(found);
-            target->visit(names);
+            switch (target->kind) {
+                case ExpressionKind::NamedValue:
+                case ExpressionKind::HierarchicalValue: {
+                    Names names(found);
+                    target->visit(names);
+                    return;
+                }
+                case ExpressionKind::ElementSelect: record(&target->as<ElementSelectExpression>().value()); return;
+                case ExpressionKind::RangeSelect: record(&target->as<RangeSelectExpression>().value()); return;
+                case ExpressionKind::MemberAccess: record(&target->as<MemberAccessExpression>().value()); return;
+                case ExpressionKind::Concatenation:
+                    for (auto* operand : target->as<ConcatenationExpression>().operands()) record(operand);
+                    return;
+                case ExpressionKind::Streaming:
+                    for (const auto& stream : target->as<StreamingConcatenationExpression>().streams()) record(stream.operand);
+                    return;
+                default: {   // assignment patterns, conversions and anything else: every name in it
+                    Names names(found);
+                    target->visit(names);
+                }
+            }
         }
         void handle(const VariableSymbol& variable) {
             if (variable.getInitializer()) found.insert(&variable);
@@ -68,8 +88,18 @@ std::set<const slang::ast::Symbol*> overriddenSymbols(const slang::ast::RootSymb
             if (procedural && step) record(&unary.operand());
             visitDefault(unary);
         }
-        void handle(const CallExpression& call) {   // output and ref arguments, and tasks such as $readmemh
-            if (procedural) for (auto* argument : call.arguments()) record(argument);
+        // Output and inout arguments, including those of system tasks such as $readmemh, are bound as assignments and are
+        // recorded there. A ref argument of a user subroutine is not, so it is recorded here; inputs are reads.
+        void handle(const CallExpression& call) {
+            if (procedural && !call.isSystemCall()) {
+                const auto* subroutine = std::get<0>(call.subroutine);
+                const auto formals = subroutine->getArguments();
+                const auto actuals = call.arguments();
+                for (size_t i = 0; i < actuals.size(); ++i) {
+                    const bool constRef = i < formals.size() && formals[i]->flags.has(VariableFlags::Const);
+                    if (i >= formals.size() || (formals[i]->direction == ArgumentDirection::Ref && !constRef)) record(actuals[i]);
+                }
+            }
             visitDefault(call);
         }
         void handle(const ProceduralAssignStatement& statement) {
@@ -144,6 +174,8 @@ Report analyze(const AnalyzerOptions& opts) {
         effective.try_emplace("RDC-006.min_stages", "2");
         effective.try_emplace("LNT-025.priority_chains", "info");
         effective.try_emplace("LNT-036.report_modular", "false");
+        effective.try_emplace("LNT-006.dynamic_index", "false");
+        effective.try_emplace("LNT-037.dynamic_divisor", "false");
         effective.try_emplace("LNT-061.allow", "");
         for (auto& [key, value] : effective) options.set(key, value);
         report.addInput("rule_options", options);

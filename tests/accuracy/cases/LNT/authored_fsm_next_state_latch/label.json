@@ -1,0 +1,37 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "state transition omits stay assignment",
+  "sites": [
+    {
+      "line": 4,
+      "signal": "next_o"
+    }
+  ],
+  "sdc": [],
+  "rationale": "State 1 with done_i low leaves next_o unassigned, so a combinational next-state decoder retains an unrelated prior result.",
+  "origin": "authored",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind lint reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 6,
+          "signal": "next_o"
+        }
+      ],
+      "note": "State one with done_i false leaves next_o unassigned in always_comb."
+    }
+  ]
+}

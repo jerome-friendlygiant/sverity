@@ -1,0 +1,43 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "The vendor cell has no implementation or library declaration; its name cannot establish synchronization depth or metastability containment.",
+  "mutation": {
+    "operator": "vendor_synchronizer_unspecified",
+    "description": "The vendor cell has no implementation or library declaration; its name cannot establish synchronization depth or metastability containment."
+  },
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 7,
+      "signal": "status_sync"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The vendor cell has no implementation or library declaration; its name cannot establish synchronization depth or metastability containment.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 7,
+          "signal": "status_sync"
+        }
+      ],
+      "note": "Opaque vendor primitive lacks a library synchronizer contract, so stage depth and containment are unknown."
+    }
+  ]
+}

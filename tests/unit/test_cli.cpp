@@ -154,6 +154,31 @@ TEST(cli_config_rule_option_applies_and_is_recorded) {
     for (const auto& d : j.value["diagnostics"].asArray()) if (d["rule_id"].asString() == "CDC-005" && d["severity"].asString() == "ERROR") found = true;
     CHECK(found);
 }
+TEST(cli_dynamic_index_and_divisor_options) {
+    auto sv = write("dynamic-options.sv", "module top(input logic [2:0] i, input logic [7:0] d, output logic bit_out, output logic [7:0] q);\n"
+        "  logic [5:0] data; assign bit_out = data[i]; assign q = 8'd42 / d;\nendmodule\n");
+    auto config = write("dynamic-options.json", R"({"options":{"LNT-006.dynamic_index":true,"LNT-037.dynamic_divisor":true}})");
+    auto out = (scratch() / "dynamic-options-report.json").string();
+    for (const auto& setting : {std::string(""), std::string("--config ") + config,
+                                 std::string("--option LNT-006.dynamic_index=true --option LNT-037.dynamic_divisor=true")}) {
+        fs::remove(out);
+        CHECK(run("--top top --json " + out + " " + setting + " " + sv) != 64);
+        auto j = sverity::json::parse(slurp(out)); CHECK(j.ok);
+        bool index = false, divisor = false;
+        for (const auto& d : j.value["diagnostics"].asArray()) {
+            index |= d["rule_id"].asString() == "LNT-006";
+            divisor |= d["rule_id"].asString() == "LNT-037";
+        }
+        CHECK_EQ(index, !setting.empty()); CHECK_EQ(divisor, !setting.empty());
+    }
+    for (const char* key : {"LNT-006.dynamic_index", "LNT-037.dynamic_divisor"}) {
+        for (const char* value : {"1", "\"true\"", "null"}) {
+            auto invalid = write("dynamic-invalid.json", std::string("{\"options\":{\"") + key + "\":" + value + "}}");
+            CHECK_EQ(run("--config " + invalid + " " + sv), 64);
+        }
+        CHECK_EQ(run(std::string("--option ") + key + "=yes " + sv), 64);
+    }
+}
 TEST(cli_config_unknown_option_rejected) { auto f=write("bad-option.json", R"({"options":{"CDC-005.typo":3}})"); CHECK_EQ(run("--config " + f + " x.sv"), 64); }
 TEST(cli_config_invalid_option_rejected) {
     for (const char* value : {"1", "3.5", "\"3garbage\"", "\"3\"", "true"}) {
@@ -241,9 +266,9 @@ TEST(cli_config_fatal_and_slang_errors_cannot_be_downgraded) {
     CHECK(seen);
 }
 TEST(cli_config_enable_cannot_implement_proposed_rule) {
-    auto out=cfgRun(R"({"enable":["CST-003"],"disable":["CST-003"]})", "--enable-rule CST-003");
+    auto out=cfgRun(R"({"enable":["CST-013"],"disable":["CST-013"]})", "--enable-rule CST-013");
     auto j=sverity::json::parse(slurp(out)); bool seen=false;
-    for(const auto& r:j.value["coverage"]["rules"].asArray()) if(r["rule_id"].asString()=="CST-003") { seen=true; CHECK_EQ(r["state"].asString(),std::string("UNIMPLEMENTED")); }
+    for(const auto& r:j.value["coverage"]["rules"].asArray()) if(r["rule_id"].asString()=="CST-013") { seen=true; CHECK_EQ(r["state"].asString(),std::string("UNIMPLEMENTED")); }
     CHECK(seen); CHECK_EQ(j.value["summary"]["analysis_coverage"].asString(),std::string("INCOMPLETE"));
 }
 TEST(cli_config_fingerprint_waiver_matches_after_override) {
@@ -453,7 +478,8 @@ TEST(cli_sourced_clocks_survive_nested_unsupported_command_and_paths_are_relativ
     CHECK_EQ(j.value["inputs"]["sdc_files"].asArray()[2].asString(), std::string("sub/deep/two.sdc"));
     bool async = false, unsupported = false;
     for (const auto& d : j.value["diagnostics"].asArray()) {
-        CHECK(d["rule_id"].asString() != "CST-011");
+        // every clock is constrained (the data input d has no input delay, which CST-011 reports on its own)
+        CHECK(d["rule_id"].asString() != "CST-011" || d["message"].asString().find("no clock constraint") == std::string::npos);
         CHECK(d["rule_id"].asString() != "CST-004");
         for (const auto& e : d["evidence"].asArray())
             if (e["text"].asString().find("declared asynchronous") != std::string::npos) async = true;

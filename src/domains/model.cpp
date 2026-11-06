@@ -264,6 +264,17 @@ public:
         for (auto* top : root.topInstances) collectInstances(*top);
         for (auto* top : root.topInstances) {
             top_.insert(top);
+            // A top that says it is a black box has no hardware body to walk: it is all unmodelled.
+            if (attributedBlackBox(top->getDefinition(), *top->getParentScope())) {
+                BlackBoxInst bb;
+                bb.module = std::string(top->getDefinition().name);
+                bb.hierarchy = top->getHierarchicalPath();
+                bb.loc = toLoc(*sm, top->location);
+                bb.attributed = true;
+                m.blackBoxes.push_back(std::move(bb));
+                m.numInstances++;
+                continue;
+            }
             walkInstance(*top);
         }
         // mark top-level input ports
@@ -2031,7 +2042,7 @@ private:
     void walkArray(const InstanceArraySymbol& arr, const InstanceSymbol* ctx) {
         for (auto* e : arr.elements) {
             if (e->kind == SymbolKind::Instance) {
-                if (handleLibCell(e->as<InstanceSymbol>(), ctx)) continue;
+                if (handleLibCell(e->as<InstanceSymbol>(), ctx) || handleAttributedBlackBox(e->as<InstanceSymbol>(), ctx)) continue;
                 connectPorts(e->as<InstanceSymbol>(), ctx);
                 walkInstance(e->as<InstanceSymbol>());
             }
@@ -2074,7 +2085,7 @@ private:
                 }
                 case SymbolKind::Instance: {
                     auto& ci = mem.as<InstanceSymbol>();
-                    if (handleLibCell(ci, ctx)) break;
+                    if (handleLibCell(ci, ctx) || handleAttributedBlackBox(ci, ctx)) break;
                     connectPorts(ci, ctx);
                     walkInstance(ci);
                     break;
@@ -2271,6 +2282,47 @@ private:
             m.blackBoxes.push_back(std::move(bb));
         }
         m.libInstances.push_back({cell.name, ci.getHierarchicalPath(), kind, cell.stages, toLoc(*sm, ci.location), ports});
+        return true;
+    }
+
+    /// A module that says it is a black box (`(* black_box *)`, `blackbox`, `syn_black_box`): synthesis replaces it, so
+    /// its body, often empty or a simulation model, is not the hardware. Its outputs are black-box driven as for an
+    /// unknown module, with the directions its ports declare.
+    static bool attributedBlackBox(const DefinitionSymbol& definition, const Scope& scope) {
+        for (const auto* attribute : scope.getCompilation().getAttributes(definition)) {
+            std::string name(attribute->name);
+            std::transform(name.begin(), name.end(), name.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            const auto& value = attribute->getValue();
+            if ((name == "black_box" || name == "blackbox" || name == "syn_black_box") && !(value.isInteger() && value.integer() == 0))
+                return true;
+        }
+        return false;
+    }
+    bool handleAttributedBlackBox(const InstanceSymbol& ci, const InstanceSymbol* ctx) {
+        const auto& definition = ci.getDefinition();
+        if (!attributedBlackBox(definition, *ci.getParentScope())) return false;
+        BlackBoxInst bb;
+        bb.module = std::string(definition.name);
+        bb.hierarchy = ci.getHierarchicalPath();
+        bb.loc = toLoc(*sm, ci.location);
+        bb.attributed = true;
+        EvalContext ec(ci);
+        for (auto* pc : ci.getPortConnections()) {
+            if (!pc || !pc->getExpression()) continue;
+            BlackBoxPort port;
+            port.name = std::string(pc->port.name);
+            const auto direction = pc->port.kind == SymbolKind::Port ? pc->port.as<PortSymbol>().direction : ArgumentDirection::InOut;
+            port.dir = direction == ArgumentDirection::In ? PortDir::In : direction == ArgumentDirection::Out ? PortDir::Out : PortDir::InOut;
+            const bool driven = port.dir != PortDir::In;
+            for (auto& path : pathsOf(*pc->getExpression(), ec, driven))
+                for (auto n : nodesFor(ctx, path)) {
+                    if (driven) pendingFlags.push_back({n, 1});
+                    port.nodes.push_back(n);
+                }
+            bb.ports.push_back(std::move(port));
+        }
+        m.blackBoxes.push_back(std::move(bb));
+        m.numInstances++;
         return true;
     }
 

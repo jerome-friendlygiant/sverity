@@ -1,0 +1,43 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "multicycle exception relaxes an unconditionally sampled single-cycle path",
+  "sites": [
+    {
+      "line": 14,
+      "signal": "result_q"
+    },
+    {
+      "file": "constraints.sdc",
+      "line": 4,
+      "signal": "result_q"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "source_q changes on every core edge and result_q samples its transformed value on every next edge. No enable or protocol permits three cycles. The setup multicycle of 3 (with matching hold adjustment) permits implementations that violate the actual one-cycle requirement.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author, replacement set)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 4,
+          "signal": "result_q"
+        }
+      ],
+      "note": "source_q and result_q both load every cycle with no enable, so the 3-cycle setup multicycle on source_q->result_q relaxes a genuinely single-cycle path."
+    }
+  ]
+}

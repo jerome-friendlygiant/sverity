@@ -1,0 +1,49 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "adapted",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "test-mode reset selection timing is unspecified",
+  "sites": [
+    {
+      "line": 17,
+      "signal": "test_mode_i"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The reset source is selected combinationally by test_mode_i, but no constraint states whether mode changes occur only while the clocks and resets are quiescent; recovery/removal behavior at a live mode transition is therefore undecidable.",
+  "mutation": {
+    "operator": "reset-bypass-mode-unknown",
+    "description": "Reduced the reset generator to its functional/test reset selection boundary."
+  },
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_rstgen_bypass.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Removed technology clock muxes and retained the selected-reset interface."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "unknown",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 17,
+          "signal": "selected_rst_ni"
+        }
+      ],
+      "note": "Async reset is a combinational mux of two resets that can glitch if test_mode_i changes; static test_mode is not constrained, and release is unsynchronised."
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "frame-length combinational next-state logic can resemble a latch",
+  "sites": [],
+  "sdc": [],
+  "rationale": "frame_len_next, frame_len_valid_next, and byte_count receive defaults before the handshake and keep-mask conditions. The loop visits each keep bit in range and the explicit cast makes the counter addition intentional.",
+  "origin": "adapted",
+  "provenance": {
+    "repository": "verilog-axis",
+    "commit": "48ff7a7e2ef782cf778d47910cf85835c64b1bce",
+    "path": "rtl/axis_frame_len.v",
+    "licence": "MIT",
+    "adaptation": "Reduced frame-length measurement to its valid-transfer counter and registered result."
+  },
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "An always_comb next-state block deliberately retains the registered length when no transfer occurs."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "No lint defect found; widths, drivers, and assignments are consistent."
+    }
+  ]
+}

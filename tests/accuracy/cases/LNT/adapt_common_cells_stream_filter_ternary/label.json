@@ -1,0 +1,36 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "stream drop qualification can resemble reversed ready/valid gating",
+  "sites": [],
+  "rationale": "When drop_i is asserted, the filter consumes the input by asserting ready_o and suppresses valid_o. Otherwise both handshake signals pass through unchanged.",
+  "origin": "adapted",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_stream_filter.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Reduced the two-signal stream filter to its combinational handshake equations and renamed the module top."
+  },
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "Conditional ready and valid assignments intentionally move in opposite directions when a beat is dropped."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "No lint defect found; widths, drivers, and assignments are consistent."
+    }
+  ]
+}

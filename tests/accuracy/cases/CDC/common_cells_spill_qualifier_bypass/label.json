@@ -1,0 +1,49 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "the destination valid qualifier bypasses the destination-domain transaction state",
+  "sites": [
+    {
+      "line": 57,
+      "signal": "dst_valid_b"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The data token is synchronized into clk_b, but dst_valid_b is driven directly from src_valid_a and can assert or clear independently of destination readiness and data capture.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 57,
+          "signal": "dst_valid_b"
+        }
+      ],
+      "note": "dst_valid_b is the unsynchronised src_valid_a, so the payload qualifier crosses directly and is not aligned with the toggle-synchronised data."
+    }
+  ],
+  "origin": "adapted",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_isochronous_spill_register.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Kept the source data holding register, token transfer, and destination data capture context, reduced the ready/valid state machine, and exposed a self-contained top module."
+  },
+  "mutation": {
+    "operator": "qualifier-bypassed",
+    "description": "Drove dst_valid_b directly from src_valid_a instead of the synchronized destination token and destination-side readiness state."
+  }
+}

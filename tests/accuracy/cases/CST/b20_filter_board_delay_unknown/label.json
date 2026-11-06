@@ -1,0 +1,54 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": false,
+  "defect": "filter input delay depends on an unstated board contract",
+  "sites": [
+    {
+      "file": "constraints.sdc",
+      "line": 2,
+      "signal": "filter_i"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The filter is synchronous, but the RTL gives no source-clock, trace, or interface specification for enable_i and filter_i. The selected input-delay window is therefore an environmental assumption that cannot be confirmed or rejected from the case.",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_filter.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced the configurable filter to a three-sample history and a synchronous stored value."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "unknown",
+      "critical": false,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 2,
+          "signal": "filter_i"
+        }
+      ]
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Single clock, ports constrained, bypass path fits the period."
+    },
+    {
+      "by": "gpt-6.1-sol (third settling reading)",
+      "verdict": "unknown",
+      "critical": false,
+      "note": "The filter has a combinational bypass from filter_i. Without a source launch and board-delay contract, the input window cannot be certified merely because a set_input_delay exists."
+    }
+  ],
+  "settled_by": "Third reading: gpt-6.1-sol; The filter has a combinational bypass from filter_i. Without a source launch and board-delay contract, the input window cannot be certified merely because a set_input_delay exists."
+}

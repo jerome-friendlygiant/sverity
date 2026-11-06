@@ -1,0 +1,43 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "case analysis fixes an internally toggling bank selector",
+  "sites": [
+    {
+      "line": 16,
+      "signal": "bank_sel"
+    },
+    {
+      "file": "constraints.sdc",
+      "line": 4,
+      "signal": "bank_sel"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "bank_sel toggles on every active clock after reset and selects both banks in normal operation. set_case_analysis forces it to zero, pruning timing through bank_b although that bank is sampled on alternate cycles. It is not an immutable mode strap.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author, replacement set)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 4,
+          "signal": "bank_sel"
+        }
+      ],
+      "note": "set_case_analysis 0 on bank_sel ties a register that toggles every cycle, disabling timing of the live bank_b -> output_q path."
+    }
+  ]
+}

@@ -166,6 +166,7 @@ struct BlackBoxInst {
     SourceLocation loc;
     std::vector<BlackBoxPort> ports;
     bool declared = false;                               // a --library entry describes the ports (roles and directions known)
+    bool attributed = false;                             // the module declares itself a black box; its body is not walked
 };
 
 struct LibInstance {

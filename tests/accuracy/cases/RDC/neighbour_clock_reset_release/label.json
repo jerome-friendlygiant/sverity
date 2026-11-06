@@ -1,0 +1,43 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "a reset synchronized to the IO clock resets a core-clocked block",
+  "sites": [
+    {
+      "line": 17,
+      "signal": "io_reset_ni"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "io_reset_ni can deassert near a clk_core_i edge because its two-stage release chain runs on unrelated clk_io_i.",
+  "author": "gpt-5.6-luna",
+  "mutation": {
+    "operator": "wrong-reset-clock",
+    "description": "Used the neighbouring IO clock for the reset release pipeline of a core-clocked consumer."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 19,
+          "signal": "io_reset_ni"
+        }
+      ],
+      "note": "A release synchronized to the unrelated IO clock is used by a core-clock consumer."
+    }
+  ]
+}

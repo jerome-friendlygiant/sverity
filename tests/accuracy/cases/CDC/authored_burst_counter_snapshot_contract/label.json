@@ -1,0 +1,43 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "The snapshot mailbox has no backpressure, so event spacing and shadow hold time must come from the host observation-window contract, which is absent.",
+  "mutation": {
+    "operator": "burst_counter_snapshot_contract",
+    "description": "The snapshot mailbox has no backpressure, so event spacing and shadow hold time must come from the host observation-window contract, which is absent."
+  },
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 13,
+      "signal": "shadow_q"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The snapshot mailbox has no backpressure, so event spacing and shadow hold time must come from the host observation-window contract, which is absent.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 13,
+          "signal": "shadow_q"
+        }
+      ],
+      "note": "The toggle crossing needs minimum snapshot spacing and payload hold; the external observation-window contract is absent."
+    }
+  ]
+}

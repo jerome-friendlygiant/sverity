@@ -1,0 +1,50 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "The unconstrained external request may be paced and data held by its producer. The RTL does not establish that contract; an unacknowledged toggle is unsafe for back-to-back events but can be valid for spaced events.",
+  "mutation": {
+    "operator": "multi-cycle-hold-overrun",
+    "description": "The sender toggles and overwrites data_hold on every request instead of rejecting or queueing a request until the receiver acknowledges it."
+  },
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 16,
+      "signal": "data_hold"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The unconstrained external request may be paced and data held by its producer. The RTL does not establish that contract; an unacknowledged toggle is unsafe for back-to-back events but can be valid for spaced events.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 16,
+          "signal": "data_hold"
+        }
+      ],
+      "note": "Unacknowledged event toggle and payload capture need a minimum request-spacing/hold contract, absent here. Consecutive requests are unsafe, but external pacing could make this topology valid."
+    },
+    {
+      "by": "gpt-6.1-sol (third settling reading)",
+      "verdict": "unknown",
+      "critical": true,
+      "note": "The unconstrained external request may be paced and data held by its producer. The RTL does not establish that contract; an unacknowledged toggle is unsafe for back-to-back events but can be valid for spaced events."
+    }
+  ],
+  "settled_by": "Third reading: gpt-6.1-sol; The unconstrained external request may be paced and data held by its producer. The RTL does not establish that contract; an unacknowledged toggle is unsafe for back-to-back events but can be valid for spaced events."
+}

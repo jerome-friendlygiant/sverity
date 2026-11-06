@@ -1,0 +1,37 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "first synchronizer stage fans out into functional logic",
+  "sites": [
+    {
+      "line": 14,
+      "signal": "raw_seen"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "raw_seen consumes the potentially metastable first stage before the second stage resolves it.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 14,
+          "signal": "meta"
+        }
+      ],
+      "note": "The metastable first synchroniser stage meta feeds functional logic (raw_seen)."
+    }
+  ]
+}

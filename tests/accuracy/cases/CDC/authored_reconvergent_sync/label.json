@@ -1,0 +1,43 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "two independently synchronised state bits reconverge into a decoded state",
+  "mutation": {
+    "operator": "reconvergent-independent-bits",
+    "description": "A changing two-bit state is synchronised one bit at a time and decoded as one coherent value in the destination domain."
+  },
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 42,
+      "signal": "illegal_state"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The source can change both state bits together, but their separate synchronizer paths can settle on different cycles and transiently create the decoded 11 state.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 42,
+          "signal": "state_sync"
+        }
+      ],
+      "note": "Arbitrary two-bit source state is synchronized independently and then decoded as a coherent state; bit skew can create a mixed state."
+    }
+  ]
+}

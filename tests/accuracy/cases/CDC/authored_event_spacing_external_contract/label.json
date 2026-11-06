@@ -1,0 +1,43 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "A toggle event synchronizer requires a source-event spacing guarantee; the external controller contract does not say whether toggles can cancel before observation.",
+  "mutation": {
+    "operator": "event_spacing_external_contract",
+    "description": "A toggle event synchronizer requires a source-event spacing guarantee; the external controller contract does not say whether toggles can cancel before observation."
+  },
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 5,
+      "signal": "event_q"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "A toggle event synchronizer requires a source-event spacing guarantee; the external controller contract does not say whether toggles can cancel before observation.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 5,
+          "signal": "event_q"
+        }
+      ],
+      "note": "Persistent toggles synchronize but may cancel between destination observations; required external event spacing is unspecified."
+    }
+  ]
+}

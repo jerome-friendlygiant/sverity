@@ -1,0 +1,35 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "incomplete combinational assignment infers storage",
+  "sites": [
+    {
+      "line": 6,
+      "signal": "index"
+    }
+  ],
+  "sdc": [],
+  "rationale": "When no request is asserted, index retains its previous value despite being intended as a combinational encoder.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 6,
+          "signal": "index"
+        }
+      ],
+      "note": "index is not assigned when request is 0, which infers a latch, while the comment says zero means idle, not hold."
+    }
+  ]
+}

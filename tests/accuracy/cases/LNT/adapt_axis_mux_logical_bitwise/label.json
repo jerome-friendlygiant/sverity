@@ -1,0 +1,47 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "vector stream data is selected with logical operators",
+  "sites": [
+    {
+      "line": 31,
+      "signal": "data_o"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The logical && and || operators collapse the selected eight-bit data path to a Boolean result instead of preserving the data bits through bitwise gating and selection.",
+  "mutation": {
+    "operator": "logical-for-bitwise",
+    "description": "Replaced the vector bitwise selection operators with logical && and || operators."
+  },
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "verilog-axis",
+    "commit": "48ff7a7e2ef782cf778d47910cf85835c64b1bce",
+    "path": "rtl/axis_mux.v",
+    "licence": "MIT",
+    "adaptation": "Reduced the stream multiplexer to two eight-bit data inputs and one select input."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 32,
+          "signal": "data_o"
+        }
+      ],
+      "note": "logical && / || on 8-bit data collapses to 1 bit instead of bitwise mux"
+    }
+  ]
+}

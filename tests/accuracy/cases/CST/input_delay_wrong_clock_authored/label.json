@@ -1,0 +1,55 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "origin": "authored",
+  "defect": "The capture clock does not establish the external launch clock. A core-referenced arrival may be intentional; the source-interface contract is absent.",
+  "sites": [
+    {
+      "line": 24,
+      "signal": "io_data_q"
+    },
+    {
+      "file": "constraints.sdc",
+      "line": 5,
+      "signal": "io_data_i"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The capture clock does not establish the external launch clock. A core-referenced arrival may be intentional; the source-interface contract is absent.",
+  "mutation": {
+    "operator": "input-delay-wrong-clock",
+    "description": "Changed the io_data_i input delay clock from its capturing io_clk to the unrelated core_clk."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CST reviewer)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 5,
+          "signal": "io_data_i"
+        }
+      ],
+      "note": "The RTL capture clock does not establish the external launch clock of io_data_i. A core-referenced input arrival could intentionally describe a core-synchronous external source entering the unrelated io domain. The internal io-to-core transfer is an unprotected CDC, but that alone does not prove the external SDC reference clock is incorrect."
+    },
+    {
+      "by": "gpt-6.1-sol (third settling reading)",
+      "verdict": "unknown",
+      "critical": true,
+      "note": "The capture clock does not establish the external launch clock. A core-referenced arrival may be intentional; the source-interface contract is absent."
+    }
+  ],
+  "settled_by": "Third reading: gpt-6.1-sol; The capture clock does not establish the external launch clock. A core-referenced arrival may be intentional; the source-interface contract is absent."
+}

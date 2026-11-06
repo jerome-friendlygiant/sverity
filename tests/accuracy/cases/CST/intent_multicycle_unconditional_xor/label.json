@@ -1,0 +1,40 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "Both registers update on every clock; there is no three-cycle enable protocol.",
+  "sites": [
+    {
+      "file": "constraints.sdc",
+      "line": 6,
+      "signal": "q"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Both registers update on every clock; there is no three-cycle enable protocol.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CST reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 6,
+          "signal": "x"
+        }
+      ],
+      "note": "The unconditional register pipeline transfers new data every cycle; granting three cycles to a path beginning at x is inconsistent with that capture behavior."
+    }
+  ]
+}

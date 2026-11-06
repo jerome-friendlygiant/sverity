@@ -1,0 +1,56 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "handshake data is sampled from an unheld source bus when the synchronized request arrives",
+  "sites": [
+    {
+      "line": 33,
+      "signal": "data_b"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The request toggle is synchronized into clk_b, but data_a is not registered and held in clk_a until the acknowledgement returns.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 33,
+          "signal": "data_a"
+        }
+      ],
+      "note": "Toggle request is correctly 2-flop synchronised, but data_a is captured unqualified-by-hold and whether the external source holds it until ack_toggle_b is an unstated environment protocol."
+    },
+    {
+      "by": "gpt-6.1-sol (separate settling reader, the case and both arguments only)",
+      "verdict": "unknown",
+      "critical": false,
+      "note": "The destination captures the unsynchronised bus after the synchronised request, which is correct only if the external source holds data_a through capture; the RTL and constraints neither establish nor contradict that."
+    }
+  ],
+  "origin": "adapted",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_sync_reqack_data.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Kept the request-toggle, destination synchronizer, data transfer, and acknowledgement shape, reduced assertion and parameter dependencies, and exposed a self-contained top module."
+  },
+  "mutation": {
+    "operator": "handshake-data-not-held",
+    "description": "Captured data_a directly at the destination request event without a source-domain holding register and return-side hold contract."
+  },
+  "settled_by": "third reading; verdict unknown (2 of 3 readings)"
+}

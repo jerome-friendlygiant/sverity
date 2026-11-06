@@ -1,0 +1,47 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "leading-zero status loses its empty flag through a narrowed output",
+  "sites": [
+    {
+      "line": 24,
+      "signal": "status_o"
+    }
+  ],
+  "sdc": [],
+  "rationale": "status_full contains the empty flag and four-bit leading-zero count, but status_o is only four bits, so the empty flag is discarded on every assignment.",
+  "mutation": {
+    "operator": "width-truncation",
+    "description": "Added the empty flag to a five-bit leading-zero status and retained a four-bit status_o output."
+  },
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_lzc.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Reduced the leading-zero counter to an eight-bit combinational implementation and packed its count with the empty status."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 24,
+          "signal": "status_o"
+        }
+      ],
+      "note": "5-bit status_full truncated into 4-bit status_o dropping empty flag"
+    }
+  ]
+}

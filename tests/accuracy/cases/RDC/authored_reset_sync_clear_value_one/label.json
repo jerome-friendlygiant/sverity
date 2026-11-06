@@ -1,0 +1,43 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "The first stage is already one during reset, so last_q is the first and only stage exposed to asynchronous reset removal; its potentially metastable release directly resets the consumer.",
+  "sites": [
+    {
+      "line": 5,
+      "signal": "first_q <= 1'b1"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The first stage is already one during reset, so last_q is the first and only stage exposed to asynchronous reset removal; its potentially metastable release directly resets the consumer.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-reset-sync-clear-value-one",
+    "description": "The first stage is already one during reset, so last_q is the first and only stage exposed to asynchronous reset removal; its potentially metastable release directly resets the consumer."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 5,
+          "signal": "first_q"
+        }
+      ],
+      "note": "The first stage is constant one even during reset, leaving only one stage that actually delays reset release."
+    }
+  ]
+}

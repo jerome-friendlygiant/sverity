@@ -1,0 +1,49 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "a reset-synchronized control register and its consumer use independent asynchronous resets",
+  "sites": [
+    {
+      "line": 25,
+      "signal": "state_o"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "state_o can reset under rst_state while sync_q retains a different reset phase under rst_sync, so the consumer can observe a reset-domain transition inconsistent with its control state.",
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "verilog-axis",
+    "commit": "48ff7a7e2ef782cf778d47910cf85835c64b1bce",
+    "path": "rtl/sync_reset.v",
+    "licence": "MIT",
+    "adaptation": "Reduced the reset pipeline to two stages and a separate stream-state consumer."
+  },
+  "mutation": {
+    "operator": "reset-from-other-domain",
+    "description": "Assigned the consumer a separate asynchronous reset from the reset pipeline that controls its enable condition."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 23,
+          "signal": "rst_state"
+        }
+      ],
+      "note": "state_o has its own unsynchronised async reset yet is enabled by sync_q in a different reset domain; release ordering undefined."
+    }
+  ]
+}

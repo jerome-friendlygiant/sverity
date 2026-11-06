@@ -1,0 +1,51 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "the specific R-type decoder item is shadowed by a broad opcode pattern",
+  "sites": [
+    {
+      "line": 19,
+      "signal": "is_alu_o"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The first casez item matches every opcode ending in 11, including 0110011, so the explicit R-type item is unreachable and its decode action can never be selected.",
+  "mutation": {
+    "operator": "case-item-shadowed",
+    "description": "Placed a broad wildcard opcode pattern before the exact R-type decoder item."
+  },
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "ibex",
+    "commit": "2373e5dadcfc4f56672962fa242f6a051acc9aca",
+    "path": "rtl/ibex_decoder.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced instruction decoding to ALU and load opcode classification."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 18,
+          "signal": "opcode_i"
+        },
+        {
+          "line": 19,
+          "signal": "opcode_i"
+        }
+      ],
+      "note": "items 0000011 and 0110011 are shadowed by earlier ?????11"
+    }
+  ]
+}

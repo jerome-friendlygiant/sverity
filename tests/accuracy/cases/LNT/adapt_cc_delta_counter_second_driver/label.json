@@ -1,0 +1,51 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "the counter next-state net has two independent drivers",
+  "sites": [
+    {
+      "line": 20,
+      "signal": "next_count"
+    }
+  ],
+  "sdc": [],
+  "rationale": "incremented and cleared are intended to form one priority chain, but both are continuously driven onto next_count, creating a conflicting combinational net.",
+  "mutation": {
+    "operator": "second-driver",
+    "description": "Added a second continuous assignment to the counter next-state signal instead of making clear override increment."
+  },
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_delta_counter.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Reduced the variable-delta counter to its reset, increment, clear, and registered next-state logic."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 20,
+          "signal": "next_count"
+        },
+        {
+          "line": 21,
+          "signal": "next_count"
+        }
+      ],
+      "note": "two continuous assigns drive next_count"
+    }
+  ]
+}

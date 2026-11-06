@@ -1,0 +1,32 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "good",
+  "critical": false,
+  "defect": "A persistent run request crosses via two stages; the multibit count is entirely local to the destination domain.",
+  "mutation": {
+    "operator": "destination_local_counter_enable",
+    "description": "A persistent run request crosses via two stages; the multibit count is entirely local to the destination domain."
+  },
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "A persistent run request crosses via two stages; the multibit count is entirely local to the destination domain. Startup initial blocks express FPGA initialization; plain edge-triggered always procedures preserve it without violating always_ff single-writer restrictions.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Sticky source request crosses two destination stages before controlling a local counter."
+    }
+  ]
+}

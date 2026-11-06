@@ -1,0 +1,6 @@
+create_clock -name source -period 10 [get_ports src_clk]
+create_generated_clock -name destination -source [get_ports src_clk] -divide_by 2 [get_ports dst_clk]
+set_input_delay -clock source -min 0 [get_ports value]
+set_input_delay -clock source -max 2 [get_ports value]
+set_output_delay -clock destination -min 0 [get_ports result]
+set_output_delay -clock destination -max 2 [get_ports result]

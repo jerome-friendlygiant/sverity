@@ -1,0 +1,32 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "origin": "authored",
+  "defect": "Sender and receiver share the exact conditioned reset and clock, including all packed fields. There is no independent reset crossing.",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Sender and receiver share the exact conditioned reset and clock, including all packed fields. There is no independent reset crossing.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-shared-release-struct-payload",
+    "description": "Sender and receiver share the exact conditioned reset and clock, including all packed fields. There is no independent reset crossing."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Payload and consumer share the same locally synchronized reset."
+    }
+  ]
+}

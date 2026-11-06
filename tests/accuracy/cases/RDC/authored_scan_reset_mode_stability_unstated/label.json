@@ -1,0 +1,50 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "origin": "authored",
+  "defect": "Scan-mode entry, clock stoppage, reset release and static selector behavior are unspecified. Raw scan reset is unsafe during an active run, but a stopped-clock scan protocol can make it valid; the supplied environment cannot decide.",
+  "sites": [
+    {
+      "line": 4,
+      "signal": "selected_n"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Scan-mode entry, clock stoppage, reset release and static selector behavior are unspecified. Raw scan reset is unsafe during an active run, but a stopped-clock scan protocol can make it valid; the supplied environment cannot decide.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-scan-reset-mode-stability-unstated",
+    "description": "Test mode may be static throughout functional operation and scan reset may have controlled timing, but no mode-switch or scan-reset timing contract is supplied."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 7,
+          "signal": "selected_n"
+        }
+      ],
+      "note": "The selected scan reset is raw and has no release synchronization; missing test-mode assumptions cannot establish safety for an allowed scan-mode run."
+    },
+    {
+      "by": "gpt-6.1-sol (third settling reading)",
+      "verdict": "unknown",
+      "critical": true,
+      "note": "Scan-mode entry, clock stoppage, reset release and static selector behavior are unspecified. Raw scan reset is unsafe during an active run, but a stopped-clock scan protocol can make it valid; the supplied environment cannot decide."
+    }
+  ],
+  "settled_by": "Third reading: gpt-6.1-sol; Scan-mode entry, clock stoppage, reset release and static selector behavior are unspecified. Raw scan reset is unsafe during an active run, but a stopped-clock scan protocol can make it valid; the supplied environment cannot decide."
+}

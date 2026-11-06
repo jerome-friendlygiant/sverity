@@ -1,0 +1,49 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "destination enable logic is inserted between two receiving stages",
+  "sites": [
+    {
+      "line": 30,
+      "signal": "stage1_b"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "valid_a is asynchronous to clk_b and the second receiving stage combines stage0_b with allow_b rather than sampling the first stage directly.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 30,
+          "signal": "stage1_b"
+        }
+      ],
+      "note": "Logic (AND with allow_b) sits between the first and second synchroniser stages."
+    }
+  ],
+  "origin": "adapted",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_edge_propagator_tx.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Kept the transmitter valid path and reduced the acknowledgement and macro dependencies to a two-stage destination transfer in a self-contained top module."
+  },
+  "mutation": {
+    "operator": "logic-between-stages",
+    "description": "Added allow_b combinational qualification to the second destination stage between stage0_b and valid_b."
+  }
+}

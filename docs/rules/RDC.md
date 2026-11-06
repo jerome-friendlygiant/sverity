@@ -41,8 +41,8 @@ are explicit obligations/unknown markers, never "safe". Reset roots are traced t
 - **Unknown:** the WARNING marks scope reset-extraction INCOMPLETE; the synchronous candidate is a heuristic on the condition shape.
 
 ### RDC-002
-- **Trigger:** a top-level input bit R that is an asynchronous reset root and is not named in the from, through or to list of any SDC path exception (any kind); one per R. Input delays and clock definitions are not consulted.
-- **Exempt:** R named by any path exception in any of its three lists.
+- **Trigger:** (a) a top-level input bit R that is an asynchronous reset root and is not named in the from, through or to list of any SDC path exception (any kind); one per R. Input delays and clock definitions are not consulted. (b) a top-level input bit that is the synchronous-reset candidate of a register and not an asynchronous root, with no `set_input_delay` naming it; one per input, at the first register it resets.
+- **Exempt:** (a) R named by any path exception in any of its three lists; (b) an input named by any input delay.
 - **Severity:** WARNING, Unresolved.
 - **Unknown:** the WARNING marks scope reset-extraction INCOMPLETE (the timing relation of R to the domains it resets is unknown).
 
@@ -136,12 +136,12 @@ are explicit obligations/unknown markers, never "safe". Reset roots are traced t
 - **Unknown:** none: decided on the model.
 
 ### RDC-023
-- **Trigger:** either (a) a Gray-coded FIFO pair: two CDC crossing groups in the same hierarchy, both with Gray-coded pointers, running in opposite directions; or (b) a handshake: two single-bit recognised synchronised crossings in the same hierarchy, in opposite directions, where the source register of each depends (fan-in) on the other crossing's synchroniser stages; one per pair.
-- **Severity:** WARNING, Unresolved for every recognised FIFO pair and handshake (a shared reset of the two pointers does not order the release of the two domains); proof NOT_ATTEMPTED.
+- **Trigger:** either (a) a Gray-coded FIFO pair: two CDC crossing groups in the same hierarchy, both with Gray-coded pointers, running in opposite directions; or (b) a handshake: two single-bit recognised synchronised crossings in the same hierarchy, in opposite directions, where the source register of each depends (fan-in) on the other crossing's synchroniser stages; one per pair; or (c) a recognised toggle synchroniser (CDC-014 with an edge detector) whose source or output stage is reset (an asynchronous root or the synchronous-reset candidate); one per toggle.
+- **Severity:** WARNING, Unresolved for every recognised FIFO pair and handshake (a shared reset of the two pointers does not order the release of the two domains); proof NOT_ATTEMPTED. (c) WARNING, Unresolved when the source and the output stage are not reset by the same signals, since a one-sided reset creates or loses an event; INFO, Heuristic with a trust model when they are; proof NOT_ATTEMPTED.
 - **Unknown:** the reset release order is an obligation, not decided (proof NOT_ATTEMPTED).
 
 ### RDC-024
-- **Trigger:** the last-stage output bit of a recognised CDC synchroniser (chain depth >= 2, no logic between stages, any width) whose combinational fan-out reaches an asynchronous reset pin of a register; one per synchroniser output bit.
+- **Trigger:** an output of a recognised CDC synchroniser (its stage at the required depth or a follower; chain depth >= 2, no logic between stages, any width) whose combinational fan-out reaches an asynchronous reset pin of a register; one per synchroniser chain, however many of its stages the reset reads.
 - **Severity:** WARNING, Heuristic; proof NOT_ATTEMPTED.
 - **Unknown:** none decided: the request/acknowledge completion and the reset release ordering are a proof obligation.
 
@@ -182,7 +182,7 @@ are explicit obligations/unknown markers, never "safe". Reset roots are traced t
 
 ## Crosswalk and licences
 
-Reference projects were studied for rule inventories only; no source code from any of them is included. Commercial RDC rule IDs are not public, so only their categories are mapped. The AMD entry is closest intent, not equivalence; it was read as described in the [CDC crosswalk](CDC.md#crosswalk-and-licences).
+The rule implementations are original; the reference-rule mappings below record design influences. Commercial RDC rule IDs are not public, so only their categories are mapped. The AMD entry is closest intent, not equivalence; it was read as described in the [CDC crosswalk](CDC.md#crosswalk-and-licences).
 
 | Source (licence) | Reference rules → SVerity |
 |---|---|
@@ -193,3 +193,15 @@ Reference projects were studied for rule inventories only; no source code from a
 | Commercial RDC categories (reset synchronisation, glitch, reconvergence, async set/reset, ordering) | → RDC-003, RDC-009, RDC-008, RDC-026, RDC-011 |
 
 Retired IDs: RDC-015 → RDC-003/007, RDC-018 → RDC-008, RDC-021 → RDC-026, RDC-022 → RDC-007.
+
+
+### Accuracy-case adaptations
+
+Reduced and modified RTL under `tests/accuracy/cases/RDC/` exercises reset synchronizers, independently reset transfers, FIFO reset control and resettable state. The upstream licences apply to these adaptations; each case retains its attribution and records the exact source path and changes in `label.json`. Whole upstream designs are not vendored. Licence texts and notices ship in [tests/accuracy/LICENSE](../../tests/accuracy/LICENSE).
+
+| Source at pinned commit | Licence | Material taken |
+|---|---|---|
+| [pulp-platform/common_cells](https://github.com/pulp-platform/common_cells/tree/e73baaec2ca665cd80c3c384e9258e35242b829c) | SHL-0.51 | Reduced RTL fragments used as RDC test inputs and mutated lookalikes |
+| [lowRISC/ibex](https://github.com/lowRISC/ibex/tree/2373e5dadcfc4f56672962fa242f6a051acc9aca) | Apache-2.0 | Reduced RTL fragments used as RDC test inputs and mutated lookalikes |
+| [lowRISC/opentitan](https://github.com/lowRISC/opentitan/tree/92f3d03b0dcf6d5c1933a65d1497747f67d19f4c) | Apache-2.0 | Reduced RTL fragments used as RDC test inputs and mutated lookalikes |
+| [alexforencich/verilog-axis](https://github.com/alexforencich/verilog-axis/tree/48ff7a7e2ef782cf778d47910cf85835c64b1bce) | MIT | Reduced RTL fragments used as RDC test inputs and mutated lookalikes |

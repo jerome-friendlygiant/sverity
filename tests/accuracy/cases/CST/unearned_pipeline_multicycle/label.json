@@ -1,0 +1,60 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "a same-cycle register transfer is granted two cycles without a protocol enable",
+  "sites": [
+    {
+      "line": 25,
+      "signal": "result_o"
+    },
+    {
+      "file": "constraints.sdc",
+      "line": 2,
+      "signal": "result_o"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "result_o captures next_count on every active clk_i edge, so the count_q-to-result_o transfer is not a two-cycle protocol. The ordinary en_i update control does not justify a multicycle timing exception.",
+  "mutation": {
+    "operator": "multicycle-without-enable",
+    "description": "Added a two-cycle multicycle exception for the count_q-to-result_o path without an enable that holds the destination."
+  },
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_counter.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Retained the enabled counter datapath and clocked result update; removed the wrapped delta counter and overflow interface."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 2,
+          "signal": "count_q->result_o"
+        },
+        {
+          "file": "constraints.sdc",
+          "line": 3,
+          "signal": "count_q->result_o"
+        }
+      ],
+      "note": "result_o samples next_count (from count_q plus d_i) every cycle with no stall, so the 2-cycle multicycle is unearned."
+    }
+  ]
+}

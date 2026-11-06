@@ -1,0 +1,36 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "unique instruction-type selection can look like an incomplete case",
+  "sites": [],
+  "rationale": "The four instruction predicates are mutually exclusive by their opcode and compressed-format tests. branch_imm has a default before the unique case, and the default arm intentionally retains the B-type fallback for non-branch instructions.",
+  "origin": "adapted",
+  "provenance": {
+    "repository": "ibex",
+    "commit": "2373e5dadcfc4f56672962fa242f6a051acc9aca",
+    "path": "rtl/ibex_branch_predict.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced static branch target and taken prediction to the immediate extraction and unique instruction-type selector."
+  },
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "A unique case with an empty default deliberately preserves a previously assigned immediate."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "No lint defect found; widths, drivers, and assignments are consistent."
+    }
+  ]
+}

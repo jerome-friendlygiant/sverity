@@ -1,0 +1,43 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "A binary increment can change many bits; bitwise two-stage capture does not provide an atomic counter snapshot.",
+  "mutation": {
+    "operator": "saturating_counter_bus",
+    "description": "A binary increment can change many bits; bitwise two-stage capture does not provide an atomic counter snapshot."
+  },
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 7,
+      "signal": "count_q"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "A binary increment can change many bits; bitwise two-stage capture does not provide an atomic counter snapshot.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 7,
+          "signal": "count_q"
+        }
+      ],
+      "note": "Saturation does not remove multi-bit binary transitions before saturation; direct bitwise bus synchronization can tear."
+    }
+  ]
+}

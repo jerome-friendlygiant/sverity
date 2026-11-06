@@ -1,0 +1,48 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "Two clocks are defined on the same mux output pin without -add, so the second definition replaces the first.",
+  "sites": [
+    {
+      "line": 41,
+      "signal": "selected_clk"
+    },
+    {
+      "file": "constraints.sdc",
+      "line": 5,
+      "signal": "top/u_mux/clk_o"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The selected domain is driven by either clk_a_i or clk_b_i. Both possible propagated clocks must coexist on the mux output pin; the second create_clock lacks -add and leaves only one scenario represented.",
+  "mutation": {
+    "operator": "mux-clock-without-add",
+    "description": "Declared the second clock on a mux output pin without -add, replacing the first clock definition."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CST reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 5,
+          "signal": "clk_o"
+        }
+      ],
+      "note": "Creating selected_b on the same target without -add replaces selected_a, losing one mux input clock. The data delays still reference the replaced selected_a; selected_b also has no data interface delays."
+    }
+  ]
+}

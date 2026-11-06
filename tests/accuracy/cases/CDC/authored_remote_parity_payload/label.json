@@ -1,0 +1,43 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "Adding a parity bit does not make separately captured payload bits coherent; a torn transfer can even have valid parity.",
+  "mutation": {
+    "operator": "remote_parity_payload",
+    "description": "Adding a parity bit does not make separately captured payload bits coherent; a torn transfer can even have valid parity."
+  },
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 6,
+      "signal": "word_q"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Adding a parity bit does not make separately captured payload bits coherent; a torn transfer can even have valid parity.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 6,
+          "signal": "word_q"
+        }
+      ],
+      "note": "Parity does not provide coherent multi-bit transfer; individually synchronized bits may form a mixed payload."
+    }
+  ]
+}

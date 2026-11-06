@@ -1,0 +1,43 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "The unmodelled isolation cell may change or pulse its output during power transitions; its clamp and power sequencing contract is unavailable.",
+  "mutation": {
+    "operator": "isolation_cell_behavior_unknown",
+    "description": "The unmodelled isolation cell may change or pulse its output during power transitions; its clamp and power sequencing contract is unavailable."
+  },
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 7,
+      "signal": "isolated"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The unmodelled isolation cell may change or pulse its output during power transitions; its clamp and power sequencing contract is unavailable.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 7,
+          "signal": "isolated"
+        }
+      ],
+      "note": "Opaque isolation behavior does not establish persistence or pulse width of the value entering the synchronizer."
+    }
+  ]
+}

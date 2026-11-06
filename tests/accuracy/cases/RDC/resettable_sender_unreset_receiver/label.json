@@ -1,0 +1,37 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "asynchronous reset transition crosses into an unreset receiver",
+  "sites": [
+    {
+      "line": 12,
+      "signal": "observed"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Asserting src_reset_n changes token without a clock edge; a same-clock receiving flop has no protection from that asynchronous transition.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 12,
+          "signal": "token"
+        }
+      ],
+      "note": "Async reset assertion of token can change it at any time, and observed (not reset) captures it directly with no synchronisation."
+    }
+  ]
+}

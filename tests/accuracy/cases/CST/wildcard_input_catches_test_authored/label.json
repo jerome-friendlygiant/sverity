@@ -1,0 +1,55 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "origin": "authored",
+  "defect": "The wildcard covers a synchronous clear named test_i, but whether it is held static or changes during this mode is unspecified. Its false path therefore requires an external mode contract.",
+  "sites": [
+    {
+      "line": 12,
+      "signal": "test_i"
+    },
+    {
+      "file": "constraints.sdc",
+      "line": 2,
+      "signal": "*_i"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The wildcard covers a synchronous clear named test_i, but whether it is held static or changes during this mode is unspecified. Its false path therefore requires an external mode contract.",
+  "mutation": {
+    "operator": "wildcard-catches-control-port",
+    "description": "Replaced the explicit payload_i collection with *_i, which also matches reset_i and test_i."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CST reviewer)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 4,
+          "signal": "test_i"
+        }
+      ],
+      "note": "test_i is used as a synchronous clear, but the RTL does not establish whether the board ties it static in functional mode. The false path is unsafe if it changes at runtime, and may be intentional for a stable test strap. Wildcard selection itself is not erroneous solely because it includes test_i."
+    },
+    {
+      "by": "gpt-6.1-sol (third settling reading)",
+      "verdict": "unknown",
+      "critical": true,
+      "note": "The wildcard covers a synchronous clear named test_i, but whether it is held static or changes during this mode is unspecified. Its false path therefore requires an external mode contract."
+    }
+  ],
+  "settled_by": "Third reading: gpt-6.1-sol; The wildcard covers a synchronous clear named test_i, but whether it is held static or changes during this mode is unspecified. Its false path therefore requires an external mode contract."
+}

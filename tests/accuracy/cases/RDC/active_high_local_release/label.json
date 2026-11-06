@@ -1,0 +1,27 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "active-high reset polarity can obscure a safe release chain",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The pipeline asynchronously fills with ones and synchronously shifts zeros; only its second stage resets functional state.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Active-high POR asserts asynchronously and releases through a two-flop pipeline before reaching the async reset of enabled."
+    }
+  ]
+}

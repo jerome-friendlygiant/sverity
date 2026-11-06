@@ -1,0 +1,27 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "case analysis intentionally fixes an immutable strap",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "boot_mode is a board strap that never changes in this timing scenario; selecting the documented functional mode is legitimate.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Case analysis matches the documented permanently-tied-low boot strap."
+    }
+  ]
+}

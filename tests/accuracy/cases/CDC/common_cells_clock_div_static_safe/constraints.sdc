@@ -1,0 +1,5 @@
+create_clock -name clk_i -period 4.000 [get_ports clk_i]
+create_generated_clock -name clk_o_div -source [get_ports clk_i] -divide_by 8 [get_ports clk_o]
+set_input_delay 0.000 -clock clk_i [get_ports enable_i]
+set_output_delay 0.000 -clock clk_o_div [get_ports clk_o]
+set_false_path -from [get_ports rst_ni]

@@ -296,6 +296,7 @@ Shared::QualifierResult Shared::ctrlFromSynced(const Flop& d, uint32_t srcDomain
         };
         size_t atomCount = 0, facts = 0;
         bool limited = false, unknown = false, opaque = false, reachableMatching = false, foreignControl = false;
+        const SyncOut* shortQualifier = nullptr;   // a qualifying synchroniser below the required depth
         std::unordered_set<NodeId> reached, active;
         std::unordered_map<NodeId, Expr> atoms, cache;
         std::set<size_t> synchronizedAtoms, stateAtoms;
@@ -344,6 +345,7 @@ Shared::QualifierResult Shared::ctrlFromSynced(const Flop& d, uint32_t srcDomain
         expandNode = [&](NodeId node) -> Expr {
             if (matching(node)) {
                 reachableMatching = true;
+                if (const auto& out = syncedOut_.at(node); !out.full) shortQualifier = &out;
                 auto f = atom(node); synchronizedAtoms.insert(f->atom); return f;
             }
             if (auto it = cache.find(node); it != cache.end()) return it->second;
@@ -411,7 +413,13 @@ Shared::QualifierResult Shared::ctrlFromSynced(const Flop& d, uint32_t srcDomain
         }
         bool necessary = false;
         for (auto [id, values] : possible) if (values != 3) necessary = true;
-        if (necessary) continue; // Holds even with unsupported subexpressions treated as arbitrary values.
+        if (necessary) {   // Holds even with unsupported subexpressions treated as arbitrary values.
+            // A qualifier short of the required depth may itself be metastable when it opens the capture (CDC-005 reports it).
+            if (shortQualifier)
+                undecided("the qualifying synchroniser of " + shortQualifier->srcName + " has " + std::to_string(shortQualifier->depth) +
+                          " stage(s), below the required " + std::to_string(minStages_));
+            continue;
+        }
         // State-derived validity can be held after the synchronized input changes.
         // If it can widen the predicate through OR, Boolean syntax alone does
         // not establish whether that branch is a legitimate held token.
@@ -846,7 +854,7 @@ void Shared::protocols() {
         bool exclusive = relation(g.srcDomain, g.dstDomain) == Relation::Exclusive; (void)exclusive;
     if (sf) {
             auto roots = [&](const Flop& x) { std::set<NodeId> r; for (auto& rr : x.resets) r.insert(rr.root.node); return r; };
-            std::set<NodeId> rs = roots(*sf), rd = roots(m->flops[chains_[g.dstFlops[0]].stages.back()]);
+            std::set<NodeId> rs = roots(*sf), rd = roots(m->flops[chains_[g.dstFlops[0]].stages[outputStage(chains_[g.dstFlops[0]])]]);
             if (!rs.empty() && !rd.empty() && rs != rd) {
                 evaluated["CDC-041"]++;
                 Diagnostic d = mk("CDC-041", Severity::Warning, "crossing " + g.srcName + " -> " + g.dstName + ": the source and the synchroniser are reset by different resets; "
@@ -1005,6 +1013,32 @@ void Shared::protocols() {
                 o.identityKey = g.srcName + ":" + g.dstName;
                 o.proofState = ProofState::NotAttempted;
                 toggleObligations.emplace(&g, std::move(o));
+                // RDC-023 (c): a toggle's two sides reset apart: resetting one alone changes the level the other compares
+                // with, which creates or loses an event. Asynchronous roots and the synchronous-reset candidate both count.
+                const auto resetsOf = [&](const Flop& x) {
+                    std::set<NodeId> r;
+                    for (auto& rr : x.resets) r.insert(rr.root.node);
+                    if (x.syncReset != kNoNode) r.insert(aliasRoot(x.syncReset));
+                    return r;
+                };
+                const Chain& ch = chains_[g.dstFlops[0]];
+                const Flop& out = m->flops[ch.stages[outputStage(ch)]];
+                const auto source = resetsOf(*sf), receiver = resetsOf(out);
+                if (!source.empty() || !receiver.empty()) {
+                    evaluated["RDC-023"]++;
+                    const bool together = source == receiver;
+                    Diagnostic r = mk("RDC-023", together ? Severity::Info : Severity::Warning,
+                                      "toggle protocol " + g.srcName + " -> " + g.dstName + (together
+                                          ? ": both sides are reset by the same signals; the order in which their clock domains leave reset is still not defined by the design"
+                                          : ": the source and the receiver are not reset together, so resetting one side alone can create a spurious event or lose one") + tag,
+                                      g.loc, g.hier, together ? Confidence::Heuristic : Confidence::Unresolved);
+                    ev(r, g);
+                    r.proofState = ProofState::NotAttempted;
+                    r.evidence.push_back({together ? "trust_model" : "proof_obligation",
+                                          together ? "a shared reset is assumed to reach both domains before either side toggles again"
+                                                   : "show that the two sides are only reset together, or that the receiver discards the event a one-sided reset creates", {}});
+                    add(std::move(r));
+                }
             }
         }
 
@@ -1150,7 +1184,9 @@ void Shared::protocols() {
             add(std::move(d));
         }
     // RDC-024: a synchronised control used as an asynchronous reset in the receiving domain (reset request / acknowledge)
+    std::set<uint32_t> resetHeads;   // one synchroniser read at two stages (`s2 & s3`) is one reset use
     for (auto& [q, so] : syncedOut_) {
+        if (resetHeads.count(so.head)) continue;
         bool asReset = false;
         std::vector<NodeId> cl{q};
         std::unordered_set<NodeId> seen{q};
@@ -1161,6 +1197,7 @@ void Shared::protocols() {
                 else if (e.type == EdgeType::Comb && seen.insert(e.to).second) cl.push_back(e.to);
             }
         if (!asReset) continue;
+        resetHeads.insert(so.head);
         evaluated["RDC-024"]++;
         Diagnostic d = mk("RDC-024", Severity::Warning, "control " + so.srcName + " (domain " + m->domains[so.srcDomain].name + ") is synchronised into domain " + m->domains[so.dstDomain].name +
                           " and used there as an asynchronous reset: a reset request/acknowledge protocol across domains; sequencing and completion are not verified", {}, so.hier, Confidence::Heuristic);

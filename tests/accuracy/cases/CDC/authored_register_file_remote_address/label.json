@@ -1,0 +1,43 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "A changing remote binary address directly controls a destination lookup, allowing incoherent selection.",
+  "mutation": {
+    "operator": "register_file_remote_address",
+    "description": "A changing remote binary address directly controls a destination lookup, allowing incoherent selection."
+  },
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 7,
+      "signal": "addr_q"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "A changing remote binary address directly controls a destination lookup, allowing incoherent selection.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 7,
+          "signal": "addr_q"
+        }
+      ],
+      "note": "Raw multi-bit asynchronous address selects ROM data sampled by the destination, with no coherent address transfer."
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "reset-source selection requires an unspecified test-mode switching contract",
+  "sites": [
+    {
+      "line": 31,
+      "signal": "selected_n"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Each reset source has its own synchronous-release chain, but test_mode muxes their outputs directly into a functional asynchronous reset. A static mode set under asserted reset can be safe. Switching to a previously released chain mid-cycle can violate recovery/removal or create a short reset pulse. Mode sequencing is not supplied.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author, replacement set)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 31,
+          "signal": "selected_n"
+        }
+      ],
+      "note": "The async reset of cycles comes from a combinational mux of two synchronised resets driven by an unsynchronised test_mode, so a select change can glitch the reset or deassert it asynchronously to clk, defeating both release synchronisers."
+    },
+    {
+      "by": "gpt-6.1-sol (separate settling reader, the cases and both arguments only)",
+      "verdict": "unknown",
+      "critical": false,
+      "note": "Each reset is synchronised to clk, but lines 31-32 mux them after the synchronisers. Switching test_mode while the resets differ can release the reset asynchronously; safety depends on an unstated mode-switching contract."
+    }
+  ],
+  "settled_by": "third reading; verdict unknown (two of three readings)"
+}

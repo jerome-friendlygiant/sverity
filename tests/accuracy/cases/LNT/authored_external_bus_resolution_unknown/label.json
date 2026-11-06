@@ -1,0 +1,37 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "external pad drive contract absent",
+  "sites": [
+    {
+      "line": 5,
+      "signal": "u_pad"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The pad cell is an explicit external stub with no drive or tri-state semantics. Whether pad_io is safely released and sense_o is driven cannot be established from the port list.",
+  "origin": "authored",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind lint reviewer)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 5,
+          "signal": "sense_o"
+        }
+      ],
+      "note": "Opaque bidirectional pad behavior prevents reasoning about bus resolution and sense output."
+    }
+  ]
+}

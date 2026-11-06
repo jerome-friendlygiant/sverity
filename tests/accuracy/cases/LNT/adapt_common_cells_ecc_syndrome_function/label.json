@@ -1,0 +1,36 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "nested parity loops and automatic index state can resemble incomplete ECC extraction",
+  "sites": [],
+  "rationale": "The syndrome is initialized before both loops, corrected is initialized before the guarded correction, and out_idx is automatic and reset before every data extraction. Invalid syndromes are left uncorrected rather than used as an out-of-range index; for a legal syndrome the parity positions are skipped and exactly DataWidth data bits are copied.",
+  "origin": "adapted",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_ecc_decode.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Reduced SECDED decoding to syndrome calculation, one-bit correction, and data extraction for an 8-bit data word."
+  },
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "Automatic function-like local state and nested combinational loops intentionally build the syndrome and extract non-parity positions."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "No lint defect found; widths, drivers, and assignments are consistent."
+    }
+  ]
+}

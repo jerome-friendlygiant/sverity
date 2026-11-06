@@ -1,0 +1,43 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "origin": "authored",
+  "defect": "The power/reset bridge is opaque and no power sequencing contract says whether it holds reset until the domain is powered and release is clock-aligned.",
+  "sites": [
+    {
+      "line": 2,
+      "signal": "domain_reset_n"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The power/reset bridge is opaque and no power sequencing contract says whether it holds reset until the domain is powered and release is clock-aligned.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-opaque-power-reset-bridge",
+    "description": "The power/reset bridge is opaque and no power sequencing contract says whether it holds reset until the domain is powered and release is clock-aligned."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 5,
+          "signal": "domain_reset_n"
+        }
+      ],
+      "note": "The opaque power bridge has no clock-local reset-release contract."
+    }
+  ]
+}

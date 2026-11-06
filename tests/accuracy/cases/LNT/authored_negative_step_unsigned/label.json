@@ -1,0 +1,37 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "negative signed step is zero extended by unsigned addition",
+  "sites": [
+    {
+      "line": 4,
+      "signal": "position_o"
+    }
+  ],
+  "sdc": [],
+  "rationale": "Because position_i is unsigned, the mixed expression zero extends the eight-bit step. A step of -1 adds 255 rather than subtracting one.",
+  "origin": "authored",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind lint reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "position_o"
+        }
+      ],
+      "note": "Unsigned position makes the mixed-sign addition unsigned, zero-extending negative eight-bit steps instead of sign-extending them."
+    }
+  ]
+}

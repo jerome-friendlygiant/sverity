@@ -1,0 +1,43 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "software reset is appended after the synchronized POR release",
+  "sites": [
+    {
+      "line": 23,
+      "signal": "block_reset_ni"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "software_reset_i can deassert asynchronously at both consumers, so the shared block reset has no synchronized release despite the POR pipeline.",
+  "author": "gpt-5.6-luna",
+  "mutation": {
+    "operator": "unsynchronized-reset-tail",
+    "description": "Added a raw software reset to the synchronized reset release net feeding two stateful blocks."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 23,
+          "signal": "block_reset_ni"
+        }
+      ],
+      "note": "Software reset is appended after POR conditioning and can release block resets asynchronously."
+    }
+  ]
+}

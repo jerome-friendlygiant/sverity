@@ -1,0 +1,61 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "a changing register value is transferred as independently synchronized bus bits without an atomic update boundary",
+  "sites": [
+    {
+      "line": 35,
+      "signal": "data_b"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "data_a can change as a word in clk_a while each bit is sampled independently in clk_b, so data_b can combine values from different source updates.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 24,
+          "signal": "data_a"
+        },
+        {
+          "line": 26,
+          "signal": "data_a"
+        },
+        {
+          "line": 28,
+          "signal": "data_a"
+        },
+        {
+          "line": 30,
+          "signal": "data_a"
+        }
+      ],
+      "note": "The 4-bit data is synchronised bit by bit with no handshake, so the destination can see a mix of old and new bits."
+    }
+  ],
+  "origin": "adapted",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_reg_cdc_arb.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Kept the source/destination register CDC context and reduced the arbitration protocol to four destination bit pipelines in a self-contained top module."
+  },
+  "mutation": {
+    "operator": "bus-bits-synced-separately",
+    "description": "Sampled each data_a bit through an independent pair of destination registers and assembled data_b without an atomic handshake."
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "The real clock cannot have a negative period.",
+  "sites": [
+    {
+      "file": "constraints.sdc",
+      "line": 1,
+      "signal": "clk"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The real clock cannot have a negative period.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CST reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 1,
+          "signal": "clk"
+        }
+      ],
+      "note": "A clock period of negative ten is invalid and cannot describe the positive-period operating clock."
+    }
+  ]
+}

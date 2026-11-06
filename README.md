@@ -10,7 +10,7 @@ An open-source, offline SystemVerilog analyzer for **lint, CDC and RDC**, built 
 community-maintained rule deck where nothing is silently hidden and *unknown is never reported as safe*.
 
 **Status: early development, not validated.** Docs: [docs/SVerity_RFC.md](docs/SVerity_RFC.md) (the specification), [docs/ROADMAP.md](docs/ROADMAP.md) (open work),
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (design decisions), [docs/rules/](docs/rules/) (`catalog.json` plus a table and spec per family).
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (design decisions), [docs/VERIFICATION.md](docs/VERIFICATION.md) (how the tool is tested), [docs/rules/](docs/rules/) (`catalog.json` plus a table and spec per family).
 
 Per-rule state (executed / partial with its stated gap / not implemented): `sverity --list-rules`. Library cells (`--library`): kinds in `include/sverity/frontend.h`.
 
@@ -80,7 +80,7 @@ The rule structure draws on [slang-tidy](https://www.sv-lang.com/tools.html) (AS
 modelling on [slang-netlist](https://github.com/jameshanlon/slang-netlist) (MIT, James Hanlon). The CDC/RDC rule inventory was cross-checked against
 [OpenCDC](https://github.com/Ayoubbelguellaoui/CDC) (Apache-2.0), [RTL Buddy CDC](https://github.com/rtl-buddy/rtl-buddy-cdc) (BSD-3-Clause),
 [Verible](https://github.com/chipsalliance/verible) (Apache-2.0), [Verilator](https://verilator.org), and against the public AMD and Altera rule lists.
-No code from these projects is included; every check is reimplemented (crosswalks and licence notes: `docs/rules/LNT.md`, `CDC.md`, `RDC.md`).
+Every check is reimplemented. Reduced public RTL in the accuracy suite retains its upstream licence and attribution; the family crosswalks record those adaptations (`docs/rules/LNT.md`, `CDC.md`, `RDC.md`, `CST.md`).
 
 MIT licence. To contribute or report a problem, see [CONTRIBUTING.md](CONTRIBUTING.md).
 

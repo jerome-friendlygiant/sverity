@@ -1,0 +1,39 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "broad false path hides a continuously active related-clock transfer",
+  "sites": [
+    {
+      "file": "constraints.sdc",
+      "line": 5,
+      "signal": "source"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Both clocks derive from a common source and the receiving register samples launch continuously; the blanket exception suppresses a real setup/hold obligation.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 5,
+          "signal": "launch",
+          "file": "constraints.sdc"
+        }
+      ],
+      "note": "The false path between related source and divided clocks removes timing on a real unsynchronised launch->result transfer."
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "SPI input is read through a statically out-of-range bit index",
+  "sites": [
+    {
+      "line": 23,
+      "signal": "flash_io_i"
+    }
+  ],
+  "sdc": [],
+  "rationale": "flash_io_i is declared with bits 7 through 0, but the datapath selects bit 8, so the SPI sample is not connected to a real input bit.",
+  "mutation": {
+    "operator": "constant-index-out-of-range",
+    "description": "Changed the SPI input sample index from an existing bit to the constant index 8."
+  },
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "picorv32",
+    "commit": "ef203c2b0a3fb793280f5114941416c425c5b461",
+    "path": "picosoc/spimemio.v",
+    "licence": "ISC",
+    "adaptation": "Reduced the SPI memory interface to an eight-bit input sampling path."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 24,
+          "signal": "flash_io_i"
+        }
+      ],
+      "note": "constant index 8 out of range of [7:0]"
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "a one-cycle fast-domain pulse is sampled directly by the slower destination clock",
+  "sites": [
+    {
+      "line": 19,
+      "signal": "pulse_slow"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "pulse_fast can begin and end between clk_slow edges, so pulse_slow can miss a source event entirely.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 19,
+          "signal": "pulse_fast"
+        }
+      ],
+      "note": "A short pulse from the fast clock is sampled directly by the 4x slower clock with no stretching or toggle, so it can be missed, and there is no second stage."
+    }
+  ],
+  "origin": "adapted",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_pulse_sync.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Kept the source-pulse and destination-pulse interface context, reduced the toggle and edge-detection implementation, and exposed the direct destination sampling in a self-contained top module."
+  },
+  "mutation": {
+    "operator": "pulse-into-slow-domain",
+    "description": "Connected the fast-domain pulse directly to the slow-domain sequential assignment without pulse stretching or event encoding."
+  }
+}

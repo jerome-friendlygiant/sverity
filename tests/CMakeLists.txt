@@ -33,3 +33,9 @@ add_test(NAME report.interfaces COMMAND python3 ${PROJECT_SOURCE_DIR}/tests/test
 
 # What each rule must have reached: spec block, must-not-fire, mutation pair; everything for a validated rule.
 add_test(NAME rules.conformance COMMAND python3 ${PROJECT_SOURCE_DIR}/tools/dev/conformance.py --check ${PROJECT_SOURCE_DIR})
+
+# The held-out accuracy suite's labels are well formed. Scoring it is a deliberate measurement (tools/dev/accuracy.py), not a test.
+add_test(NAME accuracy.labels COMMAND python3 ${PROJECT_SOURCE_DIR}/tools/dev/accuracy.py --labels-only --suite ${PROJECT_SOURCE_DIR}/tests/accuracy)
+
+# The scorer must reject invalid qualification evidence.
+add_test(NAME accuracy.gate COMMAND python3 ${PROJECT_SOURCE_DIR}/tests/test_accuracy.py $<TARGET_FILE:sverity>)

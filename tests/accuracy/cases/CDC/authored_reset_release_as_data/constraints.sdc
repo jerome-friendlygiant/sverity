@@ -1,0 +1,6 @@
+create_clock -name clk_ctrl -period 9.0 [get_ports clk_ctrl]
+create_clock -name clk_data -period 7.0 [get_ports clk_data]
+set_clock_groups -asynchronous -group [get_clocks clk_ctrl] -group [get_clocks clk_data]
+set_input_delay 1.0 -clock [get_clocks clk_data] [get_ports data_in[*]]
+set_input_delay 1.0 -clock [get_clocks clk_ctrl] [get_ports arst_n]
+set_output_delay 1.0 -clock [get_clocks clk_data] [get_ports {data_out[*] active}]

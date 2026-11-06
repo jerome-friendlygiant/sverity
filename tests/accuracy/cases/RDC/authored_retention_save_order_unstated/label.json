@@ -1,0 +1,43 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "origin": "authored",
+  "defect": "Whether reset preserves the intended state depends on save occurring before reset and restore occurring after a valid save. The always-on sequencing contract is absent.",
+  "sites": [
+    {
+      "line": 3,
+      "signal": "retained_q"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Whether reset preserves the intended state depends on save occurring before reset and restore occurring after a valid save. The always-on sequencing contract is absent.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-retention-save-order-unstated",
+    "description": "Whether reset preserves the intended state depends on save occurring before reset and restore occurring after a valid save. The always-on sequencing contract is absent."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 10,
+          "signal": "retained_q"
+        }
+      ],
+      "note": "Restore can consume uninitialized retained state unless an external save-before-restore contract holds."
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "the generated clock declares divide_by 4 for a divide_by 8 prescaler",
+  "sites": [
+    {
+      "line": 23,
+      "signal": "slow_clk"
+    },
+    {
+      "file": "constraints.sdc",
+      "line": 2,
+      "signal": "slow_clk"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "count_q[2] changes state every four clk_i edges and has a rising edge every eight reference cycles. The constraint declares divide_by 4, making the slow_clk period half its actual value.",
+  "mutation": {
+    "operator": "generated-ratio-wrong",
+    "description": "Declared slow_clk with divide_by 4 although the retained prescaler output is clk_i divided by 8."
+  },
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim_generic/rtl/prim_clock_div.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Retained the generic even-divider counter and a register on the divided clock; removed dynamic step-down and primitive clock wrappers."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 2,
+          "signal": "slow_clk"
+        }
+      ],
+      "note": "slow_clk is bit 2 of a free-running counter, divide by 8, but constrained divide_by 4."
+    }
+  ]
+}

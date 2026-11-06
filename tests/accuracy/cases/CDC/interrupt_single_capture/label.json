@@ -1,0 +1,37 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "one destination register samples an asynchronous flag",
+  "sites": [
+    {
+      "line": 11,
+      "signal": "irq_dst"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The source and destination clocks are asynchronous; a single receiving flop exposes downstream logic to metastability.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 11,
+          "signal": "irq_src"
+        }
+      ],
+      "note": "An asynchronous crossing is captured by a single flop with no synchroniser."
+    }
+  ]
+}

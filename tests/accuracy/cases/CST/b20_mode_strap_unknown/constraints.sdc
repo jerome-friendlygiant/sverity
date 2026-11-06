@@ -1,0 +1,6 @@
+create_clock -name mode_clk -period 8.000 [get_ports clk_i]
+set_case_analysis 0 [get_ports mode_i]
+set_input_delay  -clock mode_clk -min 0.800 [get_ports {data_a_i data_b_i}]
+set_input_delay  -clock mode_clk -max 2.000 [get_ports {data_a_i data_b_i}]
+set_output_delay -clock mode_clk -min 0.400 [get_ports data_o]
+set_output_delay -clock mode_clk -max 1.500 [get_ports data_o]

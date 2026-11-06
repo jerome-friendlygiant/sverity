@@ -1,0 +1,5 @@
+create_clock -name axis_clk -period 6.000 [get_ports clk]
+set_input_delay  -clock axis_clk -min 0.200 [get_ports {rst s_axis_tdata s_axis_tvalid m_axis_tready}]
+set_input_delay  -clock axis_clk -max 2.800 [get_ports {rst s_axis_tdata s_axis_tvalid m_axis_tready}]
+set_output_delay -clock axis_clk -min 0.400 [get_ports {s_axis_tready m_axis_tdata m_axis_tvalid}]
+set_output_delay -clock axis_clk -max 1.500 [get_ports {s_axis_tready m_axis_tdata m_axis_tvalid}]

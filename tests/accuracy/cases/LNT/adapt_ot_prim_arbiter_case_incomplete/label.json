@@ -1,0 +1,47 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "arbiter grant has no defined value when all request inputs are idle",
+  "sites": [
+    {
+      "line": 12,
+      "signal": "grant_o"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The arbitration case has no item for 3'b000, so grant_o is not assigned in the no-request state and its combinational output retains storage.",
+  "mutation": {
+    "operator": "case-incomplete",
+    "description": "Removed the default idle grant item from the arbiter case statement."
+  },
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_arbiter_tree.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced the tree arbiter to a three-request combinational priority grant."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 11,
+          "signal": "grant_o"
+        }
+      ],
+      "note": "no default/req==0 case: grant_o latch"
+    }
+  ]
+}

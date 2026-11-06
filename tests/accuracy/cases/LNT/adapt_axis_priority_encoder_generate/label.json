@@ -1,0 +1,37 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "priority encoder loop may resemble multiple competing output assignments",
+  "sites": [],
+  "sdc": [],
+  "rationale": "The output defaults are assigned before either priority loop, and the valid guard ensures only the selected bit updates the encoded and one-hot outputs. The explicit width cast preserves the selected index width.",
+  "origin": "adapted",
+  "provenance": {
+    "repository": "verilog-axis",
+    "commit": "48ff7a7e2ef782cf778d47910cf85835c64b1bce",
+    "path": "rtl/priority_encoder.v",
+    "licence": "MIT",
+    "adaptation": "Reduced the generated priority tree to equivalent LSB/MSB priority combinational loops and renamed the module top."
+  },
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "Two mutually exclusive priority loops write the same outputs after explicit defaults and a one-shot valid guard."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "No lint defect found; widths, drivers, and assignments are consistent."
+    }
+  ]
+}

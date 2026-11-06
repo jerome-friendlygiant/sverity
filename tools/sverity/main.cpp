@@ -272,7 +272,7 @@ static int runSverity(int argc, char** argv) {
             if (key == "CDC-005.min_stages" || key == "RDC-006.min_stages") {
                 if (!value.isInt()) fail("option '" + key + "' must be a JSON integer");
                 options[key] = std::to_string(value.asInt());
-            } else if (key == "LNT-036.report_modular") {
+            } else if (key == "LNT-036.report_modular" || key == "LNT-006.dynamic_index" || key == "LNT-037.dynamic_divisor") {
                 if (!value.isBool()) fail("option '" + key + "' must be a JSON boolean");
                 options[key] = value.asBool() ? "true" : "false";
             } else if (key == "LNT-061.allow" || key == "LNT-025.priority_chains") {
@@ -288,7 +288,7 @@ static int runSverity(int argc, char** argv) {
                 fail("option '" + key + "' must be an integer between 2 and " + std::to_string(INT_MAX));
         } else if (key == "LNT-025.priority_chains") {
             if (value != "info" && value != "warning") fail("option '" + key + "' must be info or warning");
-        } else if (key == "LNT-036.report_modular") {
+        } else if (key == "LNT-036.report_modular" || key == "LNT-006.dynamic_index" || key == "LNT-037.dynamic_divisor") {
             if (value != "true" && value != "false") fail("option '" + key + "' must be true or false");
         } else if (key == "LNT-061.allow") {
             if (!value.empty() && !std::regex_match(value, std::regex(R"(\s*\$?[A-Za-z_][A-Za-z0-9_$]*(\s*,\s*\$?[A-Za-z_][A-Za-z0-9_$]*)*\s*)")))

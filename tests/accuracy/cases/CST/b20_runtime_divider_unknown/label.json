@@ -1,0 +1,53 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "generated-clock ratio is runtime-configurable and not fixed by the RTL",
+  "sites": [
+    {
+      "file": "constraints.sdc",
+      "line": 2,
+      "signal": "nominal_div_clk"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The divider output period changes with div_i, while the RTL supplies no legal-value, update, or operating-mode contract that selects one ratio. The nominal divide-by-four clock in the SDC may be right for one configuration and wrong for another, so the constraint cannot be judged without that external assumption.",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_clk_int_div.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Reduced the runtime integer divider to a three-bit programmable counter and one divided-clock data register."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "unknown",
+      "critical": false,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 2,
+          "signal": "nominal_div_clk"
+        }
+      ]
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 2,
+          "signal": "clk_div_o"
+        }
+      ],
+      "note": "divide_by 4 holds only for div_i==2; the ratio is runtime-programmable and not decided by the RTL."
+    }
+  ]
+}

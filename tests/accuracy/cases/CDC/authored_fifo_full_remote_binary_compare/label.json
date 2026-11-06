@@ -1,0 +1,43 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "The empty comparison uses an independently synchronized binary write pointer; transitions such as 7 to 8 can be sampled incoherently.",
+  "mutation": {
+    "operator": "fifo_full_remote_binary_compare",
+    "description": "The empty comparison uses an independently synchronized binary write pointer; transitions such as 7 to 8 can be sampled incoherently."
+  },
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 7,
+      "signal": "write_q"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The empty comparison uses an independently synchronized binary write pointer; transitions such as 7 to 8 can be sampled incoherently.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 7,
+          "signal": "write_q"
+        }
+      ],
+      "note": "A changing binary pointer crosses bitwise; skewed/metastable bits can yield a false FIFO pointer comparison."
+    }
+  ]
+}

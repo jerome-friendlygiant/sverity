@@ -1,0 +1,32 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "good",
+  "critical": false,
+  "defect": "Only a persistent request crosses domains; the payload is an elaboration-time constant, with no asynchronous data path.",
+  "mutation": {
+    "operator": "source_domain_constant_payload",
+    "description": "Only a persistent request crosses domains; the payload is an elaboration-time constant, with no asynchronous data path."
+  },
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Only a persistent request crosses domains; the payload is an elaboration-time constant, with no asynchronous data path.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "The payload is an elaboration constant, with capture enabled by a two-stage synchronized persistent request."
+    }
+  ]
+}

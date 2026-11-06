@@ -1,0 +1,39 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "independent bit synchronizers do not preserve bus coherence",
+  "sites": [
+    {
+      "line": 13,
+      "signal": "config_dst"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The arbitrary configuration word can change multiple bits; independent settling can create a word never sent.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Each bit goes through its own two-flop synchroniser; I accept the bits as independent per the case intent, though a transient mixed value is possible if they were a coded field (torn with unknown)."
+    },
+    {
+      "by": "gpt-6.1-sol (separate settling reader, the two cases and both arguments only)",
+      "verdict": "unknown",
+      "critical": false,
+      "note": "Asynchronous clocks are declared and four bits cross through separate two-flop synchronisers without word coherence. That is safe for independent controls and unsafe for one coded value, and the RTL gives no contract saying which applies."
+    }
+  ],
+  "settled_by": "third reading; verdict unknown (all three readings differed; unknown is the reading the RTL supports)"
+}

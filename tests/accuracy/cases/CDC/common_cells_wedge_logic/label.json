@@ -1,0 +1,51 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "logic is present between the first and second destination synchronizer stages",
+  "sites": [
+    {
+      "line": 29,
+      "signal": "stage1_b"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "serial_a is asynchronous to clk_b, and the second receiving stage applies inversion to stage0_b before producing serial_b.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Only an inverter sits between the two stages; it adds no reconvergence or glitch and does not change metastability resolution, so the 2-flop crossing is still sound."
+    },
+    {
+      "by": "gpt-6.1-sol (separate settling reader, the case and both arguments only)",
+      "verdict": "bad",
+      "critical": true,
+      "note": "The inverter between the receiving flops breaks the direct stage-to-stage connection a synchroniser needs: its delay eats metastability settling time and lowers MTBF. No MTBF qualification is supplied."
+    }
+  ],
+  "origin": "adapted",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_sync_wedge.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Kept the two-register serial sampling shape and edge-oriented output path, reduced the dependency on common_cells macros, and exposed the registers in a self-contained top module."
+  },
+  "mutation": {
+    "operator": "logic-between-stages",
+    "description": "Changed the second destination stage to capture the inverted first-stage value instead of the first-stage value directly."
+  },
+  "settled_by": "third reading; verdict bad (2 of 3 readings)"
+}

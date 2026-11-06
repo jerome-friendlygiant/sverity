@@ -1,0 +1,39 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "adapted",
+  "verdict": "good",
+  "critical": false,
+  "defect": "none",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The serial input is synchronized before edge detection, and the edge state is reset in the same destination domain as the synchronizer.",
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "Reduced the common_cells synchronized wedge and retained both edge indicators."
+  },
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_sync_wedge.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Inlined the local synchronizer and removed the common_cells macro dependency."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Single-domain async reset on a plain synchroniser chain; no reset crossing defect."
+    }
+  ]
+}

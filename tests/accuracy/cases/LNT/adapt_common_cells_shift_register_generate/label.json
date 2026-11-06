@@ -1,0 +1,37 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "generated shift-register stages can resemble an off-by-one array access",
+  "sites": [],
+  "sdc": [],
+  "rationale": "Depth is a positive design parameter, stage zero captures the input, and the second loop only copies from stage i-1 for i in 1 through Depth-1. Every output access is therefore within the stage array.",
+  "origin": "adapted",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_shift_register.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Inlined the small gated shift-register behavior used by the wrapper and reduced it to a typed data array."
+  },
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "A parameterized sequential loop uses adjacent array elements and explicit reset/clear handling."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "No lint defect found; widths, drivers, and assignments are consistent."
+    }
+  ]
+}

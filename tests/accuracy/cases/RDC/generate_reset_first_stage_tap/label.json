@@ -1,0 +1,43 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "generated reset consumers use the first synchronizer stage",
+  "sites": [
+    {
+      "line": 23,
+      "signal": "reset_pipe_q[g][0]"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Both generated grant flops release from reset_pipe_q[g][0], so the first stage can propagate metastability into functional reset release.",
+  "author": "gpt-5.6-luna",
+  "mutation": {
+    "operator": "generate-first-stage-tap",
+    "description": "Changed every generated consumer reset from the final pipeline stage to stage zero."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 23,
+          "signal": "local_reset_ni"
+        }
+      ],
+      "note": "Each consumer reset taps the metastability-catching first stage."
+    }
+  ]
+}

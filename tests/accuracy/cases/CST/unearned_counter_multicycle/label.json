@@ -1,0 +1,60 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "the stream payload register is granted extra cycles without a holding enable",
+  "sites": [
+    {
+      "line": 27,
+      "signal": "payload_o"
+    },
+    {
+      "file": "constraints.sdc",
+      "line": 2,
+      "signal": "payload_o"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "payload_q updates on every clk_i edge from the stream input; no protocol condition holds it for three cycles. The multicycle exception therefore relaxes a live single-cycle register path without justification.",
+  "mutation": {
+    "operator": "multicycle-without-enable",
+    "description": "Added a three-cycle exception to the payload register path without an enable that delays its update."
+  },
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_stream_delay.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Retained the clocked stream payload and valid delay shape; reduced the handshake state machine and counter to a fixed one-stage register."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 2,
+          "signal": "payload_q->payload_o"
+        },
+        {
+          "file": "constraints.sdc",
+          "line": 3,
+          "signal": "payload_q->payload_o"
+        }
+      ],
+      "note": "payload_q captures new data every cycle with no enable, so a 3-cycle setup multicycle on payload_q->payload_o is unearned."
+    }
+  ]
+}

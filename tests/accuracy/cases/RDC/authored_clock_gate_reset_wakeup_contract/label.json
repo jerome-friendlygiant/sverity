@@ -1,0 +1,43 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "origin": "authored",
+  "defect": "Reset release is correctly conditioned on the gated clock, but whether the block can leave reset depends on the missing clock-enable wakeup contract. RTL permits the clock to remain stopped indefinitely.",
+  "sites": [
+    {
+      "line": 4,
+      "signal": "local_clk"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Reset release is correctly conditioned on the gated clock, but whether the block can leave reset depends on the missing clock-enable wakeup contract. RTL permits the clock to remain stopped indefinitely.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-clock-gate-reset-wakeup-contract",
+    "description": "Reset release is correctly conditioned on the gated clock, but whether the block can leave reset depends on the missing clock-enable wakeup contract. RTL permits the clock to remain stopped indefinitely."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 7,
+          "signal": "local_clk"
+        }
+      ],
+      "note": "Local reset release is structurally synchronized, but wakeup/service behavior of the externally gated clock requires an environment contract."
+    }
+  ]
+}

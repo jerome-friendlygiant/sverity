@@ -1,0 +1,49 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "the read-side FIFO receiver has no reset while the write-side sender can reset",
+  "sites": [
+    {
+      "line": 36,
+      "signal": "data_o"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "rst_wr_ni can reset write_toggle_q independently, but data_o and read_toggle_q have no reset in the receiving clock domain and can retain invalid state.",
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "verilog-axis",
+    "commit": "48ff7a7e2ef782cf778d47910cf85835c64b1bce",
+    "path": "rtl/axis_fifo.v",
+    "licence": "MIT",
+    "adaptation": "Reduced the FIFO to a write toggle, a synchronized read-side observation, and the receiving data register."
+  },
+  "mutation": {
+    "operator": "receiver-left-unreset",
+    "description": "Removed the read-domain reset from data_o and read_toggle_q while retaining an independently reset sender."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 34,
+          "signal": "read_toggle_q"
+        }
+      ],
+      "note": "read_toggle_q has no reset while the sender toggle is reset, so the toggle compare starts from X and can emit a spurious transfer."
+    }
+  ]
+}

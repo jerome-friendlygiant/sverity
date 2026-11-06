@@ -1,0 +1,40 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "origin": "authored",
+  "defect": "The numeric input-delay window assumes sensor bit rate and sampling phase; neither RTL nor supplied environment establishes it.",
+  "sites": [
+    {
+      "file": "constraints.sdc",
+      "line": 2,
+      "signal": "d"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The numeric input-delay window assumes sensor bit rate and sampling phase; neither RTL nor supplied environment establishes it. Startup initial blocks express FPGA initialization; plain edge-triggered always procedures preserve it without violating always_ff single-writer restrictions.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-sol (blind CST reviewer)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 2,
+          "signal": "d"
+        }
+      ],
+      "note": "The external interface contract is deliberately unavailable. The RTL does not establish whether d launches on core or whether the numeric arrival/required bounds match the external devices; nominal numeric delays cannot establish their validity."
+    }
+  ]
+}

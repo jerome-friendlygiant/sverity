@@ -1,0 +1,43 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "origin": "authored",
+  "defect": "The opaque controller may order the two reset domains safely or release them independently; no reset-vector correlation, isolation or sequencing contract is supplied.",
+  "sites": [
+    {
+      "line": 4,
+      "signal": "reset_vector_n"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The opaque controller may order the two reset domains safely or release them independently; no reset-vector correlation, isolation or sequencing contract is supplied.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-multibit-reset-controller-opaque",
+    "description": "The opaque controller may order the two reset domains safely or release them independently; no reset-vector correlation, isolation or sequencing contract is supplied."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 6,
+          "signal": "reset_vector_n"
+        }
+      ],
+      "note": "Opaque sequencer outputs do not establish reset polarity, release synchronization or sequencing between consumers."
+    }
+  ]
+}

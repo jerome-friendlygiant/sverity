@@ -1,0 +1,37 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "interrupt encoder stores old valid state",
+  "sites": [
+    {
+      "line": 5,
+      "signal": "valid_o"
+    }
+  ],
+  "sdc": [],
+  "rationale": "When every interrupt clears, valid_o is unassigned and holds its earlier asserted value; the intended combinational valid output infers a latch.",
+  "origin": "authored",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind lint reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 6,
+          "signal": "valid_o"
+        }
+      ],
+      "note": "Zero interrupts leave valid_o unassigned in always_comb."
+    }
+  ]
+}

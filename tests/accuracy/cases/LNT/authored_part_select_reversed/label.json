@@ -1,0 +1,37 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "descending vector selected with reversed part direction",
+  "sites": [
+    {
+      "line": 3,
+      "signal": "sample_o"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The descending packed vector has an ascending fixed part-select, reversing the declared direction rather than selecting bits 7 through 4.",
+  "origin": "authored",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind lint reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 3,
+          "signal": "sample_o"
+        }
+      ],
+      "note": "The fixed part-select direction contradicts the descending declaration."
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "functional state uses the first reset-release synchronizer stage",
+  "sites": [
+    {
+      "line": 24,
+      "signal": "release_ni"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "payload_o is asynchronously released by release_q[0], the metastability-exposed first stage, rather than by the settled second stage.",
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim_generic/rtl/prim_flop_2sync.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Kept the two-flop synchronizer shape and reduced its consumer to one payload register."
+  },
+  "mutation": {
+    "operator": "reset-release-stage-tapped",
+    "description": "Connected the payload reset to release_q[0] instead of the final release stage release_q[1]."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 22,
+          "signal": "release_q[0]"
+        }
+      ],
+      "note": "Functional flop reset uses first (metastable) synchroniser stage release_q[0]."
+    }
+  ]
+}

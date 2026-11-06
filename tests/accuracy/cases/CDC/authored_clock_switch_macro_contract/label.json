@@ -1,0 +1,43 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "An opaque clock selector gives no glitch-free switching guarantee or selected-clock timing relation; capture safety requires its missing clock-cell contract.",
+  "mutation": {
+    "operator": "clock_switch_macro_contract",
+    "description": "An opaque clock selector gives no glitch-free switching guarantee or selected-clock timing relation; capture safety requires its missing clock-cell contract."
+  },
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 5,
+      "signal": "selected_clk"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "An opaque clock selector gives no glitch-free switching guarantee or selected-clock timing relation; capture safety requires its missing clock-cell contract.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 5,
+          "signal": "selected_clk"
+        }
+      ],
+      "note": "Opaque clock mux behavior and selected-clock timing are unknown."
+    }
+  ]
+}

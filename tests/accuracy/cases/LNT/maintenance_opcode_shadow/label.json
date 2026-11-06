@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "broad wildcard opcode arm makes maintenance command unreachable",
+  "sites": [
+    {
+      "line": 19,
+      "signal": "action"
+    },
+    {
+      "line": 29,
+      "signal": "clear_error"
+    }
+  ],
+  "sdc": [],
+  "rationale": "Opcode 8'hAF is documented to clear the error. The earlier 1010???? casez item matches AF first and sets start_transfer, so the clear_error arm can never execute.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author, replacement set)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 19,
+          "signal": "action.clear"
+        }
+      ],
+      "note": "8'hAF = 1010_1111 is already matched by the earlier 8'b1010???? item, so the clear arm is unreachable and clear_error can never assert."
+    }
+  ]
+}

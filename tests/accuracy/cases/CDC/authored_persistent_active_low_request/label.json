@@ -1,0 +1,32 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "good",
+  "critical": false,
+  "defect": "An active-low persistent request is sampled by two destination stages before inversion; polarity does not alter containment.",
+  "mutation": {
+    "operator": "persistent_active_low_request",
+    "description": "An active-low persistent request is sampled by two destination stages before inversion; polarity does not alter containment."
+  },
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "An active-low persistent request is sampled by two destination stages before inversion; polarity does not alter containment. Startup initial blocks express FPGA initialization; plain edge-triggered always procedures preserve it without violating always_ff single-writer restrictions.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Active-low sticky request crosses two destination flops before polarity conversion."
+    }
+  ]
+}

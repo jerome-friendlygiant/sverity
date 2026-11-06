@@ -1,0 +1,7 @@
+create_clock -name ref_clk -period 8.000 [get_ports ref_clk_i]
+create_clock -name unrelated_clk -period 13.000 [get_ports unrelated_clk_i]
+create_generated_clock -name aux_clk -source [get_ports unrelated_clk_i] -divide_by 16 [get_pins top/u_pll/aux_o]
+set_clock_groups -asynchronous -group [get_clocks {ref_clk aux_clk}] -group [get_clocks unrelated_clk]
+set_input_delay 1.500 -clock aux_clk [get_ports payload_i]
+set_output_delay 1.500 -clock aux_clk [get_ports payload_o]
+set_false_path -from [get_ports rst_ni]

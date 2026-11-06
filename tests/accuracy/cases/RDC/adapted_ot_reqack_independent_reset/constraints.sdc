@@ -1,0 +1,7 @@
+create_clock -name clk_src_i -period 10 [get_ports clk_src_i]
+create_clock -name clk_dst_i -period 13 [get_ports clk_dst_i]
+set_clock_groups -asynchronous -group [get_clocks clk_src_i] -group [get_clocks clk_dst_i]
+set_input_delay 2 -clock clk_src_i [get_ports src_req_i]
+set_input_delay 2 -clock clk_dst_i [get_ports dst_accept_i]
+set_output_delay 2 -clock clk_src_i [get_ports src_ack_o]
+set_output_delay 2 -clock clk_dst_i [get_ports dst_req_o]

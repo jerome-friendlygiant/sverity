@@ -1,0 +1,43 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "The event detector consumes the metastability-prone first capture stage.",
+  "mutation": {
+    "operator": "serdes_edge_detector_meta",
+    "description": "The event detector consumes the metastability-prone first capture stage."
+  },
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 9,
+      "signal": "meta_q"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The event detector consumes the metastability-prone first capture stage.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 9,
+          "signal": "meta_q"
+        }
+      ],
+      "note": "Pulse detector consumes the metastable first stage rather than comparing only settled destination stages."
+    }
+  ]
+}

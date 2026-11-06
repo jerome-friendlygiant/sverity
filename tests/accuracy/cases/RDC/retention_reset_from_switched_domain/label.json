@@ -1,0 +1,43 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "an always-on retention register is reset by the switched-off domain",
+  "sites": [
+    {
+      "line": 22,
+      "signal": "switched_reset_ni"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "When the switched domain powers down, its reset release pipeline is not a valid always-on reset source and can erase retained_q asynchronously.",
+  "author": "gpt-5.6-luna",
+  "mutation": {
+    "operator": "retention-reset-ownership",
+    "description": "Drove the always-on retention bank from a reset synchronizer clocked in the power-gated domain."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 22,
+          "signal": "switched_reset_ni"
+        }
+      ],
+      "note": "The always-on consumer is released by a reset synchronized only to the unrelated switched clock."
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "reset release is synchronized on a clock different from the receiver clock",
+  "sites": [
+    {
+      "line": 24,
+      "signal": "release_main_ni"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The reset pipeline advances on clk_aux, but data_o is released asynchronously by that pipeline while operating on clk_main; the two clocks are unrelated.",
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim_generic/rtl/prim_flop_2sync.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Kept a two-stage reset-release pipeline and reduced the consumer to one register."
+  },
+  "mutation": {
+    "operator": "reset-sync-wrong-clock",
+    "description": "Clocked the reset-release stages with clk_aux while applying the release to a clk_main register."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 23,
+          "signal": "release_main_ni"
+        }
+      ],
+      "note": "clk_main reset released by a synchroniser clocked by clk_aux, so release is async to clk_main."
+    }
+  ]
+}

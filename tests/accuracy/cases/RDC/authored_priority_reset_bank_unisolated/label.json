@@ -1,0 +1,43 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "Independent source reset can change bank_q asynchronously while the receiving reset domain remains active; arithmetic does not isolate the crossing.",
+  "sites": [
+    {
+      "line": 10,
+      "signal": "out_o <= bank_q"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Independent source reset can change bank_q asynchronously while the receiving reset domain remains active; arithmetic does not isolate the crossing.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-priority-reset-bank-unisolated",
+    "description": "Independent source reset can change bank_q asynchronously while the receiving reset domain remains active; arithmetic does not isolate the crossing."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 10,
+          "signal": "bank_q"
+        }
+      ],
+      "note": "Independent raw-reset bank data reaches an active receiver without isolation."
+    }
+  ]
+}

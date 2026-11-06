@@ -1,0 +1,35 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "logical conjunction collapses a byte write mask to one bit",
+  "sites": [
+    {
+      "line": 13,
+      "signal": "enabled_bytes"
+    }
+  ],
+  "sdc": [],
+  "rationale": "enabled_bytes must preserve each enabled lane. Logical && produces only 0 or 1: lane 3 alone requested with all lanes available enables lane 0 instead, causing a write to the wrong byte.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author, replacement set)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 13,
+          "signal": "enabled_bytes"
+        }
+      ],
+      "note": "Logical && reduces the two lane vectors to one bit which is zero-extended, so only lane 0 can ever be enabled instead of a per-lane bitwise AND."
+    }
+  ]
+}

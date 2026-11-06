@@ -1,0 +1,39 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "adapted",
+  "verdict": "good",
+  "critical": false,
+  "defect": "none",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Reset initializes the two sequential release stages to their declared reset value; readiness uses the delayed stage in the same clock domain.",
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "Reduced the OpenTitan double-flop primitive to a local reset-release readiness indicator."
+  },
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim_generic/rtl/prim_flop_2sync.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Removed primitive random-delay and package dependencies while retaining the two sequential stages."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Single domain reset with consistent reset values; ready_o is gated by first_q."
+    }
+  ]
+}

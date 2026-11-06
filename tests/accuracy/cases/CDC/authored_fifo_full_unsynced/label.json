@@ -1,0 +1,43 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "FIFO full comparison consumes the read pointer directly in the write clock domain",
+  "mutation": {
+    "operator": "fifo-full-unsynchronised-pointer",
+    "description": "The write-side full equation compares write_ptr with read_ptr_async instead of a safely synchronised Gray pointer."
+  },
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 17,
+      "signal": "full"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Read pointer bits can change near a write clock edge and create a false-full or false-not-full result, allowing overflow or needless blockage.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 17,
+          "signal": "read_ptr_async"
+        }
+      ],
+      "note": "Unsynchronized multi-bit remote pointer directly controls write-side full status."
+    }
+  ]
+}

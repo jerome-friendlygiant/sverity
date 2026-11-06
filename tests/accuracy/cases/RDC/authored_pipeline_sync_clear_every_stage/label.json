@@ -1,0 +1,32 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "origin": "authored",
+  "defect": "All pipeline stages use a synchronous clear; the clear does not create asynchronous data transitions.",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "All pipeline stages use a synchronous clear; the clear does not create asynchronous data transitions.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-pipeline-sync-clear-every-stage",
+    "description": "All pipeline stages use a synchronous clear; the clear does not create asynchronous data transitions."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "All stages clear synchronously on the declared local clock."
+    }
+  ]
+}

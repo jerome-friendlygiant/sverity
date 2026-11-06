@@ -1,0 +1,27 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "resettable source asynchronously changes data seen by another reset domain",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The only consumer of the asynchronously changing source is a two-stage receiving chain; functional logic observes the settled stage.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "The asynchronously reset source flop is received through a two-flop synchroniser, so the reset-domain crossing is protected."
+    }
+  ]
+}

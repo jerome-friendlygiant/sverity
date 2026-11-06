@@ -1,0 +1,47 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "signed LFSR seed is compared against an unsigned state",
+  "sites": [
+    {
+      "line": 12,
+      "signal": "reseed_o"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The mixed signedness comparison converts a negative seed into a large unsigned value, changing the reseed decision for negative entropy values.",
+  "mutation": {
+    "operator": "signed-unsigned-mix",
+    "description": "Changed the seed path to signed while retaining the unsigned LFSR state comparison operand."
+  },
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_lfsr.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced the LFSR seed/state decision to a signedness-sensitive reseed comparator."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 12,
+          "signal": "seed_i"
+        }
+      ],
+      "note": "signed vs unsigned compare treated as unsigned"
+    }
+  ]
+}

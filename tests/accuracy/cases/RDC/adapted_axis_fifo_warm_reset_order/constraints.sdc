@@ -1,0 +1,6 @@
+create_clock -name clk_wr -period 10 [get_ports clk_wr]
+create_clock -name clk_rd -period 15 [get_ports clk_rd]
+set_clock_groups -asynchronous -group [get_clocks clk_wr] -group [get_clocks clk_rd]
+set_input_delay 2 -clock clk_wr [get_ports {wr_valid_i wr_data_i}]
+set_input_delay 2 -clock clk_rd [get_ports rd_ready_i]
+set_output_delay 2 -clock clk_rd [get_ports {rd_valid_o rd_data_o}]

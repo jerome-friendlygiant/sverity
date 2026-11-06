@@ -1,0 +1,57 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "adapted",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "receiver reset safety depends on sender quiescence",
+  "sites": [
+    {
+      "line": 31,
+      "signal": "rst_dst_ni"
+    },
+    {
+      "line": 38,
+      "signal": "src_valid_q"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The destination reset can clear its valid history while the source retains a live item; safety is undecidable without the unstated software contract that the sender is quiesced before the destination reset and remains quiescent until reinitialization.",
+  "mutation": {
+    "operator": "software-quiesce-contract-unknown",
+    "description": "Retained independent source and destination reset controls around a reduced pipeline crossing."
+  },
+  "provenance": {
+    "repository": "verilog-axis",
+    "commit": "48ff7a7e2ef782cf778d47910cf85835c64b1bce",
+    "path": "rtl/axis_pipeline_register.v",
+    "licence": "MIT",
+    "adaptation": "Reduced the pipeline to a source item and a destination valid synchronizer."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "unknown",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 32,
+          "signal": "rst_dst_ni"
+        },
+        {
+          "line": 21,
+          "signal": "rst_src_ni"
+        }
+      ],
+      "note": "Resetting the destination alone while src_valid_q is still 1 emits a spurious valid; correctness depends on an unstated quiesce/sequencing contract."
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "rotation expression drops one bit",
+  "sites": [
+    {
+      "line": 4,
+      "signal": "rotated_o"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The nine-bit concatenation assigned into eight bits loses payload_i[6]; this is not a rotation and loses information.",
+  "origin": "authored",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind lint reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "rotated_o"
+        }
+      ],
+      "note": "A nine-bit concatenation is silently assigned to an eight-bit destination, dropping a payload bit."
+    }
+  ]
+}

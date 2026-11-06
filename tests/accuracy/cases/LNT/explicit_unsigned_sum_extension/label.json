@@ -1,0 +1,25 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "explicit carry extension may resemble accidental width mismatch",
+  "sites": [],
+  "sdc": [],
+  "rationale": "All addends are widened explicitly and the nine-bit output holds the complete unsigned sum.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Both operands are explicitly widened to 9 bits so the carry is kept in the 9-bit sum."
+    }
+  ]
+}

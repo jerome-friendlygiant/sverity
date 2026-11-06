@@ -1,0 +1,13 @@
+create_clock -name root_clk -period 10.000 [get_ports clk_i]
+create_generated_clock -name gated_clk -source [get_ports clk_i] -divide_by 1 [get_ports clk_o]
+set_clock_gating_check -high 1.000 -low 1.000 [get_clocks root_clk]
+set_case_analysis 0 [get_ports test_en_i]
+
+set_input_delay  -clock root_clk  -min 1.000 [get_ports async_en_i]
+set_input_delay  -clock root_clk -max 3.000 [get_ports async_en_i]
+set_input_delay  -clock gated_clk -min 1.000 [get_ports data_i]
+set_input_delay  -clock gated_clk -max 3.000 [get_ports data_i]
+set_output_delay -clock root_clk  -min 0.500 [get_ports en_o]
+set_output_delay -clock root_clk -max 2.000 [get_ports en_o]
+set_output_delay -clock gated_clk -min 0.500 [get_ports data_o]
+set_output_delay -clock gated_clk -max 2.000 [get_ports data_o]

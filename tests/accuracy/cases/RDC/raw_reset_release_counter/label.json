@@ -1,0 +1,37 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "external asynchronous reset releases state without synchronization",
+  "sites": [
+    {
+      "line": 9,
+      "signal": "count"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "rst_n is an external asynchronous reset with no release contract; counter bits can violate recovery/removal and leave reset inconsistently.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 7,
+          "signal": "rst_n"
+        }
+      ],
+      "note": "The async reset deassertion is unsynchronised, and the comment says it may rise anywhere in the cycle, so recovery/removal can be violated."
+    }
+  ]
+}

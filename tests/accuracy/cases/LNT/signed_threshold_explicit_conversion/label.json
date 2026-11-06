@@ -1,0 +1,25 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "different signed input types are deliberately normalized",
+  "sites": [],
+  "sdc": [],
+  "rationale": "Both operands are extended into a signed nine-bit domain that represents their complete ranges.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Both operands are explicitly converted to 9-bit signed (sign-extended and zero-extended), so the comparison is correct."
+    }
+  ]
+}

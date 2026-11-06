@@ -502,6 +502,28 @@ void RdcShared::structure(RuleContext& ctx) {
         add(std::move(d));
         ctx.report.markIncomplete("reset-extraction", "reset input " + full + " is unconstrained");
     }
+    // ... and top-level inputs used as a synchronous reset (the heuristic candidate): its constraint is an input delay,
+    // without which whether it is synchronous to the clock it resets is not declared.
+    std::map<NodeId, uint32_t> syncResetInputs;   // input -> first register it resets
+    for (uint32_t fi = 0; fi < m_->flops.size(); ++fi) {
+        const NodeId r = m_->flops[fi].syncReset;
+        if (r != kNoNode && r < m_->topInput.size() && m_->topInput[r] && !resetRoots.count(r)) syncResetInputs.emplace(r, fi);
+    }
+    for (auto [input, fi] : syncResetInputs) {
+        std::string full = stripBit(m_->nameOf(input));
+        bool constrained = false;
+        for (auto& delay : ctx.config.constraints.inputDelays)
+            for (auto& r : delay.ports) constrained = constrained || rel_->nameMatches(r.kind, r.pattern, input, full);
+        if (constrained) continue;
+        evaluated["RDC-002"]++;
+        const Flop& u0 = m_->flops[fi];
+        Diagnostic d = mk("RDC-002", Severity::Warning, "input " + full + " is used as a synchronous reset but has no input delay: whether it is synchronous to the clock it resets, "
+                          "or an asynchronous reset that needs synchronising, is not declared", procLoc(u0).loc, procLoc(u0).instancePath, Confidence::Unresolved);
+        d.signals = {full};
+        d.nextStep = "Declare the input delay of the reset against the clock it resets, or synchronise it if its source is asynchronous.";
+        add(std::move(d));
+        ctx.report.markIncomplete("reset-extraction", "synchronous reset input " + full + " is unconstrained");
+    }
 
     // --- explicit "not modelled" markers: RDC-011 (sequencing), RDC-012 / RDC-029 (power intent), RDC-013 (recovery/removal)
     if (!sources.empty()) {

@@ -1,0 +1,53 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "stream FIFO behavior is hidden behind an unspecified storage primitive",
+  "sites": [
+    {
+      "line": 32,
+      "signal": "data_o"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The FIFO shell supplies depth and width parameters to a stub whose storage, pointer update, full/empty behavior, and output drive are absent. It is therefore impossible to decide whether data_o, valid_o, and ready_o obey the stream contract.",
+  "origin": "adapted",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_passthrough_stream_fifo.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Reduced the FIFO interface and left the implementation as an explicit black-box storage dependency."
+  },
+  "mutation": {
+    "operator": "unknown-black-box",
+    "description": "The FIFO state machine and drive behavior are intentionally omitted from the integration shell."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 32,
+          "signal": "data_o"
+        }
+      ]
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 36,
+          "signal": "u_fifo"
+        }
+      ],
+      "note": "Stub module has no body so output driving behaviour cannot be decided."
+    }
+  ]
+}

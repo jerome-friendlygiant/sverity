@@ -1,0 +1,49 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "the destination clear output bypasses the synchronized clear state",
+  "sites": [
+    {
+      "line": 39,
+      "signal": "b_clear_o"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "a_clear_i is asynchronous to clk_b and b_clear_o is driven directly from it even though a two-stage synchronized clear state is present for the destination controller.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 39,
+          "signal": "a_clear_i"
+        }
+      ],
+      "note": "b_clear_o is driven directly from the clk_a-domain a_clear_i, bypassing the synchroniser."
+    }
+  ],
+  "origin": "adapted",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_cdc_reset_ctrlr.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Kept the two-clock clear/isolation controller context and destination clear synchronizer, reduced the phase machine and acknowledgement protocol, and exposed a self-contained top module."
+  },
+  "mutation": {
+    "operator": "qualifier-bypassed",
+    "description": "Drove b_clear_o directly from a_clear_i instead of the synchronized clear_s1_b state."
+  }
+}

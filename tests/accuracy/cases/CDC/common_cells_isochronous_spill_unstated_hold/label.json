@@ -1,0 +1,53 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "adapted",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "the source may change data before the destination samples it because no valid-hold contract is stated",
+  "sites": [
+    {
+      "line": 31,
+      "signal": "dst_data_o"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The clocks are related by a declared divide-by-two relationship, but the environment contract does not say that src_data_i remains stable for the destination sampling window. The direct payload crossing can consequently be safe or unsafe depending on that unstated assumption.",
+  "mutation": {
+    "operator": "undecidable-contract",
+    "description": "Kept the isochronous crossing but omitted the source-side requirement to hold payload stable until consumption."
+  },
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_isochronous_spill_register.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Reduced to the direct payload and valid crossing, with the source hold guarantee intentionally left external."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 25,
+          "signal": "valid_meta_q"
+        },
+        {
+          "line": 24,
+          "signal": "data_q"
+        }
+      ],
+      "note": "dst is a divide-by-2 of src, so a one-cycle src_valid_i pulse can fall between dst edges; whether valid is held two cycles is an unstated environment protocol."
+    }
+  ]
+}

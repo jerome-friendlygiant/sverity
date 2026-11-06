@@ -1,0 +1,53 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "the receiving data is synchronized by registers clocked in the source domain",
+  "sites": [
+    {
+      "line": 24,
+      "signal": "source_stage1"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "data_slow crosses into the independent clk_fast domain, but both sampling stages use clk_slow and data_fast is only a combinational view of the source-domain stage.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 28,
+          "signal": "data_fast"
+        },
+        {
+          "line": 28,
+          "signal": "data_fast"
+        }
+      ],
+      "note": "The synchroniser flops are clocked by the source clk_slow, so data_fast reaches clk_fast logic with no destination-clock synchronisation (and is an unqualified 8-bit bus)."
+    }
+  ],
+  "origin": "adapted",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_sync_slow_fast.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Kept the slow-source and fast-destination interface context and reduced the sampled data path to a small self-contained module."
+  },
+  "mutation": {
+    "operator": "sync-on-source-clock",
+    "description": "Clocked both sampling stages with clk_slow, leaving no clk_fast-domain synchronizer for data_fast."
+  }
+}

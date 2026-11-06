@@ -1,0 +1,39 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "origin": "authored",
+  "defect": "The supplied 8 ns clock with edges at 0 and 4 ns supports falling-edge capture. No source waveform contract in the inputs contradicts it; the original label invented a phase requirement.",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The supplied 8 ns clock with edges at 0 and 4 ns supports falling-edge capture. No source waveform contract in the inputs contradicts it; the original label invented a phase requirement.",
+  "mutation": {
+    "operator": "wrong-clock-waveform",
+    "description": "Kept the DDR clock period but replaced its phase-shifted waveform with a zero-based 50 percent waveform."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CST reviewer)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "A 50-percent-duty 8 ns clock with waveform {0 4} correctly provides both rising and falling edges. Negedge RTL capture does not imply that create_clock should invert its waveform; rising-edge launch external I/O delays can legitimately impose half-cycle paths. No external falling-edge launch contract is supplied to contradict those delays."
+    },
+    {
+      "by": "gpt-6.1-sol (third settling reading)",
+      "verdict": "good",
+      "critical": false,
+      "note": "The supplied 8 ns clock with edges at 0 and 4 ns supports falling-edge capture. No source waveform contract in the inputs contradicts it; the original label invented a phase requirement."
+    }
+  ],
+  "settled_by": "Third reading: gpt-6.1-sol; The supplied 8 ns clock with edges at 0 and 4 ns supports falling-edge capture. No source waveform contract in the inputs contradicts it; the original label invented a phase requirement."
+}

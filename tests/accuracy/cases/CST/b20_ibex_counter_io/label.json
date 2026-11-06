@@ -1,0 +1,38 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "none",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The CSR counter is a single-clock synchronous block, and increment, write, load data, and both counter outputs have complete clock-relative delays.",
+  "provenance": {
+    "repository": "ibex",
+    "commit": "2373e5dadcfc4f56672962fa242f6a051acc9aca",
+    "path": "rtl/ibex_counter.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced the counter to a 64-bit register with low/high writes, increment, and next-value output."
+  },
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "The implementation always exposes the incremented next value; it does not create another clock or timing relationship."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Single clock, all ports constrained."
+    }
+  ]
+}

@@ -21,6 +21,11 @@ struct ClockDef {
     std::string name;                 // -name (empty if omitted: then derived from first source pattern)
     double periodNs = 0;              // -period; 0 when absent/unparseable
     std::vector<ObjectRef> sources;   // positional object list (ports/pins)
+    bool add = false;                 // -add preserves another clock on the target
+    std::vector<double> waveform;     // primary edges; default is {0, period / 2}
+    std::vector<ObjectRef> sourceObjects; // generated -source, separate from target objects
+    std::string explicitMasterClock;  // -master_clock only
+    std::vector<std::string> waveformOptions; // generated waveform-transform options
     bool generated = false;           // create_generated_clock
     std::string masterClock;          // -source/-master_clock target, if given
     std::string divideBy, multiplyBy; // raw option text for generated clocks

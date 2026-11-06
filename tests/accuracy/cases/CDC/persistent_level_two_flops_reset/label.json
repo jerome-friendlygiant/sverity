@@ -1,0 +1,27 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "resettable two-stage level synchronizer may look like raw crossing",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The sticky source level persists once set; only the second destination stage is consumed and resets are synchronous to their domains.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "A sticky level is synchronised by two flops with an async_reg attribute; clears are local synchronous clears."
+    }
+  ]
+}

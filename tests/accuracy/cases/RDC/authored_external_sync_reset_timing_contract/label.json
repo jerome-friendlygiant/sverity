@@ -1,0 +1,43 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "origin": "authored",
+  "defect": "A synchronous-reset implementation is safe if its external reset control meets setup/hold; unlike data_i, that control has no timing or source-clock contract here.",
+  "sites": [
+    {
+      "line": 2,
+      "signal": "sync_reset_i"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "A synchronous-reset implementation is safe if its external reset control meets setup/hold; unlike data_i, that control has no timing or source-clock contract here.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-external-sync-reset-timing-contract",
+    "description": "A synchronous-reset implementation is safe if its external reset control meets setup/hold; unlike data_i, that control has no timing or source-clock contract here."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 5,
+          "signal": "sync_reset_i"
+        }
+      ],
+      "note": "The external synchronous-reset input lacks a timing relationship/delay contract, so safe capture is undecidable."
+    }
+  ]
+}

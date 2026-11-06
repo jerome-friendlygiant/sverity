@@ -1,0 +1,51 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "REQ and ACK handshake state can be reset independently across the two reset domains",
+  "sites": [
+    {
+      "line": 31,
+      "signal": "req_dst_sync_q"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The source and destination handshake registers use independent asynchronous resets; resetting one side alone can leave the synchronized toggle and acknowledgement phase inconsistent.",
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_sync_reqack.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced the request/acknowledge synchronizer to toggle state, two synchronizer chains and an acknowledgement comparator."
+  },
+  "mutation": {
+    "operator": "reset-from-other-domain",
+    "description": "Allowed the source and destination handshake state to use independent asynchronous reset domains without coordinated recovery."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Both ends reset in their own domain and the level handshake self-heals after either side alone resets."
+    },
+    {
+      "by": "gpt-6.1-sol (separate settling reader, the case and both arguments only)",
+      "verdict": "bad",
+      "critical": true,
+      "note": "Starting from settled phase 1, a new request toggles req_src_q; resetting only the destination forces ack_dst_q to 0 (line 35), acknowledging a request it never observed. The equality at line 47 can report completion for a request erased by reset."
+    }
+  ],
+  "settled_by": "third reading; verdict bad (2 of 3 readings)"
+}

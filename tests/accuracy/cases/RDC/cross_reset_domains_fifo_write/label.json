@@ -1,0 +1,49 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "FIFO state crosses between independently reset write, pointer-synchronizer and data registers",
+  "sites": [
+    {
+      "line": 36,
+      "signal": "data_o"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "wr_ptr_q, wr_ptr_sync_q, rd_ptr_q and data_o use separate asynchronous reset controls, so an independent reset can make the receiving FIFO state disagree with the pointer crossing.",
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_fifo_async.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced the asynchronous FIFO to write and read pointers, one pointer crossing, and one data output register."
+  },
+  "mutation": {
+    "operator": "reset-from-other-domain",
+    "description": "Assigned the data register an independent asynchronous reset domain instead of coordinating it with the pointer state."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 34,
+          "signal": "rst_data_ni"
+        }
+      ],
+      "note": "data_o on separate reset rst_data_ni is loaded under pointer state in rst_rd_ni domain; independent reset corrupts FIFO consistency."
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "adapted",
+  "verdict": "good",
+  "critical": false,
+  "defect": "none; an asynchronous level is synchronized before edge detection",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The input crosses through two destination-clocked stages and the edge detector compares only the settled second stage with its delayed copy. The asynchronous reset is excluded from synchronous timing.",
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "Preserved the two-stage level synchronizer and added the ordinary delayed edge detector around its settled output."
+  },
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_sync_wedge.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Reduced to a self-contained top module with the synchronizer, settled level, and rising/falling outputs."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Two-flop synchroniser with edge detection taken only from the second stage onward."
+    }
+  ]
+}

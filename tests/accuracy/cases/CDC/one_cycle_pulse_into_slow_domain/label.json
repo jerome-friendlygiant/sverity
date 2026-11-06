@@ -1,0 +1,37 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "narrow source pulse can disappear between destination edges",
+  "sites": [
+    {
+      "line": 10,
+      "signal": "pulse_dst"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The source emits an unacknowledged single-cycle pulse; the slower destination can miss the entire pulse.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 9,
+          "signal": "pulse_src"
+        }
+      ],
+      "note": "A one-cycle 2 ns pulse sampled by a 23 ns clock is usually missed; it needs a toggle or stretch."
+    }
+  ]
+}

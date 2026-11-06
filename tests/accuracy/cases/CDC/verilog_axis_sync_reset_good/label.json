@@ -1,0 +1,39 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "adapted",
+  "verdict": "good",
+  "critical": false,
+  "defect": "none; an asynchronous reset is asserted immediately and released through a three-register pipeline",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Reset drives all synchronizer stages asserted, and deassertion shifts through one zero per clock. The output therefore cannot release until the full pipeline has observed clock edges.",
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "Reduced verilog-axis sync_reset to a parameterized three-stage reset synchronizer."
+  },
+  "provenance": {
+    "repository": "verilog-axis",
+    "commit": "48ff7a7e2ef782cf778d47910cf85835c64b1bce",
+    "path": "rtl/sync_reset.v",
+    "licence": "MIT",
+    "adaptation": "Converted the Verilog-2001 module to a self-contained SystemVerilog top with the same reset pipeline."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Standard async-assert, synchronous-release reset synchroniser of 3 stages."
+    }
+  ]
+}

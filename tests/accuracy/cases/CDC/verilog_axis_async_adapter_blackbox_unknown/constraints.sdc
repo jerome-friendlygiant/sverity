@@ -1,0 +1,8 @@
+create_clock -name s_clk -period 8.000 [get_ports s_clk]
+create_clock -name m_clk -period 11.000 [get_ports m_clk]
+set_clock_groups -asynchronous -group [get_clocks s_clk] -group [get_clocks m_clk]
+set_input_delay 0.000 -clock s_clk [get_ports {s_data s_valid}]
+set_input_delay 0.000 -clock m_clk [get_ports m_ready]
+set_output_delay 0.000 -clock s_clk [get_ports s_ready]
+set_output_delay 0.000 -clock m_clk [get_ports {m_data m_valid}]
+set_false_path -from [get_ports {s_rst m_rst}]

@@ -1,0 +1,37 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "reduction test in a one-hot predicate may resemble a discarded vector",
+  "sites": [],
+  "sdc": [],
+  "rationale": "The reduction OR deliberately distinguishes the all-zero vector from a power-of-two vector; the second expression rejects every value with more than one set bit.",
+  "origin": "adapted",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_onehot.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Reduced the one-hot tree to an equivalent combinational predicate and renamed the module top."
+  },
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "A deliberate reduction OR is combined with a bitwise power-of-two check."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "No lint defect found; widths, drivers, and assignments are consistent."
+    }
+  ]
+}

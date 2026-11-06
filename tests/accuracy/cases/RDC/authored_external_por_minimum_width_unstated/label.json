@@ -1,0 +1,43 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "origin": "authored",
+  "defect": "The topology conditions release, but no minimum assertion width or library pulse-width requirement is provided for the external power-on reset. Whether all synchronizer stages see assertion cannot be established.",
+  "sites": [
+    {
+      "line": 2,
+      "signal": "power_on_ni"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The topology conditions release, but no minimum assertion width or library pulse-width requirement is provided for the external power-on reset. Whether all synchronizer stages see assertion cannot be established.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-external-por-minimum-width-unstated",
+    "description": "The topology conditions release, but no minimum assertion width or library pulse-width requirement is provided for the external power-on reset. Whether all synchronizer stages see assertion cannot be established."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "power_on_ni"
+        }
+      ],
+      "note": "The three-stage release is structurally sound; external POR minimum pulse width and physical capture are not established by RTL."
+    }
+  ]
+}

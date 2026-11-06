@@ -1,0 +1,51 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "arbiter grant logic feeds each grant back into the other grant",
+  "sites": [
+    {
+      "line": 29,
+      "signal": "grant_o"
+    }
+  ],
+  "sdc": [],
+  "rationale": "Each grant bit depends combinationally on the other grant bit, so the arbitration network has no acyclic logic solution.",
+  "mutation": {
+    "operator": "combinational-loop",
+    "description": "Changed the independent request-priority terms to mutually reference grant outputs."
+  },
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "verilog-axis",
+    "commit": "48ff7a7e2ef782cf778d47910cf85835c64b1bce",
+    "path": "rtl/arbiter.v",
+    "licence": "MIT",
+    "adaptation": "Reduced the arbiter to two requests and two grant outputs."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 29,
+          "signal": "grant_o"
+        },
+        {
+          "line": 30,
+          "signal": "grant_o"
+        }
+      ],
+      "note": "grant bits feed each other: combinational loop"
+    }
+  ]
+}

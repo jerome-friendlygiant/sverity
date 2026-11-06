@@ -1,0 +1,43 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "A functional hold is applied as an asynchronous reset after the synchronizer. Its deassertion releases the consumer without a dedicated release chain.",
+  "sites": [
+    {
+      "line": 7,
+      "signal": "assign reset_n"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "A functional hold is applied as an asynchronous reset after the synchronizer. Its deassertion releases the consumer without a dedicated release chain.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-reset-output-combined-falling-edges",
+    "description": "A functional hold is applied as an asynchronous reset after the synchronizer. Its deassertion releases the consumer without a dedicated release chain."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 7,
+          "signal": "reset_n"
+        }
+      ],
+      "note": "Raw hold_i gates reset after the release chain and can release it between clock edges."
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "opaque macro latency determines feedback behavior",
+  "sites": [
+    {
+      "line": 7,
+      "signal": "u_stage"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The intentional external macro stub provides no combinational dependency or latency contract. Its output feedback is a combinational cycle if the macro is combinational, but may be ordinary sequential feedback if the macro stores state.",
+  "origin": "authored",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind lint reviewer)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 7,
+          "signal": "result_o"
+        }
+      ],
+      "note": "Whether the feedback is a combinational cycle depends on the opaque macro latency."
+    }
+  ]
+}

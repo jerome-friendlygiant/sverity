@@ -1,0 +1,43 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "Independent asynchronous preset of pending_q reaches an active receiver without isolation; reset-to-one is still an asynchronous transition.",
+  "sites": [
+    {
+      "line": 10,
+      "signal": "out_o <= pending_q"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Independent asynchronous preset of pending_q reaches an active receiver without isolation; reset-to-one is still an asynchronous transition.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-async-set-data-reconvergence",
+    "description": "Independent asynchronous preset of pending_q reaches an active receiver without isolation; reset-to-one is still an asynchronous transition."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 10,
+          "signal": "pending_q"
+        }
+      ],
+      "note": "An independently asynchronously reset source feeds an active receiver without reset isolation; reset assertion can violate receiver data timing."
+    }
+  ]
+}

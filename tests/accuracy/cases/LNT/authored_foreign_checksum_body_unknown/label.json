@@ -1,0 +1,37 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "foreign checksum implementation unavailable",
+  "sites": [
+    {
+      "line": 3,
+      "signal": "checksum"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The result is driven through a foreign pure function, whose body is absent. The interface alone cannot establish whether its implementation reads uninitialized locals, truncates arithmetic or computes the intended checksum.",
+  "origin": "authored",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind lint reviewer)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "checksum_o"
+        }
+      ],
+      "note": "The foreign checksum function body is unavailable; local syntax cannot establish its implementation correctness."
+    }
+  ]
+}

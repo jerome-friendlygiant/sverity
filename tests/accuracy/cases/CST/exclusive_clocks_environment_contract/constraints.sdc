@@ -1,0 +1,7 @@
+create_clock -name source -period 10 [get_ports src_clk]
+create_clock -name destination -period 13 [get_ports dst_clk]
+set_clock_groups -logically_exclusive -group [get_clocks source] -group [get_clocks destination]
+set_input_delay -clock source 2 [get_ports din*]
+set_input_delay -clock destination -add_delay 2 [get_ports din*]
+set_output_delay -clock source 2 [get_ports dout*]
+set_output_delay -clock destination -add_delay 2 [get_ports dout*]

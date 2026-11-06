@@ -1,0 +1,55 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "the clock-checking domain has no timing clock definition",
+  "sites": [
+    {
+      "line": 16,
+      "signal": "clk_chk_i"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "clk_chk_i clocks ack_q, which participates in the timeout counter's behavior. Only clk_i is declared, so the clock-checking domain and its relationship to the counter are absent from timing analysis.",
+  "mutation": {
+    "operator": "clock-missing",
+    "description": "Omitted the clock definition for clk_chk_i while retaining the definition for clk_i."
+  },
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_clock_timeout.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Retained the reference counter and acknowledgement sampled in the checked-clock domain; removed request/acknowledge primitive details and reset handling."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 1,
+          "signal": "clk_chk_i"
+        },
+        {
+          "file": "design.sv",
+          "line": 16,
+          "signal": "clk_chk_i"
+        }
+      ],
+      "note": "clk_chk_i clocks ack_q but has no clock definition."
+    }
+  ]
+}

@@ -57,10 +57,15 @@ public:
     Design* design_ = nullptr;
 
     // ---- protocol / structure recognition, defined in cdc_protocol.cpp
-    struct SyncOut { uint32_t srcDomain = 0, dstDomain = 0; std::string hier, srcName; NodeId srcQ = kNoNode; uint64_t width = 0; };
+    /// An output of a recognised synchroniser: `depth` stages reached at this register, `full` when its chain reaches the
+    /// required depth, `head` the chain's first stage (one synchroniser has one head, whichever of its stages is read).
+    struct SyncOut {
+        uint32_t srcDomain = 0, dstDomain = 0; std::string hier, srcName; NodeId srcQ = kNoNode; uint64_t width = 0;
+        int depth = 0; bool full = false; uint32_t head = 0;
+    };
     std::unordered_set<const slang::ast::ValueSymbol*> grayNets_;   // nets assigned b ^ (b >> 1) (binary-to-Gray)
     std::unordered_set<const slang::ast::ValueSymbol*> opaqueFunctionNets_;
-    std::map<NodeId, SyncOut> syncedOut_;                           // Q of every stage at the required depth of a recognised synchroniser
+    std::map<NodeId, SyncOut> syncedOut_;                           // Q of the output stage of a recognised synchroniser and its followers
     void findGrayNets();
     bool isGrayFlop(NodeId q) const;
     bool hasOpaqueFunction(NodeId q) const;
@@ -165,8 +170,10 @@ private:
         for (auto& b : m->blackBoxes) byMod[b.module].push_back(&b);
         for (auto& [mod, v] : byMod) {
             Diagnostic d = mk("CST-005", Severity::Warning,
-                              std::to_string(v.size()) + " instance(s) of unknown module '" + mod +
-                              "' (black box, UNMODELED): its clock/reset/CDC behaviour is not analysed" + std::string(v[0]->declared ? " (declared in a --library file: port directions and roles are known, behaviour is not)" : ""),
+                              std::to_string(v.size()) + " instance(s) of " + (v[0]->attributed ? "module '" + mod + "', which is attributed as a black box" : "unknown module '" + mod + "'") +
+                              " (black box, UNMODELED): its clock/reset/CDC behaviour is not analysed" +
+                              std::string(v[0]->declared ? " (declared in a --library file: port directions and roles are known, behaviour is not)"
+                                          : v[0]->attributed ? " (its body is not the hardware and is not walked)" : ""),
                               v[0]->loc, v[0]->hierarchy, Confidence::Unresolved);
             for (size_t i = 0; i < v.size() && i < 8; i++)
                 d.evidence.push_back({"blackbox_instance", v[i]->hierarchy, v[i]->loc});
@@ -176,7 +183,7 @@ private:
         }
     }
 
-    // ------------------------------------------------------------ CST-009 / CST-018 / CST-011 / CST-002
+    // ------------------------------------------------------------ CST-009 / CST-018 / CST-011 / CST-002 / CST-003
     void analyseConstraints() {
         auto& c = cfg->constraints;
         evaluated["CST-009"] = c.unsupported.size();
@@ -262,16 +269,104 @@ private:
         if (!cfg->constraintsProvided) {
             report->markIncomplete("constraints", "no constraint file provided: clock relationships are unknown");
         }
-        {   // a clock name defined twice (an SDC redefinition overrides): CST-018
-            std::map<std::string, std::string> firstSrc;
-            for (auto& ck : c.clocks) {
-                if (ck.generated || ck.name.empty() || ck.sources.empty()) continue;
-                auto [it, fresh] = firstSrc.emplace(ck.name, ck.sources[0].pattern);
-                if (!fresh && it->second != ck.sources[0].pattern) {
-                    add(mk("CST-018", Severity::Warning, "clock name '" + ck.name + "' is defined more than once for different sources ('" + it->second + "', '" + ck.sources[0].pattern + "')",
-                           ck.loc, {}, Confidence::Unresolved));
-                    report->markIncomplete("constraints", "clock name '" + ck.name + "' defined twice");
+        // Keep declaration history for conflicts, but use the latest definition for ancestry.
+        evaluated["CST-003"] = c.clocks.size() + c.clockGroups.size();
+        std::map<std::string, const sdc::ClockDef*> latest;
+        for (const auto& ck : c.clocks) {
+            auto it = latest.find(ck.name);
+            if (it != latest.end() && !ck.add) {
+                const auto& old = *it->second;
+                if (old.periodNs != ck.periodNs || old.waveform != ck.waveform || old.sources != ck.sources ||
+                    old.generated != ck.generated || old.sourceObjects != ck.sourceObjects ||
+                    old.explicitMasterClock != ck.explicitMasterClock || old.divideBy != ck.divideBy ||
+                    old.multiplyBy != ck.multiplyBy || old.waveformOptions != ck.waveformOptions) {
+                    auto d = mk("CST-003", Severity::Warning, "clock '" + ck.name +
+                                "' is redeclared with a different period, waveform or source without -add; "
+                                "the later declaration overrides the earlier one and is used by analysis",
+                                ck.loc, {}, Confidence::Established);
+                    d.evidence.push_back({"earlier_declaration", "clock '" + old.name + "'", old.loc});
+                    d.evidence.push_back({"later_declaration", "clock '" + ck.name + "'", ck.loc});
+                    add(std::move(d));
                 }
+            }
+            latest[ck.name] = &ck;
+        }
+        // Each object pattern is resolved to its nodes once: comparing every pair of clocks node by node does not scale.
+        std::map<std::pair<std::string, std::string>, std::set<NodeId>> resolved;
+        auto nodesOf = [&](const sdc::ObjectRef& ref) -> const std::set<NodeId>& {
+            auto [it, fresh] = resolved.try_emplace({ref.kind, ref.pattern});
+            if (fresh)
+                for (NodeId n = 0; n < m->nodes.size(); ++n)
+                    if (nameMatches(ref.kind, ref.pattern, n, stripBit(m->nameOf(n))) || bitMatches(ref.kind, ref.pattern, n)) it->second.insert(n);
+            return it->second;
+        };
+        // A source object can carry several clocks (-add); retain every possible parent.
+        std::map<std::string, std::set<std::string>> parents;
+        for (const auto& [name, ck] : latest) {
+            if (!ck->generated) continue;
+            if (!ck->explicitMasterClock.empty()) {
+                // -master_clock takes a clock collection, so a pattern selects every declared clock it matches.
+                for (const auto& [candidate, master] : latest)
+                    if (candidate != name && globMatch(ck->explicitMasterClock, candidate)) parents[name].insert(candidate);
+            } else {
+                for (const auto& [candidate, master] : latest) {
+                    if (candidate == name) continue;
+                    // A pin connected to a port is the same signal: compare alias roots, so a master on the port reaches the pin.
+                    bool overlaps = false;
+                    for (const auto& src : ck->sourceObjects)
+                        for (const auto& target : master->sources) {
+                            std::set<NodeId> roots;
+                            for (auto n : nodesOf(target)) roots.insert(aliasRoot(n));
+                            for (auto n : nodesOf(src)) if (roots.count(aliasRoot(n))) { overlaps = true; break; }
+                        }
+                    if (overlaps) parents[name].insert(candidate);
+                }
+            }
+        }
+        for (const auto& g : c.clockGroups) {
+            if (g.kind == sdc::ClockGroups::Kind::Unspecified) continue;
+            auto groupOf = [&](const std::string& name) {
+                for (size_t i = 0; i < g.groups.size(); ++i)
+                    for (const auto& ref : g.groups[i])
+                        if (globMatch(ref.pattern, name)) return int(i);
+                return -1;
+            };
+            for (const auto& [name, ck] : latest) {
+                if (!ck->generated) continue;
+                std::set<std::string> visited{name};
+                std::vector<std::string> pending(parents[name].begin(), parents[name].end());
+                while (!pending.empty()) {
+                    const auto ancestor = pending.back(); pending.pop_back();
+                    if (!visited.insert(ancestor).second) continue;
+                    pending.insert(pending.end(), parents[ancestor].begin(), parents[ancestor].end());
+                    const int childGroup = groupOf(name), masterGroup = groupOf(ancestor);
+                    if (childGroup < 0 || masterGroup < 0 || childGroup == masterGroup) continue;
+                    const auto relation = rel_->relationByNames(name, ancestor);
+                    auto d = mk("CST-003", Severity::Warning, "set_clock_groups separates generated clock '" + name +
+                                "' from its declared ancestor '" + ancestor +
+                                "': derivation says they are related, but this group cuts STA timing between them; "
+                                "analysis uses " + relName(relation) +
+                                " (first matching group declaration wins; generated derivation does not establish synchrony)",
+                                g.loc, {}, Confidence::Heuristic);
+                    d.evidence.push_back({"generated_declaration", "clock '" + name + "'", ck->loc});
+                    d.evidence.push_back({"ancestor_declaration", "clock '" + ancestor + "'", latest.at(ancestor)->loc});
+                    add(std::move(d));
+                }
+            }
+        }
+        for (const auto& ck : c.clocks) {
+            if (!ck.generated) continue;
+            auto unresolved = [&](const std::string& detail) {
+                add(mk("CST-002", Severity::Warning, "generated clock '" + ck.name + "': " + detail +
+                       "; derivation does not establish a relationship (UNKNOWN unless clock groups relate the names)",
+                       ck.loc, {}, Confidence::Unresolved));
+                report->markIncomplete("constraints", detail);
+            };
+            if (!ck.explicitMasterClock.empty() && std::none_of(latest.begin(), latest.end(), [&](const auto& entry) {
+                    return entry.first != ck.name && globMatch(ck.explicitMasterClock, entry.first); }))
+                unresolved("-master_clock '" + ck.explicitMasterClock + "' names no declared clock");
+            for (const auto& src : ck.sourceObjects) {
+                if (nodesOf(src).empty()) unresolved("-source '" + src.pattern + "' resolves to no design object");
             }
         }
         // CST-002: clock source patterns that match no design object
@@ -577,6 +672,17 @@ private:
     }
 
     int minStages_ = 2;
+    /// The stage of `ch` that reaches the required depth: the synchroniser's output. A shorter chain has none, so its last
+    /// stage stands in; `full` says which. Stages after it are followers in the destination domain.
+    size_t outputStage(const Chain& ch, bool* full = nullptr) const {
+        int reached = 0;
+        for (size_t stage = 0; stage < ch.stages.size(); ++stage) {
+            reached += 1 + m->flops[ch.stages[stage]].extraStages;
+            if (reached >= minStages_) { if (full) *full = true; return stage; }
+        }
+        if (full) *full = false;
+        return ch.stages.size() - 1;
+    }
     Chain chainFor(uint32_t flopIdx) const {
         Chain ch;
         ch.depth = 1 + m->flops[flopIdx].extraStages;
@@ -643,11 +749,29 @@ private:
             if (next && nextLogic && ch.depth >= 2) break;
             if (next && !first) {
                 // logic that combines this stage with the next one (stage XOR delayed copy) is an edge detector, not a tap
-                for (auto lt : logicTargets) {
-                    bool withNext = false;
-                    for (auto ei : m->in[lt]) if (m->edges[ei].from == next->q) withNext = true;
-                    if (withNext) ch.edgeDetector = true;
-                }
+                // An edge detector compares the two copies as data: XOR/XNOR (or != / ==), or AND with exactly one of them inverted
+                // (`s3 & ~s2`). OR, plain AND or a guard on them is not one.
+                auto detects = [&](NodeId target, EdgeType type) {
+                    const Edge *mine = nullptr, *theirs = nullptr;
+                    for (auto ei : m->in[target]) {
+                        const Edge& e = m->edges[ei];
+                        if (e.type != type || e.ctrl) continue;
+                        if (cl.count(e.from)) mine = &e;
+                        else if (e.from == next->q) theirs = &e;
+                    }
+                    if (!mine || !theirs) return false;
+                    // `!=` / `==` of the two bits is XOR / XNOR (a comparison leaves polarity unknown)
+                    if (mine->op == Op::Compare && theirs->op == Op::Compare) return true;
+                    if (mine->inv == 2 || theirs->inv == 2) return false;
+                    if (mine->op == Op::Xor && theirs->op == Op::Xor) return true;
+                    // the inverted operand's innermost operator is its NOT
+                    const auto andOrNot = [](const Edge* e) { return e->op == Op::And || (e->op == Op::Not && e->inv == 1); };
+                    return andOrNot(mine) && andOrNot(theirs) && (mine->op == Op::And || theirs->op == Op::And) && mine->inv != theirs->inv;
+                };
+                for (auto lt : logicTargets) if (detects(lt, EdgeType::Comb)) ch.edgeDetector = true;
+                // ... also when the comparison is written in a clocked block (`pulse <= s2 ^ s3`)
+                for (auto& [tq, es] : seqTargets)
+                    if (tq != next->q && detects(tq, EdgeType::Seq)) ch.edgeDetector = true;
             }
             // A library cell's output is already past its first stage, so a tap on it taps a later stage.
             if (first && otherConsumers > 0 && next) {
@@ -916,13 +1040,16 @@ private:
                 const Chain& ch = chains[di];
                 if (!ch.linkLogic && !ch.feedbackWithFanout && ch.depth >= 2)
                 {
-                    // Every stage at the required depth is an output, not only the last: followers do not change what reads it.
+                    // The output stage and every follower are outputs: followers do not change what reads it. A chain short of
+                    // the required depth still has an output, marked not full, so a reader can tell (CDC-005 reports the chain).
+                    bool full = false;
                     int reached = 0;
+                    const size_t first = outputStage(ch, &full);
                     for (size_t stage = 0; stage < ch.stages.size(); ++stage) {
                         const Flop& output = m->flops[ch.stages[stage]];
                         reached += 1 + output.extraStages;
-                        if (reached >= minStages_ || stage + 1 == ch.stages.size())
-                            syncedOut_[output.q] = {g.srcDomain, g.dstDomain, g.hier, g.srcName, g.srcQ, g.dstFlops.size()};
+                        if (stage >= first)
+                            syncedOut_[output.q] = {g.srcDomain, g.dstDomain, g.hier, g.srcName, g.srcQ, g.dstFlops.size(), reached, full, ch.stages[0]};
                     }
                 }
             }
@@ -1217,6 +1344,7 @@ private:
         }
 
         // ---- CDC-029: top-level inputs captured by registers
+        std::set<std::string> inputCoverage;   // CST-011: inputs reported for a missing input delay, once each
         for (auto& [k, dsts] : inputsToDomain) {
             auto [inNode, dom] = k;
             std::sort(dsts.begin(), dsts.end());
@@ -1233,8 +1361,19 @@ private:
             std::string inFull = stripBit(m->nameOf(inNode));
             const sdc::InputDelay* decl = nullptr;
             for (auto& idl : cfg->constraints.inputDelays)
-                for (auto& pr : idl.ports) if (nameMatches(pr.kind, pr.pattern, inNode, inFull)) decl = &idl;
+                for (auto& pr : idl.ports) if (nameMatches(pr.kind, pr.pattern, inNode, inFull) || bitMatches(pr.kind, pr.pattern, inNode)) decl = &idl;
             Relation inRel = decl ? rel_->relationByNames(decl->clock, domainClockName(dom)) : Relation::Unknown;
+            // With constraints supplied, an input without an input delay has no declared launch clock (CST-011, I/O coverage).
+            if (!decl && cfg->constraintsProvided && inputCoverage.insert(inFull).second) {
+                evaluated["CST-011"]++;
+                Diagnostic cov = mk("CST-011", Severity::Warning, "input '" + m->nameOf(inNode) + "' is captured by registers but has no set_input_delay: the clock that launches it "
+                                    "is not declared, so it is analysed as asynchronous to every clock", procOf(m->flops[dsts[0]]).loc, procOf(m->flops[dsts[0]]).instancePath,
+                                    Confidence::Unresolved);
+                cov.signals = {inFull};
+                cov.nextStep = "Add set_input_delay -clock <launch clock> for it, or declare it asynchronous and synchronise it.";
+                add(std::move(cov));
+                report->markIncomplete("constraints", "input '" + inFull + "' has no input delay");
+            }
             bool declaredSync = decl && inRel == Relation::Same;
             std::string contract = decl ? "set_input_delay -clock " + decl->clock + " (" + decl->loc.file + ":" + std::to_string(decl->loc.line) + ") relates it to " +
                                               (declaredSync ? "this clock: declared synchronous" : "a clock that is " + std::string(relName(inRel)) + " to this one")

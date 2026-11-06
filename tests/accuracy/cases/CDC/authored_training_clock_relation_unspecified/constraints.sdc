@@ -1,0 +1,6 @@
+create_clock -name src -period 10 [get_ports sclk]
+create_clock -name dst -period 10 [get_ports dclk]
+set_input_delay -clock src -max 1 [get_ports src_i]
+set_input_delay -clock src -min 0 [get_ports src_i]
+set_output_delay -clock dst -max 1 [get_ports out_o]
+set_output_delay -clock dst -min 0 [get_ports out_o]

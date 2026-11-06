@@ -1,0 +1,37 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "Boolean OR replaces bitwise status merge",
+  "sites": [
+    {
+      "line": 3,
+      "signal": "status_o"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The nonzero lane masks collapse to a single truth bit. For overflow_i=4'b1000 and underflow_i=0 the output becomes 0001 instead of preserving lane 3.",
+  "origin": "authored",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind lint reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 3,
+          "signal": "status_o"
+        }
+      ],
+      "note": "Logical OR produces one Boolean bit instead of the per-bit vector combination implied by the status interface."
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "a stream flush signal is combinationally inserted into the asynchronous reset",
+  "sites": [
+    {
+      "line": 15,
+      "signal": "local_rst"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "flush is not synchronized or filtered and can asynchronously clear valid_o through a combinational reset net.",
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "verilog-axis",
+    "commit": "48ff7a7e2ef782cf778d47910cf85835c64b1bce",
+    "path": "rtl/sync_reset.v",
+    "licence": "MIT",
+    "adaptation": "Reduced the active-high reset pipeline context to one stream-valid register."
+  },
+  "mutation": {
+    "operator": "combinational-reset",
+    "description": "Combined the asynchronous reset with an unsynchronized flush input before the register sensitivity list."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 17,
+          "signal": "local_rst"
+        }
+      ],
+      "note": "Async reset is rst|flush, a combinational function of a functional input, so glitches can reset the flop."
+    }
+  ]
+}

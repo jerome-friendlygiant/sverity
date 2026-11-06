@@ -1,0 +1,36 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "counter carry extension and output widening can resemble an accidental truncation",
+  "sites": [],
+  "rationale": "The addend is explicitly widened by one bit before addition, while the stored counter intentionally keeps only CounterWidth bits. Both output casts explicitly zero-extend the stored-width values to the 16-bit interface.",
+  "origin": "adapted",
+  "provenance": {
+    "repository": "ibex",
+    "commit": "2373e5dadcfc4f56672962fa242f6a051acc9aca",
+    "path": "rtl/ibex_counter.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced the counter increment/load next-state logic and its widened status outputs."
+  },
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "A one-bit arithmetic extension is retained for carry detection and the intentional modulo result is explicitly sliced."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "No lint defect found; widths, drivers, and assignments are consistent."
+    }
+  ]
+}

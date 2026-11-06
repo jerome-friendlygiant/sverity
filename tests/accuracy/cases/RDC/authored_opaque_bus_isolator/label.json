@@ -1,0 +1,43 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "origin": "authored",
+  "defect": "The only path from independently reset source to receiver traverses an opaque isolator. Its assertion behavior and reset crossing protection cannot be inferred.",
+  "sites": [
+    {
+      "line": 6,
+      "signal": "isolated"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The only path from independently reset source to receiver traverses an opaque isolator. Its assertion behavior and reset crossing protection cannot be inferred.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-opaque-bus-isolator",
+    "description": "The only path from independently reset source to receiver traverses an opaque isolator. Its assertion behavior and reset crossing protection cannot be inferred."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 11,
+          "signal": "isolated"
+        }
+      ],
+      "note": "Opaque isolation behavior prevents establishing whether source-reset transitions are blocked."
+    }
+  ]
+}

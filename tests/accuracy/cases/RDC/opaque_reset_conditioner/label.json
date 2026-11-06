@@ -1,0 +1,37 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "reset conditioner implementation is unavailable",
+  "sites": [
+    {
+      "line": 12,
+      "signal": "local_n"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Port names do not prove that the black box synchronizes release or even preserves polarity.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 12,
+          "signal": "local_n"
+        }
+      ],
+      "note": "The local reset comes from an empty black-box conditioner, so its release synchronisation is unknown."
+    }
+  ]
+}

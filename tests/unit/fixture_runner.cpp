@@ -6,6 +6,7 @@
 //   // expect-count: RULE-ID SEVERITY N       (total occurrence count of that rule+severity must equal N)
 //   // revert: <old text> => <new text>       (mutation pair: the file with this edit applied is the defect-free variant)
 //   // revert-expect-none: RULE-ID [SEVERITY] (that finding must be absent from the reverted variant)
+// Reverts also reparse sverity-args, so a mutation can switch a sibling SDC file.
 // In sverity-args, @DIR@ expands to the fixture's directory and @FIXTURES@ to the fixtures root (shared files live in
 // fixtures/_common). Usage: fixture_runner <fixtures dir> [rule directory filter, e.g. CDC-003].
 // Fixture directories are named after the rule they exercise: fixtures/<RULE-ID>/{good,bad,boundary,hierarchy_unknown,mut}_*.sv
@@ -27,6 +28,25 @@ static std::vector<std::string> split(const std::string& s) {
     std::vector<std::string> v;
     for (std::string w; is >> w;) v.push_back(w);
     return v;
+}
+
+static AnalyzerOptions optionsFromArgs(const std::vector<std::string>& args) {
+    AnalyzerOptions o;
+    for (size_t i = 0; i < args.size(); i++) {
+        const std::string& a = args[i];
+        if (a == "--slang-default-warnings") o.frontend.enableAllUpstreamWarnings = false;   // SVerity options
+        else if (a == "--sdc" && i + 1 < args.size()) o.sdcFiles.push_back(args[++i]);
+        else if (a == "--profile" && i + 1 < args.size()) o.config.profile = args[++i];
+        else if (a == "--library" && i + 1 < args.size()) o.libraryFiles.push_back(args[++i]);
+        else if (a == "--disable-rule" && i + 1 < args.size()) o.config.disabledRules.insert(args[++i]);
+        else if (a == "--option" && i + 1 < args.size()) {                                    // --option KEY=VALUE
+            auto kv = args[++i];
+            auto eq = kv.find('=');
+            if (eq != std::string::npos) o.config.ruleOptions[kv.substr(0, eq)] = kv.substr(eq + 1);
+        }
+        else o.frontend.slangArgs.push_back(a);
+    }
+    return o;
 }
 
 int main(int argc, char** argv) {
@@ -58,21 +78,7 @@ int main(int argc, char** argv) {
                     args.push_back(w);
                 }
         }
-        AnalyzerOptions o;
-        for (size_t i = 0; i < args.size(); i++) {
-            const std::string& a = args[i];
-            if (a == "--slang-default-warnings") o.frontend.enableAllUpstreamWarnings = false;   // SVerity options
-            else if (a == "--sdc" && i + 1 < args.size()) o.sdcFiles.push_back(args[++i]);
-            else if (a == "--profile" && i + 1 < args.size()) o.config.profile = args[++i];
-            else if (a == "--library" && i + 1 < args.size()) o.libraryFiles.push_back(args[++i]);
-            else if (a == "--disable-rule" && i + 1 < args.size()) o.config.disabledRules.insert(args[++i]);
-            else if (a == "--option" && i + 1 < args.size()) {                                    // --option KEY=VALUE
-                auto kv = args[++i];
-                auto eq = kv.find('=');
-                if (eq != std::string::npos) o.config.ruleOptions[kv.substr(0, eq)] = kv.substr(eq + 1);
-            }
-            else o.frontend.slangArgs.push_back(a);
-        }
+        AnalyzerOptions o = optionsFromArgs(args);
         o.frontend.slangArgs.push_back(f.string());
         o.pathRoot = fs::path(argv[1]).parent_path().string();
         o.today = "2026-11-01";
@@ -133,8 +139,23 @@ int main(int argc, char** argv) {
             if (revNones.empty()) errs.push_back("revert without revert-expect-none");
             fs::path tmp = f.parent_path() / ("__revert_" + f.filename().string());
             { std::ofstream out(tmp); out << text; }
-            AnalyzerOptions o2 = o;
-            o2.frontend.slangArgs.back() = tmp.string();
+            // Mutations can switch sibling SDC files in sverity-args as well as edit RTL.
+            std::vector<std::string> mutatedArgs;
+            std::istringstream mutated(text);
+            for (std::string line; std::getline(mutated, line);) {
+                const std::string key = "// sverity-args: ";
+                auto at = line.find(key);
+                if (at == std::string::npos) continue;
+                for (auto w : split(line.substr(at + key.size()))) {
+                    for (size_t pos; (pos = w.find("@DIR@")) != std::string::npos;) w.replace(pos, 5, f.parent_path().string());
+                    for (size_t pos; (pos = w.find("@FIXTURES@")) != std::string::npos;) w.replace(pos, 10, std::string(argv[1]));
+                    mutatedArgs.push_back(w);
+                }
+            }
+            AnalyzerOptions o2 = optionsFromArgs(mutatedArgs);
+            o2.frontend.slangArgs.push_back(tmp.string());
+            o2.pathRoot = o.pathRoot;
+            o2.today = o.today;
             Report r2 = analyze(o2);
             fs::remove(tmp);
             for (auto& n : revNones) {

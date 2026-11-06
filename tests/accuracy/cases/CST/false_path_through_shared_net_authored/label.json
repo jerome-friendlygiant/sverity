@@ -1,0 +1,48 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "A broad false path through shared_net also cuts the synchronous dst_clk_i path into dst_seen_q.",
+  "sites": [
+    {
+      "line": 20,
+      "signal": "dst_seen_q"
+    },
+    {
+      "file": "constraints.sdc",
+      "line": 7,
+      "signal": "shared_net"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "shared_net fans out to an asynchronous synchronizer and to dst_seen_q in the same dst_clk_i domain. A -through exception on the net removes both paths, hiding a real synchronous timing path instead of scoping the exception to the crossing.",
+  "mutation": {
+    "operator": "false-path-through-shared-net",
+    "description": "Applied one net-wide -through false path to a net with both an asynchronous crossing and a synchronous consumer."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CST reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 7,
+          "signal": "shared_net"
+        }
+      ],
+      "note": "The shared_net is not confined to the asynchronous path; the through-net false path also cuts the ordinary dst-clock mode_q to dst_seen_q path."
+    }
+  ]
+}

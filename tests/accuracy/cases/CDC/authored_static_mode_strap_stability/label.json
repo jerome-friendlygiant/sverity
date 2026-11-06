@@ -1,0 +1,39 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "good",
+  "critical": false,
+  "defect": "A level observed through two receiving stages does not promise event delivery. No consumer here requires pulse preservation or atomic multi-bit observation.",
+  "mutation": {
+    "operator": "static_mode_strap_stability",
+    "description": "Two-stage synchronization contains metastability, but whether the board mode is static or may issue narrow transitions is an unstated environment contract; loss-free mode observation cannot be decided."
+  },
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "A level observed through two receiving stages does not promise event delivery. No consumer here requires pulse preservation or atomic multi-bit observation.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "A single mode level is synchronized through two destination stages; the output is simply its delayed level and requires no event-rate contract."
+    },
+    {
+      "by": "gpt-6.1-sol (third settling reading)",
+      "verdict": "good",
+      "critical": false,
+      "note": "A level observed through two receiving stages does not promise event delivery. No consumer here requires pulse preservation or atomic multi-bit observation."
+    }
+  ],
+  "settled_by": "Third reading: gpt-6.1-sol; A level observed through two receiving stages does not promise event delivery. No consumer here requires pulse preservation or atomic multi-bit observation."
+}

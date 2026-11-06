@@ -1,0 +1,39 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "adapted",
+  "verdict": "good",
+  "critical": false,
+  "defect": "none",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Reset is explicitly synchronous to the only clock that owns the stream register, so there is no reset-domain crossing or asynchronous release path.",
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "Reduced the source AXI stream register to a single local-domain synchronous-reset stage."
+  },
+  "provenance": {
+    "repository": "verilog-axis",
+    "commit": "48ff7a7e2ef782cf778d47910cf85835c64b1bce",
+    "path": "rtl/axis_register.v",
+    "licence": "MIT",
+    "adaptation": "Reduced the stream register handshake to one stage."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Purely synchronous reset in one clock domain."
+    }
+  ]
+}

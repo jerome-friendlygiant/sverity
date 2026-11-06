@@ -1,0 +1,39 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "primary clock constraint references a nonexistent port",
+  "sites": [
+    {
+      "file": "constraints.sdc",
+      "line": 1,
+      "signal": "core_clock"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "core_clock is absent; the actual clk-driven sequential logic is left unclocked in the timing model.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 1,
+          "signal": "core_clock",
+          "file": "constraints.sdc"
+        }
+      ],
+      "note": "create_clock targets the nonexistent port core_clock, so clk and all register paths are unconstrained."
+    }
+  ]
+}

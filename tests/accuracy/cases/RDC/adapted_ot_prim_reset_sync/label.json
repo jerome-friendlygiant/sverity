@@ -1,0 +1,39 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "adapted",
+  "verdict": "good",
+  "critical": false,
+  "defect": "none",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The active-low reset asserts both synchronizer flops asynchronously and releases the consumer only from the final same-clock-domain stage.",
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "Reduced the OpenTitan reset synchronizer to its two-flop local reset-release path."
+  },
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim_generic/rtl/prim_rst_sync.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Removed scan and primitive-package dependencies while preserving the reset synchronizer structure."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Release synchroniser enables functional logic only after two clocks; output flops' D equals reset value at release."
+    }
+  ]
+}

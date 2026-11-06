@@ -1,0 +1,53 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "adapted",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "reset behavior is supplied by an opaque conditioner",
+  "sites": [
+    {
+      "line": 28,
+      "signal": "conditioned_rst_no"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The reset_conditioner implementation is not available in the design, so its assertion polarity and release synchronization relative to clk_i cannot be established from the RTL and constraints.",
+  "mutation": {
+    "operator": "opaque-reset-source",
+    "description": "Replaced the source reset-generation implementation with a black-box boundary."
+  },
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_rstgen.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Kept the reset-generator interface and represented its implementation as a stub."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "unknown",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 22,
+          "signal": "conditioned_rst_no"
+        },
+        {
+          "line": 28,
+          "signal": "conditioned_rst_no"
+        }
+      ],
+      "note": "Reset comes from an empty (opaque) module; its release synchronisation is unknown, and the active-low name rst_no is used as active-high."
+    }
+  ]
+}

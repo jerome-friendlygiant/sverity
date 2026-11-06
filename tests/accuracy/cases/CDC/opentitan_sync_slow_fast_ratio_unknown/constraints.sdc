@@ -1,0 +1,5 @@
+create_clock -name clk_slow_i -period 10.000 [get_ports clk_slow_i]
+create_clock -name clk_fast_i -period 7.000 [get_ports clk_fast_i]
+set_input_delay 0.000 -clock clk_slow_i [get_ports wdata_i]
+set_output_delay 0.000 -clock clk_fast_i [get_ports rdata_o]
+set_false_path -from [get_ports rst_fast_ni]

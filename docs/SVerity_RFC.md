@@ -318,6 +318,7 @@ frozen rule `validated`, or a transparent scope revision *before* freezing.
 These are facts about the tool, not open work. Bugs and unfinished work are in the [roadmap](ROADMAP.md).
 
 - **Undecidable from RTL:** RDC-029 needs UPF/CPF. CDC-024, LNT-071, RDC-013 and CST-024 cannot be decided from RTL and only emit unknown or obligation results.
+- **Functional ranges:** whether an accumulator overflows or a free index or divisor stays in range depends on intent and input contracts; that is for simulation or formal, not lint. The LNT-006/037 checks of non-constant operands are opt-in.
 - **Rule sources:** commercial rulesets (STARC, OpenMORE, SpyGlass/VC SpyGlass rule references) are not public and are not used.
 
 Retired (never reused): STY-001 through STY-016 (STY-006 → LNT-075, STY-007 → LNT-076), SVA-001 through SVA-010.

@@ -1,0 +1,55 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "clk_i is assigned two incompatible primary clock definitions",
+  "sites": [
+    {
+      "line": 23,
+      "signal": "gated_clk"
+    },
+    {
+      "file": "constraints.sdc",
+      "line": 2,
+      "signal": "clk_i"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The design has one clk_i port, but the constraint file gives it two periods and names. Timing tools cannot use both as the single primary clock for the enable synchronizer and gated-clock relationship.",
+  "mutation": {
+    "operator": "clock-redefined",
+    "description": "Added a second create_clock with a different period on the existing clk_i port."
+  },
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_clock_gating_sync.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Retained the synchronized enable register, clock-gate expression, and gated-clock consumer; removed primitive instances and reset ports."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 2,
+          "signal": "clk_i_test"
+        }
+      ],
+      "note": "A second create_clock on clk_i (8ns, no -add) redefines the clock, conflicting with the 10ns one that feeds the gate."
+    }
+  ]
+}

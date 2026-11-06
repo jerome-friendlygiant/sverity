@@ -1,0 +1,7 @@
+create_clock -name core -period 10 [get_ports clk]
+set_input_delay -clock core -min 0 [get_ports d]
+set_input_delay -clock core -max 2 [get_ports d]
+set_output_delay -clock core -min 0 [get_ports q]
+set_output_delay -clock core -max 2 [get_ports q]
+set_multicycle_path 3 -setup -from [get_cells x] -to [get_ports q]
+set_multicycle_path 2 -hold -from [get_cells x] -to [get_ports q]

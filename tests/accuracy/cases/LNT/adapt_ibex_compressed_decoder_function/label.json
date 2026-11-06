@@ -1,0 +1,36 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "automatic immediate construction can resemble a signedness or width error",
+  "sites": [],
+  "rationale": "The helper function has automatic locals, enumerates every rlist case with a default, performs the decrement in a signed temporary, and casts the resulting two's-complement immediate back into the instruction field deliberately.",
+  "origin": "adapted",
+  "provenance": {
+    "repository": "ibex",
+    "commit": "2373e5dadcfc4f56672962fa242f6a051acc9aca",
+    "path": "rtl/ibex_compressed_decoder.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced the compressed stack-adjust instruction helper to one automatic function and its complete rlist decoder."
+  },
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "Signed arithmetic is performed in an explicitly signed temporary before the instruction concatenation."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "No lint defect found; widths, drivers, and assignments are consistent."
+    }
+  ]
+}

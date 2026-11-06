@@ -1,0 +1,53 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "the source launches a new request without waiting for the returned acknowledgement",
+  "sites": [
+    {
+      "line": 36,
+      "signal": "req_toggle_a"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The destination acknowledges req_toggle_a, but the source toggles it for every edge_a even when ack_s1_a shows an earlier request is still outstanding.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 35,
+          "signal": "req_toggle_a"
+        },
+        {
+          "line": 36,
+          "signal": "req_toggle_a"
+        }
+      ],
+      "note": "The source toggles the request on every edge_a without waiting for the acknowledgement, so toggles can be lost or merged when clk_b is slower."
+    }
+  ],
+  "origin": "adapted",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_edge_propagator_ack.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Kept the request and acknowledgement toggle paths in separate clock domains, reduced the edge-propagation state, and exposed a self-contained top module."
+  },
+  "mutation": {
+    "operator": "ack-wait-removed",
+    "description": "Removed the source-side acknowledgement equality guard so every edge_a toggles req_toggle_a."
+  }
+}

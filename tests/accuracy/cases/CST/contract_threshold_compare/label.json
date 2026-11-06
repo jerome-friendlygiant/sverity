@@ -1,0 +1,28 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "origin": "authored",
+  "defect": "All sequential state is on core and the declared external synchronous timing windows cover every data port.",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "All sequential state is on core and the declared external synchronous timing windows cover every data port.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-sol (blind CST reviewer)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Under the stated core-synchronous external arrival/required contract, all data ports and the sole clock are covered. No exception hides a live path."
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "the generated clock names clk_b as master although the mux is fixed to clk_a",
+  "sites": [
+    {
+      "line": 15,
+      "signal": "mux_clk"
+    },
+    {
+      "file": "constraints.sdc",
+      "line": 3,
+      "signal": "mux_clk"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The retained mux select is a constant selecting clk_a, so mux_clk follows clk_a. The generated-clock source is clk_b, giving state_q the wrong master period and relationship.",
+  "mutation": {
+    "operator": "generated-master-wrong",
+    "description": "Used clk_b as the -source of mux_clk even though the fixed select selects clk_a."
+  },
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_clk_mux_glitch_free.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Retained the two-clock mux shape and a register clocked by its output; reduced the synchronized glitch-free selection logic to a fixed selection point."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 3,
+          "signal": "mux_clk"
+        }
+      ],
+      "note": "SELECT_A=0 makes mux_clk follow clk_a, but the generated clock uses clk_b as source."
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "adapted",
+  "verdict": "good",
+  "critical": false,
+  "defect": "none",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The asynchronous assertion initializes every stage, and functional state is enabled only after the final stage synchronously releases.",
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "Used the source reset synchronizer with a three-stage release pipeline."
+  },
+  "provenance": {
+    "repository": "verilog-axis",
+    "commit": "48ff7a7e2ef782cf778d47910cf85835c64b1bce",
+    "path": "rtl/sync_reset.v",
+    "licence": "MIT",
+    "adaptation": "Reduced the parameterized reset pipeline to three stages and attached a valid/data consumer."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Release is synchronised through rst_pipe and functional data is held off by the last stage; the raw arst release on the output flops has D equal to the reset value."
+    }
+  ]
+}

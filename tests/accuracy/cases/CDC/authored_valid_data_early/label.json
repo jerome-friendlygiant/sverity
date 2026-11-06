@@ -1,0 +1,43 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "destination samples an asynchronous payload when only the first valid synchronizer stage is high",
+  "mutation": {
+    "operator": "valid-data-early-sample",
+    "description": "The payload capture is guarded by valid_meta rather than the fully synchronised valid_sync indication."
+  },
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 44,
+      "signal": "data_seen"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The source changes the data with the one-cycle valid pulse and does not hold it through the destination synchronizer latency; the sink samples before valid has safely arrived.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 44,
+          "signal": "valid_meta"
+        }
+      ],
+      "note": "Payload capture is gated by first-stage metastability despite an existing settled valid stage."
+    }
+  ]
+}

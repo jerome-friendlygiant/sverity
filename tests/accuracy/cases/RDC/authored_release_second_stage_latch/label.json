@@ -1,0 +1,50 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "The latch is transparent when clk_i is HIGH, including immediately after the first-stage rising edge. It does not supply the closed low-phase settling interval assumed by the second reader and forwards first-stage uncertainty into the active consumer reset.",
+  "sites": [
+    {
+      "line": 6,
+      "signal": "always_latch"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The latch is transparent when clk_i is HIGH, including immediately after the first-stage rising edge. It does not supply the closed low-phase settling interval assumed by the second reader and forwards first-stage uncertainty into the active consumer reset.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-release-second-stage-latch",
+    "description": "The second stage is a latch transparent while the first stage samples reset release. It immediately forwards first-stage uncertainty to the consumer reset with no intervening closed settling interval."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 6,
+          "signal": "release_n"
+        }
+      ],
+      "note": "A first-stage flop followed by a low-phase latch gives only technology-dependent settling time; safety needs a characterized latch synchronizer/MTBF contract."
+    },
+    {
+      "by": "gpt-6.1-sol (third settling reading)",
+      "verdict": "bad",
+      "critical": true,
+      "note": "The latch is transparent when clk_i is HIGH, including immediately after the first-stage rising edge. It does not supply the closed low-phase settling interval assumed by the second reader and forwards first-stage uncertainty into the active consumer reset."
+    }
+  ],
+  "settled_by": "Third reading: gpt-6.1-sol; The latch is transparent when clk_i is HIGH, including immediately after the first-stage rising edge. It does not supply the closed low-phase settling interval assumed by the second reader and forwards first-stage uncertainty into the active consumer reset."
+}

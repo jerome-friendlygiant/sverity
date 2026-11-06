@@ -1,0 +1,49 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "FIFO full status uses an asynchronous reset different from the pointer registers it summarizes",
+  "sites": [
+    {
+      "line": 41,
+      "signal": "full_o"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The write and synchronized read pointers reset under rst_wr_ni, while full_o resets under independent rst_status_ni; an isolated status reset can disagree with the pointer state and admit or reject writes incorrectly.",
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_fifo_async.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced the asynchronous FIFO to both pointers, a synchronized read pointer, and full status."
+  },
+  "mutation": {
+    "operator": "reset-from-other-domain",
+    "description": "Put full_o in an independent asynchronous reset domain from the pointer registers that determine its value."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 40,
+          "signal": "rst_status_ni"
+        }
+      ],
+      "note": "full_o uses an independent async reset while consuming pointers reset by rst_wr_ni/rst_rd_ni, so a lone reset desynchronises full from pointers."
+    }
+  ]
+}

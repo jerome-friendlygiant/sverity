@@ -1,0 +1,37 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "broad wildcard consumes later opcode",
+  "sites": [
+    {
+      "line": 6,
+      "signal": "mode_o"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The first pattern already matches every value accepted by 110?, making mode 2 unreachable.",
+  "origin": "authored",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind lint reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 6,
+          "signal": "mode_o"
+        }
+      ],
+      "note": "The earlier 1??? pattern completely shadows 110?."
+    }
+  ]
+}

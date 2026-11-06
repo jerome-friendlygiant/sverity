@@ -1,0 +1,6 @@
+create_clock -name core -period 10 [get_ports clk]
+set_input_delay -clock core -min 0 [get_ports din*]
+set_input_delay -clock core -max 2 [get_ports din*]
+set_output_delay -clock core -min 0 [get_ports dout*]
+set_output_delay -clock core -max 2 [get_ports dout*]
+set_false_path -to [get_ports debug_copy*]

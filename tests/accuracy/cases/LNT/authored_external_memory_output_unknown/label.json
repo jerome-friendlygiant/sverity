@@ -1,0 +1,37 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "external memory read semantics absent",
+  "sites": [
+    {
+      "line": 6,
+      "signal": "u_mem"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The external memory macro has no body or behavioral model. The wrapper has consistent port widths, but read data initialization and drive coverage inside the macro remain unknown.",
+  "origin": "authored",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind lint reviewer)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 6,
+          "signal": "data_o"
+        }
+      ],
+      "note": "Opaque memory implementation prevents establishing internal driving and data behavior."
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "Isolation opens when the source reset asserts: the previously nonzero payload is briefly exposed before its asynchronous reset-to-zero propagates. The receiver can sample that reset-induced pulse; during normal operation the wrong mask also forces every payload to zero.",
+  "sites": [
+    {
+      "line": 10,
+      "signal": "warm_ni ?"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Isolation opens when the source reset asserts: the previously nonzero payload is briefly exposed before its asynchronous reset-to-zero propagates. The receiver can sample that reset-induced pulse; during normal operation the wrong mask also forces every payload to zero.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-fifo-valid-isolation-inverted",
+    "description": "Isolation opens when the source reset asserts: the previously nonzero payload is briefly exposed before its asynchronous reset-to-zero propagates. The receiver can sample that reset-induced pulse; during normal operation the wrong mask also forces every payload to zero."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 10,
+          "signal": "payload_q"
+        }
+      ],
+      "note": "The inverted isolation exposes payload exactly while its independent raw warm reset is asserted, allowing asynchronous reset transitions to reach the active receiver."
+    }
+  ]
+}

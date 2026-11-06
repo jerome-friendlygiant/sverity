@@ -39,9 +39,7 @@ std::vector<std::unique_ptr<Rule>> makeSlangBackedRules() {
     std::vector<std::unique_ptr<Rule>> v;
     auto full = [&](const char* id) { v.push_back(std::make_unique<SlangBackedRule>(id, true, "")); };
     full("LNT-001");
-    full("LNT-006");
     full("LNT-007");
-    full("LNT-037");
     full("LNT-002");   // slang errors: unknown module/package/symbol, redefinition
     full("LNT-003");   // slang errors: illegal port connections (unconnected ports are LNT-010)
     full("LNT-014");   // slang errors: always_ff/always_comb misuse

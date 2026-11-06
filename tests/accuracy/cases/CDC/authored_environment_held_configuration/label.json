@@ -1,0 +1,43 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "The synchronized valid bit qualifies a direct payload capture, but board-level setup, hold and immutability of the configuration word are unspecified.",
+  "mutation": {
+    "operator": "environment_held_configuration",
+    "description": "The synchronized valid bit qualifies a direct payload capture, but board-level setup, hold and immutability of the configuration word are unspecified."
+  },
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 7,
+      "signal": "src_i"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The synchronized valid bit qualifies a direct payload capture, but board-level setup, hold and immutability of the configuration word are unspecified.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 7,
+          "signal": "src_i"
+        }
+      ],
+      "note": "No payload hold/stability contract accompanies configuration-valid; synchronized valid alone cannot establish safe bus capture."
+    }
+  ]
+}

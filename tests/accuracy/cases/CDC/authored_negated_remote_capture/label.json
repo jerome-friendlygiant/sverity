@@ -1,0 +1,43 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "Inversion changes polarity but does not contain metastability; only one destination sampling stage is present.",
+  "mutation": {
+    "operator": "negated_remote_capture",
+    "description": "Inversion changes polarity but does not contain metastability; only one destination sampling stage is present."
+  },
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 5,
+      "signal": "remote_n"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Inversion changes polarity but does not contain metastability; only one destination sampling stage is present.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 5,
+          "signal": "remote_n"
+        }
+      ],
+      "note": "Polarity inversion does not synchronize the direct asynchronous capture."
+    }
+  ]
+}

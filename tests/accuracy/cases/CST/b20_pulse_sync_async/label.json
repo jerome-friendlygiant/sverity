@@ -1,0 +1,38 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "none",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The source toggle is transferred through two destination-clock flops, so the unrelated source and destination clocks are correctly asynchronous while each external pulse interface has a delay in its owning domain.",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_pulse_sync.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced the pulse synchronizer to a source toggle, a two-flop destination synchronizer, and edge reconstruction."
+  },
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "The destination pulse is formed from the two synchronizer stages; no combinational source-to-destination data path is timing-constrained as synchronous."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Async groups over a toggle 2FF crossing, I/O delays on the right clocks."
+    }
+  ]
+}

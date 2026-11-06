@@ -1,0 +1,32 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "origin": "authored",
+  "defect": "Each independent reset has its own release chain and controls a disjoint output bit; no data is exchanged between reset domains.",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Each independent reset has its own release chain and controls a disjoint output bit; no data is exchanged between reset domains.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-two-local-resets-disjoint-outputs",
+    "description": "Each independent reset has its own release chain and controls a disjoint output bit; no data is exchanged between reset domains."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Each disjoint output has its own local two-stage release; no inter-reset data exchange exists."
+    }
+  ]
+}

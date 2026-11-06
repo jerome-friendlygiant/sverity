@@ -1,0 +1,32 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "OR-combined command selection requires an unstated request exclusivity contract",
+  "sites": [],
+  "sdc": [],
+  "rationale": "The leaf combines selected command words by OR. It faithfully multiplexes a single selected requester, but simultaneous requesters can synthesize a command neither supplied. No arbiter or mutual-exclusion guarantee for select is supplied, so functional safety cannot be decided.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author, replacement set)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "A standard parameterised AND-OR mux in always_comb with a default assignment; it is fully combinational, latch-free and width-consistent, with defined (OR) behaviour for any select."
+    },
+    {
+      "by": "gpt-6.1-sol (separate settling reader, the cases and both arguments only)",
+      "verdict": "good",
+      "critical": false,
+      "note": "Lines 9-12 fully assign command and OR width-matched masked inputs: a valid combinational merge. Nothing in the RTL requires exclusive selection, so simultaneous selections are not a semantic defect."
+    }
+  ],
+  "settled_by": "third reading; verdict good (two of three readings)"
+}

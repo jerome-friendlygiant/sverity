@@ -1,0 +1,49 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "an active-low reset release signal is consumed as an active-high reset",
+  "sites": [
+    {
+      "line": 23,
+      "signal": "release_q"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "rst_ni correctly initializes the release pipeline low, but data_o resets when release_q[1] rises, exactly when the functional reset should be released.",
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_rstgen.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Reduced the reset generator to its release pipeline and one state-holding consumer."
+  },
+  "mutation": {
+    "operator": "reset-polarity-flipped",
+    "description": "Changed the consumer to trigger and clear on the active-high release signal instead of the active-low reset."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 22,
+          "signal": "release_q[1]"
+        }
+      ],
+      "note": "Active-high reset taken from a release chain that rises after reset is released, so value_o is reset in normal operation."
+    }
+  ]
+}

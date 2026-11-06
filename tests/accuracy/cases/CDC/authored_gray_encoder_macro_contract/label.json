@@ -1,0 +1,43 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "The opaque encoder does not establish a registered single-bit-transition code; independent bit capture is safe only under that missing contract.",
+  "mutation": {
+    "operator": "gray_encoder_macro_contract",
+    "description": "The opaque encoder does not establish a registered single-bit-transition code; independent bit capture is safe only under that missing contract."
+  },
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 7,
+      "signal": "advertised"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The opaque encoder does not establish a registered single-bit-transition code; independent bit capture is safe only under that missing contract.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 7,
+          "signal": "advertised"
+        }
+      ],
+      "note": "Opaque encoding cannot establish one-bit source transitions or registered glitch-free code."
+    }
+  ]
+}

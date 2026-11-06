@@ -1,0 +1,36 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "parameterized child output is connected to a narrower net",
+  "sites": [
+    {
+      "line": 24,
+      "signal": "narrow_encoded"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The child always produces WIDTH bits, but the instance connection can only carry WIDTH-1 bits, silently discarding the most significant result bit.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind lint reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 24,
+          "signal": "narrow_encoded"
+        }
+      ],
+      "note": "An eight-bit child output connects to a seven-bit parent signal and silently truncates its high bit."
+    }
+  ]
+}

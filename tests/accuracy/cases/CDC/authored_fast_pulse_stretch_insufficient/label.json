@@ -1,0 +1,43 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "With a 2 ns source and 13 ns destination clock, a two-source-cycle pulse can disappear entirely between destination edges.",
+  "mutation": {
+    "operator": "fast_pulse_stretch_insufficient",
+    "description": "With a 2 ns source and 13 ns destination clock, a two-source-cycle pulse can disappear entirely between destination edges."
+  },
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 7,
+      "signal": "stretch_q"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "With a 2 ns source and 13 ns destination clock, a two-source-cycle pulse can disappear entirely between destination edges.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 7,
+          "signal": "stretch_q"
+        }
+      ],
+      "note": "A one-source-cycle pulse stretches to only four ns versus thirteen ns destination period and can disappear between sampling edges."
+    }
+  ]
+}

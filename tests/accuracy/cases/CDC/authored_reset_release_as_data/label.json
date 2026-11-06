@@ -1,0 +1,43 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "a reset synchronizer release signal is consumed as ordinary data in another clock domain",
+  "mutation": {
+    "operator": "reset-release-data-crossing",
+    "description": "The clk_ctrl reset-release indication is wired directly into a clk_data enable condition without destination synchronisation."
+  },
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 30,
+      "signal": "release_ctrl"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The release_ctrl transition is only aligned to clk_ctrl and can be sampled metastably by clk_data; its use as a data-domain enable is not a reset pin exemption.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 30,
+          "signal": "release_ctrl"
+        }
+      ],
+      "note": "Reset release synchronized to the control clock is reused as raw functional data enable in an unrelated clock domain."
+    }
+  ]
+}

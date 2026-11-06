@@ -1,0 +1,49 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "a register update request crosses safely but its source data is not held until the destination samples it",
+  "sites": [
+    {
+      "line": 41,
+      "signal": "value_b"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "value_a is not captured or held in clk_a when update_a launches req_a, so the destination can observe a different value when the synchronized request arrives.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 41,
+          "signal": "value_a"
+        }
+      ],
+      "note": "value_a is captured in clk_b a few cycles after the toggle request but nothing holds it stable, and no acknowledgement returns to the source, so it can change before capture."
+    }
+  ],
+  "origin": "adapted",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_reg_cdc.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Kept the source update request, destination request synchronization, data transfer, and acknowledgement context, reduced the register arbitration and bus interfaces, and exposed a self-contained top module."
+  },
+  "mutation": {
+    "operator": "handshake-data-not-held",
+    "description": "Captured value_a directly at the destination request event without a source-domain data holding register."
+  }
+}

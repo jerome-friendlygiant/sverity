@@ -1,0 +1,39 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "adapted",
+  "verdict": "good",
+  "critical": false,
+  "defect": "none; a source toggle is acknowledged only after a destination edge is consumed",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The source accepts no new edge while its toggle differs from the synchronized acknowledgement. The destination synchronizes the toggle, emits one event, and acknowledges it in its own domain.",
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "Reduced the common_cells edge propagator to its toggle, two-flop crossings, and closed acknowledgement loop."
+  },
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_edge_propagator.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Self-contained toggle-based event propagator with source back-pressure."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Toggle request with two-flop sync and two-flop synchronised ack, busy blocks new toggles; edge_o derived after the synchroniser."
+    }
+  ]
+}

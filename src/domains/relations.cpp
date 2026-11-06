@@ -1,6 +1,7 @@
 #include "domains/relations.h"
 
 #include <algorithm>
+#include <set>
 
 #include "slang/ast/symbols/InstanceSymbols.h"
 #include "slang/ast/symbols/ValueSymbol.h"
@@ -47,9 +48,13 @@ bool ClockRelations::nameMatches(const std::string& kind, const std::string& pat
 
 bool ClockRelations::isDeclaredClock(NodeId n) const {
     if (!sdcClockForNode(n).empty()) return true;
-    for (const auto& clock : cfg_.constraints.clocks)
+    std::set<std::string> seen;
+    for (auto it = cfg_.constraints.clocks.rbegin(); it != cfg_.constraints.clocks.rend(); ++it) {
+        const auto& clock = *it;
+        if (!seen.insert(clock.name).second) continue;
         for (const auto& source : clock.sources)
             if ((source.kind == "get_ports" || source.kind == "get_pins" || source.kind == "get_nets") && bitMatches(source.kind, source.pattern, n)) return true;
+    }
     return false;
 }
 
@@ -69,11 +74,17 @@ bool ClockRelations::bitMatches(const std::string& kind, const std::string& patt
 std::string ClockRelations::sdcClockForNode(NodeId n) const {
     if (n == kNoNode) return {};
     std::string full = stripBit(m_.nameOf(n));
-    for (auto& c : cfg_.constraints.clocks)
+    std::set<std::string> seen;
+    std::set<const sdc::ClockDef*> active;
+    for (auto it = cfg_.constraints.clocks.rbegin(); it != cfg_.constraints.clocks.rend(); ++it)
+        if (seen.insert(it->name).second) active.insert(&*it);
+    for (const auto& c : cfg_.constraints.clocks) {
+        if (!active.count(&c)) continue; // the latest definition owns this name
         for (auto& s : c.sources)
             if ((s.kind == "get_ports" || s.kind == "get_pins" || s.kind == "get_nets" || s.kind == "all_inputs") &&
                 nameMatches(s.kind, s.pattern, n, full))
                 return c.name.empty() ? s.pattern : c.name;
+    }
     return {};
 }
 

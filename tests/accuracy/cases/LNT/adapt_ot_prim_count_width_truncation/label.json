@@ -1,0 +1,47 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "counter status loses its error bit through a narrowed output",
+  "sites": [
+    {
+      "line": 14,
+      "signal": "status_o"
+    }
+  ],
+  "sdc": [],
+  "rationale": "status_full is five bits and contains the error indicator, but status_o is only four bits, so the status bit is discarded on every assignment.",
+  "mutation": {
+    "operator": "width-truncation",
+    "description": "Reduced the counter status output from five bits to four bits while retaining the error-augmented status value."
+  },
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_count.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced the hardened counter's count/error status interface to a combinational status packer."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 14,
+          "signal": "status_o"
+        }
+      ],
+      "note": "5-bit status_full truncated to 4-bit status_o losing error bit"
+    }
+  ]
+}

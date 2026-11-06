@@ -1,0 +1,8 @@
+create_clock -name wclk -period 8.0 [get_ports wclk]
+create_clock -name rclk -period 11.0 [get_ports rclk]
+set_clock_groups -asynchronous -group [get_clocks wclk] -group [get_clocks rclk]
+set_input_delay 1.0 -clock [get_clocks wclk] [get_ports push]
+set_input_delay 1.0 -clock [get_clocks rclk] [get_ports pop]
+set_input_delay 1.0 -clock [get_clocks wclk] [get_ports arst_n]
+set_output_delay 1.0 -clock [get_clocks wclk] [get_ports {write_ptr[*] full}]
+set_output_delay 1.0 -clock [get_clocks rclk] [get_ports read_ptr[*]]

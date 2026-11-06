@@ -1,0 +1,5 @@
+create_clock -name root -period 10 -waveform {0 5} [get_ports sclk]
+set_input_delay -clock root -max 1 [get_ports src_i]
+set_input_delay -clock root -min 0 [get_ports src_i]
+set_output_delay -clock root -max 1 [get_ports out_o]
+set_output_delay -clock root -min 0 [get_ports out_o]

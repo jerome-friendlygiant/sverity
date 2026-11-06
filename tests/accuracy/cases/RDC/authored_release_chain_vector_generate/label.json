@@ -1,0 +1,32 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "origin": "authored",
+  "defect": "Generated consumers all use only the final stage of one common three-stage release pipeline.",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Generated consumers all use only the final stage of one common three-stage release pipeline.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-release-chain-vector-generate",
+    "description": "Generated consumers all use only the final stage of one common three-stage release pipeline."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "The common three-stage local reset chain safely releases every generated lane."
+    }
+  ]
+}

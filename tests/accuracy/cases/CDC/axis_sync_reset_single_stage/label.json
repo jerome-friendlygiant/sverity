@@ -1,0 +1,49 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "an asynchronous reset is released through only one clocked receiving stage",
+  "sites": [
+    {
+      "line": 40,
+      "signal": "sync_reg"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "rst is asynchronous to clk and the reset release reaches out through a single clk stage, leaving no second stage to contain recovery and removal uncertainty.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 36,
+          "signal": "sync_reg"
+        }
+      ],
+      "note": "Asynchronous reset deassertion is synchronised by only one flop, so it can go metastable and release downstream flops unsafely."
+    }
+  ],
+  "origin": "adapted",
+  "provenance": {
+    "repository": "verilog-axis",
+    "commit": "48ff7a7e2ef782cf778d47910cf85835c64b1bce",
+    "path": "rtl/sync_reset.v",
+    "licence": "MIT",
+    "adaptation": "Kept the active-high asynchronous reset interface and reset pipeline behavior, reduced the parameterized vector to one bit, and exposed a SystemVerilog top module."
+  },
+  "mutation": {
+    "operator": "sync-stage-removed",
+    "description": "Reduced the reset release pipeline to one sync_reg stage before driving out."
+  }
+}

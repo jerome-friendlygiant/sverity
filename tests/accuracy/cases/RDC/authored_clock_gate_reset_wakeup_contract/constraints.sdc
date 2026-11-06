@@ -1,0 +1,6 @@
+create_clock -name core -period 10 [get_ports clk_i]
+set_input_delay -clock core -min 0 [get_ports {gate_enable_i data_i}]
+set_input_delay -clock core -max 2 [get_ports {gate_enable_i data_i}]
+set_output_delay -clock core -min 0 [get_ports out_o]
+set_output_delay -clock core -max 2 [get_ports out_o]
+create_generated_clock -name local -source [get_ports clk_i] -divide_by 1 [get_nets local_clk]

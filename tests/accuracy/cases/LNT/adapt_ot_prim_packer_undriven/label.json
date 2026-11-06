@@ -1,0 +1,47 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "packed output data is left undriven",
+  "sites": [
+    {
+      "line": 12,
+      "signal": "data_o"
+    }
+  ],
+  "sdc": [],
+  "rationale": "data_o is an output of the packer interface but the combinational block only drives ready_o and valid_o, leaving every packed word undefined.",
+  "mutation": {
+    "operator": "output-left-undriven",
+    "description": "Removed the packed data assignment from the reduced prim_packer output logic."
+  },
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_packer.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced the packer to its valid/ready interface and one output data word."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 12,
+          "signal": "data_o"
+        }
+      ],
+      "note": "output data_o never driven"
+    }
+  ]
+}

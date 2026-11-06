@@ -1,0 +1,32 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "origin": "authored",
+  "defect": "The release chain and consumer both use the falling edge of the same clock, so the final stage conditions release in the correct edge domain.",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The release chain and consumer both use the falling edge of the same clock, so the final stage conditions release in the correct edge domain.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-negedge-own-release-chain",
+    "description": "The release chain and consumer both use the falling edge of the same clock, so the final stage conditions release in the correct edge domain."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Both reset chain and consumer use the same falling clock edge, with two settling stages."
+    }
+  ]
+}

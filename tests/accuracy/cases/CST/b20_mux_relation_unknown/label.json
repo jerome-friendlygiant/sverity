@@ -1,0 +1,54 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": false,
+  "defect": "clock-mux switching protocol and source-clock relationship are unstated",
+  "sites": [
+    {
+      "file": "constraints.sdc",
+      "line": 5,
+      "signal": "clk_a"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The mux can expose either unrelated source clock, but the RTL does not establish whether sel_i is a static strap, a synchronized glitch-free request, or a changing board signal. The logically-exclusive clock model is therefore undecidable without the environment's switching protocol.",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_clk_mux_glitch_free.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Reduced the two-input mux to a dynamic selector and a single output register, leaving the selector protocol external."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "unknown",
+      "critical": false,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 5,
+          "signal": "clk_a"
+        }
+      ]
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Standard exclusive-group clock-mux constraints; each clock has its own delays and no cross-clock path exists (low confidence)."
+    },
+    {
+      "by": "gpt-6.1-sol (third settling reading)",
+      "verdict": "unknown",
+      "critical": false,
+      "note": "Logical exclusivity describes mode intent but the combinational mux has an unconstrained dynamic selector. No static-selection or glitch-free switching contract establishes that the exception is valid."
+    }
+  ],
+  "settled_by": "Third reading: gpt-6.1-sol; Logical exclusivity describes mode intent but the combinational mux has an unconstrained dynamic selector. No static-selection or glitch-free switching contract establishes that the exception is valid."
+}

@@ -1,0 +1,43 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "With por_ni high and first_q already one, releasing debug_ni exposes last_q directly to recovery/removal. The earlier stage does not synchronize this independent reset.",
+  "sites": [
+    {
+      "line": 6,
+      "signal": "negedge debug_ni"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "With por_ni high and first_q already one, releasing debug_ni exposes last_q directly to recovery/removal. The earlier stage does not synchronize this independent reset.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-release-chain-independent-stage-reset",
+    "description": "With por_ni high and first_q already one, releasing debug_ni exposes last_q directly to recovery/removal. The earlier stage does not synchronize this independent reset."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 6,
+          "signal": "debug_ni"
+        }
+      ],
+      "note": "Independent stage resets destroy a common two-stage release guarantee; debug release directly affects the final stage."
+    }
+  ]
+}

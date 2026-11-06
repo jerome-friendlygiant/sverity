@@ -1,0 +1,55 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "origin": "authored",
+  "defect": "Different primary-clock periods and a synchronizer do not prove physical independence. The relationship must be supplied by the environment.",
+  "sites": [
+    {
+      "line": 28,
+      "signal": "sync1_q"
+    },
+    {
+      "file": "constraints.sdc",
+      "line": 2,
+      "signal": "dst_clk"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Different primary-clock periods and a synchronizer do not prove physical independence. The relationship must be supplied by the environment.",
+  "mutation": {
+    "operator": "missing-asynchronous-clock-groups",
+    "description": "Removed the set_clock_groups declaration for the independent source and destination clocks."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CST reviewer)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 1,
+          "signal": "src_clk_i"
+        }
+      ],
+      "note": "The two primary clocks have different declared periods but no external relationship contract. The two-stage synchronizer suggests asynchronous operation; it does not prove independence. The clock relationship must be supplied, rather than assumed synchronous or asynchronous."
+    },
+    {
+      "by": "gpt-6.1-sol (third settling reading)",
+      "verdict": "unknown",
+      "critical": true,
+      "note": "Different primary-clock periods and a synchronizer do not prove physical independence. The relationship must be supplied by the environment."
+    }
+  ],
+  "settled_by": "Third reading: gpt-6.1-sol; Different primary-clock periods and a synchronizer do not prove physical independence. The relationship must be supplied by the environment."
+}

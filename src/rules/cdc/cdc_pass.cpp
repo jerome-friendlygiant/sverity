@@ -79,12 +79,13 @@ std::vector<std::unique_ptr<Rule>> makeCdcRules() {
     add("RDC-024", "");
     add("CDC-029", "");
     add("CST-001", "reset classification from event lists and a heuristic synchronous-reset pattern; explicit user-declared no_reset is not supported yet");
-    add("CST-002", "only create_clock source objects are resolved");
+    add("CST-002", "Clock source and generated master references are checked; other named constraint paths are not comprehensively resolved.");
+    add("CST-003", "Contradictory path exceptions and clock relationships beyond declaration overrides and generated ancestry versus groups are not checked.");
     add("CST-004", "relationship derived from SDC clock names and set_clock_groups only; generated-clock and exception semantics are not applied");
-    add("CST-005", "only modules that slang reports as unknown are inventoried; encrypted/blackbox-attributed modules are not distinguished");
+    add("CST-005", "unknown modules, --library black boxes and modules attributed black_box, blackbox or syn_black_box are inventoried; encrypted modules are not distinguished, and modelled instances are not listed");
     add("CST-009", "");
     add("CST-010", "records only the fallbacks produced by the connectivity/clock/reset model and in-source slang pragmas; constructs the model ignores without a fallback (classes, tasks, initial blocks, primitives) are not enumerated");
-    add("CST-011", "clock constraints only; reset and I/O constraint coverage not evaluated");
+    add("CST-011", "clock constraints and input delays of captured data inputs; reset inputs are RDC-002, and outputs without an output delay are not reported");
     add("CST-012", "Input-side and abstract-IP CDC contracts are not checked; output-boundary contracts only.");
     add("CST-014", "Cross-mode validation and mutually exclusive clock configuration validation are not implemented.");
     add("CST-018", "parse problems and unreadable files only; semantic validation of option values is limited");

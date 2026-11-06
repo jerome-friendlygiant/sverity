@@ -1,0 +1,49 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "adapted",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "destination data correctness depends on whether data_i remains stable until the destination handshake",
+  "sites": [
+    {
+      "line": 22,
+      "signal": "data_i"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The request and acknowledgement are synchronized, but data_i is sampled directly in the destination domain and there is no RTL or interface contract holding it stable for the complete handshake. It is safe under that contract and unsafe without it.",
+  "mutation": {
+    "operator": "undecidable-contract",
+    "description": "Used the unregistered data direction of prim_sync_reqack_data while omitting the required source hold guarantee."
+  },
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_sync_reqack_data.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced the handshake and direct destination-side data sample to a minimal unknown case."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 22,
+          "signal": "data_i"
+        }
+      ],
+      "note": "data_o samples source-domain data_i directly in the destination clock; correct only if the environment holds data_i until src_ack_o, which is not stated, and req_q toggles regardless of outstanding request."
+    }
+  ]
+}

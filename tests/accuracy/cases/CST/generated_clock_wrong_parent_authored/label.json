@@ -1,0 +1,48 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "The generated auxiliary clock names unrelated_clk_i as its source even though the divider is driven by ref_clk_i.",
+  "sites": [
+    {
+      "line": 41,
+      "signal": "aux_clk"
+    },
+    {
+      "file": "constraints.sdc",
+      "line": 3,
+      "signal": "aux_clk"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "aux_clk is a divided derivative of ref_clk_i. Giving it unrelated_clk as the parent misstates phase and frequency inheritance while the receiver is timed by aux_clk.",
+  "mutation": {
+    "operator": "generated-clock-wrong-parent",
+    "description": "Changed the generated clock source from the real PLL reference port to an unrelated clock port."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CST reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 3,
+          "signal": "aux_o"
+        }
+      ],
+      "note": "The auxiliary clock is produced from ref_clk_i, but its generated-clock source names unrelated_clk_i. phase_q[3] additionally has divide-by-sixteen frequency rather than the claimed divide-by-eight."
+    }
+  ]
+}

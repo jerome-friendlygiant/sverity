@@ -1,0 +1,43 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "Changing mode_i can release a reset through an XOR after the release synchronizer; while reset_ni is low mode_i=1 also defeats assertion.",
+  "sites": [
+    {
+      "line": 7,
+      "signal": "assign rst_n"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Changing mode_i can release a reset through an XOR after the release synchronizer; while reset_ni is low mode_i=1 also defeats assertion.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-reset-xor-operating-mode",
+    "description": "Changing mode_i can release a reset through an XOR after the release synchronizer; while reset_ni is low mode_i=1 also defeats assertion."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 7,
+          "signal": "rst_n"
+        }
+      ],
+      "note": "An unconstrained changing mode signal XORs the reset after conditioning and may release it asynchronously."
+    }
+  ]
+}

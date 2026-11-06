@@ -1,0 +1,37 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "foreign decoder output assignment unavailable",
+  "sites": [
+    {
+      "line": 3,
+      "signal": "decode"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The imported function body is unavailable, so whether every opcode path assigns the output control argument is an external implementation obligation.",
+  "origin": "authored",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind lint reviewer)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 5,
+          "signal": "control_o"
+        }
+      ],
+      "note": "Foreign task-like decode behavior and output assignment coverage are unavailable."
+    }
+  ]
+}

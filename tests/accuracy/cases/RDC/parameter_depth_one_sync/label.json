@@ -1,0 +1,43 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "a parameterised reset synchronizer is instantiated with only one release stage",
+  "sites": [
+    {
+      "line": 10,
+      "signal": "DEPTH"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The generic supports a safe two-stage default, but this instance explicitly selects DEPTH=1, so reset_ni is released from the first metastability-catching stage.",
+  "author": "gpt-5.6-luna",
+  "mutation": {
+    "operator": "reset-synchronizer-depth",
+    "description": "Configured a reusable reset synchronizer with a single stage instead of the required minimum depth of two."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 10,
+          "signal": "reset_ni"
+        }
+      ],
+      "note": "DEPTH=1 leaves only the metastability-catching stage to release consumer reset."
+    }
+  ]
+}

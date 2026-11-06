@@ -1,0 +1,58 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "measured-clock to reference-clock ratio is an unstated PLL/board contract",
+  "sites": [
+    {
+      "file": "constraints.sdc",
+      "line": 2,
+      "signal": "reference_clk"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The measurement logic can only classify fast and slow after knowing the intended ratio between clk_i and clk_ref_i. The RTL provides no PLL configuration or frequency bound, so the two declared periods cannot be judged as the correct relationship.",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_clock_meas.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced clock measurement to independent reference and measured-domain counters with fast/slow indications."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "unknown",
+      "critical": false,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 2,
+          "signal": "reference_clk"
+        }
+      ]
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 2,
+          "signal": "clk_ref_i"
+        },
+        {
+          "file": "constraints.sdc",
+          "line": 5,
+          "signal": "en_i"
+        }
+      ],
+      "note": "Two clocks of 5ns and 10ns left related by default with en_i delayed against both; whether they are synchronous (PLL ratio) or asynchronous is not given."
+    }
+  ]
+}

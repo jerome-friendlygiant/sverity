@@ -1,0 +1,48 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "Case analysis forces the functional clock port low instead of constraining the test-mode select pin.",
+  "sites": [
+    {
+      "line": 38,
+      "signal": "selected_clk"
+    },
+    {
+      "file": "constraints.sdc",
+      "line": 4,
+      "signal": "func_clk_i"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The switch selects test_clk only when test_mode_i is asserted. Setting func_clk_i to zero disables the normal operating clock and leaves the functional scenario falsely clean; case analysis belongs on test_mode_i for a functional-mode analysis.",
+  "mutation": {
+    "operator": "case-analysis-on-functional-clock",
+    "description": "Applied set_case_analysis to the functional clock port rather than the mode select controlling the test clock."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CST reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 4,
+          "signal": "func_clk_i"
+        }
+      ],
+      "note": "Forcing the functional clock port to zero suppresses the actual clock used by the register when test_mode_i is low; a data-mode strap should be constrained instead of the clock signal."
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "hardened counter state uses blocking assignment in its clocked process",
+  "sites": [
+    {
+      "line": 15,
+      "signal": "count_q"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The sequential count state is updated with blocking assignments, which makes clocked simulation ordering differ from the intended register behavior and violates sequential coding intent.",
+  "mutation": {
+    "operator": "blocking-in-clocked-block",
+    "description": "Changed both reset and increment assignments for the counter state to blocking assignments."
+  },
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_count.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced the hardened counter to reset, increment, and registered count state."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 15,
+          "signal": "count_q"
+        },
+        {
+          "line": 17,
+          "signal": "count_q"
+        }
+      ],
+      "note": "blocking assignment to state in clocked block"
+    }
+  ]
+}

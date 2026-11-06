@@ -1,0 +1,43 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "a flop has an asynchronous set from one clock domain and reset from another",
+  "sites": [
+    {
+      "line": 18,
+      "signal": "event_b_q"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "event_b_q is generated in clk_b_i and drives an asynchronous set on a clk_a_i flop, while reset_a_ni is an unrelated asynchronous reset.",
+  "author": "gpt-5.6-luna",
+  "mutation": {
+    "operator": "cross-domain-async-set",
+    "description": "Added a clock-b-domain signal to the asynchronous set event control of a clock-a-domain register."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 18,
+          "signal": "event_b_q"
+        }
+      ],
+      "note": "A remote-domain event asynchronously sets a destination flop; release is not synchronized to the destination, and the raw reset also releases directly."
+    }
+  ]
+}

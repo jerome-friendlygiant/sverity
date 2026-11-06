@@ -1,0 +1,53 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "adapted",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "the multibit output is safe only if the source changes the bus coherently and slowly enough for the consistency checks",
+  "sites": [
+    {
+      "line": 18,
+      "signal": "data_o"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The destination checks equality across successive synchronized bus samples, but no source-side timing or atomic-update contract is provided. Depending on how data_i changes, the output can be a valid stable word or a mixed word that happened to pass the sampled check.",
+  "mutation": {
+    "operator": "undecidable-contract",
+    "description": "Retained the consistency-checking multibit synchronizer while leaving source bus update timing unspecified."
+  },
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_multibit_sync.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced to an eight-bit, one-check consistency synchronizer without source protocol assumptions."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 15,
+          "signal": "data_i"
+        },
+        {
+          "line": 18,
+          "signal": "data_o"
+        }
+      ],
+      "note": "8 bits are synchronised independently with only a two-sample equality check, and whether data_i is stable/Gray or synchronous is not stated (SDC says synchronous to clk_i, RTL treats it as async)."
+    }
+  ]
+}

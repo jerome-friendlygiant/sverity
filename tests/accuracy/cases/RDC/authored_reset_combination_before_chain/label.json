@@ -1,0 +1,32 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "origin": "authored",
+  "defect": "The monotonic AND combines reset assertions before a common two-stage release chain; all consumer release paths pass through the chain.",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The monotonic AND combines reset assertions before a common two-stage release chain; all consumer release paths pass through the chain.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-reset-combination-before-chain",
+    "description": "The monotonic AND combines reset assertions before a common two-stage release chain; all consumer release paths pass through the chain."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Both asynchronous requests combine before the shared two-stage local release chain."
+    }
+  ]
+}

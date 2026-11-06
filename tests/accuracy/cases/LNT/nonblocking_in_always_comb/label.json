@@ -1,0 +1,36 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "nonblocking assignment is used in combinational logic",
+  "sites": [
+    {
+      "line": 10,
+      "signal": "result"
+    }
+  ],
+  "sdc": [],
+  "rationale": "A combinational process updates result with a nonblocking assignment, introducing scheduling semantics that can produce stale reads and diverge between simulation and intended combinational behavior.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind lint reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 10,
+          "signal": "result"
+        }
+      ],
+      "note": "Nonblocking assignment in combinational logic delays updates and breaks combinational scheduling expectations."
+    }
+  ]
+}

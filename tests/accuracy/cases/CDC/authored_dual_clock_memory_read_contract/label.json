@@ -1,0 +1,43 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "The dual-clock memory macro lacks a read-during-write and collision contract; safe data transfer cannot be inferred from its ports.",
+  "mutation": {
+    "operator": "dual_clock_memory_read_contract",
+    "description": "The dual-clock memory macro lacks a read-during-write and collision contract; safe data transfer cannot be inferred from its ports."
+  },
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 3,
+      "signal": "out_o"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The dual-clock memory macro lacks a read-during-write and collision contract; safe data transfer cannot be inferred from its ports.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 4,
+          "signal": "out_o"
+        }
+      ],
+      "note": "Opaque dual-clock memory lacks read-during-write and CDC behavior contracts."
+    }
+  ]
+}

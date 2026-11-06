@@ -1,0 +1,43 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "origin": "authored",
+  "defect": "The conditioner implementation and library behavior are absent; it may provide correct synchronized release or directly forward reset. Neither safety nor a specific defective implementation can be established.",
+  "sites": [
+    {
+      "line": 2,
+      "signal": "conditioned_n"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The conditioner implementation and library behavior are absent; it may provide correct synchronized release or directly forward reset. Neither safety nor a specific defective implementation can be established.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-opaque-conditioner-vector",
+    "description": "The conditioner implementation and library behavior are absent; it may provide correct synchronized release or directly forward reset. Neither safety nor a specific defective implementation can be established."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 5,
+          "signal": "conditioned_n"
+        }
+      ],
+      "note": "The opaque conditioner has no release-depth contract."
+    }
+  ]
+}

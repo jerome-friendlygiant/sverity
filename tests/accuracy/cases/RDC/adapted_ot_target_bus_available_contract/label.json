@@ -1,0 +1,53 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "adapted",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "bus-available timing relative to reset consumers is unspecified",
+  "sites": [
+    {
+      "line": 24,
+      "signal": "bus_avail_i"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Reset release is conditioned on bus_avail_i, but the design does not state whether that signal is synchronized to this clock or how long the external target logic remains isolated; the reset-consumer safety cannot be decided without that contract.",
+  "mutation": {
+    "operator": "external-bus-release-unknown",
+    "description": "Reduced the target reset controller to its enable, recovery, and bus-available state sequence."
+  },
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/i3c/rtl/i3c_target_rst.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Removed I3C-specific timer and bus logic while retaining the reset release condition."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "unknown",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 28,
+          "signal": "reset_trig_o"
+        },
+        {
+          "line": 24,
+          "signal": "bus_avail_i"
+        }
+      ],
+      "note": "Reset trigger release depends on bus_avail_i and consumer expectations that are not stated in RTL or constraints."
+    }
+  ]
+}

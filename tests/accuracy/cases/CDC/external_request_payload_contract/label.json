@@ -1,0 +1,37 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "payload hold interval is delegated to the environment",
+  "sites": [
+    {
+      "line": 13,
+      "signal": "result"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The receiver synchronizes request but samples an external payload directly; safety depends on an unstated producer hold and settling contract.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 13,
+          "signal": "payload"
+        }
+      ],
+      "note": "payload is sampled unsynchronised in dst_clk, which is only safe if the source holds it stable around request; that contract is not stated."
+    }
+  ]
+}

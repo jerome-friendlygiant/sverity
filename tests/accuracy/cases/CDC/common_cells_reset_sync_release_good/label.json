@@ -1,0 +1,39 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "adapted",
+  "verdict": "good",
+  "critical": false,
+  "defect": "none; reset asserts asynchronously and releases through a two-stage clocked pipeline",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Both reset outputs assert immediately and deassert only after two rising edges. Test mode is a local qualification and does not create a second clock domain.",
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "Reduced the reset generator to its asynchronous-assert, synchronous-release pipeline and test bypass."
+  },
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_rstgen.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Reduced wrapper and reset-bypass dependency to one self-contained reset pipeline."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Asynchronous assertion, two-flop synchronised release; test_mode only combined after the synchroniser."
+    }
+  ]
+}

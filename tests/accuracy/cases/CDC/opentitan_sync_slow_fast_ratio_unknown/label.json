@@ -1,0 +1,64 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "adapted",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "the slow-to-fast payload capture depends on an unstated minimum clock-speed ratio",
+  "sites": [
+    {
+      "line": 15,
+      "signal": "wdata_q"
+    },
+    {
+      "line": 20,
+      "signal": "rdata_o"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The slow-side payload is captured and an event marker is synchronized, but the constraints do not establish that the fast clock is sufficiently faster for the payload to remain stable through the synchronizer latency. The source module's recommended ratio is absent.",
+  "mutation": {
+    "operator": "undecidable-contract",
+    "description": "Removed the source module's required slow/fast frequency-ratio constraint while retaining its sampled payload path."
+  },
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_sync_slow_fast.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced to the data capture and synchronized slow-edge marker with no ratio guarantee."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 15,
+          "signal": "wdata_q"
+        },
+        {
+          "line": 20,
+          "signal": "rdata_o"
+        }
+      ],
+      "note": "clocks are unrelated with 10ns slow and 7ns fast, wdata_q changes every slow period but is captured 2-3 fast cycles after the toggle, so the capture can coincide with a wdata_q change."
+    },
+    {
+      "by": "gpt-6.1-sol (separate settling reader, the case and both arguments only)",
+      "verdict": "bad",
+      "critical": true,
+      "note": "Capture happens two to three fast periods after the toggle, while wdata_q updates every 10 ns; with the declared waveforms a slow edge and the capture edge coincide at 35 ns."
+    }
+  ],
+  "settled_by": "third reading; verdict bad (2 of 3 readings)"
+}

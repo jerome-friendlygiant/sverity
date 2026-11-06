@@ -1,0 +1,32 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "good",
+  "critical": false,
+  "defect": "The toggle protocol accepts at most one outstanding word and holds its payload through two-stage request and acknowledgement synchronizers.",
+  "mutation": {
+    "operator": "toggle_ack_mailbox",
+    "description": "The toggle protocol accepts at most one outstanding word and holds its payload through two-stage request and acknowledgement synchronizers."
+  },
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The toggle protocol accepts at most one outstanding word and holds its payload through two-stage request and acknowledgement synchronizers.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Toggle request and acknowledgement cross two stages in both directions; source payload is held until destination acknowledgement returns."
+    }
+  ]
+}

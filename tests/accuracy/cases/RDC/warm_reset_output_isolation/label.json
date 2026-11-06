@@ -1,0 +1,45 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "warm-reset data isolation depends on external clamp sequencing",
+  "sites": [
+    {
+      "line": 20,
+      "signal": "accepted_data"
+    },
+    {
+      "line": 18,
+      "signal": "isolated_data"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "warm_reset_n can asynchronously clear the producer while the receiving register continues running. isolate can clamp the transfer, but no contract says it is asserted before reset, held during reset, and removed only after safe release. Proper external sequencing can make this safe; otherwise an asynchronous reset transition can reach accepted_data.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author, replacement set)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 18,
+          "signal": "isolate"
+        },
+        {
+          "line": 20,
+          "signal": "accepted_data"
+        }
+      ],
+      "note": "Asynchronous warm_reset_n assertion on outgoing feeds the non-reset accepted_data flop; it is safe only if isolate is asserted (synchronously) before reset assertion and held through release, which is an unverified power-controller contract."
+    }
+  ]
+}

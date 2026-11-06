@@ -1,0 +1,6 @@
+create_clock -name root -period 10 [get_ports sclk]
+create_generated_clock -name divided -source [get_ports sclk] -divide_by 4 [get_pins {div_q[1]/Q}]
+set_input_delay -clock root -max 1 [get_ports src_i]
+set_input_delay -clock root -min 0 [get_ports src_i]
+set_output_delay -clock divided -max 1 [get_ports out_o]
+set_output_delay -clock divided -min 0 [get_ports out_o]

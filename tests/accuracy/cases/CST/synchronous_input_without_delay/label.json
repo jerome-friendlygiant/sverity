@@ -1,0 +1,55 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "the synchronous data input has no input-delay constraint",
+  "sites": [
+    {
+      "line": 19,
+      "signal": "data_i"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "data_i and valid_i are sampled by the clk input at the interface register. A clock definition alone gives no external arrival window for data_i, so setup and hold timing at the synchronous boundary are incomplete.",
+  "mutation": {
+    "operator": "input-delay-missing",
+    "description": "Omitted the set_input_delay constraint for data_i relative to clk."
+  },
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "verilog-axis",
+    "commit": "48ff7a7e2ef782cf778d47910cf85835c64b1bce",
+    "path": "rtl/axis_rate_limit.v",
+    "licence": "MIT",
+    "adaptation": "Retained the clocked AXI input-to-output datapath and reset behavior; reduced the rate limiter to a registered payload and valid pair."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 1,
+          "signal": "data_i"
+        },
+        {
+          "file": "constraints.sdc",
+          "line": 1,
+          "signal": "valid_i"
+        }
+      ],
+      "note": "Synchronous inputs data_i and valid_i captured by clk have no set_input_delay."
+    }
+  ]
+}

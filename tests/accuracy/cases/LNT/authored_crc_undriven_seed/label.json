@@ -1,0 +1,37 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "CRC initial operand has no driver",
+  "sites": [
+    {
+      "line": 3,
+      "signal": "seed"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The local seed signal is read by every checksum computation and has no assignment or input source.",
+  "origin": "authored",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind lint reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 7,
+          "signal": "seed"
+        }
+      ],
+      "note": "The CRC seed is read without any driver."
+    }
+  ]
+}

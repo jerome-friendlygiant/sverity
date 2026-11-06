@@ -1,0 +1,37 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "binary FIFO pointer crosses domains without coherent encoding",
+  "sites": [
+    {
+      "line": 12,
+      "signal": "write_position_dst"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Binary increments can toggle several pointer bits; synchronized bits can falsely indicate available data.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 11,
+          "signal": "write_position"
+        }
+      ],
+      "note": "A multi-bit binary counter is synchronised bit-wise; several bits change at once, so incoherent values can be captured."
+    }
+  ]
+}

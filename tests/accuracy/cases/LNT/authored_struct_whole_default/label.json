@@ -1,0 +1,26 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "none",
+  "sites": [],
+  "sdc": [],
+  "rationale": "The whole-struct zero default drives every member, including error, along all control paths.",
+  "origin": "authored",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-sol (blind lint reviewer)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Whole-structure initialization covers every field and every path."
+    }
+  ]
+}

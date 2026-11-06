@@ -227,7 +227,7 @@ Terms: a crossing group is a (source signal, destination signal) pair; its width
 ### CDC-039
 - **Trigger:** an unsynchronised payload crossing whose capture qualification is either proven necessary or undecided. Proven necessary means every data-moving write requires a control synchronised from the launch domain into the capture domain; local conjunctions may restrict capture further. A concrete bypass or absence of matching control is instead reported by CDC-003/004 and CDC-028.
 - **Severity:** WARNING Informational for proven necessity, retaining the unproved stability/timing obligation. WARNING Unresolved for undecided necessity. Both carry proof NOT_ATTEMPTED.
-- **Unknown:** state-held validity, opaque calls, unsupported Boolean semantics, cyclic logic or proof/walk limits prevent a necessity claim; the path stays visible with an explicit proof obligation and INCOMPLETE scope. Undecided messages do not claim the qualifier pattern. Neither result proves data stability.
+- **Unknown:** state-held validity, a qualifying chain shorter than the required depth, opaque calls, unsupported Boolean semantics, cyclic logic or proof/walk limits prevent a necessity claim; the path stays visible with an explicit proof obligation and INCOMPLETE scope. Undecided messages do not claim the qualifier pattern. Neither result proves data stability.
 
 ### CDC-040
 - **Trigger:** (a) a module annotated (* sverity_sync *) or (* cdc_sync *), checked for a recognised synchroniser (depth >= 2) inside its instance path; (b) every declared --library cell instance of kind synchronizer, reported with its stage count (flop, clock_gate, ram and blackbox cells are described by their own rules).
@@ -235,7 +235,7 @@ Terms: a crossing group is a (source signal, destination signal) pair; its width
 - **Unknown:** a malformed --library file or cell entry gives CST-018 ERROR and the cell is not registered, so its instance is walked as an ordinary module; library declarations are trusted, not verified.
 
 ### CDC-041
-- **Trigger:** a synchronised crossing (single-bit with depth >= 2, or multi-bit whose first destination bit starts a chain of depth >= 2 without link logic; not a memory) whose source register and last synchroniser stage have different asynchronous reset roots, or whose source is reset and the last stage is not.
+- **Trigger:** a synchronised crossing (single-bit with depth >= 2, or multi-bit whose first destination bit starts a chain of depth >= 2 without link logic; not a memory) whose source register and synchroniser output stage (the stage reaching the required depth, not a follower) have different asynchronous reset roots, or whose source is reset and the last stage is not.
 - **Severity:** WARNING Heuristic for different reset roots (proof NOT_ATTEMPTED); INFO Heuristic for a source-only reset.
 - **Unknown:** heuristic: reset roots are compared structurally, not by reset values or timing.
 
@@ -245,7 +245,7 @@ Terms: a crossing group is a (source signal, destination signal) pair; its width
 - **Unknown:** (b) dual-edge behaviour is not modelled; scope clock-relationships INCOMPLETE.
 
 ### CDC-044
-- **Trigger:** a top-level input bit (declared or not) whose capturing registers all start chains of depth >= 2 without link logic, and whose first chain is an edge detector or has depth >= 4.
+- **Trigger:** a top-level input bit (declared or not) whose capturing registers all start chains of depth >= 2 without link logic, and whose first chain is an edge detector (a stage compared with the next one as data by XOR/XNOR, `!=` or `==`, or by AND with exactly one of them inverted, whether in a continuous assignment or in a clocked block) or has depth >= 4.
 - **Severity:** WARNING Heuristic, proof NOT_ATTEMPTED (oversampling is unproved).
 - **Unknown:** none.
 
@@ -256,7 +256,7 @@ Terms: a crossing group is a (source signal, destination signal) pair; its width
 - **Unknown:** a primary-input enable is also reported by CDC-020 (WARNING Unresolved).
 
 ### CDC-046
-- **Trigger:** (a) declared box (--library kind blackbox): each input port (not an output, clock or reset port) whose fan-in cone reaches registers or primary inputs, checked against its reference clock: the clock port named by the port's library `clock` field, else the box's only clock port; with several clock ports and no association the reference is unresolved. Each register whose domain has a relation to the reference other than Same is a crossing. (b) undeclared box: every connected net; a cone spanning two or more source domains. In both forms an input from a register with an unidentified clock always reports.
+- **Trigger:** (a) declared box (--library kind blackbox): each input port (not an output, clock or reset port) whose fan-in cone reaches registers or primary inputs, checked against its reference clock: the clock port named by the port's library `clock` field, else the box's only clock port; with several clock ports and no association the reference is unresolved. Each register whose domain has a relation to the reference other than Same is a crossing. (b) undeclared box: every connected net; a cone spanning two or more source domains, or clocks of two or more domains or SDC clocks whose relation is not Same entering the box, where a crossing inside it is not analysed. In both forms an input from a register with an unidentified clock always reports.
 - **Exempt:** sources in the reference domain; relation Same; single-domain inputs of an undeclared box.
 - **Severity:** (a) ERROR Established (Async), INFO Established (Exclusive), WARNING Established (other known relation) per crossing; WARNING Unresolved for an Unknown relation, an unresolved reference clock, an unidentified source clock, and a primary input. (b) WARNING Unresolved.
 - **Unknown:** an undeclared box fed from one domain gets no CDC-046 (its nets are covered by CDC-023); an unresolved reference clock or a multi-domain undeclared box marks scope blackboxes INCOMPLETE; an unidentified source clock marks clock-extraction INCOMPLETE; a primary input marks constraints INCOMPLETE.
@@ -269,7 +269,7 @@ Terms: a crossing group is a (source signal, destination signal) pair; its width
 
 ## Crosswalk and licences
 
-Reference projects were studied for rule inventories only; no source code from any of them is included. Vendor rule lists were read from the public pages cited in the [roadmap](../ROADMAP.md#sources-and-provenance) on 2026-11-03 and are paraphrased. The AMD page only renders with JavaScript, so its list was read twice through an automated summary (2026-11-03 and 2026-11-05, with the same rule IDs and meanings), never as raw text: check the page before relying on one entry. **The mappings are closest intent, never equivalence:** no vendor tool has been run to compare.
+The rule implementations are original; the reference-rule mappings below record design influences. Vendor rule lists were read from the public pages cited in the [roadmap](../ROADMAP.md#sources-and-provenance) on 2026-11-03 and are paraphrased. The AMD page only renders with JavaScript, so its list was read twice through an automated summary (2026-11-03 and 2026-11-05, with the same rule IDs and meanings), never as raw text: check the page before relying on one entry. **The mappings are closest intent, never equivalence:** no vendor tool has been run to compare.
 
 | Source (licence) | Reference rules → SVerity |
 |---|---|
@@ -288,3 +288,14 @@ Reference projects were studied for rule inventories only; no source code from a
 | Altera CDC-50101, 50102, 50103: synchroniser on an intra-clock false path, synchroniser after a control-qualified crossing, and an unsynchronised transfer forced to head a chain | They advise on Quartus settings (`-no_synchronizer`, chain length, `SYNCHRONIZER_IDENTIFICATION`), which SVerity does not read, and 50102 is about removing a redundant synchroniser rather than a defect. | An unsynchronised crossing is CDC-003; a same-clock transfer is not a crossing. |
 
 Retired IDs: CDC-011 → CDC-010, CDC-021 → RDC-007, CDC-022 → CST-004 + CDC-038, CDC-025 → CDC-008, CDC-027 → CDC-007, CDC-033 → CDC-008 + CDC-018 (obligation: CDC-024), CDC-036 → CDC-010, CDC-042 → CDC-013. OpenCDC and RTL Buddy code may be reused under their licences if notices are kept; none is.
+
+
+### Accuracy-case adaptations
+
+Reduced and modified RTL under `tests/accuracy/cases/CDC/` exercises synchronizers, pulse and request/acknowledge transfers, asynchronous FIFOs and clock control. The upstream licences apply to these adaptations; each case retains its attribution and records the exact source path and changes in `label.json`. Whole upstream designs are not vendored. Licence texts and notices ship in [tests/accuracy/LICENSE](../../tests/accuracy/LICENSE).
+
+| Source at pinned commit | Licence | Material taken |
+|---|---|---|
+| [pulp-platform/common_cells](https://github.com/pulp-platform/common_cells/tree/e73baaec2ca665cd80c3c384e9258e35242b829c) | SHL-0.51 | Reduced RTL fragments used as CDC test inputs and mutated lookalikes |
+| [lowRISC/opentitan](https://github.com/lowRISC/opentitan/tree/92f3d03b0dcf6d5c1933a65d1497747f67d19f4c) | Apache-2.0 | Reduced RTL fragments used as CDC test inputs and mutated lookalikes |
+| [alexforencich/verilog-axis](https://github.com/alexforencich/verilog-axis/tree/48ff7a7e2ef782cf778d47910cf85835c64b1bce) | MIT | Reduced RTL fragments used as CDC test inputs and mutated lookalikes |

@@ -1,0 +1,13 @@
+// sverity-args: --top top --sdc @DIR@/unknown_ref_argument_write.sdc
+// A task writes m through a ref argument, which is no more undriven than a direct write.
+// expect: CST-009 WARNING
+// expect-none: CST-014
+// expect: CDC-028 ERROR
+module top(input logic a, b, output logic q);
+  logic m;
+  task automatic set_mode(ref logic target); target = 1'b1; endtask
+  initial set_mode(m);
+  logic source_q;
+  always_ff @(posedge a) source_q <= ~source_q;
+  always_ff @(posedge b) if (m) q <= source_q;
+endmodule

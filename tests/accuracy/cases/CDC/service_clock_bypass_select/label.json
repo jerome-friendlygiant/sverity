@@ -1,0 +1,44 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "combinational clock switching relies on an unspecified service-mode protocol",
+  "sites": [
+    {
+      "line": 11,
+      "signal": "selected_clk"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "service_mode selects between two asynchronous running clocks through a combinational mux. A fixed selection established while clocks are stopped can be safe; switching during operation can generate runt or extra edges. The supplied design and constraints do not specify whether or when service_mode changes.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author, replacement set)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 11,
+          "signal": "selected_clk"
+        }
+      ],
+      "note": "A plain combinational mux switches between two declared-asynchronous clocks under an unsynchronised select, so a service_mode change can produce a clock glitch/runt pulse on the command_q flops; no glitch-free clock switch is used."
+    },
+    {
+      "by": "gpt-6.1-sol (separate settling reader, the cases and both arguments only)",
+      "verdict": "unknown",
+      "critical": false,
+      "note": "Lines 11-12 clock registers through a combinational mux of clocks the SDC declares asynchronous. A change of service_mode can make a spurious edge, but nothing establishes whether selection is static or follows a safe switching protocol."
+    }
+  ],
+  "settled_by": "third reading; verdict unknown (two of three readings)"
+}

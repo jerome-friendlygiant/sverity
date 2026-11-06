@@ -1,0 +1,36 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "casez item is shadowed by an earlier wildcard item",
+  "sites": [
+    {
+      "line": 11,
+      "signal": "response"
+    }
+  ],
+  "sdc": [],
+  "rationale": "Every 10xx request matches 1??? first, so the intended response 6 branch can never execute and the later item is unreachable.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind lint reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 11,
+          "signal": "response"
+        }
+      ],
+      "note": "The earlier 1??? item shadows every input accepted by 10??."
+    }
+  ]
+}

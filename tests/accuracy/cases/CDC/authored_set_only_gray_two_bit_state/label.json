@@ -1,0 +1,32 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "good",
+  "critical": false,
+  "defect": "Outputs are separate persistent started/finished flags, each synchronized independently; consumers do not require an atomic state encoding.",
+  "mutation": {
+    "operator": "set_only_gray_two_bit_state",
+    "description": "Outputs are separate persistent started/finished flags, each synchronized independently; consumers do not require an atomic state encoding."
+  },
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Outputs are separate persistent started/finished flags, each synchronized independently; consumers do not require an atomic state encoding.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Both state flags are persistent and independently synchronized; the design only exports each settled flag and contains no coherent-state decoder."
+    }
+  ]
+}

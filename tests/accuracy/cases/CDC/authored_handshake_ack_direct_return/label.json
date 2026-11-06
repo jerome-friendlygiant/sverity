@@ -1,0 +1,43 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "The request is synchronized forward but its acknowledgement returns directly into source-domain control.",
+  "mutation": {
+    "operator": "handshake_ack_direct_return",
+    "description": "The request is synchronized forward but its acknowledgement returns directly into source-domain control."
+  },
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 5,
+      "signal": "ack_q"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The request is synchronized forward but its acknowledgement returns directly into source-domain control.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 5,
+          "signal": "ack_q"
+        }
+      ],
+      "note": "Destination acknowledgement returns directly into source-clock control without synchronization."
+    }
+  ]
+}

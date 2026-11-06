@@ -1,0 +1,43 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "A remote software clear is consumed synchronously in a different domain without any metastability containment.",
+  "mutation": {
+    "operator": "async_clear_of_destination_data",
+    "description": "A remote software clear is consumed synchronously in a different domain without any metastability containment."
+  },
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 6,
+      "signal": "clear_q"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "A remote software clear is consumed synchronously in a different domain without any metastability containment.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 6,
+          "signal": "clear_q"
+        }
+      ],
+      "note": "Source-clock control directly selects destination register data without synchronization."
+    }
+  ]
+}

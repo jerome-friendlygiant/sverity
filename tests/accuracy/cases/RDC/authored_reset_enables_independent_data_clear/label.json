@@ -1,0 +1,32 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "origin": "authored",
+  "defect": "The external reset is conditioned; the software clear remains synchronous inside the clocked body and never alters the asynchronous reset net.",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The external reset is conditioned; the software clear remains synchronous inside the clocked body and never alters the asynchronous reset net.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-reset-enables-independent-data-clear",
+    "description": "The external reset is conditioned; the software clear remains synchronous inside the clocked body and never alters the asynchronous reset net."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "The asynchronous reset is synchronized; clear_i is an ordinary timed synchronous control."
+    }
+  ]
+}

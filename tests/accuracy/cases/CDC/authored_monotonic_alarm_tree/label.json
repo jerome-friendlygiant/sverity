@@ -1,0 +1,32 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "good",
+  "critical": false,
+  "defect": "The alarm is sticky for the life of the design and crosses through two dedicated capture stages; no pulse-width assumption is needed.",
+  "mutation": {
+    "operator": "monotonic_alarm_tree",
+    "description": "The alarm is sticky for the life of the design and crosses through two dedicated capture stages; no pulse-width assumption is needed."
+  },
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The alarm is sticky for the life of the design and crosses through two dedicated capture stages; no pulse-width assumption is needed.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Source registers a sticky reduction; destination uses only the second synchronized stage."
+    }
+  ]
+}

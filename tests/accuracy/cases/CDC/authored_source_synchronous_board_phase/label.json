@@ -1,0 +1,43 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "A source-synchronous interface needs the board forwarding delay and clock phase relationship; independent clock declarations do not establish its timing.",
+  "mutation": {
+    "operator": "source_synchronous_board_phase",
+    "description": "A source-synchronous interface needs the board forwarding delay and clock phase relationship; independent clock declarations do not establish its timing."
+  },
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 4,
+      "signal": "src_i"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "A source-synchronous interface needs the board forwarding delay and clock phase relationship; independent clock declarations do not establish its timing.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 4,
+          "signal": "src_i"
+        }
+      ],
+      "note": "Separate board clocks have equal nominal periods but their physical phase/correlation is not established by a generated-clock relation or board contract."
+    }
+  ]
+}

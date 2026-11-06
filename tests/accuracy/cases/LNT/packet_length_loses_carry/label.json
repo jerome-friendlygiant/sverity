@@ -1,0 +1,35 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "length addition truncates its carry",
+  "sites": [
+    {
+      "line": 9,
+      "signal": "packet_bytes"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The declared packet length must represent payload plus header through 271; eight output bits cannot represent that range.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 9,
+          "signal": "packet_bytes"
+        }
+      ],
+      "note": "The 9-bit total is truncated to 8-bit packet_bytes, losing the carry for payloads above 239, which contradicts the stated intent."
+    }
+  ]
+}

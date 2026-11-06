@@ -1,0 +1,38 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "none",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The FIFO has one synchronous clock and its clear, write-side, and read-side interface ports all have explicit delays referenced to that clock.",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_fifo_sync.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced the synchronous FIFO to two eight-bit entries with registered pointers and full/empty state."
+  },
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "The compact two-entry pointer encoding changes implementation detail only; both handshakes remain synchronous to fifo_clk."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Single clock, all ports constrained."
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "good",
+  "critical": false,
+  "defect": "A complete return-to-zero handshake holds each accepted payload until destination acknowledgement returns; stale acknowledgement blocks the next acceptance.",
+  "mutation": {
+    "operator": "fourphase_busy_mailbox",
+    "description": "A complete return-to-zero handshake holds each accepted payload until destination acknowledgement returns; stale acknowledgement blocks the next acceptance."
+  },
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "A complete return-to-zero handshake holds each accepted payload until destination acknowledgement returns; stale acknowledgement blocks the next acceptance.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Source accepts only with request and synchronized ack low, holds payload through acknowledgement, and destination captures once per request."
+    }
+  ]
+}

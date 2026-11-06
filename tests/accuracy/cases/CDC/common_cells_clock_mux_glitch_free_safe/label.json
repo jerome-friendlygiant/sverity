@@ -1,0 +1,39 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "adapted",
+  "verdict": "good",
+  "critical": false,
+  "defect": "none; mutually exclusive clock enables are changed only on source falling edges",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The asynchronous select and the opposing enable are synchronized into each clock domain. Each gate enable changes while its clock is low, and each domain requires the other synchronized enable to be off before turning on.",
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "Kept the glitch-free mux structure while reducing the generic multi-input implementation to two clocks."
+  },
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_clk_mux_glitch_free.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Reduced to two mutually exclusive synchronized clock gates and their OR output."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "select is two-flop synchronised into each clock domain and the cross-domain enables are two-flop synchronised with negedge-registered gating."
+    }
+  ]
+}

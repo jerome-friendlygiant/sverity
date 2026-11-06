@@ -1,0 +1,54 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": false,
+  "defect": "clock-timeout threshold depends on an unstated external clock relationship",
+  "sites": [
+    {
+      "file": "constraints.sdc",
+      "line": 3,
+      "signal": "chk_clk"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The two clocks are independently synchronized for the observation handshake, but the RTL does not state the allowed check-clock frequency range or the board's stopped-clock timeout contract; the chosen periods and threshold cannot establish whether timeout_o is correct.",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_clock_timeout.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced the timeout primitive to a check-clock toggle, a reference-domain synchronizer, and a saturating timeout counter."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "unknown",
+      "critical": false,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 3,
+          "signal": "chk_clk"
+        }
+      ]
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Async groups over a toggle 2FF crossing into ref_clk, I/O on ref_clk."
+    },
+    {
+      "by": "gpt-6.1-sol (third settling reading)",
+      "verdict": "unknown",
+      "critical": false,
+      "note": "The 9 ns check-clock period and 10 ns reference period do not establish the external allowed clock range or stopped-clock detection requirement. Structural synchronization alone cannot justify the timeout timing contract."
+    }
+  ],
+  "settled_by": "Third reading: gpt-6.1-sol; The 9 ns check-clock period and 10 ns reference period do not establish the external allowed clock range or stopped-clock detection requirement. Structural synchronization alone cannot justify the timeout timing contract."
+}

@@ -1,0 +1,43 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "one reset synchronizer is shared by unrelated clock domains",
+  "sites": [
+    {
+      "line": 21,
+      "signal": "shared_rst_ni"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The release pipeline is clocked only by clk_a_i, but its final stage asynchronously resets state in the independent clk_b_i domain.",
+  "author": "gpt-5.6-luna",
+  "mutation": {
+    "operator": "cross-domain-reset-fanout",
+    "description": "Connected both unrelated domains to the final stage of a synchronizer clocked by only one domain."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 25,
+          "signal": "shared_rst_ni"
+        }
+      ],
+      "note": "Clock-B consumer uses a reset synchronized only to unrelated clock A."
+    }
+  ]
+}

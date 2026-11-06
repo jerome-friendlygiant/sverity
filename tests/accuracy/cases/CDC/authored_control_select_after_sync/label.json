@@ -1,0 +1,43 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "An asynchronous source bit controls a mux at the destination despite both data alternatives being synchronized.",
+  "mutation": {
+    "operator": "control_select_after_sync",
+    "description": "An asynchronous source bit controls a mux at the destination despite both data alternatives being synchronized."
+  },
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 9,
+      "signal": "flags_q"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "An asynchronous source bit controls a mux at the destination despite both data alternatives being synchronized.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 9,
+          "signal": "flags_q"
+        }
+      ],
+      "note": "The raw source flag bypasses its synchronizer as the destination mux select."
+    }
+  ]
+}

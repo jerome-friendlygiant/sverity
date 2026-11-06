@@ -116,10 +116,10 @@ Slang-backed rules (named below as slang options or codes) are slang's own diagn
 - **Unknown:** none: decided by slang.
 
 ### LNT-006
-- **Trigger:** slang options index-oob, range-oob, range-width-oob; slang codes IndexValueInvalid, RangeWidthOverflow, ScopeIndexOutOfRange. Constant selects only.
-- **Exempt:** dynamic indexes (not decidable by slang; no finding).
-- **Severity:** slang's severity (WARNING or ERROR), Established.
-- **Unknown:** none: decided by slang.
+- **Trigger:** (a) constant selects: slang options index-oob, range-oob, range-width-oob; slang codes IndexValueInvalid, RangeWidthOverflow, ScopeIndexOutOfRange. (b) opt-in (`LNT-006.dynamic_index=true`): a non-constant element select of a fixed-range array or vector whose index can take a value outside the range: the values of a `for` loop variable that starts at a constant and steps by a positive constant towards a constant bound, with no other write to it in the body; otherwise every value of the index's type.
+- **Exempt:** (b) indexes whose possible values all lie inside the range; non-integral, wider than 62-bit and dynamically sized selections (no fixed range).
+- **Severity:** (a) slang's severity (WARNING or ERROR), Established. (b) WARNING, Unresolved, proof NOT_ATTEMPTED: a loop's range bounds its values but does not show each occurs (a guard or `break` can skip one).
+- **Unknown:** (b) whether the design keeps a free index in range is not analysed (an input contract, a clamp elsewhere); that is the Unresolved finding.
 
 ### LNT-007
 - **Trigger:** slang options implicit-net, implicit-net-port.
@@ -133,9 +133,9 @@ Slang-backed rules (named below as slang options or codes) are slang's own diagn
 - **Unknown:** WARNING, Unresolved ("cannot determine which bits ... are driven") when a write uses a module-level index, a driver is not fully static, or a loop-indexed write exists and a gap is found.
 
 ### LNT-009
-- **Trigger:** (a) slang options multiple-cont-assigns, multiple-always-assigns, mixed-var-assigns and slang codes MultipleUWireDrivers, MultipleUDNTDrivers; (b) a module-level net of kind wire, tri, tri0, tri1 or trireg with two continuous assignment drivers (not instance outputs) that drive an overlapping bit range, reported at the later assignment once per net; (c) a user-declared net or variable where an output-port driver (instance output connection) and another continuous driver drive some of the same bits, reported at the later source position, except tri, triand, trior, tri0, tri1, trireg, wand and wor nets and continuous drivers whose RHS contains a 'z literal.
+- **Trigger:** (a) slang options multiple-cont-assigns, multiple-always-assigns, mixed-var-assigns and slang codes MultipleUWireDrivers, MultipleUDNTDrivers; (b) a module-level net of kind wire, tri, tri0, tri1 or trireg with two continuous assignment drivers (not instance outputs) that drive an overlapping bit range, reported at the later assignment once per net; (c) a user-declared net or variable where an output-port driver (instance output connection) and another continuous driver drive some of the same bits, reported at the later source position, except tri, triand, trior, tri0, tri1, trireg, wand and wor nets and continuous drivers whose RHS contains a 'z literal; (d) a variable written on overlapping bits by two plain `always` procedures, reported at the later one. An `initial` procedure gives an initial value and is not a driver. A write a task or function makes to module-level state counts for every always procedure that calls it, directly or through other subroutines; a subroutine's own variables, static ones included, are not counted.
 - **Exempt:** a driver whose right-hand side is a constant that is all z; a tri-state pair whose enables are provably exclusive (`en ? v : 'z` against `!en ? w : 'z`); wand, wor, triand and trior nets. A driver with x bits or with only some z bits drives and is not exempt.
-- **Severity:** (a) slang's severity; (b) WARNING, Established, when no driver has an all-z literal in its assignment; WARNING, Unresolved, when a driver has one and the enables are not proven exclusive; (c) WARNING, Established.
+- **Severity:** (a) slang's severity; (b) WARNING, Established, when no driver has an all-z literal in its assignment; WARNING, Unresolved, when a driver has one and the enables are not proven exclusive; (c), (d) WARNING, Established.
 - **Unknown:** (b) with an all-z literal in a driver: "driver conflict cannot be excluded" (Unresolved, above). (c) WARNING, Unresolved, "driver overlap is not determinable", when a non-constant index writes the symbol or one of its drivers is not fully static.
 
 ### LNT-010
@@ -294,10 +294,10 @@ Slang-backed rules (named below as slang options or codes) are slang's own diagn
 - **Unknown:** (b) also fires on zero-extended operands such as `{1'b0, a} + {1'b0, b}`, where no carry is lost (Heuristic).
 
 ### LNT-037
-- **Trigger:** slang option divide-by-zero: a constant divisor of zero.
-- **Exempt:** variable divisors (slang evaluates constants only).
-- **Severity:** slang's severity, Established.
-- **Unknown:** none: decided by slang.
+- **Trigger:** (a) slang option divide-by-zero: a constant divisor of zero. (b) opt-in (`LNT-037.dynamic_divisor=true`): a non-constant integral divisor of `/` or `%` whose values include zero: a `for` loop variable's range (as for LNT-006), otherwise every value of its type.
+- **Exempt:** (b) a loop variable whose range excludes zero. Guards around the division are not read, so a guarded divisor is still reported.
+- **Severity:** (a) slang's severity, Established. (b) WARNING, Unresolved, proof NOT_ATTEMPTED.
+- **Unknown:** (b) whether a free divisor can be zero (an input contract, a guard) is not analysed; that is the Unresolved finding.
 
 ### LNT-038
 - **Trigger:** in user code, (a) a comparison (`==`, `!=`, `===`, `!==`, `<`, `<=`, `>`, `>=`) of a plain runtime reference (identifier or select with a pure index) with an integer constant of at most 62 bits and no X/Z bits, when the result is the same for every value the reference can take in its signed or unsigned domain; (b) a comparison of one plain runtime reference with itself, true for `==`, `===`, `<=`, `>=` and false otherwise; (c) `a && !a` (false) or `a || !a` (true) on one plain runtime reference.
@@ -527,7 +527,7 @@ Slang-backed rules (named below as slang options or codes) are slang's own diagn
 
 ## Crosswalk and licences
 
-Reference projects were studied for rule inventories only; no source code from any of them is included (SVerity reimplements every check).
+The rule implementations are original; the reference-rule mappings below record design influences.
 
 | Source (licence) | Reference rules → SVerity |
 |---|---|
@@ -538,3 +538,16 @@ Reference projects were studied for rule inventories only; no source code from a
 
 Retired IDs (merged, see `docs/SVerity_RFC.md` §9): LNT-021 → RDC-028, LNT-023 → LNT-003/057, LNT-028 → CST-005, LNT-030 → STY-*, LNT-043 → LNT-025, LNT-046 → LNT-047, LNT-052 (dropped: an inferred enable has no defect semantics; the model exposes enables to CDC-028/039).
 Not copied: Verilator documentation text. If code is ever taken from an MIT/Apache-2.0 project, keep its notice and record it here first.
+
+
+### Accuracy-case adaptations
+
+Reduced and modified RTL under `tests/accuracy/cases/LNT/` exercises combinational decoders, counters, arithmetic, register interfaces and stream control. The upstream licences apply to these adaptations; each case retains its attribution and records the exact source path and changes in `label.json`. Whole upstream designs are not vendored. Licence texts and notices ship in [tests/accuracy/LICENSE](../../tests/accuracy/LICENSE).
+
+| Source at pinned commit | Licence | Material taken |
+|---|---|---|
+| [pulp-platform/common_cells](https://github.com/pulp-platform/common_cells/tree/e73baaec2ca665cd80c3c384e9258e35242b829c) | SHL-0.51 | Reduced RTL fragments used as LNT test inputs and mutated lookalikes |
+| [lowRISC/ibex](https://github.com/lowRISC/ibex/tree/2373e5dadcfc4f56672962fa242f6a051acc9aca) | Apache-2.0 | Reduced RTL fragments used as LNT test inputs and mutated lookalikes |
+| [lowRISC/opentitan](https://github.com/lowRISC/opentitan/tree/92f3d03b0dcf6d5c1933a65d1497747f67d19f4c) | Apache-2.0 | Reduced RTL fragments used as LNT test inputs and mutated lookalikes |
+| [YosysHQ/picorv32](https://github.com/YosysHQ/picorv32/tree/ef203c2b0a3fb793280f5114941416c425c5b461) | ISC | Reduced RTL fragments used as LNT test inputs and mutated lookalikes |
+| [alexforencich/verilog-axis](https://github.com/alexforencich/verilog-axis/tree/48ff7a7e2ef782cf778d47910cf85835c64b1bce) | MIT | Reduced RTL fragments used as LNT test inputs and mutated lookalikes |

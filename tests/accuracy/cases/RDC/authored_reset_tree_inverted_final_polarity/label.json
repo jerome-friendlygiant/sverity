@@ -1,0 +1,32 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "origin": "authored",
+  "defect": "A single inversion converts the final conditioned active-low reset into an active-high reset with matching edge and branch polarity.",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "A single inversion converts the final conditioned active-low reset into an active-high reset with matching edge and branch polarity.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-reset-tree-inverted-final-polarity",
+    "description": "A single inversion converts the final conditioned active-low reset into an active-high reset with matching edge and branch polarity."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Inversion consistently converts synchronized active-low release into active-high reset."
+    }
+  ]
+}

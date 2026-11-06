@@ -1,0 +1,43 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "clock-gating enable from a configuration domain directly gates the worker clock",
+  "mutation": {
+    "operator": "async-clock-gate-enable",
+    "description": "A level generated in clk_cfg is ANDed with clk_main without a same-domain integrated clock-gating latch or synchronizer."
+  },
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 22,
+      "signal": "gated_clk"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The enable can change while clk_main is high, producing a runt pulse or truncating a worker cycle; the generated clock constraint does not make the gate safe.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 22,
+          "signal": "gated_clk"
+        }
+      ],
+      "note": "Asynchronous enable drives an AND clock gate without low-phase storage, allowing truncated and spurious clock pulses."
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "adapted",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "none",
+  "sites": [
+    {
+      "line": 19,
+      "signal": "dst_effective_rst_ni"
+    },
+    {
+      "line": 28,
+      "signal": "sync_1_q"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The source level is reset in the source domain and the destination synchronizer is held in reset whenever either domain reset is active, preventing an isolated receiver from decoding stale toggle state.",
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "Reduced the pulse synchronizer to a toggle crossing with a reset coupling that holds the receiver down with the sender."
+  },
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_pulse_sync.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Removed assertion infrastructure and retained the source-toggle, two-stage destination synchronizer, and coupled reset."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 19,
+          "signal": "dst_effective_rst_ni"
+        },
+        {
+          "line": 28,
+          "signal": "dst_effective_rst_ni"
+        }
+      ],
+      "note": "Destination reset is a combinational AND of the source-domain reset and destination reset: a reset from another domain, glitchy, and released asynchronously."
+    },
+    {
+      "by": "gpt-6.1-sol (separate settling reader, the case and both arguments only)",
+      "verdict": "bad",
+      "critical": true,
+      "note": "The AND at line 19 can release the destination reset on a source-reset transition asynchronous to clk_dst_i, while line 34 can then load a nonzero source toggle immediately; no reset-release timing contract is given."
+    }
+  ],
+  "settled_by": "third reading; verdict bad (2 of 3 readings)"
+}

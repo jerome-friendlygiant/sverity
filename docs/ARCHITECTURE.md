@@ -37,6 +37,6 @@ CLI / embedders ── analyze() ── loadDesign() ── slang (parse, elabor
 10. **One crossing, one finding, every decision kept.** Several rules can describe one crossing. The most specific enabled one reports it and the others become evidence, but each keeps its own severity override and waiver, so accepting one description does not accept the others.
 11. **Measurements stay out of the report.** Reports are deterministic; `--timings` writes time and memory to its own file.
 12. **Decks live in the catalog.** Each rule names its earliest deck. `--deck` changes what a run claims, never what it runs or reports.
-13. **Provenance.** `Flow` derives from slang's `AbstractFlowAnalysis` (MIT); the interval-map reaching-definition idea follows slang's `DataFlowAnalysis` and slang-netlist's `ValueTracker` (MIT, J. Hanlon). Nothing is copied; reference projects are recorded in the crosswalks of `docs/rules/*.md`.
+13. **Provenance.** `Flow` derives from slang's `AbstractFlowAnalysis` (MIT); the interval-map reaching-definition idea follows slang's `DataFlowAnalysis` and slang-netlist's `ValueTracker` (MIT, J. Hanlon). Rule implementations are original; reference projects and separately licensed accuracy-case adaptations are recorded in the crosswalks of `docs/rules/*.md`.
 
 Adding a rule: see README "Extending"; the catalog entry, the family-doc row and spec block, the code and the fixtures change together in one commit.

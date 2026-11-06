@@ -1,0 +1,38 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "none",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The root clock and its divide-by-four generated clock are declared on the clock ports, and the enable, data input, and divided-clock output have complete interface delays.",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_clk_int_div_static.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Reduced the static divider to a two-bit divide-by-four clock and one synchronous output register."
+  },
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "The output enable is registered only in the divided-clock domain; it does not change the clock relationship."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "divide_by 4 matches the 2-bit counter MSB; I/O delays use the divided clock that registers them."
+    }
+  ]
+}

@@ -576,9 +576,46 @@ public:
         void handle(const IntegerLiteral& e) { unknown = unknown || allZ(e.getValue()); }
         void handle(const UnbasedUnsizedIntegerLiteral& e) { unknown = unknown || allZ(e.getValue()); }
     };
+    // The plain always procedures that call each subroutine, directly or through other subroutines: a write inside a task
+    // is made by every procedure that calls it.
+    using Callers = std::map<const SubroutineSymbol*, std::set<const ProceduralBlockSymbol*>>;
+    static Callers callersOf(Lint& l) {
+        struct C : ASTVisitor<C, VisitFlags::AllGood> {
+            std::map<const SubroutineSymbol*, std::set<const ProceduralBlockSymbol*>> direct;
+            std::map<const SubroutineSymbol*, std::set<const SubroutineSymbol*>> nested;   // callee -> calling subroutines
+            const ProceduralBlockSymbol* block = nullptr;
+            const SubroutineSymbol* routine = nullptr;
+            void handle(const ProceduralBlockSymbol& b) { auto outer = block; block = &b; visitDefault(b); block = outer; }
+            void handle(const SubroutineSymbol& r) { auto outer = routine; auto ob = block; routine = &r; block = nullptr; visitDefault(r); routine = outer; block = ob; }
+            void handle(const CallExpression& call) {
+                if (!call.isSystemCall())
+                    if (const auto* callee = std::get<0>(call.subroutine)) {
+                        if (routine) nested[callee].insert(routine);
+                        else if (block && block->procedureKind == ProceduralBlockKind::Always) direct[callee].insert(block);
+                    }
+                visitDefault(call);
+            }
+        } c;
+        l.compilation().getRoot().visit(c);
+        Callers all;
+        for (auto& [callee, _] : c.nested) all[callee];
+        for (auto& [callee, _] : c.direct) all[callee];
+        for (auto& [callee, blocks] : all) {   // close over subroutines calling subroutines
+            std::set<const SubroutineSymbol*> seen{callee};
+            std::vector<const SubroutineSymbol*> pending{callee};
+            while (!pending.empty()) {
+                auto* r = pending.back(); pending.pop_back();
+                if (auto it = c.direct.find(r); it != c.direct.end()) blocks.insert(it->second.begin(), it->second.end());
+                if (auto it = c.nested.find(r); it != c.nested.end())
+                    for (auto* up : it->second) if (seen.insert(up).second) pending.push_back(up);
+            }
+        }
+        return all;
+    }
     struct V : ASTVisitor<V, VisitFlags::AllCanonical> {
         Lint& l;
-        explicit V(Lint& lint) : l(lint) {}
+        const Callers& callers;
+        V(Lint& lint, const Callers& c) : l(lint), callers(c) {}
         void handle(const NetSymbol& n) {
             auto* am = l.context().design.analysis.get();
             auto nk = n.netType.netKind;
@@ -612,9 +649,39 @@ public:
             }
             visitDefault(n);
         }
+        // (d) A variable written to overlapping bits by two plain `always` procedures: two drivers in hardware, and a race
+        // in simulation. slang reports the always_ff / always_comb / always_latch forms; an `initial` is an initial value.
+        void handle(const VariableSymbol& v) {
+            auto* am = l.context().design.analysis.get();
+            if (am && l.isUser(v.location)) {
+                std::vector<std::pair<std::pair<uint64_t, uint64_t>, const ProceduralBlockSymbol*>> procs;
+                for (auto* d : am->getDrivers(v)) {
+                    auto* block = d->containingSymbol->as_if<ProceduralBlockSymbol>();
+                    if (block && block->procedureKind == ProceduralBlockKind::Always) procs.push_back({d->getBounds(), block});
+                    // a subroutine's own variables are per call; only state outside it is shared between its callers
+                    if (auto* routine = d->containingSymbol->as_if<SubroutineSymbol>(); routine && isModuleLevel(v))
+                        if (auto it = callers.find(routine); it != callers.end())
+                            for (auto* caller : it->second) procs.push_back({d->getBounds(), caller});
+                }
+                for (size_t i = 0; i < procs.size(); i++)
+                    for (size_t j = i + 1; j < procs.size(); j++) {
+                        auto [a, b] = std::pair{procs[i], procs[j]};
+                        if (a.second == b.second || a.first.second < b.first.first || b.first.second < a.first.first) continue;
+                        const auto& later = a.second->location < b.second->location ? *b.second : *a.second;
+                        l.report(later.location, "variable '" + std::string(v.name) + "' is written by more than one always procedure on overlapping bits: "
+                                 "multiple drivers in hardware and a race in simulation",
+                                 {.nextStep = "Write the variable from one procedure; merge the conditions that set and clear it.",
+                                  .hierarchy = v.getHierarchicalPath(), .signals = {std::string(v.name)}});
+                        visitDefault(v);
+                        return;
+                    }
+            }
+            visitDefault(v);
+        }
     };
     void check(Lint& l) override {
-        visitDesign<V>(l);
+        const Callers callers = callersOf(l);
+        visitDesign<V>(l, callers);
         reportOutputPortOverlaps(l);
     }
 };

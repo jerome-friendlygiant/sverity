@@ -1,0 +1,35 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "checksum behavior is hidden behind an implementation placeholder",
+  "sites": [
+    {
+      "line": 10,
+      "signal": "check"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The empty black box does not specify a combinational or registered implementation; correctness of the checksum output cannot be assessed.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 10,
+          "signal": "check"
+        }
+      ],
+      "note": "check is driven by an empty black-box macro, so its function cannot be analysed."
+    }
+  ]
+}

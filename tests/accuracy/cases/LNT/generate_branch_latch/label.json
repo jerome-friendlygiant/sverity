@@ -1,0 +1,36 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "selected generate branch leaves combinational output unassigned",
+  "sites": [
+    {
+      "line": 20,
+      "signal": "value"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The instantiated low-power branch assigns value only when load is asserted, so the default FAST parameter creates storage instead of a purely combinational selector.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind lint reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 20,
+          "signal": "value"
+        }
+      ],
+      "note": "The selected low-power branch leaves value unassigned when load is false."
+    }
+  ]
+}

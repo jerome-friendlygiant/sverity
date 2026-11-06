@@ -1,0 +1,36 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "blocking assignment collapses a two-stage sequential pipeline",
+  "sites": [
+    {
+      "line": 16,
+      "signal": "stage_two"
+    }
+  ],
+  "sdc": [],
+  "rationale": "Because stage_one is updated first with blocking assignment, stage_two receives the current input on the same clock edge instead of the prior stage_one value, eliminating the intended pipeline delay.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind lint reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 15,
+          "signal": "stage_one"
+        }
+      ],
+      "note": "Blocking writes make stage_two consume the current input instead of the prior pipeline stage."
+    }
+  ]
+}

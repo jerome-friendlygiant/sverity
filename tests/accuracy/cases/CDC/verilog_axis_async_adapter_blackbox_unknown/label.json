@@ -1,0 +1,49 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "adapted",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "the asynchronous stream crossing cannot be judged because the FIFO adapter is a behaviorally unspecified black box",
+  "sites": [
+    {
+      "line": 32,
+      "signal": "u_fifo"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Both clocks and all stream timing are declared, but the implementation behind the adapter stub is absent. Its buffering, synchronizer, reset, and ready/valid preservation behavior are therefore undecidable from this design.",
+  "mutation": {
+    "operator": "black-box-stub",
+    "description": "Replaced the source asynchronous FIFO adapter with an explicit stub to model an unavailable implementation."
+  },
+  "provenance": {
+    "repository": "verilog-axis",
+    "commit": "48ff7a7e2ef782cf778d47910cf85835c64b1bce",
+    "path": "rtl/axis_async_fifo_adapter.v",
+    "licence": "MIT",
+    "adaptation": "Reduced AXI stream ports to one byte and retained only the unspecified dual-clock adapter boundary."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 32,
+          "signal": "u_fifo"
+        }
+      ],
+      "note": "Async FIFO adapter is a black box; its crossings cannot be judged."
+    }
+  ]
+}

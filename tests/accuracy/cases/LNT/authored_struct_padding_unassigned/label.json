@@ -1,0 +1,37 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "packed response field lacks driver",
+  "sites": [
+    {
+      "line": 7,
+      "signal": "response_o"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The error member is never assigned, so bit eight of the exported response has no driven value despite other fields being driven.",
+  "origin": "authored",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind lint reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 9,
+          "signal": "response_o"
+        }
+      ],
+      "note": "The error field is never assigned although the whole structure is read."
+    }
+  ]
+}

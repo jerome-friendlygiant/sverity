@@ -1,0 +1,37 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "unsized mask shift loses high enable bit",
+  "sites": [
+    {
+      "line": 3,
+      "signal": "MASK"
+    }
+  ],
+  "sdc": [],
+  "rationale": "MASK is 32 bits; a shift by 40 produces zero and cannot enable bit 40 of the 64-bit result.",
+  "origin": "authored",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind lint reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 3,
+          "signal": "MASK"
+        }
+      ],
+      "note": "The 32-bit shift operand/result cannot retain bit forty, so the advertised high-bit mask becomes zero."
+    }
+  ]
+}

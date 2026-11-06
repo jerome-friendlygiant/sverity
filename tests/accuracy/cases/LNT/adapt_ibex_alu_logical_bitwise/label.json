@@ -1,0 +1,47 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "ALU vector AND operation uses a logical operator",
+  "sites": [
+    {
+      "line": 15,
+      "signal": "result_o"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The logical && operation reduces two 32-bit operands to one Boolean bit before assigning result_o, so an ALU AND result loses 31 data bits.",
+  "mutation": {
+    "operator": "logical-for-bitwise",
+    "description": "Replaced the vector AND operator in the ALU datapath with logical &&."
+  },
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "ibex",
+    "commit": "2373e5dadcfc4f56672962fa242f6a051acc9aca",
+    "path": "rtl/ibex_alu.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced the ALU to a two-bit operation selector with AND, OR, and default results."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 15,
+          "signal": "result_o"
+        }
+      ],
+      "note": "logical && on 32-bit operands yields 1-bit result, not bitwise AND"
+    }
+  ]
+}

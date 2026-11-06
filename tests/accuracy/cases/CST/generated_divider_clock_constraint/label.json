@@ -1,0 +1,27 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "generated-clock constraint legitimately relates two ports",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The supplied interface contract identifies dst_clk as a divide-by-two board clock derived from src_clk, and all data interfaces are constrained.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "dst_clk is declared as a divide-by-2 of src_clk, matching the documented board relationship, with complete I/O delays."
+    }
+  ]
+}

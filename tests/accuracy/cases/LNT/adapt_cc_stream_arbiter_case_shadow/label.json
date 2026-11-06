@@ -1,0 +1,47 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "a specific arbitration case item is shadowed by an earlier wildcard item",
+  "sites": [
+    {
+      "line": 15,
+      "signal": "grant_o"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The casez item 2'b?1 matches 2'b01 before the exact 2'b01 item can be considered, so the second requester never receives its intended grant encoding.",
+  "mutation": {
+    "operator": "case-item-shadowed",
+    "description": "Inserted the wildcard arbitration item before the exact 2'b01 item."
+  },
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_stream_arbiter.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Reduced the stream arbiter to a two-request combinational grant table."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 16,
+          "signal": "request_i"
+        }
+      ],
+      "note": "item 2'b01 is fully shadowed by earlier 2'b?1"
+    }
+  ]
+}

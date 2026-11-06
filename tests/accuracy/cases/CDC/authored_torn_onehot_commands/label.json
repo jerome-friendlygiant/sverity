@@ -1,0 +1,43 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "Changing between one-hot commands changes two bits; independent synchronizers can produce zero-hot or multi-hot commands.",
+  "mutation": {
+    "operator": "torn_onehot_commands",
+    "description": "Changing between one-hot commands changes two bits; independent synchronizers can produce zero-hot or multi-hot commands."
+  },
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 6,
+      "signal": "cmd_q"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Changing between one-hot commands changes two bits; independent synchronizers can produce zero-hot or multi-hot commands.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 6,
+          "signal": "cmd_q"
+        }
+      ],
+      "note": "Changing one-hot command switches two bits at once; bitwise synchronization can produce zero or multiple active commands."
+    }
+  ]
+}

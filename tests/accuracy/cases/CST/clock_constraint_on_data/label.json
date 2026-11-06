@@ -1,0 +1,60 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "the timing clock is declared on serial_i instead of clk_i",
+  "sites": [
+    {
+      "line": 16,
+      "signal": "clk_i"
+    },
+    {
+      "file": "constraints.sdc",
+      "line": 1,
+      "signal": "serial_i"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The synchronizer flops are clocked by clk_i, while serial_i is a changing data input. The only clock definition constrains the wrong port and leaves the receiving clock domain without its real timing clock.",
+  "mutation": {
+    "operator": "clock-on-wrong-port",
+    "description": "Applied create_clock to serial_i rather than the clk_i port that clocks the synchronizer."
+  },
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_sync_wedge.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Retained the two-register serial synchronizer and output tap; removed edge detection and the technology-cell synchronizer wrapper."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 1,
+          "signal": "serial_i"
+        },
+        {
+          "file": "design.sv",
+          "line": 9,
+          "signal": "clk_i"
+        }
+      ],
+      "note": "The clock is created on data port serial_i while the real clock clk_i has no clock definition."
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "function result is unassigned for an opcode path",
+  "sites": [
+    {
+      "line": 15,
+      "signal": "decode_value"
+    }
+  ],
+  "sdc": [],
+  "rationale": "Opcodes 6 and 7 fall through the function case without assigning decode_value, leaving the combinational result dependent on its prior value.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind lint reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 8,
+          "signal": "decode_value"
+        }
+      ],
+      "note": "Opcodes six and seven leave the automatic function return unassigned."
+    }
+  ]
+}

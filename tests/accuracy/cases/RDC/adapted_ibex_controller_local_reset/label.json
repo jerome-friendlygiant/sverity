@@ -1,0 +1,39 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "adapted",
+  "verdict": "good",
+  "critical": false,
+  "defect": "none",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The controller reset is sampled synchronously by the only clock that owns its state, and all outputs derive from that local state machine.",
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "Reduced the Ibex controller to a local three-state machine with a synchronous reset."
+  },
+  "provenance": {
+    "repository": "ibex",
+    "commit": "2373e5dadcfc4f56672962fa242f6a051acc9aca",
+    "path": "rtl/ibex_controller.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Removed decoder and pipeline dependencies while preserving the local resettable controller state."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Synchronous reset, single domain."
+    }
+  ]
+}

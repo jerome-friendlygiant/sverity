@@ -1,0 +1,38 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "none",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The asynchronous FIFO uses gray-pointer synchronizers in both directions, and its write and read clocks are correctly unrelated with interface delays assigned to their owning domains.",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_fifo_async.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced the asynchronous FIFO to four eight-bit entries with two-stage gray-pointer synchronizers."
+  },
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "The reduced memory implementation retains independent write/read pointers and both CDC synchronizer directions."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Async groups over a gray-pointer FIFO with 2FF synchronizers; per-domain I/O delays correct (no bus-skew max_delay, minor caveat)."
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "rising-edge detection observes the first destination synchronizer stage",
+  "sites": [
+    {
+      "line": 36,
+      "signal": "rising_b"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "d_a is asynchronous to clk_b, and rising_b uses stage0_b instead of the fully synchronized stage1_b signal.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 36,
+          "signal": "stage0_b"
+        }
+      ],
+      "note": "The edge detector reads the first (metastable) synchroniser stage stage0_b."
+    }
+  ],
+  "origin": "adapted",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_edge_detect.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Kept the edge-history structure of the edge detector, reduced the synchronizer dependency and outputs to a rising-edge path, and exposed a self-contained top module."
+  },
+  "mutation": {
+    "operator": "first-stage-tapped",
+    "description": "Used stage0_b in the rising-edge expression while the second stage remains present but is not the functional sample."
+  }
+}

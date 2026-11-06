@@ -1,0 +1,32 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "origin": "authored",
+  "defect": "At the elaborated default depth four, release traverses every stage before controlling the output reset.",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "At the elaborated default depth four, release traverses every stage before controlling the output reset.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-reset-pipeline-parameter-depth",
+    "description": "At the elaborated default depth four, release traverses every stage before controlling the output reset."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Four stages condition release on the consumer clock."
+    }
+  ]
+}

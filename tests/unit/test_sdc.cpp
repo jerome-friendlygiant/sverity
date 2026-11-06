@@ -35,14 +35,16 @@ TEST(sdc_create_clock_get_ports) {
     CHECK_EQ(k.loc.file, std::string("top.sdc"));
 }
 
-TEST(sdc_create_clock_name_from_source_and_ignored_options) {
-    // No -name: the name comes from the first source. -waveform and -add are accepted and ignored.
+TEST(sdc_create_clock_name_from_source_and_options) {
+    // No -name: the name comes from the first source; waveform and -add are retained.
     auto c = sdc::parse("create_clock -period 2.5 -waveform {0 1.25} -add [get_ports {clk_a clk_b}]\n", "f");
     CHECK(c.problems.empty());
     CHECK_EQ(c.clocks.size(), 1u);
     if (c.clocks.size() != 1) return;
     CHECK_EQ(c.clocks[0].name, std::string("clk_a"));
     CHECK(c.clocks[0].periodNs == 2.5);
+    CHECK(c.clocks[0].add);
+    CHECK(c.clocks[0].waveform == std::vector<double>({0, 1.25}));
     std::vector<R> want = {R{"get_ports", "clk_a"}, R{"get_ports", "clk_b"}};
     CHECK_EQ(c.clocks[0].sources, want);
 }
@@ -166,6 +168,8 @@ TEST(sdc_generated_clock) {
     std::vector<R> tgt = {R{"get_pins", "div_reg/Q"}};
     CHECK_EQ(d.sources, tgt);
     const auto& m = c.clocks[1];
+    CHECK_EQ(m.explicitMasterClock, std::string("clk"));
+    CHECK_EQ(m.sourceObjects.size(), 1u);
     CHECK_EQ(m.masterClock, std::string("clk"));  // -master_clock wins over -source
     CHECK_EQ(m.multiplyBy, std::string("3"));
 }
@@ -631,6 +635,10 @@ TEST(sdc_output_delay_recorded) {
     CHECK_EQ(c.outputDelays[0].clock, "clk"); CHECK_EQ(c.outputDelays[0].valueText, "-1.5");
     CHECK_EQ(c.outputDelays[0].ports.size(), 2u); CHECK(!c.outputDelays[0].text.empty());
     CHECK(c.inputDelays.empty());
+}
+TEST(sdc_output_delay_min_max_add) {
+    auto c = sdc::parse("set_output_delay -clock c -min -0.5 [get_ports q]\nset_output_delay -clock d -max 2 -add_delay [get_ports q]\n", "f");
+    CHECK(c.problems.empty()); CHECK_EQ(c.outputDelays.size(), 2u);
 }
 TEST(sdc_output_delay_invalid_atomic) {
     for (auto text : {"set_output_delay 1 [get_ports q]", "set_output_delay -clock c nope [get_ports q]",

@@ -1,0 +1,39 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "adapted",
+  "verdict": "good",
+  "critical": false,
+  "defect": "none",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Each reset source is independently synchronized into the same clock domain before the local reset is formed by an AND; the controlled state sees only that local-domain reset.",
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "Reduced the target reset generator to two local synchronizers followed by same-domain reset conjunction."
+  },
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/i3c/rtl/i3c_target_rst.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Removed I3C bus timing and retained the synchronized reset-combination structure."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Each reset is released through its own synchroniser in the same clock and only the synchronised outputs are ANDed."
+    }
+  ]
+}

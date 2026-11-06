@@ -1,0 +1,39 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "adapted",
+  "verdict": "good",
+  "critical": false,
+  "defect": "none",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The fetch payload storage is not reset, while the reset and clear paths force the valid bit low; payload state is consumed only when valid is asserted.",
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "Reduced the Ibex fetch FIFO to one valid-controlled payload slot."
+  },
+  "provenance": {
+    "repository": "ibex",
+    "commit": "2373e5dadcfc4f56672962fa242f6a051acc9aca",
+    "path": "rtl/ibex_fetch_fifo.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Retained the reset-valid and unreset-payload relationship while removing FIFO indexing and unrelated control."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Valid is reset; payload is qualified by valid and need not be reset."
+    }
+  ]
+}

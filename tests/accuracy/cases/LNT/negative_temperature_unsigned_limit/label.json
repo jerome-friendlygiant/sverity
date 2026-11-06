@@ -1,0 +1,35 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "unsigned operand changes signed comparison",
+  "sites": [
+    {
+      "line": 9,
+      "signal": "below_limit"
+    }
+  ],
+  "sdc": [],
+  "rationale": "A negative temperature should be below positive limit; mixed signedness instead compares its unsigned encoding.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 9,
+          "signal": "temperature"
+        }
+      ],
+      "note": "Signed temperature compared with unsigned limit makes the compare unsigned, so negative temperatures look large and below_limit is wrong."
+    }
+  ]
+}

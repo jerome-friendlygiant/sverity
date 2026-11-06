@@ -1,0 +1,49 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "adapted",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "external reset release timing is unspecified",
+  "sites": [
+    {
+      "line": 13,
+      "signal": "ext_rst_ni"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The external reset directly releases a clocked state element, but the environment does not specify whether deassertion is synchronized or meets recovery and removal relative to clk; the design cannot establish safety or failure from RTL and constraints alone.",
+  "mutation": {
+    "operator": "external-reset-timing-unknown",
+    "description": "Preserved a direct external asynchronous reset with no release-timing contract."
+  },
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim_generic/rtl/prim_flop.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced the primitive to one resettable data register."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "unknown",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 13,
+          "signal": "ext_rst_ni"
+        }
+      ],
+      "note": "External async reset released directly into the clock domain with no synchroniser and no constraint stating its release timing."
+    }
+  ]
+}

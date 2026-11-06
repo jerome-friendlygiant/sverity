@@ -1,0 +1,27 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "asynchronous grouping is appropriate for independent islands",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The oscillators are independent and there are no data paths between their internal states; grouping them asynchronous matches the architecture. Startup initial blocks express FPGA initialization; plain edge-triggered always procedures preserve it without violating always_ff single-writer restrictions.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "The clocks are independent with no crossings, and outputs are constrained to their own clocks."
+    }
+  ]
+}

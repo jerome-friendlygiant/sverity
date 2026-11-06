@@ -1,0 +1,37 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "generate instances drive the same net",
+  "sites": [
+    {
+      "line": 4,
+      "signal": "result_o"
+    }
+  ],
+  "sdc": [],
+  "rationale": "Both elaborated generate lanes drive result_o independently. Conflicting request bits give conflicting continuous drivers on an ordinary wire.",
+  "origin": "authored",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind lint reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "result_o"
+        }
+      ],
+      "note": "Both generated continuous drivers drive the same output with independent values."
+    }
+  ]
+}

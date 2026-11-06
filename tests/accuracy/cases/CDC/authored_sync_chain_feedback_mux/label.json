@@ -1,0 +1,43 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "The second capture stage takes remote request_q through a feedback mux rather than the first stage output.",
+  "mutation": {
+    "operator": "sync_chain_feedback_mux",
+    "description": "The second capture stage takes remote request_q through a feedback mux rather than the first stage output."
+  },
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 7,
+      "signal": "request_q"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The second capture stage takes remote request_q through a feedback mux rather than the first stage output.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 7,
+          "signal": "request_q"
+        }
+      ],
+      "note": "Feedback mux both consumes first-stage metastability and bypasses the chain with raw asynchronous request data."
+    }
+  ]
+}

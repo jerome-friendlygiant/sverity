@@ -1,0 +1,37 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "parameterized sign extension can resemble an accidental width mismatch",
+  "sites": [],
+  "sdc": [],
+  "rationale": "The feed-through branch is selected when widths match; otherwise exactly OutWidth-InWidth copies of the input MSB are prepended. The initialization check states the required parameter relation.",
+  "origin": "adapted",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_msb_extend.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Retained both legal generate branches and the width relation check in a self-contained top module."
+  },
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "A width-dependent generate branch intentionally replicates the sign bit to form the wider output."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "No lint defect found; widths, drivers, and assignments are consistent."
+    }
+  ]
+}

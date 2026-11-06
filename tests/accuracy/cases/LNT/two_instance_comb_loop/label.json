@@ -1,0 +1,36 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "two module instances form a combinational feedback loop",
+  "sites": [
+    {
+      "line": 26,
+      "signal": "left_phase"
+    }
+  ],
+  "sdc": [],
+  "rationale": "u_right derives right_phase from left_phase while u_left derives left_phase from right_phase, leaving both outputs in a zero-delay combinational cycle.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind lint reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 26,
+          "signal": "left_phase"
+        }
+      ],
+      "note": "The two leaf inversions feed each other without a sequential element, forming a hierarchy-spanning combinational cycle."
+    }
+  ]
+}

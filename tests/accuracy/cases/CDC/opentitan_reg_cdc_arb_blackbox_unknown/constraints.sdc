@@ -1,0 +1,8 @@
+create_clock -name clk_src_i -period 8.000 [get_ports clk_src_i]
+create_clock -name clk_dst_i -period 11.000 [get_ports clk_dst_i]
+set_clock_groups -asynchronous -group [get_clocks clk_src_i] -group [get_clocks clk_dst_i]
+set_input_delay 0.000 -clock clk_src_i [get_ports sw_req_i]
+set_input_delay 0.000 -clock clk_dst_i [get_ports {hw_update_i hw_data_i}]
+set_output_delay 0.000 -clock clk_src_i [get_ports sw_ack_o]
+set_output_delay 0.000 -clock clk_dst_i [get_ports {dst_req_o sampled_data_o}]
+set_false_path -from [get_ports {rst_src_ni rst_dst_ni}]

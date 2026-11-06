@@ -1,0 +1,38 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "none",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The register file has one write clock, synchronous write controls, synchronous read-address interface timing, and explicit output delays for both read ports.",
+  "provenance": {
+    "repository": "ibex",
+    "commit": "2373e5dadcfc4f56672962fa242f6a051acc9aca",
+    "path": "rtl/ibex_register_file_ff.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced the register file to 32 32-bit entries, one synchronous write port, and two combinational read ports."
+  },
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "The zero register is hard-wired to zero while all nonzero writes remain on the declared rf_clk interface."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Single clock, read-address to read-data feedthrough covered by input and output delays."
+    }
+  ]
+}

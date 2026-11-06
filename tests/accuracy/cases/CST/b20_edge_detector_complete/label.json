@@ -1,0 +1,38 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "none",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The input is synchronized into the single edge-detector clock domain and all three synchronous status outputs have delays relative to the declared clock.",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_edge_detector.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced the edge detector to a one-bit two-flop input synchronizer and registered history for rising and falling pulses."
+  },
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "Both edge indications are combinational decodes of registered state, so they share the edge-detector clock contract."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Single clock, input and outputs constrained."
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "none",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The root clock, synchronized gate enable, generated gated clock, clock-gating checks, static test-mode case analysis, and both root-domain and gated-domain interface delays are all present.",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_clock_gating_sync.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced the synchronizing gate cell to a two-flop enable synchronizer, an AND clock gate, and one gated-clock register."
+  },
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "Test enable bypasses the synchronized functional enable but remains part of the explicit clock-gating check contract."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Gated clock modeled as generated clock, I/O delays on proper clocks, gating check and DFT case analysis present."
+    }
+  ]
+}

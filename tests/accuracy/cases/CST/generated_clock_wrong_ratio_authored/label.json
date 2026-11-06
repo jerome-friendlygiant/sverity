@@ -1,0 +1,48 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "The generated clock declares divide_by 3 although the output toggles every three source cycles and therefore has a divide-by-6 period.",
+  "sites": [
+    {
+      "line": 43,
+      "signal": "slow_clk"
+    },
+    {
+      "file": "constraints.sdc",
+      "line": 2,
+      "signal": "slow_clk"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The divider toggles its output on each terminal count, so a complete output cycle takes two groups of three source cycles. The declared generated period is twice too fast for the slow_logic receiver.",
+  "mutation": {
+    "operator": "generated-clock-wrong-divide-ratio",
+    "description": "Used the terminal-count interval as divide_by instead of accounting for both output edges."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CST reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 2,
+          "signal": "divided_clk_o"
+        }
+      ],
+      "note": "The divider toggles its output once per three input cycles; a full output clock cycle therefore takes six source cycles. The declared divide_by 3 is incorrect."
+    }
+  ]
+}

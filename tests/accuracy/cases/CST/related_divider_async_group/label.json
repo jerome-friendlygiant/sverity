@@ -1,0 +1,55 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "clk_i and its divided derivative are declared asynchronous",
+  "sites": [
+    {
+      "line": 23,
+      "signal": "div_clk"
+    },
+    {
+      "file": "constraints.sdc",
+      "line": 3,
+      "signal": "div_clk"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "div_clk is generated from clk_i by the counter in the same design, so the two domains have a deterministic phase relationship. The asynchronous clock grouping removes valid timing analysis between related domains.",
+  "mutation": {
+    "operator": "async-group-over-related-clocks",
+    "description": "Added an asynchronous clock group between clk_i and the generated div_clk."
+  },
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim_generic/rtl/prim_clock_div.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Retained the even-divider counter and divided clock output; removed primitive wrappers, step-down control, and assertions."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 3,
+          "signal": "clk_i,div_clk"
+        }
+      ],
+      "note": "div_clk is a divided version of clk_i yet is placed in an asynchronous clock group with it."
+    }
+  ]
+}

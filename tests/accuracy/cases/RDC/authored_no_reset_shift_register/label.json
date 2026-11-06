@@ -1,0 +1,32 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "origin": "authored",
+  "defect": "This unreset pipeline has no asynchronous reset source or reset-domain crossing. Initialization is outside this reset-domain example.",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "This unreset pipeline has no asynchronous reset source or reset-domain crossing. Initialization is outside this reset-domain example.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-no-reset-shift-register",
+    "description": "This unreset pipeline has no asynchronous reset source or reset-domain crossing. Initialization is outside this reset-domain example."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "No reset domain exists in this ordinary pipeline."
+    }
+  ]
+}

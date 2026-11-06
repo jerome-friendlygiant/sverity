@@ -1,0 +1,36 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "generated instance leaves a required output unconnected",
+  "sites": [
+    {
+      "line": 35,
+      "signal": "ready"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The default generated instance drives data but leaves its ready output open, so the top-level ready port is undriven for the instantiated configuration.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind lint reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 35,
+          "signal": "ready"
+        }
+      ],
+      "note": "The selected generate branch leaves top ready undriven by disconnecting the child output."
+    }
+  ]
+}

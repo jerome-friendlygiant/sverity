@@ -1,0 +1,49 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "a source-domain synchronous clear is converted into an asynchronous reset in another domain",
+  "sites": [
+    {
+      "line": 23,
+      "signal": "dst_rst_ni"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "clear_src_q changes synchronously with clk_src but directly drives the asynchronous reset of value_o in unrelated clk_dst, allowing an unsynchronized reset assertion and release.",
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_lc_sync.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced the control synchronizer context to a source-side synchronous clear and a destination register."
+  },
+  "mutation": {
+    "operator": "sync-reset-made-async",
+    "description": "Connected a source-clock synchronous clear state directly to the destination register's asynchronous reset pin."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 23,
+          "signal": "dst_rst_ni"
+        }
+      ],
+      "note": "clk_dst async reset derived from a clk_src flop, unsynchronised release in a different clock domain."
+    }
+  ]
+}

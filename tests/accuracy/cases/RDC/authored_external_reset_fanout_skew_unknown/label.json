@@ -1,0 +1,43 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "origin": "authored",
+  "defect": "Logical release topology is correct, but no physical reset-tree delay or recovery/removal data is available to establish that all bank bits release within the same safe cycle. This label concerns physical reset-distribution sign-off.",
+  "sites": [
+    {
+      "line": 3,
+      "signal": "ready_q"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Logical release topology is correct, but no physical reset-tree delay or recovery/removal data is available to establish that all bank bits release within the same safe cycle. This label concerns physical reset-distribution sign-off.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-external-reset-fanout-skew-unknown",
+    "description": "Logical release topology is correct, but no physical reset-tree delay or recovery/removal data is available to establish that all bank bits release within the same safe cycle. This label concerns physical reset-distribution sign-off."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 7,
+          "signal": "ready_q"
+        }
+      ],
+      "note": "The release chain is structurally sound, but reset tree recovery/removal and skew are physical obligations not provable from this RTL."
+    }
+  ]
+}

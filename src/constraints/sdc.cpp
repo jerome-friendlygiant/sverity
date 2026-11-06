@@ -769,6 +769,7 @@ void doCreateClock(Ctx& ctx, const Cmd& cmd) {
                                    {"-add", false}});
     ClockDef c;
     c.loc = cmd.loc;
+    c.add = std::find(p.flags.begin(), p.flags.end(), "-add") != p.flags.end();
     if (const Arg* n = p.last("-name")) c.name = n->value;
     expandPositional(ctx, p, c.sources);
     for (const auto& ref : c.sources) if (ref.kind == "all_inputs -no_clocks")
@@ -786,6 +787,15 @@ void doCreateClock(Ctx& ctx, const Cmd& cmd) {
     } else {
         addProblem(ctx, "create_clock: missing required -period");
     }
+    if (const Arg* wave = p.last("-waveform")) {
+        const auto values = listElements(ctx, wave->value, 0);
+        for (const auto& edge : values) {
+            double v = 0;
+            if (!parseDouble(edge.value, v)) addProblem(ctx, "create_clock: invalid waveform edge");
+            else c.waveform.push_back(v);
+        }
+        if (values.size() != 2) addProblem(ctx, "create_clock: waveform needs two edges");
+    } else c.waveform = {0, c.periodNs / 2};
     ctx.out.clocks.push_back(std::move(c));
 }
 
@@ -806,6 +816,7 @@ void doCreateGeneratedClock(Ctx& ctx, const Cmd& cmd) {
                                    {"-add", false}});
     ClockDef c;
     c.loc = cmd.loc;
+    c.add = std::find(p.flags.begin(), p.flags.end(), "-add") != p.flags.end();
     c.generated = true;
     if (const Arg* n = p.last("-name")) c.name = n->value;
     expandPositional(ctx, p, c.sources);
@@ -823,6 +834,12 @@ void doCreateGeneratedClock(Ctx& ctx, const Cmd& cmd) {
         addProblem(ctx, "create_generated_clock: all_inputs is not a single source object");
     for (const auto& ref : masterRefs) if (isAllInputs(ref.kind))
         addProblem(ctx, "create_generated_clock: all_inputs is a port collection, expected a master clock");
+    c.sourceObjects = srcRefs;
+    if (!masterRefs.empty()) c.explicitMasterClock = masterRefs.front().pattern;
+    for (const char* opt : {"-edges", "-edge_shift", "-duty_cycle", "-phase"})
+        if (const Arg* value = p.last(opt)) { c.waveformOptions.push_back(opt); c.waveformOptions.push_back(value->value); }
+    for (const char* opt : {"-invert", "-combinational"})
+        if (std::find(p.flags.begin(), p.flags.end(), opt) != p.flags.end()) c.waveformOptions.push_back(opt);
     if (!masterRefs.empty()) {
         c.masterClock = masterRefs.front().pattern;
     } else if (!srcRefs.empty()) {
@@ -984,7 +1001,10 @@ void doInputDelay(Ctx& ctx, const Cmd& cmd) {
 // Unlike input delays, these declarations have no sound analysis consumer yet.
 // Keep them distinct from unsupported commands so valid records survive atomic dispatch.
 void doOutputDelay(Ctx& ctx, const Cmd& cmd) {
-    const Parsed p = parseOptions(ctx, cmd, "set_output_delay", {{"-clock", true}});
+    // -min and -max set delay values for timing and leave the capture clock, which is all the boundary check reads.
+    // -add_delay keeps an earlier clock on the port: every contract on a port is checked, so none is lost. Options that
+    // limit a contract to some edges or move its reference stay unsupported, so a partial contract is not taken as whole.
+    const Parsed p = parseOptions(ctx, cmd, "set_output_delay", {{"-clock", true}, {"-max", false}, {"-min", false}, {"-add_delay", false}});
     OutputDelay d;
     d.loc = cmd.loc;
     d.text = joinedText(ctx.src, cmd.begin, cmd.end);

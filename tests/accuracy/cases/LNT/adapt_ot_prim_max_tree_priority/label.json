@@ -1,0 +1,36 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "maximum-selection loop can resemble a priority or defaulting error",
+  "sites": [],
+  "rationale": "The first value is the required no-valid-input fallback, max_valid_o is cleared before iteration, and the strict greater-than comparison preserves the smallest index on ties. The loop bound covers every source exactly once.",
+  "origin": "adapted",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_max_tree.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced the balanced maximum tree to equivalent combinational selection over the valid source set."
+  },
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "A loop updates a maximum and index only for valid inputs, with an intentional first-index tie policy."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "No lint defect found; widths, drivers, and assignments are consistent."
+    }
+  ]
+}

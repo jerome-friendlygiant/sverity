@@ -1,0 +1,39 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "adapted",
+  "verdict": "good",
+  "critical": false,
+  "defect": "none; the one-entry asynchronous mailbox holds write data until a read-side acknowledgement",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The write side accepts data only when idle, holds it in data_wr_q, and uses a persistent request toggle. The read side synchronizes that toggle, samples the held payload, and returns an acknowledgement before the writer becomes ready again.",
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "Reduced prim_fifo_async_simple to a one-entry request/ack mailbox with held data and two-flop control crossings."
+  },
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_fifo_async_simple.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced the stream ports to one byte and one outstanding item, omitting assertions."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Toggle request and ack each through two-flop synchronisers; data_wr_q held while busy until ack returns."
+    }
+  ]
+}

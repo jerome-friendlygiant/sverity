@@ -1,0 +1,51 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "spill-register state is assigned with blocking statements in a clocked process",
+  "sites": [
+    {
+      "line": 22,
+      "signal": "data_q"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The registered data state uses blocking assignment in an edge-triggered process, which can create simulation ordering differences and incorrect sequential synthesis intent.",
+  "mutation": {
+    "operator": "blocking-in-clocked-block",
+    "description": "Changed the data register updates in the spill-register clocked process from nonblocking to blocking assignments."
+  },
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_spill_register.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Reduced the spill register to its valid handshake and one-byte data storage."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 23,
+          "signal": "data_q"
+        },
+        {
+          "line": 25,
+          "signal": "data_q"
+        }
+      ],
+      "note": "blocking assignment to state in clocked block"
+    }
+  ]
+}

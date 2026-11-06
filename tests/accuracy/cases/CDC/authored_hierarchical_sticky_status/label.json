@@ -1,0 +1,32 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "good",
+  "critical": false,
+  "defect": "A source sticky level reaches the destination only through the two-stage child synchronizer.",
+  "mutation": {
+    "operator": "hierarchical_sticky_status",
+    "description": "A source sticky level reaches the destination only through the two-stage child synchronizer."
+  },
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "A source sticky level reaches the destination only through the two-stage child synchronizer. Startup initial blocks express FPGA initialization; plain edge-triggered always procedures preserve it without violating always_ff single-writer restrictions.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Persistent source status traverses two destination flops through the hierarchy."
+    }
+  ]
+}

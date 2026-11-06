@@ -1,0 +1,53 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "registered stream handshake is supplied by an unspecified register implementation",
+  "sites": [
+    {
+      "line": 53,
+      "signal": "m_valid"
+    }
+  ],
+  "sdc": [],
+  "rationale": "REG_TYPE selects bypass, simple-buffer, or skid-buffer behavior, but the selected register implementation is an empty stub. Its latency, backpressure, and output drive are not specified, so the stream contract cannot be decided.",
+  "origin": "adapted",
+  "provenance": {
+    "repository": "verilog-axis",
+    "commit": "48ff7a7e2ef782cf778d47910cf85835c64b1bce",
+    "path": "rtl/axis_register.v",
+    "licence": "MIT",
+    "adaptation": "Reduced the register interface and retained the source REG_TYPE parameter while making the implementation an explicit black box."
+  },
+  "mutation": {
+    "operator": "unknown-black-box",
+    "description": "The selected AXI stream register implementation and its handshake behavior are intentionally omitted."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 53,
+          "signal": "m_valid"
+        }
+      ]
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 55,
+          "signal": "u_reg"
+        }
+      ],
+      "note": "Stub module has no body so output driving behaviour cannot be decided."
+    }
+  ]
+}

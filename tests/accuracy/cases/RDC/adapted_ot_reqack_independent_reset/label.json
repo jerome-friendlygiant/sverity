@@ -1,0 +1,57 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "adapted",
+  "verdict": "unknown",
+  "critical": true,
+  "defect": "independent source and destination reset ordering is unspecified",
+  "sites": [
+    {
+      "line": 21,
+      "signal": "rst_src_ni"
+    },
+    {
+      "line": 34,
+      "signal": "rst_dst_ni"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The request and acknowledgement toggles use independent resets, while correctness depends on the system contract that both domains reset together or preserve protocol state across a one-sided reset; that ordering and preservation contract is not given.",
+  "mutation": {
+    "operator": "independent-reset-order-unknown",
+    "description": "Reduced the request/acknowledge crossing while retaining separate source and destination reset inputs."
+  },
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_sync_reqack.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced the handshake to toggle request and acknowledgement state with two-stage crossings."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "unknown",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "line": 21,
+          "signal": "src_toggle_q"
+        },
+        {
+          "line": 38,
+          "signal": "dst_ack_q"
+        }
+      ],
+      "note": "Req/ack toggle handshake with independent async resets; one side reset alone desynchronises the handshake, and no reset ordering is stated."
+    }
+  ]
+}

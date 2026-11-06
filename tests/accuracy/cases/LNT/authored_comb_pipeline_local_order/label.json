@@ -1,0 +1,26 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "none",
+  "sites": [],
+  "sdc": [],
+  "rationale": "The blocking local intermediate is assigned before its read and both additions have enough bits for their carries.",
+  "origin": "authored",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-sol (blind lint reviewer)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Blocking assignment defines the local intermediate before use and explicitly preserves addition width."
+    }
+  ]
+}

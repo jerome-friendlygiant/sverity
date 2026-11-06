@@ -1,0 +1,6 @@
+create_clock -name src_clk -period 6.0 [get_ports src_clk]
+create_clock -name dst_clk -period 12.0 [get_ports dst_clk]
+set_clock_groups -asynchronous -group [get_clocks src_clk] -group [get_clocks dst_clk]
+set_input_delay 1.0 -clock [get_clocks src_clk] [get_ports {request data_in[*]}]
+set_input_delay 1.0 -clock [get_clocks src_clk] [get_ports arst_n]
+set_output_delay 1.0 -clock [get_clocks dst_clk] [get_ports {data_out[*] response_toggle}]

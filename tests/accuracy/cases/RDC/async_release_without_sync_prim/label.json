@@ -1,0 +1,49 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "asynchronous reset release is used directly by functional state",
+  "sites": [
+    {
+      "line": 14,
+      "signal": "enabled_o"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "por_ni asynchronously clears enabled_o and its deassertion is sampled directly by the functional flop without a release synchronizer.",
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim_generic/rtl/prim_rst_sync.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Kept the reset-synchronizer use context and reduced the receiver to one functional register."
+  },
+  "mutation": {
+    "operator": "reset-sync-removed",
+    "description": "Removed the reset-release pipeline and connected the raw asynchronous reset directly to enabled_o."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 12,
+          "signal": "por_ni"
+        }
+      ],
+      "note": "Power-on reset released asynchronously directly into clk_main flop with no synchroniser."
+    }
+  ]
+}

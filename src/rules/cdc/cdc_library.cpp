@@ -173,6 +173,31 @@ void Shared::libraryCells() {
             add(std::move(d));
             report->markIncomplete("blackboxes", "black box " + bb.hierarchy + ": input domains unresolved");
         }
+        // Clocks of several domains entering the box: it may cross between them inside, where nothing is analysed.
+        // A clock that clocks nothing outside the box has no domain, so its SDC declaration names it.
+        std::set<uint32_t> clockDomains;
+        std::set<std::string> sdcClocks;
+        for (auto& p : bb.ports)
+            for (auto n : p.nodes) {
+                if (int domain = domainOfClockNode(n); domain >= 0) clockDomains.insert(static_cast<uint32_t>(domain));
+                else if (auto name = rel_->clockNameOfNode(n); !name.empty()) sdcClocks.insert(name);
+            }
+        for (auto cd : clockDomains) if (!rel_->clockName(cd).empty()) sdcClocks.insert(rel_->clockName(cd));
+        bool unrelated = false;
+        for (auto a : clockDomains) for (auto b : clockDomains) unrelated = unrelated || (a < b && relation(a, b) != Relation::Same);
+        for (auto& a : sdcClocks) for (auto& b : sdcClocks) unrelated = unrelated || (a < b && rel_->relationByNames(a, b) != Relation::Same);
+        if (unrelated) {
+            std::string names;
+            for (auto cd : clockDomains) names += (names.empty() ? "" : ", ") + m->domains[cd].name;
+            for (auto& sc : sdcClocks) names += (names.empty() ? "SDC clock " : ", SDC clock ") + sc;
+            Diagnostic d = mk("CDC-046", Severity::Warning,
+                              "black box '" + bb.module + "' at " + bb.hierarchy + " receives the clocks " + names +
+                                  ", which are not the same clock: any crossing between them inside the box is not analysed, so it is unresolved, not safe",
+                              bb.loc, bb.hierarchy, Confidence::Unresolved);
+            d.nextStep = "Provide the box's source, or declare it in a --library file with each port's clock so its crossings can be checked.";
+            add(std::move(d));
+            report->markIncomplete("blackboxes", "black box " + bb.hierarchy + ": receives clocks of several domains");
+        }
         if (unidentified) {
             Diagnostic d = mk("CDC-046", Severity::Warning,
                               "black box '" + bb.module + "' at " + bb.hierarchy + " receives a signal from a register with an unidentified clock: crossing status is unresolved",

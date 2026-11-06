@@ -1,0 +1,61 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "a changing multibit bus is synchronized one bit at a time without a data-stability protocol",
+  "sites": [
+    {
+      "line": 36,
+      "signal": "bus_b"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "bus_a can change independently of clk_b, and independently synchronized bits can represent different source words at bus_b.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 25,
+          "signal": "bus_a"
+        },
+        {
+          "line": 27,
+          "signal": "bus_a"
+        },
+        {
+          "line": 29,
+          "signal": "bus_a"
+        },
+        {
+          "line": 31,
+          "signal": "bus_a"
+        }
+      ],
+      "note": "Each bit of a 4-bit bus is synchronised independently with no qualifier or Gray coding, so the captured word can be incoherent."
+    }
+  ],
+  "origin": "adapted",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_multibit_sync.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Kept the multibit destination sampling context but reduced the consistency-control machinery to four scalar receiving pipelines in a self-contained top module."
+  },
+  "mutation": {
+    "operator": "bus-bits-synced-separately",
+    "description": "Connected each bus bit to its own two-flop synchronizer and assembled bus_b without a bundled-data or handshake guarantee."
+  }
+}

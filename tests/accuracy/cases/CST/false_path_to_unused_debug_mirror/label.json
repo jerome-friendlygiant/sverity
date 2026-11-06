@@ -1,0 +1,27 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "exception targets only a documented asynchronous debug observation",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "debug_copy is an unclocked diagnostic mirror with no timing guarantee; the functional registered interface remains timed.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "The false path only covers debug_copy, which is documented as an asynchronously probed diagnostic output."
+    }
+  ]
+}

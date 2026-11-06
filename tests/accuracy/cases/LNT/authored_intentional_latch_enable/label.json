@@ -1,0 +1,26 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "none",
+  "sites": [],
+  "sdc": [],
+  "rationale": "An explicitly declared level-sensitive latch holds its state while closed; the missing else implements the intended storage.",
+  "origin": "authored",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-sol (blind lint reviewer)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "always_latch explicitly requests the inferred level-sensitive storage; no unintended combinational latch exists."
+    }
+  ]
+}

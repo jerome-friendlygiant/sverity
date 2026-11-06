@@ -1,0 +1,8 @@
+create_clock -name clk_a -period 10.000 [get_ports clk_a_i]
+create_clock -name clk_b -period 8.000 [get_ports clk_b_i]
+set_clock_groups -logically_exclusive -group [get_clocks clk_a] -group [get_clocks clk_b]
+create_clock -name selected_a -period 10.000 [get_pins top/u_mux/clk_o]
+create_clock -name selected_b -period 8.000 [get_pins top/u_mux/clk_o]
+set_input_delay 2.000 -clock selected_a [get_ports data_i]
+set_output_delay 2.000 -clock selected_a [get_ports data_o]
+set_false_path -from [get_ports {rst_ni select_b_i}]

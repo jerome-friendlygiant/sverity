@@ -1,0 +1,32 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "verdict": "good",
+  "critical": false,
+  "defect": "Launch and capture use opposite edges of the same declared clock; the half-cycle path is timed.",
+  "mutation": {
+    "operator": "opposite_edge_related_clock",
+    "description": "Launch and capture use opposite edges of the same declared clock; the half-cycle path is timed."
+  },
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Launch and capture use opposite edges of the same declared clock; the half-cycle path is timed.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-sol (blind CDC reviewer)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "Both flops use opposite edges of the same constrained root clock; timing has a half-cycle budget."
+    }
+  ]
+}

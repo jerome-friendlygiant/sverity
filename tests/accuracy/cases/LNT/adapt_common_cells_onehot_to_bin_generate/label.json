@@ -1,0 +1,36 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "generated one-hot decoder masks can look like a transposed index",
+  "sites": [],
+  "rationale": "Each output bit reduces the input one-hot vector against a mask whose entries are the corresponding binary index bits. The two generate loops cover every legal output and input index exactly once.",
+  "origin": "adapted",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_onehot_to_bin.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Removed the assertion macro and retained the nested generate-mask implementation with top as the wrapper."
+  },
+  "mutation": {
+    "operator": "safe-lookalike",
+    "description": "Nested generate loops intentionally index a cast binary input number by the output bit position."
+  },
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "No lint defect found; widths, drivers, and assignments are consistent."
+    }
+  ]
+}

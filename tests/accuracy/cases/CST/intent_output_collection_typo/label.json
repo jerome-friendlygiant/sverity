@@ -1,0 +1,40 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "The output collection matches no port and leaves q unconstrained.",
+  "sites": [
+    {
+      "file": "constraints.sdc",
+      "line": 4,
+      "signal": "q"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The output collection matches no port and leaves q unconstrained.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind CST reviewer)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 4,
+          "signal": "q"
+        }
+      ],
+      "note": "The output delay selects nonexistent qq rather than the actual q output, leaving the output timing requirement absent."
+    }
+  ]
+}

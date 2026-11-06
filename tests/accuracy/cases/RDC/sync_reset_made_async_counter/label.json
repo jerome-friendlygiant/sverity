@@ -1,0 +1,49 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "a counter-domain synchronous clear is used as an asynchronous reset in the report domain",
+  "sites": [
+    {
+      "line": 25,
+      "signal": "report_rst_ni"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "clear_count_q is only updated on clk_count, yet its complement directly controls asynchronous reset behavior for count_o on unrelated clk_report.",
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "ibex",
+    "commit": "2373e5dadcfc4f56672962fa242f6a051acc9aca",
+    "path": "rtl/ibex_counter.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced the counter to a source-domain clear state and a report-domain counting register."
+  },
+  "mutation": {
+    "operator": "sync-reset-made-async",
+    "description": "Made the source-clock synchronous clear control the report register through an asynchronous reset sensitivity."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 24,
+          "signal": "report_rst_ni"
+        }
+      ],
+      "note": "clk_report async reset derived from a clk_count flop, unsynchronised release in a different clock domain."
+    }
+  ]
+}

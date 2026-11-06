@@ -1,0 +1,55 @@
+{
+  "family": "CST",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "generated-clock period is twice the RTL divider period",
+  "sites": [
+    {
+      "line": 23,
+      "signal": "divided_clk"
+    },
+    {
+      "file": "constraints.sdc",
+      "line": 2,
+      "signal": "divided_clk"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "divider_q toggles on every ref_clk edge, so divided_clk has one rising edge every two reference cycles. The generated clock declares divide_by 4 and therefore grants an incorrect period to slow_state timing.",
+  "mutation": {
+    "operator": "generated-ratio-wrong",
+    "description": "Declared divided_clk with divide_by 4 although the retained toggle divider produces ref_clk divided by 2."
+  },
+  "author": "gpt-5.6-luna",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_clk_int_div.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Retained the clock-divider toggle and a downstream generated-clock register; removed runtime reconfiguration, clock gating, and technology-cell details."
+  },
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "file": "constraints.sdc",
+          "line": 2,
+          "signal": "divided_clk"
+        }
+      ],
+      "note": "divided_clk is a toggling flop output (divide by 2) but is constrained divide_by 4."
+    }
+  ]
+}

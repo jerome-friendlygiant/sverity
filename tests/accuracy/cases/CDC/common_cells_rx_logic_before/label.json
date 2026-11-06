@@ -1,0 +1,49 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "defect": "a destination qualifier is combined with an asynchronous valid signal before synchronization",
+  "sites": [
+    {
+      "line": 29,
+      "signal": "stage0_b"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "valid_a is asynchronous to clk_b and is combined with ready_b before entering the receiving pipeline, so the qualifier is part of the unsynchronized crossing.",
+  "author": "gpt-5.6-luna",
+  "labels": [
+    {
+      "by": "gpt-5.6-luna (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "claude-sonnet (blind second labeller, design and constraints only)",
+      "verdict": "bad",
+      "critical": true,
+      "sites": [
+        {
+          "line": 29,
+          "signal": "stage0_b"
+        }
+      ],
+      "note": "Combinational AND of valid_a with ready_b feeds the first synchroniser flop, so glitches on the crossing signal can be sampled."
+    }
+  ],
+  "origin": "adapted",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_edge_propagator_rx.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Kept the receiver-side valid/ready context and two-register destination sampling, reduced the handshake implementation, and exposed a self-contained top module."
+  },
+  "mutation": {
+    "operator": "logic-before-sync",
+    "description": "Moved the ready_b qualification into the expression sampled by the first destination stage alongside valid_a."
+  }
+}

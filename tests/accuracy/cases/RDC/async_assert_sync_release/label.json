@@ -1,0 +1,27 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "defect": "intentional asynchronous reset entry to a two-stage release chain",
+  "sites": [],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "Both stages assert asynchronously, release shifts constant one on the local clock, and functional logic uses only the final stage.",
+  "author": "gpt-6.1-sol",
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "claude-opus-5-5 (blind second labeller, design and constraints only)",
+      "verdict": "good",
+      "critical": false,
+      "sites": [],
+      "note": "A standard async-assert, sync-release reset synchroniser drives count's reset."
+    }
+  ]
+}

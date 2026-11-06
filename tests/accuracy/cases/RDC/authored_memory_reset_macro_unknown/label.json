@@ -1,0 +1,43 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "origin": "authored",
+  "defect": "The reset behavior and output-state guarantees of the memory macro are absent; the surrounding synchronized release does not establish its internal reset semantics.",
+  "sites": [
+    {
+      "line": 7,
+      "signal": "u_ram"
+    }
+  ],
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "rationale": "The reset behavior and output-state guarantees of the memory macro are absent; the surrounding synchronized release does not establish its internal reset semantics.",
+  "author": "gpt-6.1-sol",
+  "mutation": {
+    "operator": "authored-memory-reset-macro-unknown",
+    "description": "The reset behavior and output-state guarantees of the memory macro are absent; the surrounding synchronized release does not establish its internal reset semantics."
+  },
+  "labels": [
+    {
+      "by": "gpt-6.1-sol (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-sol (blind RDC reviewer)",
+      "verdict": "unknown",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 7,
+          "signal": "ready_q"
+        }
+      ],
+      "note": "The memory macro reset semantics are opaque."
+    }
+  ]
+}
