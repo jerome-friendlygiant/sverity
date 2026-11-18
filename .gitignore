@@ -10,3 +10,4 @@ compile_commands.json
 .DS_Store
 # local-only agent/tool state
 .claude/
+__pycache__/

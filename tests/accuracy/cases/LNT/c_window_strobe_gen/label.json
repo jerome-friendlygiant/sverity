@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-C (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC17",
+    "sites": [
+      {
+        "line": 31
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "clock used as data",
+    "rationale": "The clock is ANDed with a register and sent out as a data signal."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC17",
+      "sites": [
+        {
+          "line": 31
+        }
+      ],
+      "critical": true,
+      "note": "clk is ANDed with the window register as data to form strobe_o (clock used as data / glitch-prone gate)."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC17",
+      "sites": [
+        {
+          "line": 31
+        }
+      ],
+      "critical": true,
+      "note": "Clock clk is used as data, gated with window into strobe_o."
+    }
+  ],
+  "rationale": "The clock is ANDed with a register and sent out as a data signal.",
+  "verdict": "bad",
+  "class": "LC17",
+  "sites": [
+    {
+      "line": 31
+    }
+  ],
+  "critical": true
+}

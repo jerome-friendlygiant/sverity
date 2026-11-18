@@ -1,0 +1,125 @@
+{
+ "schema": "sverity-label-adjudication/1",
+ "batch": "p3-lint-fresh",
+ "note": "Adjudications after the first score (which stays as measured). Three (c_context_restore_dec, c_opcode_decoder_unit, c_single_port_scratch) follow the post-score triage's LABEL-WRONG third reading. Three (a_byte_lane_mux by convention 2; c_heartbeat_divider and c_ddr_input_capture by narrowing LC17) are policy decisions made by the maintainer's delegate after the score, not triage verdicts (the triage called them TOOL-MISS). All six favour the tool. AI decisions, not human sign-off. Each entry is keyed family/case and states the reading the case was settled at (was) and the final reading (now: verdict, class, critical, sites), which the label must equal.",
+ "cases": [
+  {
+   "case": "LNT/c_context_restore_dec",
+   "was": {
+    "verdict": "good",
+    "class": "LC25",
+    "critical": false
+   },
+   "now": {
+    "verdict": "bad",
+    "class": "LC25",
+    "critical": true,
+    "sites": [
+     {
+      "line": 18
+     }
+    ]
+   },
+   "reason": "full_case makes unlisted values don't-care for synthesis even with defaults before the case; convention 3's second clause withdrawn",
+   "decided_by": "triage-third-reading",
+   "readings_sha256": "96c60d83a6dd0f0583c991090181662c64785548a15f7bfd022e7a2f18ca4a85"
+  },
+  {
+   "case": "LNT/c_opcode_decoder_unit",
+   "was": {
+    "verdict": "good",
+    "class": "LC25",
+    "critical": false
+   },
+   "now": {
+    "verdict": "bad",
+    "class": "LC25",
+    "critical": true,
+    "sites": [
+     {
+      "line": 16
+     }
+    ]
+   },
+   "reason": "same as c_context_restore_dec",
+   "decided_by": "triage-third-reading",
+   "readings_sha256": "72072e0e8299e4f4d5270f843aa516fca50c894a2067ed8c106ce939d9f518ab"
+  },
+  {
+   "case": "LNT/c_single_port_scratch",
+   "was": {
+    "verdict": "bad",
+    "class": "LC24",
+    "critical": true
+   },
+   "now": {
+    "verdict": "good",
+    "class": "LC24",
+    "critical": false,
+    "sites": []
+   },
+   "reason": "same-clock read during write is defined by the RTL (convention 4), consistent with c_ring_sample_fifo and c_simple_dual_buffer",
+   "decided_by": "triage-third-reading",
+   "readings_sha256": "4e5c4f4e1ae571b4391416dd4c44e1d3f85cbb30c8e5eeb2f20b854cac995b09"
+  },
+  {
+   "case": "LNT/a_byte_lane_mux",
+   "was": {
+    "verdict": "bad",
+    "class": "LC04",
+    "critical": true
+   },
+   "now": {
+    "verdict": "unknown",
+    "class": "LC04",
+    "critical": true,
+    "sites": [
+     {
+      "line": 22
+     }
+    ]
+   },
+   "reason": "index range comes from an unconstrained input (convention 2), consistent with a_channel_gain_mux",
+   "decided_by": "maintainer-delegate-policy",
+   "readings_sha256": "81aff3be2ffa490145fc7b30ae50b5bc3cbd757c7ca12c6b28f3b4a60593ada2"
+  },
+  {
+   "case": "LNT/c_heartbeat_divider",
+   "was": {
+    "verdict": "bad",
+    "class": "LC17",
+    "critical": true
+   },
+   "now": {
+    "verdict": "good",
+    "class": "LC17",
+    "critical": false,
+    "sites": []
+   },
+   "reason": "LC17 narrowed: a register-derived clock builds as written; disclosed as INFO",
+   "decided_by": "maintainer-delegate-policy",
+   "was_detail": "bad LC17",
+   "now_detail": "outside the critical class (good, LC17 narrowed)",
+   "readings_sha256": "783ef8bc4814b5980d2ebf3178f86a617a5e672da32c3ad2109f9543539c848d"
+  },
+  {
+   "case": "LNT/c_ddr_input_capture",
+   "was": {
+    "verdict": "bad",
+    "class": "LC17",
+    "critical": true
+   },
+   "now": {
+    "verdict": "good",
+    "class": "LC17",
+    "critical": false,
+    "sites": []
+   },
+   "reason": "LC17 narrowed: two registers on opposite edges of one clock build as written; one register on both edges stays critical",
+   "decided_by": "maintainer-delegate-policy",
+   "was_detail": "bad LC17",
+   "now_detail": "outside the critical class (good, LC17 narrowed)",
+   "readings_sha256": "ffb34b7553bf6de628c5bbce95545a23820475fc15b8fd085a6a0966859e024b"
+  }
+ ]
+}

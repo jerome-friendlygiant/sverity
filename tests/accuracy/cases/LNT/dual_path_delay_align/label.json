@@ -1,0 +1,28 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "origin": "authored",
+  "sites": [],
+  "sdc": [],
+  "rationale": "The generate-if on Depth looks like a constant-selected branch but delay_stage is instantiated with Depth 1 and Depth 2, so both alternatives are elaborated and reachable.",
+  "author": "claude-sonnet-5-5",
+  "class": "LC18",
+  "batch": "p2-lint-heldout",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "class": "LC02",
+      "sites": [],
+      "note": "Both paths are explicitly sized and the sum preserves carry."
+    }
+  ]
+}

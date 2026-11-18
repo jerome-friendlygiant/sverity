@@ -1,5 +1,5 @@
 // sverity-args: --top top
-// expect: LNT-047 WARNING 7
+// expect: LNT-047 WARNING 6
 // expect-count: LNT-047 WARNING 2
 module child(input logic clk, en, a, output logic q);
   logic gclk;

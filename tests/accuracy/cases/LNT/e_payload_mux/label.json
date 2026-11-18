@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-E (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC11",
+    "sites": [
+      {
+        "line": 21
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "missing conditional assignment",
+    "rationale": "Disabling the payload path retains the preceding value through a latch."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC11",
+      "sites": [
+        {
+          "line": 21
+        }
+      ],
+      "critical": true,
+      "note": "value holds when enable is low: latch."
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC11",
+      "sites": [
+        {
+          "line": 21
+        }
+      ],
+      "critical": true,
+      "note": "The incomplete enable conditional leaves value unassigned and infers a latch."
+    }
+  ],
+  "rationale": "Disabling the payload path retains the preceding value through a latch.",
+  "verdict": "bad",
+  "class": "LC11",
+  "sites": [
+    {
+      "line": 21
+    }
+  ],
+  "critical": true
+}

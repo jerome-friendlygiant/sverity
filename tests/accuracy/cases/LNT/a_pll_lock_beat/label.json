@@ -1,0 +1,67 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-A (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "unknown",
+    "class": "LC01",
+    "sites": [
+      {
+        "line": 15
+      }
+    ],
+    "boundary": "unknown",
+    "subtype": "module supplied outside the file",
+    "rationale": "pll_wrap is instantiated but not defined here; whether the file compiles and whether the port names and directions are legal depends on the platform library."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "unknown",
+      "class": "LC01",
+      "sites": [
+        {
+          "line": 15
+        }
+      ],
+      "critical": true,
+      "note": "pll_wrap is not defined in the file; elaboration depends on an external module."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "unknown",
+      "class": "LC01",
+      "sites": [
+        {
+          "line": 15
+        }
+      ],
+      "critical": true,
+      "note": "pll_wrap is not defined in the file; elaboration depends on an external library module."
+    }
+  ],
+  "settlement": {
+    "by": "settler (claude-fable-5-2, third reading)",
+    "verdict": "unknown",
+    "class": "LC01",
+    "sites": [
+      {
+        "line": 15
+      }
+    ],
+    "critical": true,
+    "note": "pll_wrap is instantiated but not defined in the file; whether the design elaborates and the port connections are legal depends on a module that is not in the file."
+  },
+  "rationale": "pll_wrap is instantiated but not defined in the file; whether the design elaborates and the port connections are legal depends on a module that is not in the file.",
+  "verdict": "unknown",
+  "class": "LC01",
+  "sites": [
+    {
+      "line": 15
+    }
+  ],
+  "critical": true
+}

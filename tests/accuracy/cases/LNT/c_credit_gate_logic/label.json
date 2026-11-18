@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-C (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC21",
+    "sites": [
+      {
+        "line": 14
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "unsigned comparison always true",
+    "rationale": "credits is unsigned so credits >= 0 is always true."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC21",
+      "sites": [
+        {
+          "line": 14
+        }
+      ],
+      "critical": true,
+      "note": "credits >= 4'd0 on an unsigned value is always true."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC21",
+      "sites": [
+        {
+          "line": 14
+        }
+      ],
+      "critical": true,
+      "note": "credits >= 4'd0 on an unsigned value is always true."
+    }
+  ],
+  "rationale": "credits is unsigned so credits >= 0 is always true.",
+  "verdict": "bad",
+  "class": "LC21",
+  "sites": [
+    {
+      "line": 14
+    }
+  ],
+  "critical": true
+}

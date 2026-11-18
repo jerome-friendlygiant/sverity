@@ -1,0 +1,67 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-B (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "unknown",
+    "class": "LC14",
+    "sites": [
+      {
+        "line": 16
+      }
+    ],
+    "boundary": "unknown",
+    "subtype": "wildcard comparison against an operand supplied by an input port",
+    "rationale": "data_in ==? idle_pat treats X or Z bits of the right operand as wildcards; whether idle_pat can carry X/Z is not decidable from the file."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "unknown",
+      "class": "LC14",
+      "sites": [
+        {
+          "line": 16
+        }
+      ],
+      "critical": true,
+      "note": "==? with a non-constant right side treats X/Z bits of idle_pat as wildcards in simulation only; whether that happens depends on the run-time value."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC14",
+      "sites": [
+        {
+          "line": 16
+        }
+      ],
+      "critical": true,
+      "note": "==? with a non-constant right operand treats X/Z bits of idle_pat as wildcards in simulation only (Verilator rejects it as unsupported)."
+    }
+  ],
+  "settlement": {
+    "by": "settler (claude-fable-5-2, third reading)",
+    "verdict": "unknown",
+    "class": "LC14",
+    "sites": [
+      {
+        "line": 16
+      }
+    ],
+    "critical": true,
+    "note": "==? with the non-constant right operand idle_pat treats its X/Z bits as wildcards in simulation only; no X or Z is written in the design, so the outcome depends on values of an unconstrained input port."
+  },
+  "rationale": "==? with the non-constant right operand idle_pat treats its X/Z bits as wildcards in simulation only; no X or Z is written in the design, so the outcome depends on values of an unconstrained input port.",
+  "verdict": "unknown",
+  "class": "LC14",
+  "sites": [
+    {
+      "line": 16
+    }
+  ],
+  "critical": true
+}

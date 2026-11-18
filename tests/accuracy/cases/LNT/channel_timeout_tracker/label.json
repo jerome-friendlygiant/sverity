@@ -1,0 +1,47 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "class": "LC07",
+  "batch": "p2-lint-heldout",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "pending flag written from two always_ff blocks",
+  "sites": [
+    {
+      "line": 22,
+      "signal": "pending_q"
+    },
+    {
+      "line": 38,
+      "signal": "pending_q"
+    }
+  ],
+  "sdc": [],
+  "rationale": "pending_q[i] is written both in the per-channel always_ff and in the separate abandon always_ff, so each bit has two procedural drivers.",
+  "mutation": {
+    "operator": "second-writer",
+    "description": "Moved the timeout clear of the pending flag into a separate clocked block."
+  },
+  "author": "claude-sonnet-5-5",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "class": "LC07",
+      "sites": [
+        {
+          "line": 38,
+          "signal": "pending_q"
+        }
+      ],
+      "note": "Two clocked processes drive the same pending bits."
+    }
+  ]
+}

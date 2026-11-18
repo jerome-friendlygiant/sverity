@@ -1,0 +1,68 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-B (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC12",
+    "sites": [
+      {
+        "line": 16
+      },
+      {
+        "line": 17
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "blocking assignments to registers in a clocked block",
+    "rationale": "stage1 and stage2 are written with = in always_ff, so the second stage sees the new first stage and the pipe collapses to one stage while valid is delayed two."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC12",
+      "sites": [
+        {
+          "line": 16
+        },
+        {
+          "line": 17
+        }
+      ],
+      "critical": true,
+      "note": "Blocking assignments in always_ff: stage2 = stage1 sees the just-written stage1, collapsing the two-stage delay to one, and stage2 is read outside the block.",
+      "other": "LC23 line 16: stage1/stage2 have no reset while their valid peers do"
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC12",
+      "sites": [
+        {
+          "line": 16
+        },
+        {
+          "line": 17
+        }
+      ],
+      "critical": true,
+      "note": "Blocking writes to state in always_ff: stage2 takes the new stage1 value the same cycle, so the two-stage delay collapses to one and misaligns with valid_out."
+    }
+  ],
+  "rationale": "stage1 and stage2 are written with = in always_ff, so the second stage sees the new first stage and the pipe collapses to one stage while valid is delayed two.",
+  "verdict": "bad",
+  "class": "LC12",
+  "sites": [
+    {
+      "line": 16
+    },
+    {
+      "line": 17
+    }
+  ],
+  "critical": true
+}

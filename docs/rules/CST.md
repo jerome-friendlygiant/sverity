@@ -69,7 +69,7 @@ per rule below the table when it is specified: trigger, exemptions, severity pol
 - **Unknown:** expressed constraints are not applied and `constraints` is INCOMPLETE. This reports known unsupported/unapplied commands, not general Tcl completeness.
 
 ### CST-010
-- **Trigger:** precision fallbacks recorded by the connectivity/clock/reset model, grouped by category.
+- **Trigger:** precision fallbacks recorded by the connectivity/clock/reset model, grouped by category. A call to a user function falls back when its dependencies cannot be listed: a task or virtual method, a static local, a call by reference, a system call that is not a pure function of its arguments, a function that does not set its return value on every path (a `case` counts only with every item and a `default`). A function local read before it is assigned is not a fallback: it holds no signal, so no dependency is lost (LNT-044 reports the read).
 - **Severity:** WARNING Unresolved.
 - **Unknown:** results involving a fallback are inconclusive and `graph-precision` is INCOMPLETE. Constructs ignored without a recorded fallback are not enumerated.
 
@@ -94,13 +94,13 @@ per rule below the table when it is specified: trigger, exemptions, severity pol
 - **Unknown:** the affected declaration/file is not fully applied and `constraints` is INCOMPLETE. Semantic option-value validation is limited.
 
 ### CST-019
-- **Trigger:** catalogued rules are not fully evaluated in a run, or a disabled-rule list names an unknown rule.
+- **Trigger:** catalogued rules did not give their answer on this design (failed, not run, or degraded by it), or a disabled-rule list names an unknown rule. A rule that reports each site it cannot decide as its own Unresolved finding (LNT-057) has answered: the gap is in the report, counted against the not-analysed budget, so the rule is not also degraded. A rule that is partial or unimplemented in the tool version, or disabled by the user, is a run-level statement (`tool coverage`, `coverage.rules`), not a finding.
 - **Severity:** WARNING Unresolved.
-- **Unknown:** absence of findings for rules not fully evaluated is not evidence of safety; `analysis_coverage` is INCOMPLETE. Profile policy drift is not checked.
+- **Unknown:** absence of findings for rules that did not answer is not evidence of safety; `analysis_coverage` is INCOMPLETE. Profile policy drift is not checked.
 
 ### CST-022
 - **Trigger:** waiver expiry is invalid or past, scope has no narrowing criterion, or a waiver matches no finding in this run (including hierarchy scope that cannot safely split incomplete occurrence lists).
-- **Severity:** WARNING Unresolved; rejected waivers are not applied.
+- **Severity:** a waiver that matches nothing (stale, or only findings whose instance list is incomplete) is INFO, Established: it waives nothing and changes no hardware, and a finding it meant to cover is open at its own severity. An invalid, expired or overbroad waiver is WARNING Unresolved and is not applied, because its author believes it is in force.
 - **Unknown:** stale, overbroad, or expired waivers do not suppress findings; validation does not mark an analysis scope INCOMPLETE.
 
 

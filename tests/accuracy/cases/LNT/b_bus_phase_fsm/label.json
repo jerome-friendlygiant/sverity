@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-B (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC13",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "unique case over all enum states, no default",
+    "rationale": "All four enum values have an item, each state can be left."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "good",
+      "class": "LC13",
+      "sites": [],
+      "critical": false,
+      "note": "unique case covers all four enum values with a prior default assignment; every state is reachable and has an exit."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC13",
+      "sites": [],
+      "critical": false,
+      "note": "unique case covers all four enum values of phase; reset to PH_IDLE."
+    }
+  ],
+  "rationale": "All four enum values have an item, each state can be left.",
+  "verdict": "good",
+  "class": "LC13",
+  "sites": [],
+  "critical": false
+}

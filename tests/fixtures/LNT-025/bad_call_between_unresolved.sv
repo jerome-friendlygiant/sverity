@@ -1,4 +1,4 @@
-// sverity-args: --top top
+// sverity-args: --top top --option LNT-025.overrides=warning
 // a user call between two conditional writes cannot be proven harmless; reported as Unresolved, not hidden
 // expect: LNT-025 WARNING
 module top(input logic a, b, c, d, output logic y, z);

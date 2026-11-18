@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-F (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC17",
+    "sites": [
+      {
+        "line": 21
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "clock sampled as payload data",
+    "rationale": "The byte payload includes the clock itself on the active sampling edge, creating a clock-to-data path."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC17",
+      "sites": [
+        {
+          "line": 21
+        }
+      ],
+      "critical": true,
+      "note": "clk is sampled as data into y[0]"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC17",
+      "sites": [
+        {
+          "line": 21
+        }
+      ],
+      "critical": true,
+      "note": "The clock is sampled into register data."
+    }
+  ],
+  "rationale": "The byte payload includes the clock itself on the active sampling edge, creating a clock-to-data path.",
+  "verdict": "bad",
+  "class": "LC17",
+  "sites": [
+    {
+      "line": 21
+    }
+  ],
+  "critical": true
+}

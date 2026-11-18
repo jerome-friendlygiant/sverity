@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-D (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC04",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "guarded indexed part select",
+    "rationale": "The start index is accepted only up to four, keeping all four selected bits inside the byte."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC04",
+      "sites": [],
+      "critical": false,
+      "note": "b is limited to <=4 before a[b+:4], so the slice stays within a[7:0]."
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "good",
+      "class": "LC04",
+      "sites": [],
+      "critical": false,
+      "note": "The guarded part-select starts at most at bit four, so all four bits remain within a[7:0]."
+    }
+  ],
+  "rationale": "The start index is accepted only up to four, keeping all four selected bits inside the byte.",
+  "verdict": "good",
+  "class": "LC04",
+  "sites": [],
+  "critical": false
+}

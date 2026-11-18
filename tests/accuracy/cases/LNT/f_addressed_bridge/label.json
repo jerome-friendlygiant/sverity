@@ -1,0 +1,82 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-F (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "unknown",
+    "class": "LC24",
+    "sites": [
+      {
+        "line": 19
+      },
+      {
+        "line": 22
+      }
+    ],
+    "boundary": "unknown",
+    "subtype": "environment-dependent dual-clock address collision",
+    "rationale": "Unrelated clocks and unconstrained addresses may collide, but external scheduling and address separation determine whether they do."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "unknown",
+      "class": "LC24",
+      "sites": [
+        {
+          "line": 19
+        },
+        {
+          "line": 22
+        }
+      ],
+      "critical": true,
+      "note": "write on clk and read on unrelated aux_clk at input-controlled addresses: collision decided by environment"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC24",
+      "sites": [
+        {
+          "line": 19
+        },
+        {
+          "line": 22
+        }
+      ],
+      "critical": true,
+      "note": "Independent write and read clocks can access the same memory address simultaneously."
+    }
+  ],
+  "settlement": {
+    "by": "settler (gpt-6.1-sol, third reading)",
+    "verdict": "unknown",
+    "class": "LC24",
+    "sites": [
+      {
+        "line": 19
+      },
+      {
+        "line": 22
+      }
+    ],
+    "critical": true,
+    "note": "The unrelated-clock memory ports can collide, but their input-controlled enables, addresses and clock sequences can also avoid every collision. Convention 4 requires unknown when the environment alone decides whether the collision occurs."
+  },
+  "rationale": "The unrelated-clock memory ports can collide, but their input-controlled enables, addresses and clock sequences can also avoid every collision. Convention 4 requires unknown when the environment alone decides whether the collision occurs.",
+  "verdict": "unknown",
+  "class": "LC24",
+  "sites": [
+    {
+      "line": 19
+    },
+    {
+      "line": 22
+    }
+  ],
+  "critical": true
+}

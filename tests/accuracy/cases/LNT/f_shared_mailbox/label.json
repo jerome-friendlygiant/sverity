@@ -1,0 +1,67 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-F (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC20",
+    "sites": [
+      {
+        "line": 19
+      },
+      {
+        "line": 23
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "independent-clock memory writers",
+    "rationale": "Independent request clocks both write the same mailbox array."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC20",
+      "sites": [
+        {
+          "line": 19
+        },
+        {
+          "line": 23
+        }
+      ],
+      "critical": true,
+      "note": "mailbox written from two processes on different clocks"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC20",
+      "sites": [
+        {
+          "line": 19
+        },
+        {
+          "line": 23
+        }
+      ],
+      "critical": true,
+      "note": "Two unrelated clocked processes can write the same mailbox entry."
+    }
+  ],
+  "rationale": "Independent request clocks both write the same mailbox array.",
+  "verdict": "bad",
+  "class": "LC20",
+  "sites": [
+    {
+      "line": 19
+    },
+    {
+      "line": 23
+    }
+  ],
+  "critical": true
+}

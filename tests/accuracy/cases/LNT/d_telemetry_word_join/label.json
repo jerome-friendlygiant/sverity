@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-D (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC01",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "declared local constant and unpacked array",
+    "rationale": "A declared local constant resolves the nibble width, and both unpacked array elements are driven and selected within range."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC01",
+      "sites": [],
+      "critical": false,
+      "note": "unpacked wire array with continuous assigns compiles"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "good",
+      "class": "LC01",
+      "sites": [],
+      "critical": false,
+      "note": "The unpacked array and concatenation are legal and all names resolve."
+    }
+  ],
+  "rationale": "A declared local constant resolves the nibble width, and both unpacked array elements are driven and selected within range.",
+  "verdict": "good",
+  "class": "LC01",
+  "sites": [],
+  "critical": false
+}

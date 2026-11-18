@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-A (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC07",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "two processes writing disjoint bits of one register",
+    "rationale": "Each process owns one bit of flags_q and never writes the other, so every bit has exactly one driver."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "good",
+      "class": "LC07",
+      "sites": [],
+      "critical": false,
+      "note": "The two processes drive disjoint bits of flags_q."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC07",
+      "sites": [],
+      "critical": false,
+      "note": "Each flag bit has exactly one driving process; no bit is driven twice."
+    }
+  ],
+  "rationale": "Each process owns one bit of flags_q and never writes the other, so every bit has exactly one driver.",
+  "verdict": "good",
+  "class": "LC07",
+  "sites": [],
+  "critical": false
+}

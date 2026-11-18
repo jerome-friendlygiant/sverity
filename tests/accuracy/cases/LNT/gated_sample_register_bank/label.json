@@ -1,0 +1,38 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "origin": "authored",
+  "sites": [
+    {
+      "line": 18,
+      "signal": "u_icg"
+    }
+  ],
+  "sdc": [],
+  "rationale": "held_q is clocked by the output of a body-less clock-gate cell; whether this is a glitch-free integrated clock gate or a data-gated clock cannot be decided from the RTL.",
+  "author": "claude-sonnet-5-5",
+  "class": "LC17",
+  "batch": "p2-lint-heldout",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "unknown",
+      "critical": true,
+      "class": "LC17",
+      "sites": [
+        {
+          "line": 18,
+          "signal": "u_icg"
+        }
+      ],
+      "note": "The missing clock gate implementation determines whether its output is a safe gated clock."
+    }
+  ]
+}

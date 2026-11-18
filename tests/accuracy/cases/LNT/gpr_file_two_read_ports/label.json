@@ -1,0 +1,35 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "origin": "adapted",
+  "sites": [],
+  "sdc": [],
+  "rationale": "Each register is written only by its own generate-instance flop and x0 is a constant, so every storage element has exactly one clocked writer.",
+  "author": "claude-sonnet-5-5",
+  "provenance": {
+    "repository": "ibex",
+    "commit": "2373e5dadcfc4f56672962fa242f6a051acc9aca",
+    "path": "rtl/ibex_register_file_ff.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced to the 32-entry base register file with one write port, dropping the CHERIoT, dummy-instruction and RV32E variants."
+  },
+  "class": "LC20",
+  "batch": "p2-lint-heldout",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "class": "LC06",
+      "sites": [],
+      "note": "Every register word and both read outputs have defined drivers."
+    }
+  ]
+}

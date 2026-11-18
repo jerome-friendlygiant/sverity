@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-E (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC10",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "acyclic dependent nets",
+    "rationale": "The grant chain terminates at input ports without returning to an earlier net."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC10",
+      "sites": [],
+      "critical": false,
+      "note": "request/grant chain is acyclic: sel and enable feed forward only"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "good",
+      "class": "LC10",
+      "sites": [],
+      "critical": false,
+      "note": "Grant logic is acyclic."
+    }
+  ],
+  "rationale": "The grant chain terminates at input ports without returning to an earlier net.",
+  "verdict": "good",
+  "class": "LC10",
+  "sites": [],
+  "critical": false
+}

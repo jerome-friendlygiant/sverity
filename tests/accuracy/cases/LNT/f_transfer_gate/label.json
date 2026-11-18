@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-F (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC17",
+    "sites": [
+      {
+        "line": 16
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "combinationally gated clock",
+    "rationale": "An enable AND gate drives the register clock; raising enable while the clock is high creates a capture edge."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC17",
+      "sites": [
+        {
+          "line": 16
+        }
+      ],
+      "critical": true,
+      "note": "Clock for the register is gated combinationally (clk & en)."
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC17",
+      "sites": [
+        {
+          "line": 16
+        }
+      ],
+      "critical": true,
+      "note": "Combinational gating of clk by en drives a register clock."
+    }
+  ],
+  "rationale": "An enable AND gate drives the register clock; raising enable while the clock is high creates a capture edge.",
+  "verdict": "bad",
+  "class": "LC17",
+  "sites": [
+    {
+      "line": 16
+    }
+  ],
+  "critical": true
+}

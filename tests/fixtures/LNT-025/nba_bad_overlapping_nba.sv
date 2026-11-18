@@ -1,4 +1,4 @@
-// sverity-args: --top top
+// sverity-args: --top top --option LNT-025.overrides=warning
 // the reset update is written after the enable update: when both hold, the later nonblocking one wins
 // expect: LNT-025 WARNING 7
 module top(input logic clk, en, rst, d, output logic q);

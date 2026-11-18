@@ -1,0 +1,79 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-E (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC10",
+    "sites": [
+      {
+        "line": 21
+      },
+      {
+        "line": 22
+      },
+      {
+        "line": 23
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "three-stage combinational feedback",
+    "rationale": "Three token stages form a closed path with no sequential boundary."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC10",
+      "sites": [
+        {
+          "line": 21
+        },
+        {
+          "line": 22
+        },
+        {
+          "line": 23
+        }
+      ],
+      "critical": true,
+      "note": "a -> b -> c -> a forms a combinational loop."
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC10",
+      "sites": [
+        {
+          "line": 21
+        },
+        {
+          "line": 22
+        },
+        {
+          "line": 23
+        }
+      ],
+      "critical": true,
+      "note": "The three continuous assignments form a combinational feedback cycle."
+    }
+  ],
+  "rationale": "Three token stages form a closed path with no sequential boundary.",
+  "verdict": "bad",
+  "class": "LC10",
+  "sites": [
+    {
+      "line": 21
+    },
+    {
+      "line": 22
+    },
+    {
+      "line": 23
+    }
+  ],
+  "critical": true
+}

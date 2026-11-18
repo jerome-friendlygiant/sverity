@@ -1,0 +1,28 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "origin": "authored",
+  "sites": [],
+  "sdc": [],
+  "rationale": "A same-index push and fetch in one cycle is resolved explicitly by forwarding the write data, so the read result does not depend on the memory implementation.",
+  "author": "claude-sonnet-5-5",
+  "class": "LC24",
+  "batch": "p2-lint-heldout",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "class": "LC24",
+      "sites": [],
+      "note": "The explicit bypass supplies new data for a simultaneous same-address write and fetch."
+    }
+  ]
+}

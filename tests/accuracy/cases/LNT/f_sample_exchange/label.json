@@ -1,0 +1,67 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-F (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC24",
+    "sites": [
+      {
+        "line": 18
+      },
+      {
+        "line": 21
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "opposite-polarity unrelated read clock",
+    "rationale": "A falling-edge reader and an unrelated rising-edge writer always address entry two, admitting a physical collision."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC24",
+      "sites": [
+        {
+          "line": 18
+        },
+        {
+          "line": 21
+        }
+      ],
+      "critical": true,
+      "note": "samples[2] written on clk and read on negedge aux_clk at the same constant address: structural cross-clock collision"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC24",
+      "sites": [
+        {
+          "line": 18
+        },
+        {
+          "line": 21
+        }
+      ],
+      "critical": true,
+      "note": "A fixed memory address is written and read on unrelated clock inputs."
+    }
+  ],
+  "rationale": "A falling-edge reader and an unrelated rising-edge writer always address entry two, admitting a physical collision.",
+  "verdict": "bad",
+  "class": "LC24",
+  "sites": [
+    {
+      "line": 18
+    },
+    {
+      "line": 21
+    }
+  ],
+  "critical": true
+}

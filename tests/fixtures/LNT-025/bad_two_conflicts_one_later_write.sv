@@ -1,4 +1,4 @@
-// sverity-args: --top top
+// sverity-args: --top top --option LNT-025.overrides=warning
 // c overrides a and overrides b: two conflicts to review, so two records (and two fingerprints).
 // expect-count: LNT-025 WARNING 3
 module top(input logic clk, input logic a, input logic b, input logic c, output logic [1:0] q);

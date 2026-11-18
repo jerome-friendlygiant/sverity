@@ -1,0 +1,67 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-C (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC20",
+    "sites": [
+      {
+        "line": 17
+      },
+      {
+        "line": 21
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "two write processes to one array, same clock",
+    "rationale": "regs is written by two separate always blocks (CPU and DMA ports)."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC20",
+      "sites": [
+        {
+          "line": 17
+        },
+        {
+          "line": 21
+        }
+      ],
+      "critical": true,
+      "note": "regs is written from two separate processes."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC20",
+      "sites": [
+        {
+          "line": 17
+        },
+        {
+          "line": 21
+        }
+      ],
+      "critical": true,
+      "note": "The register array is written by two separate processes (CPU and DMA ports)."
+    }
+  ],
+  "rationale": "regs is written by two separate always blocks (CPU and DMA ports).",
+  "verdict": "bad",
+  "class": "LC20",
+  "sites": [
+    {
+      "line": 17
+    },
+    {
+      "line": 21
+    }
+  ],
+  "critical": true
+}

@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-E (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC13",
+    "sites": [
+      {
+        "line": 26
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "violated priority at internally reachable selector",
+    "rationale": "The reset command state is 3, for which the priority decoder has no matching item."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC13",
+      "sites": [
+        {
+          "line": 26
+        }
+      ],
+      "critical": true,
+      "note": "priority case lacks item for command 3, which is reachable (reset value 3): priority violated"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC13",
+      "sites": [
+        {
+          "line": 26
+        }
+      ],
+      "critical": true,
+      "note": "The priority case omits command value three, which reset explicitly reaches."
+    }
+  ],
+  "rationale": "The reset command state is 3, for which the priority decoder has no matching item.",
+  "verdict": "bad",
+  "class": "LC13",
+  "sites": [
+    {
+      "line": 26
+    }
+  ],
+  "critical": true
+}

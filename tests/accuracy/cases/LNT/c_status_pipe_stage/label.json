@@ -1,0 +1,67 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-C (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "unknown",
+    "class": "LC15",
+    "sites": [
+      {
+        "line": 26
+      }
+    ],
+    "boundary": "unknown",
+    "subtype": "delay amount set by parameter",
+    "rationale": "The output assign has a delay #(TPD) with TPD default 0; whether a real delay exists depends on the instantiation override."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC15",
+      "sites": [
+        {
+          "line": 26
+        }
+      ],
+      "critical": true,
+      "note": "Continuous assignment carries a delay #(TPD) from a time parameter (zero only by default)."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC15",
+      "sites": [
+        {
+          "line": 26
+        }
+      ],
+      "critical": true,
+      "note": "Continuous assignment with a #(TPD) delay of type time, which synthesis ignores."
+    }
+  ],
+  "settlement": {
+    "by": "settler (claude-fable-5-2, third reading)",
+    "verdict": "bad",
+    "class": "LC15",
+    "sites": [
+      {
+        "line": 26
+      }
+    ],
+    "critical": true,
+    "note": "The continuous assignment carries a #(TPD) delay; the delay construct is in the file and synthesis ignores it, so the structure decides even though the default TPD is 0 and adds no time in this configuration."
+  },
+  "rationale": "The continuous assignment carries a #(TPD) delay; the delay construct is in the file and synthesis ignores it, so the structure decides even though the default TPD is 0 and adds no time in this configuration.",
+  "verdict": "bad",
+  "class": "LC15",
+  "sites": [
+    {
+      "line": 26
+    }
+  ],
+  "critical": true
+}

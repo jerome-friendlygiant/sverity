@@ -7,3 +7,5 @@ module top #(parameter int N = 4) (input logic clk, input logic [7:0] n, output 
     for (int k = 0; k < n; k++) q[k] <= 1'b0;
   end
 endmodule
+// revert: k < n => k < N
+// revert-expect-none: LNT-019

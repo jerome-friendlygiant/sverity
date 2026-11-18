@@ -1,0 +1,56 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-B (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC08",
+    "sites": [
+      {
+        "line": 47
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "input port connected empty",
+    "rationale": "Instance u_sr connects the load input of shift_reg8 with an empty connection, so the input floats (z) and the byte is never loaded from tx_byte."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC08",
+      "sites": [
+        {
+          "line": 47
+        }
+      ],
+      "critical": true,
+      "note": "Input load of u_sr is connected empty, so the shifter never loads tx_byte defined."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC08",
+      "sites": [
+        {
+          "line": 47
+        }
+      ],
+      "critical": true,
+      "note": "The load input of u_sr is connected empty, leaving it undriven.",
+      "other": "LC09 line 33 (load_pulse never used; parallel load never happens)"
+    }
+  ],
+  "rationale": "Instance u_sr connects the load input of shift_reg8 with an empty connection, so the input floats (z) and the byte is never loaded from tx_byte.",
+  "verdict": "bad",
+  "class": "LC08",
+  "sites": [
+    {
+      "line": 47
+    }
+  ],
+  "critical": true
+}

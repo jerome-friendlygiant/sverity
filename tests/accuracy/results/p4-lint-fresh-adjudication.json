@@ -1,0 +1,43 @@
+{
+ "schema": "sverity-label-adjudication/1",
+ "batch": "p4-lint-fresh",
+ "note": "Adjudications after the first score (which stays as measured). Both cases were labelled bad LC20 by the author and both blind readers and are judged good by the independent judge (gpt-6.1-sol): a fully assigned combinational array with disjoint writers is combinational logic, not an LC20 memory defect. Both favour the tool. AI decisions, not human sign-off. Each entry is keyed family/case and states the reading the case was settled at (was) and the final reading (now).",
+ "cases": [
+  {
+   "case": "LNT/f_routing_map",
+   "was": {
+    "verdict": "bad",
+    "class": "LC20",
+    "critical": true
+   },
+   "now": {
+    "verdict": "good",
+    "class": "LC20",
+    "critical": false,
+    "sites": []
+   },
+   "reason": "LC20 is a hardware-defect class about a memory with conflicting or non-clocked state writers, not a ban on unpacked-array syntax. The constant-bound loop assigns all four complete words on every activation using blocking assignments, with one writer per word and no feedback or retained value; each routes word equals a ^ b and y selects that combinational value. There is no memory state, latch or conflicting driver to which the LC20 defect applies, so the non-clocked-process syntax alone cannot justify a critical bad label. An independent Icarus simulation passed all 262144 two-state combinations of a, b and addr; the no-state conclusion comes from complete-assignment analysis, not merely the passing simulation. INFO advice is reasonable, although the current message claiming latches/registers is inaccurate for this RTL.",
+   "decided_by": "judge (gpt-6.1-sol, independent adjudication)",
+   "date": "2026-11-17",
+   "readings_sha256": "8732a740bdb5afb96ce597e4e6aa464b315a267a6a449ac5a89a9ab759278e48"
+  },
+  {
+   "case": "LNT/f_trim_bank",
+   "was": {
+    "verdict": "bad",
+    "class": "LC20",
+    "critical": true
+   },
+   "now": {
+    "verdict": "good",
+    "class": "LC20",
+    "critical": false,
+    "sites": []
+   },
+   "reason": "Elaboration creates four unconditional combinational assignments, each to a distinct complete trim element. The processes do not overlap, every word always equals a & b, and the dynamic read is a combinational selection with no retained state; several processes writing disjoint elements are not several writers of the same storage. As a hardware-defect class, LC20 does not make this wire bundle into defective memory merely because it uses an unpacked array. An independent Icarus simulation passed all 262144 two-state combinations of a, b and addr; complete, disjoint assignments establish the absence of storage and driver conflict. The final label is good LC20, with no defect sites and critical false.",
+   "decided_by": "judge (gpt-6.1-sol, independent adjudication)",
+   "date": "2026-11-17",
+   "readings_sha256": "850787a5dd13a845b8247504c186cdb1a6b7c1159dfae01e86b532d5525d7b49"
+  }
+ ]
+}

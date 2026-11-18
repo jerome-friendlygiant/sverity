@@ -129,18 +129,24 @@ invent a severity where semantics are undetermined.
   (`-Wno-*`, suppress-warnings options, `--waiver-file`, `pragma diagnostic`, error limits, options hidden in filelists) is
   detected and recorded as a coverage gap or warning. All slang warnings are enabled by default (`-Weverything`).
 - **Dispositions:** `OPEN`, `REVIEW_REQUIRED`, `RESOLVED`, `WAIVED`, with optional reviewer decision/comment; a review decision
-  is not a formal proof.
+  is not a formal proof. An Unresolved lint finding is `OBLIGATION` (its rule declares the undecidable question in the catalog) or
+  `NOT_ANALYSED` (the tool gave up on a construct); neither sets the review bit under the default exit policy, both are counted
+  in every summary.
 - **No misleading green summary.** Report counts of executed/partial/disabled/unimplemented rules and evaluated design objects.
 
 **Three orthogonal result dimensions** (never collapsed into one pass/fail):
 
 - `execution_status`: `SUCCESS` | `ERROR` (the tool could/could not run as expected; a FATAL, e.g. an elaboration failure, is `ERROR`).
-- `analysis_coverage`: `COMPLETE` | `INCOMPLETE` (advertised checks and model assumptions adequately evaluated). Any rule that is
-  partial, unimplemented, disabled or failed makes it `INCOMPLETE`.
+- `analysis_coverage`: `COMPLETE` | `INCOMPLETE` (advertised checks and model assumptions adequately evaluated on this run). A loss
+  specific to the run makes it `INCOMPLETE`: elaboration errors, unreadable or missing constraints, a rule that failed, did not run
+  or ran degraded. A rule that is partial or unimplemented in the tool version is a tool-coverage statement (`N/M rules complete`),
+  and a rule the user disabled is listed as disabled; under `--exit-policy strict` both also make it `INCOMPLETE`.
 - `review_status`: `PASS` | `REVIEW_REQUIRED` | `FAIL` (no open issues / unresolved warnings / unwaived ERROR or FATAL).
 
-**Exit code** (bit mask, strict policy): 1 = `FAIL`, 2 = `REVIEW_REQUIRED`, 4 = `INCOMPLETE`, 8 = execution `ERROR`, 64 = usage
-error. `--exit-policy violations` keeps only bits 1 and 8. The full disposition is always in the report.
+**Exit code** (bit mask, `gate` policy by default): 1 = `FAIL`, 2 = `REVIEW_REQUIRED`, 4 = `INCOMPLETE`, 8 = execution `ERROR`, 64 = usage
+error. `gate` leaves obligations and not-analysed findings out of bit 2 (they block when new against `--baseline`); `strict` counts
+them and every partial, unimplemented or disabled rule; `--exit-policy violations` keeps only bits 1 and 8. The full
+disposition is always in the report.
 
 **Output formats.** JSON is canonical and deterministic (paths relative to `--root`, stable fingerprints, valid UTF-8). SARIF
 maps FATAL/ERROR → `error`, WARNING → `warning`, INFO → `note`, with exact severity, disposition, confidence and proof state in

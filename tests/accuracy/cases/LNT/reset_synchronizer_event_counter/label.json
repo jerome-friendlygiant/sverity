@@ -1,0 +1,35 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "origin": "adapted",
+  "sites": [],
+  "sdc": [],
+  "rationale": "The counter's asynchronous reset is the output of a flop chain asserted asynchronously and released synchronously, a standard reset-synchronizer; no data signal drives a reset or clock.",
+  "author": "claude-sonnet-5-5",
+  "provenance": {
+    "repository": "verilog-axis",
+    "commit": "48ff7a7e2ef782cf778d47910cf85835c64b1bce",
+    "path": "rtl/sync_reset.v",
+    "licence": "MIT",
+    "adaptation": "Converted to SystemVerilog and built the surrounding logic around the two-flop reset synchronizer."
+  },
+  "class": "LC17",
+  "batch": "p2-lint-heldout",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "class": "LC17",
+      "sites": [],
+      "note": "The reset synchronizer asserts asynchronously and releases through clocked stages."
+    }
+  ]
+}

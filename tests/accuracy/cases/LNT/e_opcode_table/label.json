@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-E (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC11",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "complete function result",
+    "rationale": "Both function paths assign the whole result."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC11",
+      "sites": [],
+      "critical": false,
+      "note": "Function output assigned on both branches."
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "good",
+      "class": "LC11",
+      "sites": [],
+      "critical": false,
+      "note": "The function result is assigned in both branches of its conditional."
+    }
+  ],
+  "rationale": "Both function paths assign the whole result.",
+  "verdict": "good",
+  "class": "LC11",
+  "sites": [],
+  "critical": false
+}

@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-A (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC02",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "addition carried in a wider intermediate",
+    "rationale": "Both operands are zero-extended to 9 bits before the add and the average takes bits [8:1], so the carry is kept."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "good",
+      "class": "LC02",
+      "sites": [],
+      "critical": false,
+      "note": "Sum is formed in 9 bits and the upper 8 bits are taken explicitly."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC02",
+      "sites": [],
+      "critical": false,
+      "note": "The 9-bit sum keeps the carry and [8:1] is the full-precision average."
+    }
+  ],
+  "rationale": "Both operands are zero-extended to 9 bits before the add and the average takes bits [8:1], so the carry is kept.",
+  "verdict": "good",
+  "class": "LC02",
+  "sites": [],
+  "critical": false
+}

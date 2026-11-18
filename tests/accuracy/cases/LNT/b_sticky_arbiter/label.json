@@ -1,0 +1,91 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-B (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC10",
+    "sites": [
+      {
+        "line": 13
+      },
+      {
+        "line": 14
+      },
+      {
+        "line": 24
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "loop through a vector feeding an always_comb pick function back into its own mask",
+    "rationale": "grant feeds blocked, which feeds eligible and pick, which drives grant: a combinational cycle that holds grants like a latch."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC10",
+      "sites": [
+        {
+          "line": 13
+        }
+      ],
+      "critical": true,
+      "note": "grant -> blocked -> eligible -> pick -> grant is a combinational loop."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC10",
+      "sites": [
+        {
+          "line": 13
+        }
+      ],
+      "critical": true,
+      "note": "grant feeds blocked, eligible and pick, and pick drives grant: a combinational loop."
+    }
+  ],
+  "settlement": {
+    "by": "settler (claude-fable-5-2, third reading)",
+    "verdict": "bad",
+    "class": "LC10",
+    "sites": [
+      {
+        "line": 13
+      },
+      {
+        "line": 14
+      },
+      {
+        "line": 20
+      },
+      {
+        "line": 24
+      }
+    ],
+    "critical": true,
+    "note": "grant -> blocked (13) -> eligible (14) -> pick (the if at 20-21 in always_comb) -> grant (24) is a combinational loop."
+  },
+  "rationale": "grant -> blocked (13) -> eligible (14) -> pick (the if at 20-21 in always_comb) -> grant (24) is a combinational loop.",
+  "verdict": "bad",
+  "class": "LC10",
+  "sites": [
+    {
+      "line": 13
+    },
+    {
+      "line": 14
+    },
+    {
+      "line": 20
+    },
+    {
+      "line": 24
+    }
+  ],
+  "critical": true
+}

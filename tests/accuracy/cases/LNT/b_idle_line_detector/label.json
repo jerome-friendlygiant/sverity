@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-B (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC14",
+    "sites": [
+      {
+        "line": 18
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "Z compared as a condition",
+    "rationale": "line_in === 1'bz is used as a condition; hardware has no Z level on an input."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC14",
+      "sites": [
+        {
+          "line": 18
+        }
+      ],
+      "critical": true,
+      "note": "Design logic tests line_in === 1'bz."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC14",
+      "sites": [
+        {
+          "line": 18
+        }
+      ],
+      "critical": true,
+      "note": "line_in === 1'bz compares with Z, which hardware cannot detect."
+    }
+  ],
+  "rationale": "line_in === 1'bz is used as a condition; hardware has no Z level on an input.",
+  "verdict": "bad",
+  "class": "LC14",
+  "sites": [
+    {
+      "line": 18
+    }
+  ],
+  "critical": true
+}

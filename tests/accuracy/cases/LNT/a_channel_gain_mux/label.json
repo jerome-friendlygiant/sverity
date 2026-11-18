@@ -1,0 +1,67 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-A (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "unknown",
+    "class": "LC04",
+    "sites": [
+      {
+        "line": 26
+      }
+    ],
+    "boundary": "unknown",
+    "subtype": "index from an input with no stated range",
+    "rationale": "ch_sel is a 3-bit input addressing five gain registers; whether values 5..7 can occur depends on the driver of the port, which this file does not show."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC04",
+      "sites": [
+        {
+          "line": 26
+        }
+      ],
+      "critical": true,
+      "note": "3-bit ch_sel indexes the 5-entry gain_q without a range guard, so values 5-7 read out of range."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC04",
+      "sites": [
+        {
+          "line": 26
+        }
+      ],
+      "critical": true,
+      "note": "ch_sel is 3 bits but gain_q has 5 entries; ch_sel values 5-7 index past the array."
+    }
+  ],
+  "settlement": {
+    "by": "settler (claude-fable-5-2, third reading)",
+    "verdict": "unknown",
+    "class": "LC04",
+    "sites": [
+      {
+        "line": 26
+      }
+    ],
+    "critical": true,
+    "note": "3-bit ch_sel indexes the 5-entry gain_q without a guard; values 5-7 are out of range, but whether they occur depends on an unconstrained input port (index-range value class)."
+  },
+  "rationale": "3-bit ch_sel indexes the 5-entry gain_q without a guard; values 5-7 are out of range, but whether they occur depends on an unconstrained input port (index-range value class).",
+  "verdict": "unknown",
+  "class": "LC04",
+  "sites": [
+    {
+      "line": 26
+    }
+  ],
+  "critical": true
+}

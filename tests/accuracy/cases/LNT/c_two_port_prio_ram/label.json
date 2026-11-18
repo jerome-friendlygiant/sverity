@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-C (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC20",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "two write ports in a single clocked process",
+    "rationale": "Both ports write in one always_ff with defined ordering, a single writer process."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "good",
+      "class": "LC20",
+      "sites": [],
+      "critical": false,
+      "note": "Both write ports are in one clocked process with defined last-write precedence; a single clocked writer."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC20",
+      "sites": [],
+      "critical": false,
+      "note": "Both write ports are in one clocked process with defined precedence (port B last wins); one clocked writer."
+    }
+  ],
+  "rationale": "Both ports write in one always_ff with defined ordering, a single writer process.",
+  "verdict": "good",
+  "class": "LC20",
+  "sites": [],
+  "critical": false
+}

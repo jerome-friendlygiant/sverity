@@ -4,6 +4,7 @@
 #pragma once
 #include <set>
 #include <string>
+#include <type_traits>
 #include <unordered_set>
 #include <vector>
 
@@ -34,6 +35,7 @@ struct LintOpts {
     std::string groupingUnit;
     uint32_t groupingProcedureOrdinal = 0;
     std::string identityKey;
+    std::string obligation;   // obligation predicate id declared in the catalog (see Diagnostic::obligation)
 };
 
 /// Per-run helper: location conversion, user-code filter and finding construction.
@@ -41,14 +43,19 @@ class Lint {
 public:
     using Opts = LintOpts;
     Lint(RuleContext& ctx, std::string ruleId) : ctx_(ctx), id_(std::move(ruleId)), sm_(*ctx.design.compilation->getSourceManager()) {
+        // Every source file of a non-library tree: with --single-unit one tree holds all of them.
         for (const auto& t : ctx.design.compilation->getSyntaxTrees())
-            if (t && !t->isLibraryUnit) userBuffers_.insert(t->root().sourceRange().start().buffer().getId());
+            if (t && !t->isLibraryUnit) {
+                userBuffers_.insert(t->root().sourceRange().start().buffer().getId());
+                for (auto id : t->getSourceBufferIds()) userBuffers_.insert(id.getId());
+            }
     }
 
-    /// True when the location lies in a user source file (library units and unknown locations are excluded).
+    /// True when the use site of the location lies in a user source file (library units and unknown locations are excluded).
+    /// A macro's use site decides: a macro from a library header used in user code is user code, and the reverse is not.
     bool isUser(slang::SourceLocation l) const {
         if (!l.valid()) return false;
-        l = sm_.getFullyOriginalLoc(l);
+        l = sm_.getFullyExpandedLoc(l);
         return userBuffers_.count(l.buffer().getId()) != 0;
     }
     void count(uint64_t n = 1) { ctx_.objectsEvaluated += n; }
@@ -63,18 +70,52 @@ public:
         slang::ast::EvalContext ec(ac);
         return e.eval(ec);
     }
+    /// As evalConst, and a hierarchical reference to a parameter or enum value folds too. slang refuses such a reference in a
+    /// constant expression (CompilationFlags::AllowHierarchicalConst), but the value read here is the elaborated one, and
+    /// ConfigParam is the context flag that lifts that refusal for slang's own config-parameter evaluation. Used where a rule
+    /// needs the bits a select of a hierarchical constant holds.
+    slang::ConstantValue evalElaborated(const slang::ast::Expression& e) const {
+        slang::ast::ASTContext ac(ctx_.design.compilation->getRoot(), slang::ast::LookupLocation::max, slang::ast::ASTFlags::ConfigParam);
+        slang::ast::EvalContext ec(ac);
+        return e.eval(ec);
+    }
 
 
-    /// Adds a finding at `at`. Findings in library units are dropped by isUser(), never by severity.
-    void report(slang::SourceLocation at, std::string message, LintOpts o = {}) {
+    /// Visits the elaborated design with `v`: every root member except instance bodies slang elaborated only for
+    /// diagnostics (an unreferenced definition, flagged Uninstantiated). Those are not hardware of this run and are only
+    /// partly bound, so a finding there would describe nothing.
+    template <typename V>
+    void visitHardware(V& v) const {
+        for (const auto& member : compilation().getRoot().members()) {
+            if (const auto* inst = member.as_if<slang::ast::InstanceSymbol>();
+                inst && inst->body.flags.has(slang::ast::InstanceFlags::Uninstantiated))
+                continue;
+            member.visit(v);
+        }
+    }
+    /// A SVerity location for a slang one (empty when it has no file). A construct written by a macro is located at the
+    /// macro's use site, so each use is its own finding; the macro body is kept as evidence by report().
+    SourceLocation loc(slang::SourceLocation at) const {
         SourceLocation loc;
-        slang::SourceLocation l = sm_.getFullyOriginalLoc(at);
+        slang::SourceLocation l = sm_.getFullyExpandedLoc(at);
         if (l.valid()) {
             loc.file = sm_.getFullPath(l.buffer()).generic_string();
             loc.line = static_cast<uint32_t>(sm_.getLineNumber(l));
             loc.column = static_cast<uint32_t>(sm_.getColumnNumber(l));
         }
-        reportAt(std::move(loc), std::move(message), std::move(o));
+        return loc;
+    }
+    /// Adds a finding at `at`. Findings in library units are dropped by isUser(), never by severity. A construct written in a
+    /// macro body keeps the body's location as evidence ("macro_definition"); a macro argument is user text, not a body.
+    void report(slang::SourceLocation at, std::string message, LintOpts o = {}) {
+        if (sm_.isMacroLoc(at) && !sm_.isMacroArgLoc(at)) {
+            slang::SourceLocation body = sm_.getFullyOriginalLoc(at);
+            if (body.valid() && body != sm_.getFullyExpandedLoc(at)) {
+                std::string name(sm_.getMacroName(at));
+                o.evidence.push_back({"macro_definition", name.empty() ? "construct written in a macro" : "construct written by macro '" + name + "'", loc(body)});
+            }
+        }
+        reportAt(loc(at), std::move(message), std::move(o));
     }
     /// Same, for a location that is already a SVerity location (e.g. from the shared model).
     void reportAt(SourceLocation loc, std::string message, LintOpts o = {}) {
@@ -85,6 +126,7 @@ public:
         d.proofState = o.proof;
         d.message = std::move(message);
         d.identityKey = std::move(o.identityKey);
+        d.obligation = std::move(o.obligation);
         d.nextStep = std::move(o.nextStep);
         d.hierarchy = std::move(o.hierarchy);
         d.signals = std::move(o.signals);
@@ -139,12 +181,37 @@ protected:
     template <typename V, typename... Args>
     static void visitDesign(Lint& lint, Args&&... args) {
         V v(lint, std::forward<Args>(args)...);
-        lint.compilation().getRoot().visit(v);
+        lint.visitHardware(v);
     }
 
 private:
     std::string id_, gap_;
     bool upstream_;
+};
+
+/// AST visitor for semantic lint checks. Slang visits inactive generate scopes by default so
+/// tools can inventory them (LNT-051). Ordinary semantic checks must ignore those scopes,
+/// including nested scopes whose own flag may look active but whose ancestor is inactive.
+template <typename Derived, VisitFlags Flags = VisitFlags::AllCanonical>
+class HardwareVisitor : public slang::ast::ASTVisitor<Derived, Flags> {
+public:
+    template <typename T>
+    void visit(const T& node) {
+        if constexpr (std::is_base_of_v<slang::ast::Scope, T>) {
+            if (inactive(&static_cast<const slang::ast::Scope&>(node))) return;
+        }
+        else if constexpr (std::is_base_of_v<slang::ast::Symbol, T>) {
+            if (inactive(node.getParentScope())) return;
+        }
+        slang::ast::ASTVisitor<Derived, Flags>::visit(node);
+    }
+
+private:
+    static bool inactive(const slang::ast::Scope* scope) {
+        for (; scope; scope = scope->asSymbol().getParentScope())
+            if (scope->isUninstantiated()) return true;
+        return false;
+    }
 };
 
 
@@ -173,8 +240,20 @@ inline void lvalueSymbols(const slang::ast::Expression& e, std::vector<const sla
         case ExpressionKind::Concatenation:
             for (auto* op : e.as<slang::ast::ConcatenationExpression>().operands()) lvalueSymbols(*op, out);
             return;
+        case ExpressionKind::MemberAccess:
+            lvalueSymbols(e.as<slang::ast::MemberAccessExpression>().value(), out);
+            return;
+        case ExpressionKind::ElementSelect:
+            lvalueSymbols(e.as<slang::ast::ElementSelectExpression>().value(), out);
+            return;
+        case ExpressionKind::RangeSelect:
+            lvalueSymbols(e.as<slang::ast::RangeSelectExpression>().value(), out);
+            return;
         case ExpressionKind::Conversion:
             lvalueSymbols(e.as<slang::ast::ConversionExpression>().operand(), out);
+            return;
+        case ExpressionKind::Streaming:   // `{<<{r}} = d`: every stream operand is a target
+            for (const auto& stream : e.as<slang::ast::StreamingConcatenationExpression>().streams()) lvalueSymbols(*stream.operand, out);
             return;
         default:
             if (auto* s = e.getSymbolReference()) out.push_back(s);
@@ -199,12 +278,43 @@ struct Assigns : slang::ast::ASTVisitor<Assigns, VisitFlags::AllGood> {
 /// index expressions are.
 struct Reads : slang::ast::ASTVisitor<Reads, VisitFlags::AllGood> {
     std::set<const slang::ast::Symbol*> syms;
-    std::vector<const slang::ast::NamedValueExpression*> refs;
+    std::vector<const slang::ast::Expression*> refs;
     void handle(const slang::ast::NamedValueExpression& e) {
         if (auto* s = e.getSymbolReference()) { syms.insert(s); refs.push_back(&e); }
     }
+    void handle(const slang::ast::HierarchicalValueExpression& e) {
+        if (auto* s = e.getSymbolReference()) { syms.insert(s); refs.push_back(&e); }
+    }
+    void targetReads(const slang::ast::Expression& e) {
+        using namespace slang::ast;
+        switch (e.kind) {
+            case ExpressionKind::NamedValue:
+            case ExpressionKind::HierarchicalValue: return;
+            case ExpressionKind::ElementSelect: {
+                const auto& select = e.as<ElementSelectExpression>();
+                targetReads(select.value());
+                select.selector().visit(*this);
+                return;
+            }
+            case ExpressionKind::RangeSelect: {
+                const auto& select = e.as<RangeSelectExpression>();
+                targetReads(select.value());
+                select.left().visit(*this);
+                select.right().visit(*this);
+                return;
+            }
+            case ExpressionKind::MemberAccess:
+                targetReads(e.as<MemberAccessExpression>().value());
+                return;
+            case ExpressionKind::Concatenation:
+                for (auto* operand : e.as<ConcatenationExpression>().operands()) targetReads(*operand);
+                return;
+            default: e.visit(*this); return; // Unclassified targets conservatively retain their reads.
+        }
+    }
     void handle(const slang::ast::AssignmentExpression& a) {
-        if (a.isCompound() || a.left().kind != slang::ast::ExpressionKind::NamedValue) a.left().visit(*this);
+        if (a.isCompound()) a.left().visit(*this);
+        else targetReads(a.left());
         a.right().visit(*this);
     }
 };

@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-E (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC15",
+    "sites": [
+      {
+        "line": 24
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "simulation system task in design",
+    "rationale": "The clocked display creates a simulation side effect that ASIC hardware cannot implement."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC15",
+      "sites": [
+        {
+          "line": 24
+        }
+      ],
+      "critical": true,
+      "note": "$display system task inside design logic."
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC15",
+      "sites": [
+        {
+          "line": 24
+        }
+      ],
+      "critical": true,
+      "note": "The display system task is simulation-only design logic."
+    }
+  ],
+  "rationale": "The clocked display creates a simulation side effect that ASIC hardware cannot implement.",
+  "verdict": "bad",
+  "class": "LC15",
+  "sites": [
+    {
+      "line": 24
+    }
+  ],
+  "critical": true
+}

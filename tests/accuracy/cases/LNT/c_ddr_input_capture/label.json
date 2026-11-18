@@ -1,0 +1,61 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-C (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC17",
+    "sites": [
+      {
+        "line": 19
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "both edges of one clock",
+    "rationale": "Registers are clocked on posedge and negedge of clk."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC17",
+      "sites": [
+        {
+          "line": 19
+        }
+      ],
+      "critical": true,
+      "note": "Flops are clocked on both edges of clk (negedge block alongside posedge blocks)."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC17",
+      "sites": [
+        {
+          "line": 19
+        }
+      ],
+      "critical": true,
+      "note": "The same clock is used on both its rising and falling edges (DDR capture with posedge and negedge flops)."
+    }
+  ],
+  "rationale": "Registers are clocked on posedge and negedge of clk.",
+  "verdict": "good",
+  "class": "LC17",
+  "sites": [],
+  "critical": false,
+  "adjudication": {
+    "by": "maintainer delegate, policy decision after the score (LC17 narrowed)",
+    "was": {
+      "verdict": "bad",
+      "class": "LC17",
+      "critical": true
+    },
+    "reason": "LC17 narrowed: two registers on opposite edges of one clock build as written; one register on both edges stays critical",
+    "record": "tests/accuracy/results/p3-lint-fresh-adjudication.json"
+  }
+}

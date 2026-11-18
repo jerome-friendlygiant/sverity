@@ -1,0 +1,46 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "countdown register is written with a blocking assignment inside a clocked block while its peers use nonblocking",
+  "sites": [
+    {
+      "line": 53,
+      "signal": "cnt_q"
+    }
+  ],
+  "sdc": [],
+  "rationale": "cnt_q is state updated with = in the clocked block, so readers of cnt_q (is_zero_o, cnt_d, the mask/lfsr update on the same edge) can observe the new value in the same time step: simulation order-dependent and unlike the flop hardware.",
+  "author": "claude-sonnet-5-5",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_exp_backoff.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Expanded the register macros into one clocked block and removed the assertions."
+  },
+  "class": "LC12",
+  "batch": "p2-lint-heldout",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "class": "LC12",
+      "sites": [
+        {
+          "line": 53,
+          "signal": "cnt_q"
+        }
+      ],
+      "note": "A blocking state update can race other clocked processes."
+    }
+  ]
+}

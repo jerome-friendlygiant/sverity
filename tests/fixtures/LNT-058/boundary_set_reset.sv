@@ -6,3 +6,4 @@ module top(input logic clk, rst_n, set_n, a, output logic q);
     else if (!set_n) q <= 1'b1;
     else q <= a;
 endmodule
+// expect-none: LNT-022

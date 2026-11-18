@@ -13,7 +13,8 @@
 // supplies the lattice (reaching-definition sets per bit interval). The per-interval representation follows the idea used by
 // slang's DataFlowAnalysis and by slang-netlist's ValueTracker (interval maps rather than per-bit arrays, union at joins; MIT);
 // nothing is copied. Documented limits (a rule must treat them as "unknown", never "safe"):
-//   * loops are walked once: a value written late in a loop body and read early in the next iteration is not seen (`inLoop`),
+//   * a loop that is not unrolled (`for` with a run-time bound, `while`, a `foreach` with dynamic dimensions or a jump, ...) is walked once: a value written late in a loop body and
+//     read early in the next iteration is not seen (`inLoop`, `walkedOnce`),
 //   * a call to a user subroutine and any timing control inside the body are opaque (`opaque`): every live write counts as used,
 //   * blocking writes update what later reads see; nonblocking writes only the final value (reads still see the old value).
 #pragma once
@@ -31,7 +32,9 @@ class SubroutineSymbol;
 class Symbol;
 class ValueSymbol;
 class Expression;
+class CallExpression;
 class AssignmentExpression;
+class UnaryExpression;
 class Statement;
 class EvalContext;
 } // namespace slang::ast
@@ -57,13 +60,22 @@ struct Access {
     bool compound = false;        // write: compound assignment (the target is also read, as a separate Read access)
     bool local = false;           // the symbol is declared inside the procedure (not module state)
     bool inLoop = false;          // under a loop body that is walked once (not unrolled)
+    bool inWalkedLoop = false;    // inside a loop that is walked once, not followed through its iterations
     const slang::ast::AssignmentExpression* asg = nullptr;   // the assignment (write) or innermost assignment holding the read
+    const slang::ast::UnaryExpression* step = nullptr;       // the ++ / -- that made this read and write of its operand (both carry it)
     slang::SourceLocation loc;
     const GuardList* guards = nullptr;   // never null after analysis; the procedure root has an empty list
 
     // ---- results, reads
     bool entryMaybe = false;      // the value from before the procedure can be the one read, on at least one path
     bool entryOnly = false;       // ... on every path
+    bool entryHard = false;       // some bit of the read can still hold the entry value although no write that could fill it is there: no run-time-indexed write and no write in a walked-once loop reaches that bit on the way
+    /// The bits of a read that can still hold the entry value, with how sure that is: Sole (the entry value is the only one that
+    /// reaches them), Some (it reaches them on some paths, the other writes being exact), Unsure (a run-time-indexed write or a write in a
+    /// loop that is not followed may have filled them).
+    enum class Entry : uint8_t { Sole, Some, Unsure };
+    struct EntrySeg { Range range; Entry kind; };
+    std::vector<EntrySeg> entrySegs;
     std::vector<uint32_t> reaching;   // indices (into Flow::accesses) of the writes that can supply the value
 
     // ---- results, writes
@@ -98,9 +110,24 @@ public:
     bool timing = false;              // ... specifically a mid-body timing control: other processes can run inside this activation
     bool bad = false;                 // slang could not analyse (invalid statement); results are incomplete
     bool approximated = false;        // a `continue`, or a case whose items cannot all match, makes the path analysis approximate: absence of a latch or of a write is not proven
+    bool truncated = false;           // a `for` loop was not unrolled (also sets `approximated`): over the procedure's budget, a bound that is not constant, a counter the body writes, an unsupported shape. It was walked once with its counter unknown, so what is unassigned at the end may be assigned there
+    bool overBudget = false;          // a loop beyond the unrolling budget was walked once: which accesses it covers is not recorded (`touchedInWalkedLoop` cannot tell)
+    bool pathsDropped = false;        // a `continue` or a case that cannot match dropped paths of the walk (also sets `approximated`): what is absent from the end state is not proven absent
+    bool walkedOnce = false;          // some loop was walked once, not followed through its iterations (a `for` loop that is not unrolled, `while`, `do`, `repeat`, `forever`, a `foreach` that is not followed): a read, or what is unassigned, may depend on an iteration the walk did not see
 
+    /// True when some access to `sym` (a read or a write) lies inside a loop that was walked once: only then can that approximation
+    /// change what the walk concludes about `sym`. Always true after `overBudget`.
+    bool touchedInWalkedLoop(const slang::ast::ValueSymbol& sym) const {
+        if (overBudget) return true;
+        for (const auto& a : accesses)
+            if (a.sym == &sym && a.inWalkedLoop) return true;
+        return false;
+    }
     /// Bit ranges of `sym` whose final value can still be the entry value (not written on every path). Empty = definitely assigned.
     std::vector<Range> unassignedAtEnd(const slang::ast::ValueSymbol& sym) const;
+    /// Bit ranges of `sym` that a read made by the user call `call` (its body, not its arguments) can still see at their value from
+    /// before the procedure. The whole symbol when the call was not reached or `sym` was not written before it.
+    std::vector<Range> entryRangesAtCall(const slang::ast::CallExpression& call, const slang::ast::ValueSymbol& sym) const;
     /// Every symbol written anywhere in the procedure, in first-write order.
     std::vector<const slang::ast::ValueSymbol*> writtenSymbols() const;
     /// True when the two accesses can never execute in the same activation (structurally exclusive guards).

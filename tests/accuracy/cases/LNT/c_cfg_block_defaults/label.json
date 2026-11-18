@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-C (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC16",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "constant struct and constant-expression reset values, active-high reset",
+    "rationale": "Reset values are localparam constants and the edge matches the active-high test."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "good",
+      "class": "LC16",
+      "sites": [],
+      "critical": false,
+      "note": "Reset polarity matches posedge rst and both reset values are elaboration-time constants."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC16",
+      "sites": [],
+      "critical": false,
+      "note": "posedge rst with if (rst) matches polarity; reset values are constants."
+    }
+  ],
+  "rationale": "Reset values are localparam constants and the edge matches the active-high test.",
+  "verdict": "good",
+  "class": "LC16",
+  "sites": [],
+  "critical": false
+}

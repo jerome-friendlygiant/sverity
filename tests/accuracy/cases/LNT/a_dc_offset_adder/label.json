@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-A (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC03",
+    "sites": [
+      {
+        "line": 20
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "signed operand zero-extended by an unsigned partner",
+    "rationale": "sample_s + offset_u is an unsigned expression, so the signed sample is zero-extended to 16 bits and negative samples become large positive values."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC03",
+      "sites": [
+        {
+          "line": 20
+        }
+      ],
+      "critical": true,
+      "note": "signed sample_s added to unsigned offset_u makes the expression unsigned, so sample_s is zero-extended to 16 bits and negative samples give a wrong result."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC03",
+      "sites": [
+        {
+          "line": 20
+        }
+      ],
+      "critical": true,
+      "note": "sample_s + offset_u mixes signed and unsigned, so the expression is unsigned and the negative sample is zero-extended to 16 bits."
+    }
+  ],
+  "rationale": "sample_s + offset_u is an unsigned expression, so the signed sample is zero-extended to 16 bits and negative samples become large positive values.",
+  "verdict": "bad",
+  "class": "LC03",
+  "sites": [
+    {
+      "line": 20
+    }
+  ],
+  "critical": true
+}

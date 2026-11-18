@@ -1,0 +1,24 @@
+{
+  "note": "Proposed lint workflow budgets (docs/rules/LINT_WORKFLOW.md#budgets), fixed before the held-out batch is scored. Awaiting maintainer decision.",
+  "class_contracts": {
+    "LC24": {
+      "contract": "disclosure",
+      "reason": "Memory read behaviour that depends on the implementation (read during write, read port style) is not analysed: docs/rules/LINT_WORKFLOW.md says 'disclosed, not decided'. The class counts as covered when every labelled bad case of it is disclosed (found, Unresolved or an obligation) and none is missed or silent.",
+      "approved_by": "maintainer"
+    }
+  },
+  "families": {
+    "LNT": {
+      "max_missed_rate": 0.05,
+      "max_false_error_rate": 0.0,
+      "max_false_alarm_rate": 0.1,
+      "max_unresolved_bad_rate": 0.1,
+      "max_unresolved_good_rate": 0.1,
+      "max_review_good_rate": 0.1,
+      "max_silent_unknown": 0,
+      "max_critical_classes_undetected": 0,
+      "max_not_analysed_good_rate": 0.1,
+      "max_critical_nongating_only": 0
+    }
+  }
+}

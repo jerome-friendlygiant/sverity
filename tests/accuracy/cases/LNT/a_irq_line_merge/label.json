@@ -1,0 +1,79 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-A (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC07",
+    "sites": [
+      {
+        "line": 39
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "net driven by an instance output and a continuous assignment",
+    "rationale": "irq_w is the output of u_src and is also the target of an assign, giving the one-bit wire two drivers that conflict when they disagree."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC07",
+      "sites": [
+        {
+          "line": 36
+        },
+        {
+          "line": 39
+        }
+      ],
+      "critical": true,
+      "note": "irq_w is driven both by the u_src irq_o output and by 'assign irq_w = ev_b'."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC07",
+      "sites": [
+        {
+          "line": 36
+        },
+        {
+          "line": 39
+        }
+      ],
+      "critical": true,
+      "note": "irq_w is driven both by u_src.irq_o and by assign irq_w = ev_b."
+    }
+  ],
+  "settlement": {
+    "by": "settler (claude-fable-5-2, third reading)",
+    "verdict": "bad",
+    "class": "LC07",
+    "sites": [
+      {
+        "line": 36
+      },
+      {
+        "line": 39
+      }
+    ],
+    "critical": true,
+    "note": "Wire irq_w is driven by the irq_o output of u_src (line 36) and by a continuous assignment from ev_b (line 39)."
+  },
+  "rationale": "Wire irq_w is driven by the irq_o output of u_src (line 36) and by a continuous assignment from ev_b (line 39).",
+  "verdict": "bad",
+  "class": "LC07",
+  "sites": [
+    {
+      "line": 36
+    },
+    {
+      "line": 39
+    }
+  ],
+  "critical": true
+}

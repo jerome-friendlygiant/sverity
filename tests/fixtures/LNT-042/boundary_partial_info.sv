@@ -1,5 +1,5 @@
 // sverity-args: --top top
-// expect: LNT-042 INFO 8
+// expect: LNT-042 WARNING 8
 module leaf(input logic a, output logic [1:0] o);
   assign o = {a, a};
 endmodule
@@ -8,3 +8,5 @@ module top(input logic a, output logic y);
   leaf u (.a(a), .o(w[1:0]));
   assign y = w[0];
 endmodule
+// revert: assign y = w[0]; => assign w[3:2] = 0; assign y = w[0];
+// revert-expect-none: LNT-042

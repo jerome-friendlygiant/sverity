@@ -1,0 +1,69 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-C (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC25",
+    "sites": [
+      {
+        "line": 16
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "full_case with an uncovered value",
+    "rationale": "op=3 is uncovered; simulation keeps the default alu_op=0 while synthesis treats the value as don't care."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC25",
+      "sites": [
+        {
+          "line": 16
+        }
+      ],
+      "critical": true,
+      "note": "full_case on a case missing 2'b11 lets synthesis treat that value as don't-care despite the preceding default assignment."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC25",
+      "sites": [],
+      "critical": false,
+      "note": "alu_op is assigned before the case, so full_case has no effect and op=3 gives 0 in both simulation and synthesis."
+    }
+  ],
+  "settlement": {
+    "by": "settler (claude-fable-5-2, third reading)",
+    "verdict": "good",
+    "class": "LC25",
+    "sites": [],
+    "critical": false,
+    "note": "The full_case case omits 2'b11, but alu_op gets a default (3'd0) before the case, so the pragma changes nothing: op=3 gives 0 in simulation and synthesis (convention 3)."
+  },
+  "rationale": "The full_case case omits 2'b11, but alu_op gets a default (3'd0) before the case, so the pragma changes nothing: op=3 gives 0 in simulation and synthesis (convention 3).",
+  "verdict": "bad",
+  "class": "LC25",
+  "sites": [
+    {
+      "line": 16
+    }
+  ],
+  "critical": true,
+  "adjudication": {
+    "by": "post-score triage third reading (LABEL-WRONG)",
+    "was": {
+      "verdict": "good",
+      "class": "LC25",
+      "critical": false
+    },
+    "reason": "same as c_context_restore_dec",
+    "record": "tests/accuracy/results/p3-lint-fresh-adjudication.json"
+  }
+}

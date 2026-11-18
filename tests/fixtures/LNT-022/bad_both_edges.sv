@@ -3,3 +3,5 @@
 module top(input logic clk, a, output logic q);
   always @(posedge clk or negedge clk) q <= a;
 endmodule
+// revert: posedge clk or negedge clk => posedge clk
+// revert-expect-none: LNT-022

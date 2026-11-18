@@ -1,0 +1,67 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-B (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC10",
+    "sites": [
+      {
+        "line": 23
+      },
+      {
+        "line": 24
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "loop through two continuous assignments",
+    "rationale": "any_err depends on irq_req and irq_req on any_err: a combinational cycle that latches or stays undefined."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC10",
+      "sites": [
+        {
+          "line": 23
+        },
+        {
+          "line": 24
+        }
+      ],
+      "critical": true,
+      "note": "any_err depends on irq_req and irq_req depends on any_err combinationally."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC10",
+      "sites": [
+        {
+          "line": 23
+        },
+        {
+          "line": 24
+        }
+      ],
+      "critical": true,
+      "note": "any_err depends on irq_req, which depends on any_err: combinational loop."
+    }
+  ],
+  "rationale": "any_err depends on irq_req and irq_req on any_err: a combinational cycle that latches or stays undefined.",
+  "verdict": "bad",
+  "class": "LC10",
+  "sites": [
+    {
+      "line": 23
+    },
+    {
+      "line": 24
+    }
+  ],
+  "critical": true
+}

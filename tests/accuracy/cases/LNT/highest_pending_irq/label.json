@@ -1,0 +1,28 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "origin": "authored",
+  "sites": [],
+  "sdc": [],
+  "rationale": "The descending loop uses a signed int so i >= 0 terminates and is not always true; the divisions are by a nonzero parameter.",
+  "author": "claude-sonnet-5-5",
+  "class": "LC21",
+  "batch": "p2-lint-heldout",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "class": "LC18",
+      "sites": [],
+      "note": "The loop deterministically resolves multiple active requests by assignment priority."
+    }
+  ]
+}

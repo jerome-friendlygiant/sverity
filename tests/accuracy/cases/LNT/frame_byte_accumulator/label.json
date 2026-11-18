@@ -1,0 +1,28 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "origin": "authored",
+  "sites": [],
+  "sdc": [],
+  "rationale": "The only blocking assignment in the clocked block targets a block-local temporary that is read in the same block; all state uses nonblocking assignments and the combinational block uses blocking assignments.",
+  "author": "claude-sonnet-5-5",
+  "class": "LC12",
+  "batch": "p2-lint-heldout",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "class": "LC12",
+      "sites": [],
+      "note": "The local blocking temporary is assigned before use within the clocked process."
+    }
+  ]
+}

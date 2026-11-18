@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-B (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC11",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "default assignments before an if/else-if chain",
+    "rationale": "All outputs are assigned first, so every path assigns them."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "good",
+      "class": "LC11",
+      "sites": [],
+      "critical": false,
+      "note": "All outputs have defaults at the top of the always_comb."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC11",
+      "sites": [],
+      "critical": false,
+      "note": "All outputs get defaults before the if chain."
+    }
+  ],
+  "rationale": "All outputs are assigned first, so every path assigns them.",
+  "verdict": "good",
+  "class": "LC11",
+  "sites": [],
+  "critical": false
+}

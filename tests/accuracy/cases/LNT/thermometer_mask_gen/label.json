@@ -1,0 +1,50 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "class": "LC02",
+  "batch": "p2-lint-heldout",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "lane mask shift amount wraps at three bits for the highest level",
+  "sites": [
+    {
+      "line": 17,
+      "signal": "mask_d"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The shift amount level_i + 3'd1 is self-determined at 3 bits, so level 7 wraps to 0 and the mask becomes zero instead of all ones.",
+  "mutation": {
+    "operator": "operand-width-narrowing",
+    "description": "Sized the increment of the shift amount to the three-bit level instead of the wider shift result."
+  },
+  "author": "claude-sonnet-5-5",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_heaviside.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Reduced the Heaviside mask to eight lanes, registered it and added a lane count."
+  },
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "class": "LC02",
+      "sites": [
+        {
+          "line": 17,
+          "signal": "mask_d"
+        }
+      ],
+      "note": "The three-bit shift count wraps from seven plus one to zero."
+    }
+  ]
+}

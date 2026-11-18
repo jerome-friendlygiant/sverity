@@ -1,0 +1,35 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "origin": "adapted",
+  "sites": [],
+  "sdc": [],
+  "rationale": "The automatic temporary shift_in is written before it is read in the combinational block, outputs are fully assigned there, and state is updated only with nonblocking assignments.",
+  "author": "claude-sonnet-5-5",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_lfsr_8bit.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Expanded the register macro, sized the binary output to the way index and removed the assertion."
+  },
+  "class": "LC12",
+  "batch": "p2-lint-heldout",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "class": "LC04",
+      "sites": [],
+      "note": "The default eight-way index fits the eight-bit one-hot output."
+    }
+  ]
+}

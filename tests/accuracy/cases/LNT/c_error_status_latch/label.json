@@ -1,0 +1,56 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-C (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC16",
+    "sites": [
+      {
+        "line": 23
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "reset-only assignment",
+    "rationale": "err_sticky is assigned only in the reset branch, so it is constant zero after reset."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC16",
+      "sites": [
+        {
+          "line": 23
+        }
+      ],
+      "critical": true,
+      "note": "err_sticky is assigned only in the reset branch, so it is stuck at 0."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC16",
+      "sites": [
+        {
+          "line": 23
+        }
+      ],
+      "critical": true,
+      "note": "err_sticky is only assigned in reset and never set: reset-only assignment, so the sticky indication never works.",
+      "other": "LC18 line 27: err_sticky constant 0"
+    }
+  ],
+  "rationale": "err_sticky is assigned only in the reset branch, so it is constant zero after reset.",
+  "verdict": "bad",
+  "class": "LC16",
+  "sites": [
+    {
+      "line": 23
+    }
+  ],
+  "critical": true
+}

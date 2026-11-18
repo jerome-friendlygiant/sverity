@@ -1,0 +1,35 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "class": "LC08",
+  "batch": "p2-lint-heldout",
+  "verdict": "good",
+  "critical": false,
+  "origin": "adapted",
+  "sites": [],
+  "sdc": [],
+  "rationale": "Every input of the shift register is driven (clear and data from top inputs, valid_i by a constant) and both outputs are used.",
+  "author": "claude-sonnet-5-5",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_shift_register.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Inlined a reduced gated shift register and exposed its valid output."
+  },
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "class": "LC08",
+      "sites": [],
+      "note": "Every delay-line input is connected, including the constant valid input."
+    }
+  ]
+}

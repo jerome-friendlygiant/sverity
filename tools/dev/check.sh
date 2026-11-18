@@ -7,7 +7,15 @@ cache="${XDG_CACHE_HOME:-$HOME/.cache}/sverity"
 # Inside the checkout, so a build goes away with its worktree. CMake ties a build directory to its source path, so it cannot be shared.
 build="${SVERITY_BUILD:-$root/build}"
 scratch="${SVERITY_SCRATCH:-$cache/public}"
-jobs="${SVERITY_JOBS:-6}"
+# Parallel compiles of slang take about 0.5 GiB each and a link more; on a shared host, 2 GiB of available memory per
+# job leaves the rest of the machine its memory. At most 6.
+if [ -z "${SVERITY_JOBS:-}" ]; then
+  avail_gib=$(awk '/^MemAvailable:/ {print int($2 / 1048576)}' /proc/meminfo 2>/dev/null || echo 12)
+  jobs=$(( avail_gib / 2 )); (( jobs > 6 )) && jobs=6; (( jobs < 1 )) && jobs=1
+  echo "check: $jobs parallel jobs (${avail_gib} GiB available; set SVERITY_JOBS to override)"
+else
+  jobs="$SVERITY_JOBS"
+fi
 # CI keeps the whole log, because nobody can rerun a failure there by hand.
 brief() { if [ -n "${CI:-}" ]; then cat; else tail -n "$1"; fi; }
 [ -d "$root/third_party/slang/source" ] || git -C "$root" submodule update --init --recursive

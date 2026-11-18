@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-F (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC16",
+    "sites": [
+      {
+        "line": 19
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "non-constant asynchronous reset value",
+    "rationale": "The asynchronous reset branch loads an external payload instead of a constant reset value."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC16",
+      "sites": [
+        {
+          "line": 19
+        }
+      ],
+      "critical": true,
+      "note": "Reset value is the non-constant input a."
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC16",
+      "sites": [
+        {
+          "line": 19
+        }
+      ],
+      "critical": true,
+      "note": "The asynchronous reset value comes from input a rather than a constant."
+    }
+  ],
+  "rationale": "The asynchronous reset branch loads an external payload instead of a constant reset value.",
+  "verdict": "bad",
+  "class": "LC16",
+  "sites": [
+    {
+      "line": 19
+    }
+  ],
+  "critical": true
+}

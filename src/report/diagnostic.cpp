@@ -1,5 +1,7 @@
 #include "sverity/diagnostic.h"
 
+#include "sverity/catalog.h"
+
 #include <cstdio>
 
 namespace sverity {
@@ -19,6 +21,16 @@ const char* toString(Disposition d) {
         case Disposition::ReviewRequired: return "REVIEW_REQUIRED";
         case Disposition::Resolved: return "RESOLVED";
         case Disposition::Waived: return "WAIVED";
+        case Disposition::Obligation: return "OBLIGATION";
+        case Disposition::NotAnalysed: return "NOT_ANALYSED";
+    }
+    return "?";
+}
+const char* toString(UnresolvedKind k) {
+    switch (k) {
+        case UnresolvedKind::None: return "none";
+        case UnresolvedKind::Obligation: return "obligation";
+        case UnresolvedKind::Gap: return "gap";
     }
     return "?";
 }
@@ -49,8 +61,31 @@ std::optional<Severity> severityFromString(std::string_view s) {
     return std::nullopt;
 }
 
+// The kind of an Unresolved finding. Only a lint (LNT) rule of the catalog, reporting its own WARNING, can be non-gating:
+// an obligation needs the emitting site to name a predicate the rule declares; any other Unresolved LNT finding is a gap.
+// A finding that names an undeclared predicate stays gating (conformance.py rejects the source that emits it).
+static UnresolvedKind classifyUnresolved(const Diagnostic& d) {
+    if (d.severity != Severity::Warning || d.origin != "sverity" || d.ruleId.rfind("LNT-", 0) != 0) return UnresolvedKind::None;
+    const RuleInfo* rule = Catalog::embedded().find(d.ruleId);
+    if (!rule) return UnresolvedKind::None;
+    const bool unproved = d.proofState == ProofState::Unknown || d.proofState == ProofState::NotAttempted;
+    if (!d.obligation.empty()) {
+        if (d.confidence != Confidence::Unresolved && !unproved) return UnresolvedKind::None;
+        for (const auto& declared : rule->obligations)
+            if (declared.id == d.obligation) return UnresolvedKind::Obligation;
+        return UnresolvedKind::None;
+    }
+    if (d.confidence == Confidence::Unresolved || (d.confidence == Confidence::Established && unproved)) return UnresolvedKind::Gap;
+    return UnresolvedKind::None;
+}
+
 void Diagnostic::applyDefaultDisposition() {
     if (disposition == Disposition::Waived || disposition == Disposition::Resolved) return;
+    unresolvedKind = classifyUnresolved(*this);
+    if (unresolvedKind != UnresolvedKind::None) {
+        disposition = unresolvedKind == UnresolvedKind::Obligation ? Disposition::Obligation : Disposition::NotAnalysed;
+        return;
+    }
     if (severity == Severity::Warning || confidence == Confidence::Unresolved ||
         confidence == Confidence::Heuristic)
         disposition = severity == Severity::Info ? Disposition::Open : Disposition::ReviewRequired;
@@ -86,6 +121,31 @@ std::string computeFingerprint(const Diagnostic& d) {
     char buf[24];
     std::snprintf(buf, sizeof buf, "%016llx", static_cast<unsigned long long>(h));
     return buf;
+}
+
+// The same FNV-1a over the identity of findingIdentity without positions. Hierarchy and message stay out, as for the fingerprint.
+std::string baselineKey(const Diagnostic& d) {
+    std::string key;
+    auto part = [&](std::string_view s) { key += std::to_string(s.size()) + ":"; key += s; };
+    part("baseline-key-v2"); part(d.ruleId); part(d.location.file); part(d.scope);
+    part(d.origin); part(d.upstreamCode); part(d.identityKey);
+    part(std::to_string(d.identityArguments.size()));
+    for (const auto& arg : d.identityArguments) part(arg);
+    part(std::to_string(d.signals.size()));
+    for (const auto& signal : d.signals) part(signal);
+    part(d.groupingUnit); part(std::to_string(d.groupingProcedureOrdinal));
+    part(std::to_string(d.evidence.size()));
+    for (const auto& e : d.evidence) { part(e.kind); part(e.location.file); }
+    uint64_t h = 1469598103934665603ull;
+    for (unsigned char c : key) { h ^= c; h *= 1099511628211ull; }
+    char buf[24];
+    std::snprintf(buf, sizeof buf, "%016llx", static_cast<unsigned long long>(h));
+    return buf;
+}
+
+std::string baselineAnchor(const Diagnostic& d) {
+    if (!d.signals.empty()) return d.signals[0];
+    return d.identityKey;
 }
 
 } // namespace sverity

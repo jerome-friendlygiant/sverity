@@ -1,0 +1,38 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "class": "LC07",
+  "batch": "p2-lint-heldout",
+  "verdict": "unknown",
+  "critical": true,
+  "origin": "authored",
+  "sites": [
+    {
+      "line": 21,
+      "signal": "ack_w"
+    }
+  ],
+  "sdc": [],
+  "rationale": "ack_w is driven by an assign and also connected to a macro port; the macro has no body, so whether it drives ack_w cannot be seen.",
+  "author": "claude-sonnet-5-5",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "unknown",
+      "critical": true,
+      "class": "LC07",
+      "sites": [
+        {
+          "line": 16,
+          "signal": "u_engine"
+        }
+      ],
+      "note": "The opaque port direction determines whether ack_w has a conflicting driver."
+    }
+  ]
+}

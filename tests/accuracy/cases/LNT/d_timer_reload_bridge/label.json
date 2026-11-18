@@ -1,0 +1,56 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-D (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC02",
+    "sites": [
+      {
+        "line": 22
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "narrow child input port",
+    "rationale": "The timer reload is in the range 256 through 511; its nonzero high field is always lost at the eight-bit child input."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC02",
+      "sites": [
+        {
+          "line": 22
+        }
+      ],
+      "critical": true,
+      "note": "12-bit reload_value connected to an 8-bit port truncates the upper bits (the 4'h1 field).",
+      "other": "LC09 line 6 (a[11:8] unused)"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC02",
+      "sites": [
+        {
+          "line": 22
+        }
+      ],
+      "critical": true,
+      "note": "The twelve-bit reload_value loses its high four bits at the eight-bit reload port."
+    }
+  ],
+  "rationale": "The timer reload is in the range 256 through 511; its nonzero high field is always lost at the eight-bit child input.",
+  "verdict": "bad",
+  "class": "LC02",
+  "sites": [
+    {
+      "line": 22
+    }
+  ],
+  "critical": true
+}

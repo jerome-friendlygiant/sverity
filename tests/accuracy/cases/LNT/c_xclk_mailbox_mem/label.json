@@ -1,0 +1,67 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-C (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC20",
+    "sites": [
+      {
+        "line": 18
+      },
+      {
+        "line": 22
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "two writers in different clock domains",
+    "rationale": "slots is written from clk_a and clk_b processes."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC20",
+      "sites": [
+        {
+          "line": 18
+        },
+        {
+          "line": 22
+        }
+      ],
+      "critical": true,
+      "note": "slots is written from two processes on two different clocks."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC20",
+      "sites": [
+        {
+          "line": 18
+        },
+        {
+          "line": 22
+        }
+      ],
+      "critical": true,
+      "note": "The slot memory is written by two processes in two clock domains."
+    }
+  ],
+  "rationale": "slots is written from clk_a and clk_b processes.",
+  "verdict": "bad",
+  "class": "LC20",
+  "sites": [
+    {
+      "line": 18
+    },
+    {
+      "line": 22
+    }
+  ],
+  "critical": true
+}

@@ -1,0 +1,28 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "class": "LC03",
+  "batch": "p2-lint-heldout",
+  "verdict": "good",
+  "critical": false,
+  "origin": "authored",
+  "sites": [],
+  "sdc": [],
+  "rationale": "The unsigned limit is zero-extended and converted to signed before the comparison, so both operands are signed and negative skews compare correctly.",
+  "author": "claude-sonnet-5-5",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "class": "LC03",
+      "sites": [],
+      "note": "The threshold is widened and cast signed for the comparison."
+    }
+  ]
+}

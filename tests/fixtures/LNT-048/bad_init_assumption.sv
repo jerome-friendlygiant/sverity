@@ -5,3 +5,5 @@ module top(input logic clk, d, output logic q);
   always_ff @(posedge clk) r <= d;
   assign q = r;
 endmodule
+// revert: logic r = 1'b0; => logic r;
+// revert-expect-none: LNT-048

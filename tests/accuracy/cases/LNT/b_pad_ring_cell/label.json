@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-B (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC08",
+    "sites": [
+      {
+        "line": 28
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "inout port omitted from an instance",
+    "rationale": "Instance u_dbg omits the inout pad port of io_cell so the cell has no pad connection; the sampled input is floating."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC08",
+      "sites": [
+        {
+          "line": 28
+        }
+      ],
+      "critical": true,
+      "note": "u_dbg leaves the inout pad unconnected, so dbg_in samples a floating net when dbg_en is low."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC08",
+      "sites": [
+        {
+          "line": 28
+        }
+      ],
+      "critical": true,
+      "note": "Instance u_dbg leaves its inout pad unconnected, so dbg_in samples a floating net."
+    }
+  ],
+  "rationale": "Instance u_dbg omits the inout pad port of io_cell so the cell has no pad connection; the sampled input is floating.",
+  "verdict": "bad",
+  "class": "LC08",
+  "sites": [
+    {
+      "line": 28
+    }
+  ],
+  "critical": true
+}

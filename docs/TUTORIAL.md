@@ -9,7 +9,7 @@ sverity --goal cdc --top top docs/tutorial/bad.sv
 The first register launches `src` on `a`; the second captures it on `b`. The outcome appears first, followed by every finding in severity order. The run reports:
 
 ```text
-Result: REVIEW_REQUIRED, exit 6 (REVIEW_REQUIRED + INCOMPLETE; strict policy)
+Result: REVIEW_REQUIRED, exit 6 (REVIEW_REQUIRED + INCOMPLETE; gate policy)
   execution  SUCCESS
   coverage   INCOMPLETE
   review     REVIEW_REQUIRED
@@ -17,7 +17,7 @@ Result: REVIEW_REQUIRED, exit 6 (REVIEW_REQUIRED + INCOMPLETE; strict policy)
 WARNING [CDC-003] single-bit clock-domain crossing top.src -> top.q has no recognised synchroniser (1 of 1 bit(s)) [clock relationship UNKNOWN: treated as potentially asynchronous]
 ```
 
-The strict exit code is 6 (2 for review, 4 for incomplete analysis). Coverage describes how much was evaluated; review describes the findings needing action. In JSON these are `analysis_coverage` and `review_status`. Zero errors does not mean safe: clocks are unknown and some rules were not fully evaluated, including rules outside the selected goal.
+The exit code is 6 (2 for review, 4 for incomplete analysis). Coverage describes whether this run lost analysis (here the clocks are unconstrained); review describes the findings needing action. In JSON these are `analysis_coverage` and `review_status`. A rule that is only partial in this tool version is not a loss of the run: `tool coverage` and `coverage.rules` state it. Zero errors does not mean safe: clocks are unknown.
 
 Declare the two clocks and their asynchronous relationship:
 
@@ -60,12 +60,28 @@ sverity --goal cdc --top top --sdc docs/tutorial/clocks.sdc docs/tutorial/waived
 
 Both show `<WAIVED>` on CDC-003 and exit 6, with advice to retain and review the accepted waiver justification. The source directive precedes the capture procedure; the file waiver narrows by file. Review the actual design and justification before waiving.
 
-Strict exit is the default. For CI that intentionally gates only violations and execution errors, choose:
+The default exit policy is `gate`: defects (an unwaived ERROR, or a WARNING the analysis established or judged by heuristic), a loss of analysis in this run, and execution errors set exit bits. An Unresolved lint finding is an *obligation* (a question lint cannot decide, declared by its rule in the catalog, such as FSM liveness or a memory read-during-write) or *not analysed* (a construct the tool gave up on). Both are counted on the last console line and in the JSON summary, listed in their own sections, and do not set the review bit; `--exit-policy strict` makes them, partial or disabled rules and the other coverage statements block too, and a baseline (below) blocks the ones that are new. The JSON and SARIF state `review_status` and `analysis_coverage` under the chosen policy, recorded in `inputs.exit_policy`; the run's coverage lists the definitions the top does not instantiate, which are not linted. CDC, RDC and constraint findings are unchanged. For CI that intentionally gates only violations and execution errors, choose:
 
 ```sh
 sverity --goal cdc --top top --sdc docs/tutorial/clocks.sdc --exit-policy violations docs/tutorial/fixed.sv
 ```
 
 This exits 0 despite `coverage INCOMPLETE` and outstanding review. That policy gives up using the exit code to gate incomplete analysis and review obligations; inspect the report separately. See [what the analyses establish](rules/ANALYSIS.md) before interpreting a clean result.
+
+### Adopt lint on an existing IP
+
+Review and record existing findings once, then use that baseline in CI.
+
+```sh
+sverity --deck lint --goal lint --top top -f files.f --root . --write-baseline baseline.json   # once, reviewed and committed
+sverity --deck lint --goal lint --top top -f files.f --root . --baseline baseline.json         # in CI
+```
+
+1. Use `--goal lint --deck lint` with the IP's top and file list. Keep `--root` stable so paths stay relative.
+2. Review the baseline before committing it. Matched findings are still listed and counted.
+3. Inspect new findings and incomplete analysis on every run. A new obligation or gap blocks with a baseline. Execution failures and lost analysis still set their exit bits.
+4. Refresh the baseline after fixes. A finding that increases in severity or becomes blocking is treated as new. A baseline for a different elaborated top or deck is refused with exit 64.
+
+See the [lint workflow](rules/LINT_WORKFLOW.md#scope-and-gate) for gate policy and [analysis notes](rules/ANALYSIS.md) for the matching rules.
 
 A zero-finding run still shows execution, coverage, review and the selected exit policy. When coverage is incomplete and there are no open findings, the console says `NO_OPEN_FINDINGS (coverage incomplete)` rather than a safety verdict. JSON retains its existing review-state enum. `--no-color` disables ANSI colour. Grouped representatives retain advice and key evidence, with exact occurrence and disposition counts; the named JSON or SARIF contains every member.

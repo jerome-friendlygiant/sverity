@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-D (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC01",
+    "sites": [
+      {
+        "line": 20
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "syntax: missing expression terminator",
+    "rationale": "The continuous assignment has no terminating semicolon, so parsing fails."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC01",
+      "sites": [
+        {
+          "line": 20
+        }
+      ],
+      "critical": true,
+      "note": "missing semicolon after the assign at line 20"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC01",
+      "sites": [
+        {
+          "line": 20
+        }
+      ],
+      "critical": true,
+      "note": "The continuous assignment is missing its terminating semicolon."
+    }
+  ],
+  "rationale": "The continuous assignment has no terminating semicolon, so parsing fails.",
+  "verdict": "bad",
+  "class": "LC01",
+  "sites": [
+    {
+      "line": 20
+    }
+  ],
+  "critical": true
+}

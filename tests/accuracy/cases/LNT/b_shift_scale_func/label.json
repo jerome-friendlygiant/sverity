@@ -1,0 +1,67 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-B (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "unknown",
+    "class": "LC12",
+    "sites": [
+      {
+        "line": 20
+      }
+    ],
+    "boundary": "unknown",
+    "subtype": "sensitivity depends on a signal read inside a function",
+    "rationale": "@(sample) misses gain_sh read in apply_gain; stale output only if gain_sh changes at run time, which the file does not say."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC12",
+      "sites": [
+        {
+          "line": 20
+        }
+      ],
+      "critical": true,
+      "note": "always @(sample) omits gain_sh, which is read through the function."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC12",
+      "sites": [
+        {
+          "line": 20
+        }
+      ],
+      "critical": true,
+      "note": "always @(sample) omits gain_sh, which apply_gain reads, so simulation misses gain changes."
+    }
+  ],
+  "settlement": {
+    "by": "settler (claude-fable-5-2, third reading)",
+    "verdict": "bad",
+    "class": "LC12",
+    "sites": [
+      {
+        "line": 20
+      }
+    ],
+    "critical": true,
+    "note": "always @(sample) omits gain_sh, which the called function reads: the incomplete sensitivity list is structural, so simulation can differ from the synthesized shifter. The defect is the event control itself, hence the header line."
+  },
+  "rationale": "always @(sample) omits gain_sh, which the called function reads: the incomplete sensitivity list is structural, so simulation can differ from the synthesized shifter. The defect is the event control itself, hence the header line.",
+  "verdict": "bad",
+  "class": "LC12",
+  "sites": [
+    {
+      "line": 20
+    }
+  ],
+  "critical": true
+}

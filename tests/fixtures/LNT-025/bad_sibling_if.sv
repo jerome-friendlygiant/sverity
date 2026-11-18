@@ -1,4 +1,4 @@
-// sverity-args: --top top
+// sverity-args: --top top --option LNT-025.overrides=warning
 // if (b) x = 0 comes after if (a) x = 1: when both hold the later assignment wins
 // expect: LNT-025 WARNING 9
 module top(input logic a, b, output logic y);

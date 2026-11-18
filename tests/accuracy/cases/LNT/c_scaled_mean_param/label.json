@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-C (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "unknown",
+    "class": "LC21",
+    "sites": [
+      {
+        "line": 30
+      }
+    ],
+    "boundary": "unknown",
+    "subtype": "divisor from overridable parameters",
+    "rationale": "DIV = TAPS - WARMUP is 12 by default and zero if the parameters are overridden to equal values."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "unknown",
+      "class": "LC21",
+      "sites": [
+        {
+          "line": 30
+        }
+      ],
+      "critical": true,
+      "note": "Divides by TAPS - WARMUP, which is 12 by default but zero when the overridable parameters are equal."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC21",
+      "sites": [],
+      "critical": false,
+      "note": "With default TAPS=16 and WARMUP=4 the divisor is 12, not zero."
+    }
+  ],
+  "settlement": {
+    "by": "settler (claude-fable-5-2, third reading)",
+    "verdict": "good",
+    "class": "LC21",
+    "sites": [],
+    "critical": false,
+    "note": "With the defaults TAPS=16 and WARMUP=4 the divisor DIV is the constant 12; it is zero only under a parameter override, which is not this configuration."
+  },
+  "rationale": "With the defaults TAPS=16 and WARMUP=4 the divisor DIV is the constant 12; it is zero only under a parameter override, which is not this configuration.",
+  "verdict": "good",
+  "class": "LC21",
+  "sites": [],
+  "critical": false
+}

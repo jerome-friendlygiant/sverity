@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-C (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC25",
+    "sites": [
+      {
+        "line": 12
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "parallel_case on overlapping items",
+    "rationale": "Items overlap; simulation gives priority, synthesis may build a parallel multi-hot grant."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC25",
+      "sites": [
+        {
+          "line": 12
+        }
+      ],
+      "critical": true,
+      "note": "parallel_case on overlapping priority casez items makes synthesis drop the priority."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC25",
+      "sites": [
+        {
+          "line": 12
+        }
+      ],
+      "critical": true,
+      "note": "parallel_case on a priority casez whose items overlap makes synthesis drop the priority, differing from simulation."
+    }
+  ],
+  "rationale": "Items overlap; simulation gives priority, synthesis may build a parallel multi-hot grant.",
+  "verdict": "bad",
+  "class": "LC25",
+  "sites": [
+    {
+      "line": 12
+    }
+  ],
+  "critical": true
+}

@@ -15,6 +15,7 @@
 #include <sstream>
 
 #include "sverity/analyzer.h"
+#include "sverity/baseline.h"
 #include "sverity/waiver.h"
 
 using namespace sverity;
@@ -85,14 +86,23 @@ sverity options:
   --config <file>          JSON configuration; paths are relative to the file
   --goal <lint|cdc|rdc>    limit rule families (repeatable; union); CLI goals replace config goals
                            goal, file enable/disable, then CLI enable/disable; disabled coverage stays INCOMPLETE
-  --deck <core|domain|1.0> report coverage for a published deck; other rules still run, as preview
+  --deck <core|domain|1.0|lint> report coverage for a published deck (lint: the lint workflow deck);
+                           other rules still run, as preview
   --option <key=value>     override a rule option from the file (repeatable)
   --severity <pattern=level> override severity for matching rules (repeatable)
   --enable-rule <pattern>  enable matching rules (repeatable; narrows file enable list)
   --disable-rule <pattern> disable matching rules (repeatable); they stay listed as DISABLED
                            CLI settings win; within each layer disable wins over enable
-  --exit-policy <p>        strict (default): non-zero for FAIL, REVIEW_REQUIRED, INCOMPLETE, ERROR
+  --exit-policy <p>        gate (default): non-zero for FAIL, REVIEW_REQUIRED (defects), INCOMPLETE (this run lost
+                             analysis), ERROR; obligations and not-analysed findings are counted, not blocking
+                           strict: also blocks on obligations, not-analysed findings, and rules partial,
+                             unimplemented or disabled
                            violations: non-zero only for FAIL or execution ERROR
+  --write-baseline <file>  write the identity of the current findings (not waived or resolved) for --baseline
+  --baseline <file>        a finding in this baseline (from --write-baseline, or an earlier JSON report) is BASELINED: reported
+                           and counted, never gating, whatever its severity; only new findings gate. Matching survives moved
+                           lines: exact fingerprint, then the same identity at the nearest line, then the same rule, file and
+                           signal at the nearest line. A baseline for another top or deck is an error
   --date <YYYY-MM-DD>      date used for waiver expiry (default: today, UTC)
   --root <dir>             report paths relative to <dir> (default: current directory); makes
                            fingerprints independent of where sverity is run from
@@ -127,7 +137,9 @@ static int runSverity(int argc, char** argv) {
     AnalyzerOptions opts;
     std::string jsonOut, jsonlOut, sarifOut, htmlOut, templateOut;
     std::string colorMode = "auto";
-    bool strict = true, listRules = false, groupConsole = false;
+    ExitPolicy policy = ExitPolicy::Gate;
+    bool listRules = false, groupConsole = false;
+    std::string baselineFile, writeBaselineFile;
     size_t maxConsole = 0;
     bool summary = false, statistics = false, verbose = false;
     std::string rootDir, configFile;
@@ -216,10 +228,13 @@ static int runSverity(int argc, char** argv) {
         else if (a == "--list-rules") listRules = true;
         else if (a == "--exit-policy") {
             std::string p = need(i, "--exit-policy");
-            if (p == "strict") strict = true;
-            else if (p == "violations") strict = false;
+            if (p == "gate") policy = ExitPolicy::Gate;
+            else if (p == "strict") policy = ExitPolicy::Strict;
+            else if (p == "violations") policy = ExitPolicy::Violations;
             else { std::fprintf(stderr, "sverity: unknown exit policy '%s'\n", p.c_str()); return 64; }
         }
+        else if (a == "--baseline") baselineFile = need(i, "--baseline");
+        else if (a == "--write-baseline") writeBaselineFile = need(i, "--write-baseline");
         else opts.frontend.slangArgs.push_back(a);
     }
 
@@ -255,7 +270,7 @@ static int runSverity(int argc, char** argv) {
     };
     for (const auto& goal : fileGoals) validGoal(goal);
     for (const auto& goal : cliGoals) validGoal(goal);
-    if (!opts.config.deck.empty() && !isDeck(opts.config.deck)) fail("unknown deck '" + opts.config.deck + "' (core|domain|1.0)");
+    if (!opts.config.deck.empty() && !isDeck(opts.config.deck)) fail("unknown deck '" + opts.config.deck + "' (core|domain|1.0|lint)");
     if (!cliGoals.empty()) opts.config.goals = cliGoals;
     else opts.config.goals.insert(fileGoals.begin(), fileGoals.end());
     auto applyPaths = [&](const char* key, std::vector<std::string>& target) {
@@ -275,7 +290,7 @@ static int runSverity(int argc, char** argv) {
             } else if (key == "LNT-036.report_modular" || key == "LNT-006.dynamic_index" || key == "LNT-037.dynamic_divisor") {
                 if (!value.isBool()) fail("option '" + key + "' must be a JSON boolean");
                 options[key] = value.asBool() ? "true" : "false";
-            } else if (key == "LNT-061.allow" || key == "LNT-025.priority_chains") {
+            } else if (key == "LNT-061.allow" || key == "LNT-025.priority_chains" || key == "LNT-025.overrides" || key == "LNT-010.empty_output") {
                 if (!value.isString()) fail("option '" + key + "' must be a JSON string");
                 options[key] = value.asString();
             } else fail("unknown rule option '" + key + "'");
@@ -286,7 +301,9 @@ static int runSverity(int argc, char** argv) {
             int n = 0; auto [end, error] = std::from_chars(value.data(), value.data() + value.size(), n);
             if (value.empty() || error != std::errc{} || end != value.data() + value.size() || n < 2)
                 fail("option '" + key + "' must be an integer between 2 and " + std::to_string(INT_MAX));
-        } else if (key == "LNT-025.priority_chains") {
+        } else if (key == "LNT-010.empty_output") {
+            if (value != "info" && value != "warning") fail("option '" + key + "' must be info or warning");
+        } else if (key == "LNT-025.priority_chains" || key == "LNT-025.overrides") {
             if (value != "info" && value != "warning") fail("option '" + key + "' must be info or warning");
         } else if (key == "LNT-036.report_modular" || key == "LNT-006.dynamic_index" || key == "LNT-037.dynamic_divisor") {
             if (value != "true" && value != "false") fail("option '" + key + "' must be true or false");
@@ -372,7 +389,42 @@ static int runSverity(int argc, char** argv) {
     std::error_code ec;
     opts.pathRoot = rootDir.empty() ? std::filesystem::current_path(ec).generic_string()
                                     : std::filesystem::absolute(rootDir, ec).lexically_normal().generic_string();
+    BaselineFile baseline;
+    if (!baselineFile.empty()) {
+        std::ifstream in(baselineFile, std::ios::binary);
+        if (!in) { std::fprintf(stderr, "sverity: cannot read baseline '%s'\n", baselineFile.c_str()); return 64; }
+        std::ostringstream buffer; buffer << in.rdbuf();
+        std::string error;
+        if (!parseBaseline(buffer.str(), baseline, error)) {
+            std::fprintf(stderr, "sverity: baseline '%s' %s\n", baselineFile.c_str(), error.c_str());
+            return 64;
+        }
+    }
     Report report = analyze(opts);
+    // The top the design elaborated to (not only what --top named) and the deck identify the run.
+    std::vector<std::string> elaboratedTops;
+    for (const auto& t : report.inputs()["elaborated_tops"].asArray()) elaboratedTops.push_back(t.asString());
+    const auto runContext = baselineContextOf(opts.frontend.slangArgs, opts.config.deck, elaboratedTops);
+    // Findings of another top or deck would all read as new, or worse, as known: refuse the comparison.
+    if (!baselineFile.empty())
+        if (const auto why = baselineMismatch(baseline.context, runContext); !why.empty()) {
+            std::fprintf(stderr, "sverity: baseline '%s' was written for top %s; it cannot be compared with this run\n", baselineFile.c_str(), why.c_str());
+            return 64;
+        }
+    report.setExitPolicy(policy);
+    report.addInput("exit_policy", toString(policy));
+    if (!baselineFile.empty()) {
+        report.addInput("baseline_fingerprints", static_cast<uint64_t>(baseline.entries.size()));
+        report.setBaseline(std::move(baseline.entries));
+    }
+    // The current findings, whether or not they were matched: a baseline written beside --baseline replaces it.
+    int baselineWriteFailed = 0;
+    if (!writeBaselineFile.empty()) {
+        std::ofstream f(writeBaselineFile, std::ios::binary);
+        f << baselineToJson(report, runContext).dump(2) << '\n';
+        f.flush();
+        if (!f) { std::fprintf(stderr, "sverity: cannot write baseline '%s'\n", writeBaselineFile.c_str()); baselineWriteFailed = 8; }
+    }
 
     auto writeTo = [&](const std::string& path, const std::string& text) {
         if (path == "-") {
@@ -387,7 +439,7 @@ static int runSverity(int argc, char** argv) {
         if (!f) { std::fprintf(stderr, "sverity: write error on %s\n", path.c_str()); return false; }
         return true;
     };
-    int extra = 0;
+    int extra = baselineWriteFailed;
     if (!templateOut.empty() && !writeTo(templateOut, waiverTemplate(report).dump(2) + "\n")) extra = 8;
     bool jsonWritten = false, sarifWritten = false;
     // Files first, stdout last and once: a failed write sets the execution error, then the files already
@@ -396,7 +448,7 @@ static int runSverity(int argc, char** argv) {
         if (kind == "json") return report.toJson().dump(2) + "\n";
         if (kind == "sarif") return report.toSarif().dump(2) + "\n";
         if (kind == "html") return report.toHtml();
-        return report.toJsonl(strict, extra);
+        return report.toJsonl(policy, extra);
     };
     const std::vector<std::pair<std::string, std::string>> outputs = {{"json", jsonOut}, {"sarif", sarifOut}, {"html", htmlOut}, {"jsonl", jsonlOut}};
     const auto failedWrite = [&] { extra = 8; report.setExecutionError("a report could not be written"); };
@@ -419,10 +471,10 @@ static int runSverity(int argc, char** argv) {
     bool completeWritten = jsonWritten || sarifWritten;
     if (groupConsole && !completeWritten) std::fputs("sverity: --group requires a written JSON or SARIF report; showing the complete console\n", stderr);
     std::string hint = jsonWritten ? (jsonOut == "-" ? "the JSON report on stdout" : jsonOut) : sarifWritten ? (sarifOut == "-" ? "the SARIF report on stdout" : sarifOut) : "";
-    std::string text = report.toText(color, completeWritten ? maxConsole : 0, hint, groupConsole && completeWritten, verbose, strict, extra, statistics);
+    std::string text = report.toText(color, completeWritten ? maxConsole : 0, hint, groupConsole && completeWritten, verbose, policy, extra, statistics);
     if (summary) text += report.ruleSummary();
     std::fputs(text.c_str(), machineStdout ? stderr : stdout);
-    return report.exitCode(strict) | extra;
+    return report.exitCode(policy) | extra;
 }
 
 int main(int argc, char** argv) {

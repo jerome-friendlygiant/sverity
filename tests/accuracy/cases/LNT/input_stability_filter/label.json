@@ -1,0 +1,46 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": false,
+  "origin": "adapted",
+  "defect": "stored_value_q has no reset while the history register in the same filter resets",
+  "sites": [
+    {
+      "line": 25,
+      "signal": "stored_value_q"
+    }
+  ],
+  "sdc": [],
+  "rationale": "stored_vector_q is reset to zero but stored_value_q, which drives the filtered output when enabled, has no reset, so its value after reset is undefined until the first stable window.",
+  "author": "claude-sonnet-5-5",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim/rtl/prim_filter.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Removed the optional input synchronizer and the unused-bit helper, windowed the history so every stored bit is used."
+  },
+  "class": "LC23",
+  "batch": "p2-lint-heldout",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "bad",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "class": "LC23",
+      "sites": [
+        {
+          "line": 23,
+          "signal": "stored_value_q"
+        }
+      ],
+      "note": "The stored output value lacks reset while the history registers reset."
+    }
+  ]
+}

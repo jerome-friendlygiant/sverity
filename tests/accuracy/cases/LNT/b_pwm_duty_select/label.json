@@ -1,0 +1,67 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-B (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC11",
+    "sites": [
+      {
+        "line": 13
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "if without else in a combinational block",
+    "rationale": "duty_sel is unassigned when src_sel==0, so it holds its previous value (latch)."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC11",
+      "sites": [
+        {
+          "line": 14
+        }
+      ],
+      "critical": true,
+      "note": "duty_sel is not assigned when src_sel is 2'b00, inferring a latch."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC11",
+      "sites": [
+        {
+          "line": 14
+        }
+      ],
+      "critical": true,
+      "note": "duty_sel is not assigned when src_sel == 2'b00, so a latch is inferred."
+    }
+  ],
+  "settlement": {
+    "by": "settler (claude-fable-5-2, third reading)",
+    "verdict": "bad",
+    "class": "LC11",
+    "sites": [
+      {
+        "line": 14
+      }
+    ],
+    "critical": true,
+    "note": "duty_sel is not assigned when src_sel is 2'b00 in always_comb, inferring a latch; the site is the incomplete if statement."
+  },
+  "rationale": "duty_sel is not assigned when src_sel is 2'b00 in always_comb, inferring a latch; the site is the incomplete if statement.",
+  "verdict": "bad",
+  "class": "LC11",
+  "sites": [
+    {
+      "line": 14
+    }
+  ],
+  "critical": true
+}

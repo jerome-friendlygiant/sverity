@@ -528,7 +528,7 @@ void Shared::sequentialElements() {
                           m->procs[pi].loc, m->procs[pi].instancePath, Confidence::Unresolved);
         d.nextStep = "Review how data crosses this latch; CDC analysis treats its output as an unclassified source.";
         add(std::move(d));
-        report->markIncomplete("clock-extraction", "latch at " + m->procs[pi].loc.file + ":" + std::to_string(m->procs[pi].loc.line));
+        incomplete("clock-extraction", "latch at " + m->procs[pi].loc.file + ":" + std::to_string(m->procs[pi].loc.line));
     }
 }
 
@@ -665,7 +665,7 @@ void Shared::clockStructure() {
                                       ck.loc, {}, Confidence::Unresolved);
                     d.nextStep = "State the relationship explicitly (set_clock_groups) or synchronise crossings between master and generated clock.";
                     add(std::move(d));
-                    report->markIncomplete("clock-relationships", "generated clock '" + dom.name + "' phase relationship is assumed, not derived");
+                    incomplete("clock-relationships", "generated clock '" + dom.name + "' phase relationship is assumed, not derived");
                 }
         if (dom.kind != RootKind::Logic) continue;
         // walk the combinational cone of the clock net
@@ -721,7 +721,7 @@ void Shared::clockStructure() {
             d.nextStep = "Use a library glitch-free clock mux / clock-gating cell, or constrain the select so it only changes while the clocks are stopped.";
             for (auto cl : clockLeaves) d.evidence.push_back({"clock_input", m->nameOf(cl), {}});
             add(std::move(d));
-            report->markIncomplete("clock-extraction", "clock '" + dom.name + "' is a clock mux/combine of unknown glitch behaviour");
+            incomplete("clock-extraction", "clock '" + dom.name + "' is a clock mux/combine of unknown glitch behaviour");
             // select domain versus the clocks it switches between, and the output clock versus its inputs
             std::string issue;
             for (auto n : flopLeaves) {
@@ -806,7 +806,7 @@ void Shared::edgeStructure() {
             Diagnostic x = mk("CDC-043", Severity::Warning, "register " + flopName(f) + " is triggered on both clock edges (dual-edge): edge relationships are not modelled",
                               procOf(f).loc, procOf(f).instancePath, Confidence::Unresolved);
             add(std::move(x));
-            report->markIncomplete("clock-relationships", "dual-edge register " + flopName(f));
+            incomplete("clock-relationships", "dual-edge register " + flopName(f));
         }
 }
 
@@ -1280,7 +1280,7 @@ void Shared::protocols() {
                           {}, {}, Confidence::Unresolved);
         d.nextStep = "Use distinct clock names unless the two ports really carry the same clock; declare their relation with set_clock_groups.";
         add(std::move(d));
-        report->markIncomplete("clock-relationships", "distinct clock roots share one SDC clock name: " + m->domains[a].name + ", " + m->domains[b].name);
+        incomplete("clock-relationships", "distinct clock roots share one SDC clock name: " + m->domains[a].name + ", " + m->domains[b].name);
     }
 
     // CDC-040: library cells declared as synchronisers (--library)

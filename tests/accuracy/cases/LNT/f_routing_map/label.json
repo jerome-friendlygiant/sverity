@@ -1,0 +1,61 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-F (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC20",
+    "sites": [
+      {
+        "line": 20
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "fully assigned combinational memory writer",
+    "rationale": "The routing array is written by a combinational process rather than a clocked memory port."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC20",
+      "sites": [
+        {
+          "line": 20
+        }
+      ],
+      "critical": true,
+      "note": "Memory routes is written by a non-clocked always @* process."
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC20",
+      "sites": [
+        {
+          "line": 20
+        }
+      ],
+      "critical": true,
+      "note": "The routes memory is written in a combinational process rather than a clocked process."
+    }
+  ],
+  "rationale": "The routing array is written by a combinational process rather than a clocked memory port.",
+  "verdict": "good",
+  "class": "LC20",
+  "sites": [],
+  "critical": false,
+  "adjudication": {
+    "by": "judge (gpt-6.1-sol, independent adjudication)",
+    "was": {
+      "verdict": "bad",
+      "class": "LC20",
+      "critical": true
+    },
+    "reason": "LC20 is a hardware-defect class about a memory with conflicting or non-clocked state writers, not a ban on unpacked-array syntax. The constant-bound loop assigns all four complete words on every activation using blocking assignments, with one writer per word and no feedback or retained value; each routes word equals a ^ b and y selects that combinational value. There is no memory state, latch or conflicting driver to which the LC20 defect applies, so the non-clocked-process syntax alone cannot justify a critical bad label. An independent Icarus simulation passed all 262144 two-state combinations of a, b and addr; the no-state conclusion comes from complete-assignment analysis, not merely the passing simulation. INFO advice is reasonable, although the current message claiming latches/registers is inaccurate for this RTL.",
+    "record": "tests/accuracy/results/p4-lint-fresh-adjudication.json"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "class": "LC01",
+  "batch": "p2-lint-heldout",
+  "verdict": "good",
+  "critical": false,
+  "origin": "authored",
+  "sites": [],
+  "sdc": [],
+  "rationale": "Every generated stage connects only ports the slice declares, with matching widths; the indexed chain elaborates.",
+  "author": "claude-sonnet-5-5",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "class": "LC06",
+      "sites": [],
+      "note": "Each generated stage connects its data, valid and ready signals through the chain."
+    }
+  ]
+}

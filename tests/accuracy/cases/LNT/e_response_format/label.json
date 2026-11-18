@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-E (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC11",
+    "sites": [
+      {
+        "line": 22
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "incomplete task output",
+    "rationale": "The task retains its static output when the response is not selected."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC11",
+      "sites": [
+        {
+          "line": 22
+        }
+      ],
+      "critical": true,
+      "note": "task output result not assigned when gate is 0, so value latches"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC11",
+      "sites": [
+        {
+          "line": 22
+        }
+      ],
+      "critical": true,
+      "note": "The task output has no assignment when gate is low."
+    }
+  ],
+  "rationale": "The task retains its static output when the response is not selected.",
+  "verdict": "bad",
+  "class": "LC11",
+  "sites": [
+    {
+      "line": 22
+    }
+  ],
+  "critical": true
+}

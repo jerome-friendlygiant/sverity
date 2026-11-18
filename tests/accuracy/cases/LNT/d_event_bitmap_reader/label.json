@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-D (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "unknown",
+    "class": "LC04",
+    "sites": [
+      {
+        "line": 20
+      }
+    ],
+    "boundary": "unknown",
+    "subtype": "unconstrained dynamic bit index",
+    "rationale": "Indices 0 through 7 are valid; 8 through 15 are outside the vector. No input protocol limits the index."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "unknown",
+      "class": "LC04",
+      "sites": [
+        {
+          "line": 20
+        }
+      ],
+      "critical": true,
+      "note": "4-bit index b can address bits 8-15 of 8-bit a; depends on unconstrained input values."
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "unknown",
+      "class": "LC04",
+      "sites": [
+        {
+          "line": 20
+        }
+      ],
+      "critical": true,
+      "note": "The unconstrained four-bit b index may be within or outside a[7:0]."
+    }
+  ],
+  "rationale": "Indices 0 through 7 are valid; 8 through 15 are outside the vector. No input protocol limits the index.",
+  "verdict": "unknown",
+  "class": "LC04",
+  "sites": [
+    {
+      "line": 20
+    }
+  ],
+  "critical": true
+}

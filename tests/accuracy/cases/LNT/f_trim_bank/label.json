@@ -1,0 +1,61 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-F (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC20",
+    "sites": [
+      {
+        "line": 19
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "generated non-clocked memory writers",
+    "rationale": "Generated combinational processes drive each trim-array entry without any clocked write port."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC20",
+      "sites": [
+        {
+          "line": 19
+        }
+      ],
+      "critical": true,
+      "note": "Memory trim is written by non-clocked always_comb processes (one per generate lane)."
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC20",
+      "sites": [
+        {
+          "line": 19
+        }
+      ],
+      "critical": true,
+      "note": "The memory elements are written by non-clocked combinational processes."
+    }
+  ],
+  "rationale": "Generated combinational processes drive each trim-array entry without any clocked write port.",
+  "verdict": "good",
+  "class": "LC20",
+  "sites": [],
+  "critical": false,
+  "adjudication": {
+    "by": "judge (gpt-6.1-sol, independent adjudication)",
+    "was": {
+      "verdict": "bad",
+      "class": "LC20",
+      "critical": true
+    },
+    "reason": "Elaboration creates four unconditional combinational assignments, each to a distinct complete trim element. The processes do not overlap, every word always equals a & b, and the dynamic read is a combinational selection with no retained state; several processes writing disjoint elements are not several writers of the same storage. As a hardware-defect class, LC20 does not make this wire bundle into defective memory merely because it uses an unpacked array. An independent Icarus simulation passed all 262144 two-state combinations of a, b and addr; complete, disjoint assignments establish the absence of storage and driver conflict. The final label is good LC20, with no defect sites and critical false.",
+    "record": "tests/accuracy/results/p4-lint-fresh-adjudication.json"
+  }
+}

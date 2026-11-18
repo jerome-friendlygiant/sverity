@@ -1,0 +1,42 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "origin": "authored",
+  "sites": [
+    {
+      "line": 29,
+      "signal": "u_scrub"
+    },
+    {
+      "line": 32,
+      "signal": "mem"
+    }
+  ],
+  "sdc": [],
+  "rationale": "mem has one clocked writer in the top, but it is also connected to the body-less ecc_scrub_engine whose port direction is not visible; whether the scrubber drives the array (a second writer) cannot be decided from this RTL.",
+  "author": "claude-sonnet-5-5",
+  "class": "LC20",
+  "batch": "p2-lint-heldout",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "unknown",
+      "critical": true,
+      "class": "LC20",
+      "sites": [
+        {
+          "line": 26,
+          "signal": "u_scrub"
+        }
+      ],
+      "note": "The opaque scrub engine may write the same memory as the explicit writer."
+    }
+  ]
+}

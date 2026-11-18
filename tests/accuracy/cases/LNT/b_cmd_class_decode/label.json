@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-B (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC13",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "casez with ? wildcards, disjoint and complete",
+    "rationale": "The four items 00??, 01??, 10??, 11?? are disjoint and cover all 16 values."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "good",
+      "class": "LC13",
+      "sites": [],
+      "critical": false,
+      "note": "The four casez items cover every value without overlap."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC13",
+      "sites": [],
+      "critical": false,
+      "note": "casez items cover all 16 nibble values without overlap and assign cls on every path."
+    }
+  ],
+  "rationale": "The four items 00??, 01??, 10??, 11?? are disjoint and cover all 16 values.",
+  "verdict": "good",
+  "class": "LC13",
+  "sites": [],
+  "critical": false
+}

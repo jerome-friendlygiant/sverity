@@ -1,0 +1,28 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "class": "LC07",
+  "batch": "p2-lint-heldout",
+  "verdict": "good",
+  "critical": false,
+  "origin": "authored",
+  "sites": [],
+  "sdc": [],
+  "rationale": "Two always_ff blocks write disjoint halves of flags_q, and each bit has a single writer.",
+  "author": "claude-sonnet-5-5",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "class": "LC07",
+      "sites": [],
+      "note": "The two processes drive disjoint halves of flags_q."
+    }
+  ]
+}

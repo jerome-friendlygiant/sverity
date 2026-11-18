@@ -1,5 +1,7 @@
 // sverity-args: --top top
-// expect: LNT-055 WARNING 8
+// revert: ((x - 1) < 0) => (x < 1)
+// revert-expect-none: LNT-055
+// expect: LNT-055 WARNING 10
 // expect-count: LNT-055 WARNING 1
 module top(input logic clk, output logic neg, neg2);
   logic [7:0] x;

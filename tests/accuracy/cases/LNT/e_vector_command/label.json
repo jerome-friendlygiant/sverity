@@ -1,0 +1,73 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-E (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC13",
+    "sites": [
+      {
+        "line": 23
+      },
+      {
+        "line": 24
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "overlapping constant items",
+    "rationale": "Command 1 appears twice, making the later operation unreachable."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC13",
+      "sites": [
+        {
+          "line": 24
+        }
+      ],
+      "critical": true,
+      "note": "duplicate case item 2'd1 overlaps and is unreachable"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC13",
+      "sites": [
+        {
+          "line": 23
+        },
+        {
+          "line": 24
+        }
+      ],
+      "critical": true,
+      "note": "Two case items use the same selector value, making one unreachable."
+    }
+  ],
+  "settlement": {
+    "by": "settler (gpt-6.1-sol, third reading)",
+    "verdict": "bad",
+    "class": "LC13",
+    "sites": [
+      {
+        "line": 24
+      }
+    ],
+    "critical": true,
+    "note": "The later 2'd1 item duplicates the preceding item and can never be selected. The unreachable duplicate item is the wrong statement; the first item itself is reachable."
+  },
+  "rationale": "The later 2'd1 item duplicates the preceding item and can never be selected. The unreachable duplicate item is the wrong statement; the first item itself is reachable.",
+  "verdict": "bad",
+  "class": "LC13",
+  "sites": [
+    {
+      "line": 24
+    }
+  ],
+  "critical": true
+}

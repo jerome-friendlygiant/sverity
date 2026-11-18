@@ -1,0 +1,43 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "class": "LC15",
+  "batch": "p2-lint-heldout",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "sites": [
+    {
+      "line": 15,
+      "signal": "gain_w"
+    }
+  ],
+  "sdc": [],
+  "rationale": "gain_w is the output of a foreign function with no body in the design, so whether it is assigned on every call cannot be seen.",
+  "author": "claude-sonnet-5-5",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "class": "LC15",
+      "sites": [
+        {
+          "line": 15,
+          "signal": "calc_gain"
+        }
+      ],
+      "note": "A DPI function call has no synthesizable RTL implementation."
+    }
+  ],
+  "settled_by": {
+    "by": "gpt-6.1-sol (third reading, both labels shown)",
+    "verdict": "bad",
+    "reason": "The combinational datapath obtains gain_w from an imported DPI-C function with no synthesizable RTL implementation."
+  }
+}

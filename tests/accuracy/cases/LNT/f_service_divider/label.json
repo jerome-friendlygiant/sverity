@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-F (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC17",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "register-derived divided clock",
+    "rationale": "The secondary clock is a flip-flop output and the byte captures on its rising edge."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC17",
+      "sites": [],
+      "critical": false,
+      "note": "Register-derived divided clock is explicitly not a defect of this class."
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "good",
+      "class": "LC17",
+      "sites": [],
+      "critical": false,
+      "note": "The derived clock is a register divider, which this class explicitly permits."
+    }
+  ],
+  "rationale": "The secondary clock is a flip-flop output and the byte captures on its rising edge.",
+  "verdict": "good",
+  "class": "LC17",
+  "sites": [],
+  "critical": false
+}

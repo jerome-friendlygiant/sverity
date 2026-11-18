@@ -1,0 +1,88 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-E (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC12",
+    "sites": [
+      {
+        "line": 22
+      },
+      {
+        "line": 23
+      },
+      {
+        "line": 26
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "blocking state cross-process race",
+    "rationale": "A blocking state update races a separate clocked reader, allowing the reader to sample the new value instead of the old hardware state."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC12",
+      "sites": [
+        {
+          "line": 22
+        },
+        {
+          "line": 23
+        }
+      ],
+      "critical": true,
+      "note": "blocking writes to register sample, read by another clocked process: race"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC12",
+      "sites": [
+        {
+          "line": 22
+        },
+        {
+          "line": 23
+        },
+        {
+          "line": 26
+        }
+      ],
+      "critical": true,
+      "note": "A blocking write to sample races with the separate clocked process that reads it."
+    }
+  ],
+  "settlement": {
+    "by": "settler (gpt-6.1-sol, third reading)",
+    "verdict": "bad",
+    "class": "LC12",
+    "sites": [
+      {
+        "line": 22
+      },
+      {
+        "line": 23
+      }
+    ],
+    "critical": true,
+    "note": "The blocking writes to sample permit the separate clocked reader to observe a newly written value depending on process scheduling. The offending statements are the blocking assignments; the nonblocking read at line 26 is otherwise correct."
+  },
+  "rationale": "The blocking writes to sample permit the separate clocked reader to observe a newly written value depending on process scheduling. The offending statements are the blocking assignments; the nonblocking read at line 26 is otherwise correct.",
+  "verdict": "bad",
+  "class": "LC12",
+  "sites": [
+    {
+      "line": 22
+    },
+    {
+      "line": 23
+    }
+  ],
+  "critical": true
+}

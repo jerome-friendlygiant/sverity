@@ -1,0 +1,67 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-E (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC10",
+    "sites": [
+      {
+        "line": 21
+      },
+      {
+        "line": 22
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "two-net combinational feedback",
+    "rationale": "Grant and request feed one another without storage."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC10",
+      "sites": [
+        {
+          "line": 21
+        },
+        {
+          "line": 22
+        }
+      ],
+      "critical": true,
+      "note": "grant and request feed each other combinationally"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC10",
+      "sites": [
+        {
+          "line": 21
+        },
+        {
+          "line": 22
+        }
+      ],
+      "critical": true,
+      "note": "grant and request form a combinational feedback cycle."
+    }
+  ],
+  "rationale": "Grant and request feed one another without storage.",
+  "verdict": "bad",
+  "class": "LC10",
+  "sites": [
+    {
+      "line": 21
+    },
+    {
+      "line": 22
+    }
+  ],
+  "critical": true
+}

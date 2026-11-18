@@ -34,6 +34,12 @@ bool Catalog::parse(std::string_view text, Catalog& out, std::string& error) {
         ri.wave = r["wave"].asString();
         ri.gap = r["gap"].asString();
         ri.deck = r["deck"].asString();
+        for (const auto& c : r["classes"].asArray()) ri.classes.push_back(c.asString());
+        for (const auto& o : r["obligations"].asArray()) {
+            ObligationInfo info{o["id"].asString(), o["reason"].asString()};
+            if (info.id.empty()) { error = ri.id + ": an obligation needs an id"; return false; }
+            ri.obligations.push_back(std::move(info));
+        }
         out.index_[ri.id] = out.rules_.size();
         out.rules_.push_back(std::move(ri));
     }
@@ -50,14 +56,30 @@ const Catalog& Catalog::embedded() {
             std::fprintf(stderr, "sverity: internal error: embedded rule catalog is corrupt: %s\n", err.c_str());
             std::abort();
         }
+        const std::string_view specs(reinterpret_cast<const char*>(embedded::specs));
+        for (auto& rule : cat.rules_) {
+            if (rule.category != "LNT" || !rule.title.empty()) continue;
+            const auto row = "\n| `" + rule.id + "` | ";
+            const auto start = specs.find(row);
+            if (start != std::string_view::npos) {
+                const auto title = start + row.size();
+                const auto end = specs.find(" |\n", title);
+                if (end != std::string_view::npos) rule.title = specs.substr(title, end - title);
+            }
+            if (rule.title.empty()) {
+                std::fprintf(stderr, "sverity: missing embedded spec title for %s\n", rule.id.c_str());
+                std::abort();
+            }
+        }
         return cat;
     }();
     return c;
 }
 
 static int deckOrder(std::string_view deck) { return deck == "core" ? 1 : deck == "domain" ? 2 : deck == "1.0" ? 3 : 0; }
-bool isDeck(std::string_view name) { return deckOrder(name) != 0; }
+bool isDeck(std::string_view name) { return deckOrder(name) != 0 || name == "lint"; }
 bool inDeck(const RuleInfo& rule, std::string_view deck) {
+    if (deck == "lint") return !rule.classes.empty();
     const int order = deckOrder(rule.deck);
     return order != 0 && order <= deckOrder(deck);
 }

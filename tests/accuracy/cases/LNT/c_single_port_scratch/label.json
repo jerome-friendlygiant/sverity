@@ -1,0 +1,61 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-C (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC24",
+    "sites": [
+      {
+        "line": 16
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "read during write, same address",
+    "rationale": "Read and write share addr in the same cycle; returned word is old or new depending on the RAM."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC24",
+      "sites": [
+        {
+          "line": 16
+        }
+      ],
+      "critical": true,
+      "note": "rdata reads mem[addr] in the same cycle that mem[addr] is written."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC24",
+      "sites": [
+        {
+          "line": 16
+        }
+      ],
+      "critical": true,
+      "note": "With en and we set, rdata reads the address being written in the same cycle; old-vs-new data depends on the RAM's read-during-write mode."
+    }
+  ],
+  "rationale": "Read and write share addr in the same cycle; returned word is old or new depending on the RAM.",
+  "verdict": "good",
+  "class": "LC24",
+  "sites": [],
+  "critical": false,
+  "adjudication": {
+    "by": "post-score triage third reading (LABEL-WRONG)",
+    "was": {
+      "verdict": "bad",
+      "class": "LC24",
+      "critical": true
+    },
+    "reason": "same-clock read during write is defined by the RTL (convention 4), consistent with c_ring_sample_fifo and c_simple_dual_buffer",
+    "record": "tests/accuracy/results/p3-lint-fresh-adjudication.json"
+  }
+}

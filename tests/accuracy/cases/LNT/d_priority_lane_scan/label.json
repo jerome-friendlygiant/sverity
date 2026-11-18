@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-D (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC04",
+    "sites": [
+      {
+        "line": 23
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "generate iteration exceeds packed range",
+    "rationale": "The fifth generated lane reads beyond the four-lane request vector."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC04",
+      "sites": [
+        {
+          "line": 23
+        }
+      ],
+      "critical": true,
+      "note": "generate lane 4 selects a[4] on a 4-bit a"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC04",
+      "sites": [
+        {
+          "line": 23
+        }
+      ],
+      "critical": true,
+      "note": "The generate loop selects a[4] although a only has bits three through zero."
+    }
+  ],
+  "rationale": "The fifth generated lane reads beyond the four-lane request vector.",
+  "verdict": "bad",
+  "class": "LC04",
+  "sites": [
+    {
+      "line": 23
+    }
+  ],
+  "critical": true
+}

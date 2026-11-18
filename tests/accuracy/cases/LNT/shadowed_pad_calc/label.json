@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": false,
+  "origin": "authored",
+  "defect": "function argument named size hides the module port size",
+  "sites": [
+    {
+      "line": 13,
+      "signal": "size"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The argument size of pad_bytes shadows the module-level input of the same name; the call passes the port, but a later edit reading size inside the function silently uses the argument.",
+  "author": "claude-sonnet-5-5",
+  "class": "LC19",
+  "batch": "p2-lint-heldout",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "bad",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": false,
+      "class": "LC19",
+      "sites": [
+        {
+          "line": 13,
+          "signal": "size"
+        }
+      ],
+      "note": "The function parameter shadows the enclosing port of the same name."
+    }
+  ]
+}

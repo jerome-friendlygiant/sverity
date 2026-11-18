@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-B (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC10",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "register feedback (next state computed from current state)",
+    "rationale": "State feeds its own next-state logic only through flip-flops."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "good",
+      "class": "LC10",
+      "sites": [],
+      "critical": false,
+      "note": "All feedback goes through the bin_q/gray_q registers; no combinational cycle."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC10",
+      "sites": [],
+      "critical": false,
+      "note": "No combinational path from a signal back to itself; all feedback goes through flops."
+    }
+  ],
+  "rationale": "State feeds its own next-state logic only through flip-flops.",
+  "verdict": "good",
+  "class": "LC10",
+  "sites": [],
+  "critical": false
+}

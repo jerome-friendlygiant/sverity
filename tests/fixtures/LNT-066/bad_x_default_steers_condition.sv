@@ -1,3 +1,5 @@
+// revert: 1'bx => 1'b0
+// revert-expect-none: LNT-066
 // sverity-args: --top top
 // 'x is assigned to sel and sel steers a later assignment: the branch taken differs between simulation (X) and hardware
 // expect: LNT-066 WARNING

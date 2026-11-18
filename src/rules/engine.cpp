@@ -1,9 +1,29 @@
+#include <unistd.h>
+
+#include <algorithm>
+#include <fstream>
 #include <map>
+#include <set>
+#include <vector>
 
 #include "domains/model.h"
+#include "rules/rules.h"
 #include "sverity/rule.h"
+#include "slang/ast/Compilation.h"
+#include "slang/ast/symbols/CompilationUnitSymbols.h"
+#include "slang/ast/symbols/InstanceSymbols.h"
 
 namespace sverity {
+
+namespace {
+/// Resident set now (not the peak), for the model's share of the process.
+uint64_t currentRssKb() {
+    std::ifstream statm("/proc/self/statm");
+    uint64_t size = 0, resident = 0;
+    statm >> size >> resident;
+    return resident * static_cast<uint64_t>(sysconf(_SC_PAGESIZE)) / 1024;
+}
+} // namespace
 
 void runRules(Design* design, Report& report, const Config& config) {
     const auto& catalog = Catalog::embedded();
@@ -14,17 +34,34 @@ void runRules(Design* design, Report& report, const Config& config) {
     // Build the model up front when measuring, so its cost is not charged to whichever rule happens to run first.
     if (config.timings && design) {
         const auto start = Timings::Clock::now();
+        config.timings->count("rss_kb_before_model", currentRssKb());   // the load and the slang AST
         try {
-            const auto& model = model::getModel(*design);
+            if (!design->model) design->model = std::shared_ptr<model::Model>(model::buildModel(*design).release());
+            const auto& model = *design->model;
             config.timings->record("model", start);
             config.timings->count("graph_nodes", model.nodes.size());
             config.timings->count("graph_edges", model.edges.size());
             config.timings->count("register_bits", model.flops.size());
+            config.timings->count("rss_kb_after_model", currentRssKb());
+            for (const auto& [name, bytes] : model::modelMemory(model)) config.timings->count(name, bytes);
         } catch (const std::exception&) {
             config.timings->record("model_failed", start);   // the rules that need it report the failure
         }
     }
 
+    // Definitions no instance of the design uses are not hardware of this run: say which, so absence of findings there is not read as
+    // safety.
+    if (design && design->compilation) {
+        std::vector<std::string> unused;
+        for (const auto& member : design->compilation->getRoot().members())
+            if (const auto* inst = member.as_if<slang::ast::InstanceSymbol>(); inst && inst->body.flags.has(slang::ast::InstanceFlags::Uninstantiated))
+                unused.emplace_back(inst->getDefinition().name);
+        std::sort(unused.begin(), unused.end());
+        unused.erase(std::unique(unused.begin(), unused.end()), unused.end());
+        report.setObjectCount("uninstantiated_definitions", unused.size());
+        report.setUninstantiatedDefinitions(std::move(unused));
+    }
+    const int requestsBefore = design ? design->modelRequests : 0;
     uint32_t counts[6] = {0, 0, 0, 0, 0, 0};
     std::map<std::string, std::map<RuleState, uint32_t>> perCategory;
 
@@ -58,6 +95,7 @@ void runRules(Design* design, Report& report, const Config& config) {
                 if (!ctx.degradedReason.empty()) {
                     rc.state = RuleState::Partial;
                     rc.reason = ctx.degradedReason;
+                    rc.degraded = true;   // lost on THIS design: unlike a rule that is partial in the tool version
                 } else {
                     rc.state = rule->completeness();
                     if (rc.state == RuleState::Partial) rc.reason = rule->partialReason();
@@ -74,7 +112,9 @@ void runRules(Design* design, Report& report, const Config& config) {
             }
         }
         if (const auto* info = catalog.find(id); !config.deck.empty() && info && !inDeck(*info, config.deck)) rc.preview = true;
-        if (rc.state == RuleState::Partial && !rc.preview) report.markIncomplete("rule-execution", id + ": " + rc.reason);
+        // Only a loss on this design marks the run incomplete. A rule that is partial or unimplemented in the tool version is
+        // a statement about the tool (Report::toolCoverage), the same on every run.
+        if (rc.degraded && !rc.preview) report.markIncomplete("rule-execution", id + ": " + rc.reason);
         if (!rc.preview) counts[static_cast<int>(rc.state)]++;   // a preview rule is not part of what this run claims
         return rc;
     };
@@ -93,6 +133,22 @@ void runRules(Design* design, Report& report, const Config& config) {
         report.addRuleCoverage(std::move(rc));
     }
 
+    if (design) demoteSimulationRegionFindings(*design, report);
+
+    // Any enabled rule that read the shared connectivity model (the lint rules among them, not only the CDC/CST passes) relies on
+    // it: a black box or a construct it falls back on is a gap of this run whichever rule asked.
+    if (design && design->model && design->modelRequests > requestsBefore) {
+        const auto& m = *design->model;
+        report.declareScope("blackboxes");
+        report.declareScope("graph-precision");
+        std::set<std::string> boxes;
+        for (const auto& b : m.blackBoxes) boxes.insert(b.module);
+        for (const auto& mod : boxes) report.markIncomplete("blackboxes", "unmodeled black box '" + mod + "'");
+        std::map<std::string, size_t> fallbacks;
+        for (const auto& f : m.fallbacks) ++fallbacks[f.category];
+        for (const auto& [cat, n] : fallbacks) report.markIncomplete("graph-precision", cat + ": " + std::to_string(n) + " occurrence(s)");
+    }
+
     for (auto& id : config.disabledRules) {
         if (catalog.find(id)) continue;
         Diagnostic d;
@@ -105,26 +161,26 @@ void runRules(Design* design, Report& report, const Config& config) {
         report.add(std::move(d));
     }
 
-    // CST-019: an advertised-but-not-evaluated rule is a coverage gap, never silence.
-    uint32_t gaps = counts[static_cast<int>(RuleState::Partial)] + counts[static_cast<int>(RuleState::Disabled)] +
-                    counts[static_cast<int>(RuleState::Unimplemented)] + counts[static_cast<int>(RuleState::NotRun)] +
-                    counts[static_cast<int>(RuleState::Failed)];
-    if (gaps) {
+    // CST-019: a rule that could not give its answer on THIS design (it failed, did not run, or ran degraded) is a coverage gap,
+    // never silence. A rule that is partial or unimplemented in the tool version, or that the user disabled, is not a loss of
+    // this run: Report::toolCoverage and coverage.rules state it, and --exit-policy strict still blocks on it.
+    uint32_t degraded = 0, lost = counts[static_cast<int>(RuleState::NotRun)] + counts[static_cast<int>(RuleState::Failed)];
+    for (const auto& rc : report.ruleCoverage()) degraded += rc.degraded && !rc.preview;
+    lost += degraded;
+    if (lost) {
         Diagnostic d;
         d.ruleId = "CST-019";
         d.severity = Severity::Warning;
-        d.message = std::to_string(gaps) + " of " + std::to_string(counts[0] + counts[1] + counts[2] + counts[3] + counts[4] + counts[5]) +
-                    " catalogued rules were not fully evaluated in this run (" +
-                    std::to_string(counts[static_cast<int>(RuleState::Unimplemented)]) + " unimplemented, " +
-                    std::to_string(counts[static_cast<int>(RuleState::Partial)]) + " partial, " +
-                    std::to_string(counts[static_cast<int>(RuleState::Disabled)]) + " disabled, " +
+        d.message = std::to_string(lost) + " of " + std::to_string(counts[0] + counts[1] + counts[2] + counts[3] + counts[4] + counts[5]) +
+                    " catalogued rules did not give their answer on this design (" +
+                    std::to_string(degraded) + " degraded, " +
                     std::to_string(counts[static_cast<int>(RuleState::NotRun)]) + " not run, " +
                     std::to_string(counts[static_cast<int>(RuleState::Failed)]) +
                     " failed)" + (config.deck.empty() ? "" : " in deck " + config.deck) + "; the absence of findings for them is NOT evidence of safety";
         for (auto& [cat, m] : perCategory) {
             std::string t;
             for (auto& [st, n] : m)
-                if (st != RuleState::Executed) t += std::string(toString(st)) + "=" + std::to_string(n) + " ";
+                if (st == RuleState::NotRun || st == RuleState::Failed) t += std::string(toString(st)) + "=" + std::to_string(n) + " ";
             if (!t.empty()) d.evidence.push_back({"coverage_gap_" + cat, t, {}});
         }
         d.confidence = Confidence::Unresolved;

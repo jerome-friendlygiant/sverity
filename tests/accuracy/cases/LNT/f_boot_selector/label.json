@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-F (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC16",
+    "sites": [
+      {
+        "line": 18
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "reset decision reads undefined state",
+    "rationale": "The reset decision reads the byte before any assignment has established its value; simulation takes the else arm at first reset."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC16",
+      "sites": [
+        {
+          "line": 18
+        }
+      ],
+      "critical": true,
+      "note": "reset branch reads y before it has a defined value; reset value is non-constant"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC16",
+      "sites": [
+        {
+          "line": 18
+        }
+      ],
+      "critical": true,
+      "note": "Reset behavior depends on y before y has a defined reset value."
+    }
+  ],
+  "rationale": "The reset decision reads the byte before any assignment has established its value; simulation takes the else arm at first reset.",
+  "verdict": "bad",
+  "class": "LC16",
+  "sites": [
+    {
+      "line": 18
+    }
+  ],
+  "critical": true
+}

@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-B (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC14",
+    "sites": [
+      {
+        "line": 21
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "comparison with an X-containing constant",
+    "rationale": "tag == 4'b10x1 is never true in simulation."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC14",
+      "sites": [
+        {
+          "line": 21
+        }
+      ],
+      "critical": true,
+      "note": "tag is compared with == against a literal containing x, which is never true in simulation."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC14",
+      "sites": [
+        {
+          "line": 21
+        }
+      ],
+      "critical": true,
+      "note": "tag is compared with 4'b10x1 using ==, which is never true in simulation while synthesis treats x as don't-care."
+    }
+  ],
+  "rationale": "tag == 4'b10x1 is never true in simulation.",
+  "verdict": "bad",
+  "class": "LC14",
+  "sites": [
+    {
+      "line": 21
+    }
+  ],
+  "critical": true
+}

@@ -1,0 +1,25 @@
+`default_nettype none
+module top (
+    input wire clk,
+    input wire aux_clk,
+    input wire rst_n,
+    input wire en,
+    input wire [7:0] a,
+    input wire [7:0] b,
+    input wire [1:0] addr,
+    input wire [1:0] addr_b,
+    output logic [7:0] y
+);
+
+
+
+// Byte-oriented signed temperature datapath.
+
+logic signed [7:0] temperature;
+logic below_zero;
+assign temperature = $signed(a);
+assign below_zero = (temperature < 8'sd0);
+assign y = {7'd0, below_zero};
+
+endmodule
+`default_nettype wire

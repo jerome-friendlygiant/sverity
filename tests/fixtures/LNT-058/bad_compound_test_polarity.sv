@@ -1,5 +1,5 @@
 // sverity-args: --top top
-// revert: if (rst_n || x) => if (!rst_n || x)
+// revert: if (rst_n || x) => if (!rst_n)
 // revert-expect-none: LNT-058 ERROR
 // The compound first-if tests the active-low reset as if it were active-high: polarity mismatch.
 // expect: LNT-058 ERROR

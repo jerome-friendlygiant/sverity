@@ -1,0 +1,68 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-F (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC17",
+    "sites": [
+      {
+        "line": 21
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "one register updated on both clock edges",
+    "rationale": "One state byte is updated by both rising and falling edges of the same clock."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC17",
+      "sites": [
+        {
+          "line": 17
+        }
+      ],
+      "critical": true,
+      "note": "One register is clocked on both edges of clk.",
+      "other": "LC16 line 18 (rst_n not in event list, used as synchronous control on dual edge)"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC17",
+      "sites": [
+        {
+          "line": 17
+        }
+      ],
+      "critical": true,
+      "note": "The same y register is triggered by both edges of clk."
+    }
+  ],
+  "settlement": {
+    "by": "settler (gpt-6.1-sol, third reading)",
+    "verdict": "bad",
+    "class": "LC17",
+    "sites": [
+      {
+        "line": 17
+      }
+    ],
+    "critical": true,
+    "note": "The event control clocks the same y register on both edges of clk, a structural LC17 defect. The synchronous active-low reset test is not a separate reset-polarity defect."
+  },
+  "rationale": "The event control clocks the same y register on both edges of clk, a structural LC17 defect. The synchronous active-low reset test is not a separate reset-polarity defect.",
+  "verdict": "bad",
+  "class": "LC17",
+  "sites": [
+    {
+      "line": 17
+    }
+  ],
+  "critical": true
+}

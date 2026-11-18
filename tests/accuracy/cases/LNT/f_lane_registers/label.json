@@ -1,0 +1,40 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-F (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC20",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "generate-partitioned memory ownership",
+    "rationale": "Each generated clocked process owns a distinct constant array entry."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC20",
+      "sites": [],
+      "critical": false,
+      "note": "Each array element has exactly one clocked writer (constant lane index per generate instance).",
+      "other": "LC23 line 22 (no reset)"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "good",
+      "class": "LC20",
+      "sites": [],
+      "critical": false,
+      "note": "Each generated clocked writer targets a distinct fixed lane_data element."
+    }
+  ],
+  "rationale": "Each generated clocked process owns a distinct constant array entry.",
+  "verdict": "good",
+  "class": "LC20",
+  "sites": [],
+  "critical": false
+}

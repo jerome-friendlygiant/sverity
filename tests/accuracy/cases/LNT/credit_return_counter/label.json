@@ -1,0 +1,46 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "unsigned credit counter compared with >= 0, which is always true",
+  "sites": [
+    {
+      "line": 45,
+      "signal": "credit_left_o"
+    }
+  ],
+  "sdc": [],
+  "rationale": "credit_q is unsigned so credit_q >= 0 is true for every value; credit_left_o is stuck at 1 even when no credit remains.",
+  "author": "claude-sonnet-5-5",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_credit_counter.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Expanded the register macro into a clocked block, fixed the credit counter size and removed the assertions."
+  },
+  "class": "LC21",
+  "batch": "p2-lint-heldout",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "class": "LC21",
+      "sites": [
+        {
+          "line": 45,
+          "signal": "credit_left_o"
+        }
+      ],
+      "note": "An unsigned credit count is always greater than or equal to zero."
+    }
+  ]
+}

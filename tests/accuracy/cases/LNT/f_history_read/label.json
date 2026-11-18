@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-F (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC24",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "same-clock registered old-data read",
+    "rationale": "Nonblocking assignments specify old data on a same-clock read/write collision."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC24",
+      "sites": [],
+      "critical": false,
+      "note": "same-clock registered read returns old data on collision, defined by RTL"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "good",
+      "class": "LC24",
+      "sites": [],
+      "critical": false,
+      "note": "The same-clock nonblocking read captures the old memory value on a write collision."
+    }
+  ],
+  "rationale": "Nonblocking assignments specify old data on a same-clock read/write collision.",
+  "verdict": "good",
+  "class": "LC24",
+  "sites": [],
+  "critical": false
+}

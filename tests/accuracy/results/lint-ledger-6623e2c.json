@@ -1,0 +1,1764 @@
+{
+  "schema": "sverity-lint-ledger/1",
+  "replay": "tests/accuracy/results/reference-lint-6623e2c.json",
+  "tool_commit": "6623e2c",
+  "scope": "ten pinned OpenTitan IPs (tests/public_projects/lint_reference.json); site keys are file path in the OpenTitan repository, line and rule",
+  "method": "Every SVerity finding that blocks (WARNING or ERROR, not waived, not Unresolved) or is not analysed, deduplicated across IPs by site key. review=read: the RTL at the site was read in the steps 2-5 passes; review=sampled: the shape was read at several sites and the rest are judged by the same message and construct. Obligations (declared undecidable by the rule's catalog entry) are counted in noise-gate-6623e2c.json, not listed here. A site marked `fixed` was a tool gap removed in the pass after f941840 (checked by single-IP reruns of otbn, csrng, kmac and aes, not a full replay): `was` keeps its earlier classification; the sites of other IPs that share the file are assumed fixed with it.",
+  "classes": [
+    "real defect",
+    "false positive",
+    "honest undecidable",
+    "idiom accepted as INFO elsewhere",
+    "tool gap"
+  ],
+  "summary": {
+    "sites": 88,
+    "blocking": 8,
+    "not_analysed": 80,
+    "by_classification": {
+      "honest undecidable": 55,
+      "false positive": 5,
+      "real defect": 2,
+      "tool gap": 26
+    },
+    "blocking_false_positive_rate": 0.625,
+    "per_rule": {
+      "CST-010": {
+        "sites": 1,
+        "false_positive": 0,
+        "real_defect": 0,
+        "honest_undecidable": 1,
+        "tool_gap": 0,
+        "false_positive_rate": 0.0
+      },
+      "LNT-005": {
+        "sites": 2,
+        "false_positive": 2,
+        "real_defect": 0,
+        "honest_undecidable": 0,
+        "tool_gap": 0,
+        "false_positive_rate": 1.0
+      },
+      "LNT-009": {
+        "sites": 3,
+        "false_positive": 0,
+        "real_defect": 0,
+        "honest_undecidable": 3,
+        "tool_gap": 0,
+        "false_positive_rate": 0.0
+      },
+      "LNT-019": {
+        "sites": 3,
+        "false_positive": 0,
+        "real_defect": 0,
+        "honest_undecidable": 3,
+        "tool_gap": 0,
+        "false_positive_rate": 0.0
+      },
+      "LNT-020": {
+        "sites": 10,
+        "false_positive": 0,
+        "real_defect": 0,
+        "honest_undecidable": 0,
+        "tool_gap": 10,
+        "false_positive_rate": 0.0
+      },
+      "LNT-029": {
+        "sites": 16,
+        "false_positive": 0,
+        "real_defect": 0,
+        "honest_undecidable": 15,
+        "tool_gap": 1,
+        "false_positive_rate": 0.0
+      },
+      "LNT-033": {
+        "sites": 17,
+        "false_positive": 0,
+        "real_defect": 0,
+        "honest_undecidable": 17,
+        "tool_gap": 0,
+        "false_positive_rate": 0.0
+      },
+      "LNT-036": {
+        "sites": 1,
+        "false_positive": 1,
+        "real_defect": 0,
+        "honest_undecidable": 0,
+        "tool_gap": 0,
+        "false_positive_rate": 1.0
+      },
+      "LNT-041": {
+        "sites": 11,
+        "false_positive": 0,
+        "real_defect": 0,
+        "honest_undecidable": 3,
+        "tool_gap": 8,
+        "false_positive_rate": 0.0
+      },
+      "LNT-042": {
+        "sites": 3,
+        "false_positive": 0,
+        "real_defect": 0,
+        "honest_undecidable": 3,
+        "tool_gap": 0,
+        "false_positive_rate": 0.0
+      },
+      "LNT-044": {
+        "sites": 5,
+        "false_positive": 0,
+        "real_defect": 0,
+        "honest_undecidable": 5,
+        "tool_gap": 0,
+        "false_positive_rate": 0.0
+      },
+      "LNT-053": {
+        "sites": 1,
+        "false_positive": 0,
+        "real_defect": 1,
+        "honest_undecidable": 0,
+        "tool_gap": 0,
+        "false_positive_rate": 0.0
+      },
+      "LNT-054": {
+        "sites": 3,
+        "false_positive": 2,
+        "real_defect": 1,
+        "honest_undecidable": 0,
+        "tool_gap": 0,
+        "false_positive_rate": 0.667
+      },
+      "LNT-057": {
+        "sites": 2,
+        "false_positive": 0,
+        "real_defect": 0,
+        "honest_undecidable": 0,
+        "tool_gap": 2,
+        "false_positive_rate": 0.0
+      },
+      "LNT-068": {
+        "sites": 5,
+        "false_positive": 0,
+        "real_defect": 0,
+        "honest_undecidable": 1,
+        "tool_gap": 4,
+        "false_positive_rate": 0.0
+      },
+      "LNT-071": {
+        "sites": 5,
+        "false_positive": 0,
+        "real_defect": 0,
+        "honest_undecidable": 4,
+        "tool_gap": 1,
+        "false_positive_rate": 0.0
+      }
+    },
+    "tool_gaps_fixed": 25
+  },
+  "sites": [
+    {
+      "site": "hw/ip/prim_generic/rtl/prim_ram_1p.sv:61:CST-010",
+      "rule": "CST-010",
+      "file": "hw/ip/prim_generic/rtl/prim_ram_1p.sv",
+      "line": 61,
+      "kind": "blocking",
+      "ips": [
+        "otbn"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "memories of 159744 and 319488 bits are tracked as one node above the 16384-bit precision limit; a real analysis loss, no design defect claimed",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/otbn/rtl/otbn_sec_add.sv:298:LNT-005",
+      "rule": "LNT-005",
+      "file": "hw/ip/otbn/rtl/otbn_sec_add.sv",
+      "line": 298,
+      "kind": "blocking",
+      "ips": [
+        "otbn"
+      ],
+      "classification": "false positive",
+      "rationale": "`.Width(NumShares * Width)`: product of two small non-negative parameters; the override expression is not a node the sign proofs walk",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/otbn/rtl/otbn_sec_add_mod.sv:260:LNT-005",
+      "rule": "LNT-005",
+      "file": "hw/ip/otbn/rtl/otbn_sec_add_mod.sv",
+      "line": 260,
+      "kind": "blocking",
+      "ips": [
+        "otbn"
+      ],
+      "classification": "false positive",
+      "rationale": "same shape as otbn_sec_add.sv:298 (`NumShares * Width` parameter override)",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/csrng/rtl/csrng_ctr_drbg.sv:261:LNT-036",
+      "rule": "LNT-036",
+      "file": "hw/ip/csrng/rtl/csrng_ctr_drbg.sv",
+      "line": 261,
+      "kind": "blocking",
+      "ips": [
+        "csrng"
+      ],
+      "classification": "false positive",
+      "rationale": "`(NumBlkPerUpd - 1 - concat_ctr_q) * BlkLen` would wrap at concat_ctr_q = 3, but the enclosing else-branch of `if (!enable_i || concat_ctr_done)` excludes it; the guard is a different signal derived from the counter",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/kmac/rtl/kmac_app.sv:559:LNT-053",
+      "rule": "LNT-053",
+      "file": "hw/ip/kmac/rtl/kmac_app.sv",
+      "line": 559,
+      "kind": "blocking",
+      "ips": [
+        "kmac"
+      ],
+      "classification": "real defect",
+      "rationale": "`disable_entropy_fast_process = 1'b0` is overwritten unconditionally later in the same always_comb: a benign dead store",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/otbn/rtl/otbn_core.sv:993:LNT-054",
+      "rule": "LNT-054",
+      "file": "hw/ip/otbn/rtl/otbn_core.sv",
+      "line": 993,
+      "kind": "blocking",
+      "ips": [
+        "otbn"
+      ],
+      "classification": "false positive",
+      "rationale": "`sec_wipe_wdr_urnd_q` loads whenever `sec_wipe_wdr_d` is set and is read only under `sec_wipe_wdr_q`, the reset flop of that same enable: always loaded before read",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/otbn/rtl/otbn_instruction_fetch.sv:436:LNT-054",
+      "rule": "LNT-054",
+      "file": "hw/ip/otbn/rtl/otbn_instruction_fetch.sv",
+      "line": 436,
+      "kind": "blocking",
+      "ips": [
+        "otbn"
+      ],
+      "classification": "real defect",
+      "rationale": "`insn_prefetch_addr` has no reset and drives `imem_addr_o` while no fetch is requested, so the address is X until the first prefetch (benign flop in silicon, X in simulation)",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/prim/rtl/prim_edn_req.sv:100:LNT-054",
+      "rule": "LNT-054",
+      "file": "hw/ip/prim/rtl/prim_edn_req.sv",
+      "line": 100,
+      "kind": "blocking",
+      "ips": [
+        "otbn"
+      ],
+      "classification": "false positive",
+      "rationale": "`word_data_q` is compared only under `chk_rep`, a reset flop set when the first word is stored: `0 && X` is 0, so no X steers control",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/aes/rtl/aes_core.sv:57:LNT-009",
+      "rule": "LNT-009",
+      "file": "hw/ip/aes/rtl/aes_core.sv",
+      "line": 57,
+      "kind": "not-analysed",
+      "ips": [
+        "aes"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "output port drive combined with a run-time indexed write into `hw2reg`: element overlap cannot be shown",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/csrng/rtl/csrng_core.sv:19:LNT-009",
+      "rule": "LNT-009",
+      "file": "hw/ip/csrng/rtl/csrng_core.sv",
+      "line": 19,
+      "kind": "not-analysed",
+      "ips": [
+        "csrng"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "output port drive combined with a run-time indexed write into `hw2reg`: element overlap cannot be shown",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/hmac/rtl/hmac.sv:55:LNT-009",
+      "rule": "LNT-009",
+      "file": "hw/ip/hmac/rtl/hmac.sv",
+      "line": 55,
+      "kind": "not-analysed",
+      "ips": [
+        "hmac"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "output port drive combined with a run-time indexed write into `hw2reg`: element overlap cannot be shown",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/prim/rtl/prim_cipher_pkg.sv:293:LNT-019",
+      "rule": "LNT-019",
+      "file": "hw/ip/prim/rtl/prim_cipher_pkg.sv",
+      "line": 293,
+      "kind": "not-analysed",
+      "ips": [
+        "aes",
+        "csrng",
+        "entropy_src",
+        "hmac",
+        "i2c",
+        "kmac",
+        "otbn",
+        "rv_timer",
+        "spi_host",
+        "uart"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "`for (k < round_cnt)` bounded by a signal, in package functions these IPs do not call",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/prim/rtl/prim_cipher_pkg.sv:304:LNT-019",
+      "rule": "LNT-019",
+      "file": "hw/ip/prim/rtl/prim_cipher_pkg.sv",
+      "line": 304,
+      "kind": "not-analysed",
+      "ips": [
+        "aes",
+        "csrng",
+        "entropy_src",
+        "hmac",
+        "i2c",
+        "kmac",
+        "otbn",
+        "rv_timer",
+        "spi_host",
+        "uart"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "`for (k < round_cnt)` bounded by a signal, in package functions these IPs do not call",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/prim/rtl/prim_cipher_pkg.sv:315:LNT-019",
+      "rule": "LNT-019",
+      "file": "hw/ip/prim/rtl/prim_cipher_pkg.sv",
+      "line": 315,
+      "kind": "not-analysed",
+      "ips": [
+        "aes",
+        "csrng",
+        "entropy_src",
+        "hmac",
+        "i2c",
+        "kmac",
+        "otbn",
+        "rv_timer",
+        "spi_host",
+        "uart"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "`for (k < round_cnt)` bounded by a signal, in package functions these IPs do not call",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/otbn/rtl/otbn_controller.sv:455:LNT-020",
+      "rule": "LNT-020",
+      "file": "hw/ip/otbn/rtl/otbn_controller.sv",
+      "line": 455,
+      "kind": "not-analysed",
+      "ips": [
+        "otbn"
+      ],
+      "classification": "tool gap",
+      "rationale": "fixed in the pass after f941840: a test of a net with an undecided identity that guards a branch which only loads data is an enable, not a reset question",
+      "review": "sampled",
+      "was": {
+        "classification": "honest undecidable",
+        "rationale": "reset identity depends on an enable (`fifo_incr_wptr`, `req_i`, `*_wr_en`) that may or may not hold in reset"
+      },
+      "fixed": true
+    },
+    {
+      "site": "hw/ip/otbn/rtl/otbn_instruction_fetch.sv:301:LNT-020",
+      "rule": "LNT-020",
+      "file": "hw/ip/otbn/rtl/otbn_instruction_fetch.sv",
+      "line": 301,
+      "kind": "not-analysed",
+      "ips": [
+        "otbn"
+      ],
+      "classification": "tool gap",
+      "rationale": "fixed in the pass after f941840: a test of a net with an undecided identity that guards a branch which only loads data is an enable, not a reset question",
+      "review": "sampled",
+      "was": {
+        "classification": "honest undecidable",
+        "rationale": "reset identity depends on an enable (`fifo_incr_wptr`, `req_i`, `*_wr_en`) that may or may not hold in reset"
+      },
+      "fixed": true
+    },
+    {
+      "site": "hw/ip/otbn/rtl/otbn_instruction_fetch.sv:413:LNT-020",
+      "rule": "LNT-020",
+      "file": "hw/ip/otbn/rtl/otbn_instruction_fetch.sv",
+      "line": 413,
+      "kind": "not-analysed",
+      "ips": [
+        "otbn"
+      ],
+      "classification": "tool gap",
+      "rationale": "fixed in the pass after f941840: a test of a net with an undecided identity that guards a branch which only loads data is an enable, not a reset question",
+      "review": "sampled",
+      "was": {
+        "classification": "honest undecidable",
+        "rationale": "reset identity depends on an enable (`fifo_incr_wptr`, `req_i`, `*_wr_en`) that may or may not hold in reset"
+      },
+      "fixed": true
+    },
+    {
+      "site": "hw/ip/otbn/rtl/otbn_lsu.sv:113:LNT-020",
+      "rule": "LNT-020",
+      "file": "hw/ip/otbn/rtl/otbn_lsu.sv",
+      "line": 113,
+      "kind": "not-analysed",
+      "ips": [
+        "otbn"
+      ],
+      "classification": "tool gap",
+      "rationale": "fixed in the pass after f941840: a test of a net with an undecided identity that guards a branch which only loads data is an enable, not a reset question",
+      "review": "sampled",
+      "was": {
+        "classification": "honest undecidable",
+        "rationale": "reset identity depends on an enable (`fifo_incr_wptr`, `req_i`, `*_wr_en`) that may or may not hold in reset"
+      },
+      "fixed": true
+    },
+    {
+      "site": "hw/ip/otbn/rtl/otbn_mac_bignum.sv:180:LNT-020",
+      "rule": "LNT-020",
+      "file": "hw/ip/otbn/rtl/otbn_mac_bignum.sv",
+      "line": 180,
+      "kind": "not-analysed",
+      "ips": [
+        "otbn"
+      ],
+      "classification": "tool gap",
+      "rationale": "fixed in the pass after f941840: a test of a net with an undecided identity that guards a branch which only loads data is an enable, not a reset question",
+      "review": "sampled",
+      "was": {
+        "classification": "honest undecidable",
+        "rationale": "reset identity depends on an enable (`fifo_incr_wptr`, `req_i`, `*_wr_en`) that may or may not hold in reset"
+      },
+      "fixed": true
+    },
+    {
+      "site": "hw/ip/otbn/rtl/otbn_mac_bignum.sv:220:LNT-020",
+      "rule": "LNT-020",
+      "file": "hw/ip/otbn/rtl/otbn_mac_bignum.sv",
+      "line": 220,
+      "kind": "not-analysed",
+      "ips": [
+        "otbn"
+      ],
+      "classification": "tool gap",
+      "rationale": "fixed in the pass after f941840: a test of a net with an undecided identity that guards a branch which only loads data is an enable, not a reset question",
+      "review": "sampled",
+      "was": {
+        "classification": "honest undecidable",
+        "rationale": "reset identity depends on an enable (`fifo_incr_wptr`, `req_i`, `*_wr_en`) that may or may not hold in reset"
+      },
+      "fixed": true
+    },
+    {
+      "site": "hw/ip/otbn/rtl/otbn_mac_bignum.sv:260:LNT-020",
+      "rule": "LNT-020",
+      "file": "hw/ip/otbn/rtl/otbn_mac_bignum.sv",
+      "line": 260,
+      "kind": "not-analysed",
+      "ips": [
+        "otbn"
+      ],
+      "classification": "tool gap",
+      "rationale": "fixed in the pass after f941840: a test of a net with an undecided identity that guards a branch which only loads data is an enable, not a reset question",
+      "review": "sampled",
+      "was": {
+        "classification": "honest undecidable",
+        "rationale": "reset identity depends on an enable (`fifo_incr_wptr`, `req_i`, `*_wr_en`) that may or may not hold in reset"
+      },
+      "fixed": true
+    },
+    {
+      "site": "hw/ip/prim/rtl/prim_fifo_sync.sv:191:LNT-020",
+      "rule": "LNT-020",
+      "file": "hw/ip/prim/rtl/prim_fifo_sync.sv",
+      "line": 191,
+      "kind": "not-analysed",
+      "ips": [
+        "csrng",
+        "entropy_src",
+        "hmac",
+        "i2c",
+        "kmac",
+        "otbn",
+        "spi_host",
+        "uart"
+      ],
+      "classification": "tool gap",
+      "rationale": "fixed in the pass after f941840: a test of a net with an undecided identity that guards a branch which only loads data is an enable, not a reset question",
+      "review": "sampled",
+      "was": {
+        "classification": "honest undecidable",
+        "rationale": "reset identity depends on an enable (`fifo_incr_wptr`, `req_i`, `*_wr_en`) that may or may not hold in reset"
+      },
+      "fixed": true
+    },
+    {
+      "site": "hw/ip/prim_generic/rtl/prim_ram_1p.sv:70:LNT-020",
+      "rule": "LNT-020",
+      "file": "hw/ip/prim_generic/rtl/prim_ram_1p.sv",
+      "line": 70,
+      "kind": "not-analysed",
+      "ips": [
+        "i2c",
+        "otbn"
+      ],
+      "classification": "tool gap",
+      "rationale": "fixed in the pass after f941840: a test of a net with an undecided identity that guards a branch which only loads data is an enable, not a reset question",
+      "review": "sampled",
+      "was": {
+        "classification": "honest undecidable",
+        "rationale": "reset identity depends on an enable (`fifo_incr_wptr`, `req_i`, `*_wr_en`) that may or may not hold in reset"
+      },
+      "fixed": true
+    },
+    {
+      "site": "hw/ip/prim_generic/rtl/prim_ram_1p.sv:72:LNT-020",
+      "rule": "LNT-020",
+      "file": "hw/ip/prim_generic/rtl/prim_ram_1p.sv",
+      "line": 72,
+      "kind": "not-analysed",
+      "ips": [
+        "i2c",
+        "otbn"
+      ],
+      "classification": "tool gap",
+      "rationale": "fixed in the pass after f941840: a test of a net with an undecided identity that guards a branch which only loads data is an enable, not a reset question",
+      "review": "sampled",
+      "was": {
+        "classification": "honest undecidable",
+        "rationale": "reset identity depends on an enable (`fifo_incr_wptr`, `req_i`, `*_wr_en`) that may or may not hold in reset"
+      },
+      "fixed": true
+    },
+    {
+      "site": "hw/ip/csrng/rtl/csrng_ctr_drbg.sv:151:LNT-029",
+      "rule": "LNT-029",
+      "file": "hw/ip/csrng/rtl/csrng_ctr_drbg.sv",
+      "line": 151,
+      "kind": "not-analysed",
+      "ips": [
+        "csrng"
+      ],
+      "classification": "tool gap",
+      "rationale": "fixed in the pass after f941840: a case in a procedure that writes the enum type only as a member of a record builds a data value, not a state machine",
+      "review": "sampled",
+      "was": {
+        "classification": "honest undecidable",
+        "rationale": "FSM coded as an if/else-if chain or with an opaque enum computation: transitions are not extracted"
+      },
+      "fixed": true
+    },
+    {
+      "site": "hw/ip/entropy_src/rtl/entropy_src_core.sv:1863:LNT-029",
+      "rule": "LNT-029",
+      "file": "hw/ip/entropy_src/rtl/entropy_src_core.sv",
+      "line": 1863,
+      "kind": "not-analysed",
+      "ips": [
+        "entropy_src"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "FSM coded as an if/else-if chain or with an opaque enum computation: transitions are not extracted",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/hmac/rtl/hmac.sv:309:LNT-029",
+      "rule": "LNT-029",
+      "file": "hw/ip/hmac/rtl/hmac.sv",
+      "line": 309,
+      "kind": "not-analysed",
+      "ips": [
+        "hmac"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "FSM coded as an if/else-if chain or with an opaque enum computation: transitions are not extracted",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/hmac/rtl/hmac.sv:325:LNT-029",
+      "rule": "LNT-029",
+      "file": "hw/ip/hmac/rtl/hmac.sv",
+      "line": 325,
+      "kind": "not-analysed",
+      "ips": [
+        "hmac"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "FSM coded as an if/else-if chain or with an opaque enum computation: transitions are not extracted",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/hmac/rtl/hmac.sv:367:LNT-029",
+      "rule": "LNT-029",
+      "file": "hw/ip/hmac/rtl/hmac.sv",
+      "line": 367,
+      "kind": "not-analysed",
+      "ips": [
+        "hmac"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "FSM coded as an if/else-if chain or with an opaque enum computation: transitions are not extracted",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/hmac/rtl/hmac.sv:637:LNT-029",
+      "rule": "LNT-029",
+      "file": "hw/ip/hmac/rtl/hmac.sv",
+      "line": 637,
+      "kind": "not-analysed",
+      "ips": [
+        "hmac"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "FSM coded as an if/else-if chain or with an opaque enum computation: transitions are not extracted",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/hmac/rtl/hmac_core.sv:373:LNT-029",
+      "rule": "LNT-029",
+      "file": "hw/ip/hmac/rtl/hmac_core.sv",
+      "line": 373,
+      "kind": "not-analysed",
+      "ips": [
+        "hmac"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "FSM coded as an if/else-if chain or with an opaque enum computation: transitions are not extracted",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/kmac/rtl/kmac_app.sv:565:LNT-029",
+      "rule": "LNT-029",
+      "file": "hw/ip/kmac/rtl/kmac_app.sv",
+      "line": 565,
+      "kind": "not-analysed",
+      "ips": [
+        "kmac"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "FSM coded as an if/else-if chain or with an opaque enum computation: transitions are not extracted",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/kmac/rtl/kmac_app.sv:1162:LNT-029",
+      "rule": "LNT-029",
+      "file": "hw/ip/kmac/rtl/kmac_app.sv",
+      "line": 1162,
+      "kind": "not-analysed",
+      "ips": [
+        "kmac"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "FSM coded as an if/else-if chain or with an opaque enum computation: transitions are not extracted",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/kmac/rtl/kmac_entropy.sv:555:LNT-029",
+      "rule": "LNT-029",
+      "file": "hw/ip/kmac/rtl/kmac_entropy.sv",
+      "line": 555,
+      "kind": "not-analysed",
+      "ips": [
+        "kmac"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "FSM coded as an if/else-if chain or with an opaque enum computation: transitions are not extracted",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/kmac/rtl/kmac_errchk.sv:468:LNT-029",
+      "rule": "LNT-029",
+      "file": "hw/ip/kmac/rtl/kmac_errchk.sv",
+      "line": 468,
+      "kind": "not-analysed",
+      "ips": [
+        "kmac"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "FSM coded as an if/else-if chain or with an opaque enum computation: transitions are not extracted",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/kmac/rtl/kmac_msgfifo.sv:244:LNT-029",
+      "rule": "LNT-029",
+      "file": "hw/ip/kmac/rtl/kmac_msgfifo.sv",
+      "line": 244,
+      "kind": "not-analysed",
+      "ips": [
+        "kmac"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "FSM coded as an if/else-if chain or with an opaque enum computation: transitions are not extracted",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/otbn/rtl/otbn.sv:858:LNT-029",
+      "rule": "LNT-029",
+      "file": "hw/ip/otbn/rtl/otbn.sv",
+      "line": 858,
+      "kind": "not-analysed",
+      "ips": [
+        "otbn"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "FSM coded as an if/else-if chain or with an opaque enum computation: transitions are not extracted",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/prim/rtl/prim_sha2.sv:104:LNT-029",
+      "rule": "LNT-029",
+      "file": "hw/ip/prim/rtl/prim_sha2.sv",
+      "line": 104,
+      "kind": "not-analysed",
+      "ips": [
+        "hmac"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "FSM coded as an if/else-if chain or with an opaque enum computation: transitions are not extracted",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/prim/rtl/prim_sha2.sv:153:LNT-029",
+      "rule": "LNT-029",
+      "file": "hw/ip/prim/rtl/prim_sha2.sv",
+      "line": 153,
+      "kind": "not-analysed",
+      "ips": [
+        "hmac"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "FSM coded as an if/else-if chain or with an opaque enum computation: transitions are not extracted",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/prim/rtl/prim_sha2.sv:440:LNT-029",
+      "rule": "LNT-029",
+      "file": "hw/ip/prim/rtl/prim_sha2.sv",
+      "line": 440,
+      "kind": "not-analysed",
+      "ips": [
+        "hmac"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "FSM coded as an if/else-if chain or with an opaque enum computation: transitions are not extracted",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/aes/rtl/aes_reg_top.sv:1821:LNT-033",
+      "rule": "LNT-033",
+      "file": "hw/ip/aes/rtl/aes_reg_top.sv",
+      "line": 1821,
+      "kind": "not-analysed",
+      "ips": [
+        "aes"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "`unique case (1'b1)` with signal items: uniqueness depends on run-time values (register address decode one-hot by construction)",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/csrng/rtl/csrng_reg_top.sv:2550:LNT-033",
+      "rule": "LNT-033",
+      "file": "hw/ip/csrng/rtl/csrng_reg_top.sv",
+      "line": 2550,
+      "kind": "not-analysed",
+      "ips": [
+        "csrng"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "`unique case (1'b1)` with signal items: uniqueness depends on run-time values (register address decode one-hot by construction)",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/entropy_src/rtl/entropy_src_reg_top.sv:3553:LNT-033",
+      "rule": "LNT-033",
+      "file": "hw/ip/entropy_src/rtl/entropy_src_reg_top.sv",
+      "line": 3553,
+      "kind": "not-analysed",
+      "ips": [
+        "entropy_src"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "`unique case (1'b1)` with signal items: uniqueness depends on run-time values (register address decode one-hot by construction)",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/hmac/rtl/hmac_reg_top.sv:2422:LNT-033",
+      "rule": "LNT-033",
+      "file": "hw/ip/hmac/rtl/hmac_reg_top.sv",
+      "line": 2422,
+      "kind": "not-analysed",
+      "ips": [
+        "hmac"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "`unique case (1'b1)` with signal items: uniqueness depends on run-time values (register address decode one-hot by construction)",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/i2c/rtl/i2c_reg_top.sv:3912:LNT-033",
+      "rule": "LNT-033",
+      "file": "hw/ip/i2c/rtl/i2c_reg_top.sv",
+      "line": 3912,
+      "kind": "not-analysed",
+      "ips": [
+        "i2c"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "`unique case (1'b1)` with signal items: uniqueness depends on run-time values (register address decode one-hot by construction)",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/kmac/rtl/kmac_reg_top.sv:3107:LNT-033",
+      "rule": "LNT-033",
+      "file": "hw/ip/kmac/rtl/kmac_reg_top.sv",
+      "line": 3107,
+      "kind": "not-analysed",
+      "ips": [
+        "kmac"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "`unique case (1'b1)` with signal items: uniqueness depends on run-time values (register address decode one-hot by construction)",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/otbn/rtl/otbn_alu_bignum.sv:477:LNT-033",
+      "rule": "LNT-033",
+      "file": "hw/ip/otbn/rtl/otbn_alu_bignum.sv",
+      "line": 477,
+      "kind": "not-analysed",
+      "ips": [
+        "otbn"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "`unique case (1'b1)` with signal items: uniqueness depends on run-time values (register address decode one-hot by construction)",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/otbn/rtl/otbn_alu_bignum.sv:490:LNT-033",
+      "rule": "LNT-033",
+      "file": "hw/ip/otbn/rtl/otbn_alu_bignum.sv",
+      "line": 490,
+      "kind": "not-analysed",
+      "ips": [
+        "otbn"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "`unique case (1'b1)` with signal items: uniqueness depends on run-time values (register address decode one-hot by construction)",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/otbn/rtl/otbn_controller.sv:815:LNT-033",
+      "rule": "LNT-033",
+      "file": "hw/ip/otbn/rtl/otbn_controller.sv",
+      "line": 815,
+      "kind": "not-analysed",
+      "ips": [
+        "otbn"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "`unique case (1'b1)` with signal items: uniqueness depends on run-time values (register address decode one-hot by construction)",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/otbn/rtl/otbn_controller.sv:902:LNT-033",
+      "rule": "LNT-033",
+      "file": "hw/ip/otbn/rtl/otbn_controller.sv",
+      "line": 902,
+      "kind": "not-analysed",
+      "ips": [
+        "otbn"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "`unique case (1'b1)` with signal items: uniqueness depends on run-time values (register address decode one-hot by construction)",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/otbn/rtl/otbn_mac_bignum.sv:212:LNT-033",
+      "rule": "LNT-033",
+      "file": "hw/ip/otbn/rtl/otbn_mac_bignum.sv",
+      "line": 212,
+      "kind": "not-analysed",
+      "ips": [
+        "otbn"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "`unique case (1'b1)` with signal items: uniqueness depends on run-time values (register address decode one-hot by construction)",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/otbn/rtl/otbn_mac_bignum.sv:252:LNT-033",
+      "rule": "LNT-033",
+      "file": "hw/ip/otbn/rtl/otbn_mac_bignum.sv",
+      "line": 252,
+      "kind": "not-analysed",
+      "ips": [
+        "otbn"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "`unique case (1'b1)` with signal items: uniqueness depends on run-time values (register address decode one-hot by construction)",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/otbn/rtl/otbn_mac_bignum.sv:594:LNT-033",
+      "rule": "LNT-033",
+      "file": "hw/ip/otbn/rtl/otbn_mac_bignum.sv",
+      "line": 594,
+      "kind": "not-analysed",
+      "ips": [
+        "otbn"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "`unique case (1'b1)` with signal items: uniqueness depends on run-time values (register address decode one-hot by construction)",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/otbn/rtl/otbn_reg_top.sv:1326:LNT-033",
+      "rule": "LNT-033",
+      "file": "hw/ip/otbn/rtl/otbn_reg_top.sv",
+      "line": 1326,
+      "kind": "not-analysed",
+      "ips": [
+        "otbn"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "`unique case (1'b1)` with signal items: uniqueness depends on run-time values (register address decode one-hot by construction)",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/rv_timer/rtl/rv_timer_reg_top.sv:667:LNT-033",
+      "rule": "LNT-033",
+      "file": "hw/ip/rv_timer/rtl/rv_timer_reg_top.sv",
+      "line": 667,
+      "kind": "not-analysed",
+      "ips": [
+        "rv_timer"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "`unique case (1'b1)` with signal items: uniqueness depends on run-time values (register address decode one-hot by construction)",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/spi_host/rtl/spi_host_reg_top.sv:2011:LNT-033",
+      "rule": "LNT-033",
+      "file": "hw/ip/spi_host/rtl/spi_host_reg_top.sv",
+      "line": 2011,
+      "kind": "not-analysed",
+      "ips": [
+        "spi_host"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "`unique case (1'b1)` with signal items: uniqueness depends on run-time values (register address decode one-hot by construction)",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/uart/rtl/uart_reg_top.sv:1856:LNT-033",
+      "rule": "LNT-033",
+      "file": "hw/ip/uart/rtl/uart_reg_top.sv",
+      "line": 1856,
+      "kind": "not-analysed",
+      "ips": [
+        "uart"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "`unique case (1'b1)` with signal items: uniqueness depends on run-time values (register address decode one-hot by construction)",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/aes/rtl/aes_ctr.sv:47:LNT-041",
+      "rule": "LNT-041",
+      "file": "hw/ip/aes/rtl/aes_ctr.sv",
+      "line": 47,
+      "kind": "not-analysed",
+      "ips": [
+        "aes"
+      ],
+      "classification": "tool gap",
+      "rationale": "fixed in the pass after f941840: a write through a run-time index after a whole-object write leaves no member undriven",
+      "review": "sampled",
+      "was": {
+        "classification": "honest undecidable",
+        "rationale": "write through a run-time index (FIFO and RAM storage, stacks): which elements are driven is not decidable by lint"
+      },
+      "fixed": true
+    },
+    {
+      "site": "hw/ip/aes/rtl/aes_ctr.sv:48:LNT-041",
+      "rule": "LNT-041",
+      "file": "hw/ip/aes/rtl/aes_ctr.sv",
+      "line": 48,
+      "kind": "not-analysed",
+      "ips": [
+        "aes"
+      ],
+      "classification": "tool gap",
+      "rationale": "fixed in the pass after f941840: a write through a run-time index after a whole-object write leaves no member undriven",
+      "review": "sampled",
+      "was": {
+        "classification": "honest undecidable",
+        "rationale": "write through a run-time index (FIFO and RAM storage, stacks): which elements are driven is not decidable by lint"
+      },
+      "fixed": true
+    },
+    {
+      "site": "hw/ip/csrng/rtl/csrng_state_db.sv:75:LNT-041",
+      "rule": "LNT-041",
+      "file": "hw/ip/csrng/rtl/csrng_state_db.sv",
+      "line": 75,
+      "kind": "not-analysed",
+      "ips": [
+        "csrng"
+      ],
+      "classification": "tool gap",
+      "rationale": "fixed in the pass after f941840: a write through a run-time index after a whole-object write leaves no member undriven",
+      "review": "sampled",
+      "was": {
+        "classification": "honest undecidable",
+        "rationale": "write through a run-time index (FIFO and RAM storage, stacks): which elements are driven is not decidable by lint"
+      },
+      "fixed": true
+    },
+    {
+      "site": "hw/ip/kmac/rtl/keccak_round.sv:479:LNT-041",
+      "rule": "LNT-041",
+      "file": "hw/ip/kmac/rtl/keccak_round.sv",
+      "line": 479,
+      "kind": "not-analysed",
+      "ips": [
+        "entropy_src",
+        "kmac"
+      ],
+      "classification": "tool gap",
+      "rationale": "fixed in the pass after f941840: a write through a run-time index after a whole-object write leaves no member undriven",
+      "review": "sampled",
+      "was": {
+        "classification": "honest undecidable",
+        "rationale": "write through a run-time index (FIFO and RAM storage, stacks): which elements are driven is not decidable by lint"
+      },
+      "fixed": true
+    },
+    {
+      "site": "hw/ip/otbn/rtl/otbn_stack.sv:60:LNT-041",
+      "rule": "LNT-041",
+      "file": "hw/ip/otbn/rtl/otbn_stack.sv",
+      "line": 60,
+      "kind": "not-analysed",
+      "ips": [
+        "otbn"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "write through a run-time index (FIFO and RAM storage, stacks): which elements are driven is not decidable by lint",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/prim/rtl/prim_fifo_sync.sv:184:LNT-041",
+      "rule": "LNT-041",
+      "file": "hw/ip/prim/rtl/prim_fifo_sync.sv",
+      "line": 184,
+      "kind": "not-analysed",
+      "ips": [
+        "csrng",
+        "entropy_src",
+        "hmac",
+        "i2c",
+        "kmac",
+        "otbn",
+        "spi_host",
+        "uart"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "write through a run-time index (FIFO and RAM storage, stacks): which elements are driven is not decidable by lint",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/prim_generic/rtl/prim_ram_1p.sv:61:LNT-041",
+      "rule": "LNT-041",
+      "file": "hw/ip/prim_generic/rtl/prim_ram_1p.sv",
+      "line": 61,
+      "kind": "not-analysed",
+      "ips": [
+        "i2c",
+        "otbn"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "write through a run-time index (FIFO and RAM storage, stacks): which elements are driven is not decidable by lint",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/tlul/rtl/tlul_adapter_sram.sv:434:LNT-041",
+      "rule": "LNT-041",
+      "file": "hw/ip/tlul/rtl/tlul_adapter_sram.sv",
+      "line": 434,
+      "kind": "not-analysed",
+      "ips": [
+        "hmac",
+        "kmac",
+        "otbn",
+        "spi_host"
+      ],
+      "classification": "tool gap",
+      "rationale": "fixed in the pass after f941840: a write through a run-time index after a whole-object write leaves no member undriven",
+      "review": "sampled",
+      "was": {
+        "classification": "honest undecidable",
+        "rationale": "write through a run-time index (FIFO and RAM storage, stacks): which elements are driven is not decidable by lint"
+      },
+      "fixed": true
+    },
+    {
+      "site": "hw/ip/tlul/rtl/tlul_adapter_sram.sv:435:LNT-041",
+      "rule": "LNT-041",
+      "file": "hw/ip/tlul/rtl/tlul_adapter_sram.sv",
+      "line": 435,
+      "kind": "not-analysed",
+      "ips": [
+        "hmac",
+        "kmac",
+        "otbn",
+        "spi_host"
+      ],
+      "classification": "tool gap",
+      "rationale": "fixed in the pass after f941840: a write through a run-time index after a whole-object write leaves no member undriven",
+      "review": "sampled",
+      "was": {
+        "classification": "honest undecidable",
+        "rationale": "write through a run-time index (FIFO and RAM storage, stacks): which elements are driven is not decidable by lint"
+      },
+      "fixed": true
+    },
+    {
+      "site": "hw/ip/tlul/rtl/tlul_adapter_sram.sv:438:LNT-041",
+      "rule": "LNT-041",
+      "file": "hw/ip/tlul/rtl/tlul_adapter_sram.sv",
+      "line": 438,
+      "kind": "not-analysed",
+      "ips": [
+        "hmac",
+        "kmac",
+        "otbn",
+        "spi_host"
+      ],
+      "classification": "tool gap",
+      "rationale": "fixed in the pass after f941840: a write through a run-time index after a whole-object write leaves no member undriven",
+      "review": "sampled",
+      "was": {
+        "classification": "honest undecidable",
+        "rationale": "write through a run-time index (FIFO and RAM storage, stacks): which elements are driven is not decidable by lint"
+      },
+      "fixed": true
+    },
+    {
+      "site": "hw/ip/tlul/rtl/tlul_adapter_sram.sv:439:LNT-041",
+      "rule": "LNT-041",
+      "file": "hw/ip/tlul/rtl/tlul_adapter_sram.sv",
+      "line": 439,
+      "kind": "not-analysed",
+      "ips": [
+        "hmac",
+        "kmac",
+        "otbn",
+        "spi_host"
+      ],
+      "classification": "tool gap",
+      "rationale": "fixed in the pass after f941840: a write through a run-time index after a whole-object write leaves no member undriven",
+      "review": "sampled",
+      "was": {
+        "classification": "honest undecidable",
+        "rationale": "write through a run-time index (FIFO and RAM storage, stacks): which elements are driven is not decidable by lint"
+      },
+      "fixed": true
+    },
+    {
+      "site": "hw/ip/aes/rtl/aes_core.sv:57:LNT-042",
+      "rule": "LNT-042",
+      "file": "hw/ip/aes/rtl/aes_core.sv",
+      "line": 57,
+      "kind": "not-analysed",
+      "ips": [
+        "aes"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "same site as the LNT-009 entry: partial drive through a run-time index",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/csrng/rtl/csrng_core.sv:19:LNT-042",
+      "rule": "LNT-042",
+      "file": "hw/ip/csrng/rtl/csrng_core.sv",
+      "line": 19,
+      "kind": "not-analysed",
+      "ips": [
+        "csrng"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "same site as the LNT-009 entry: partial drive through a run-time index",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/hmac/rtl/hmac.sv:55:LNT-042",
+      "rule": "LNT-042",
+      "file": "hw/ip/hmac/rtl/hmac.sv",
+      "line": 55,
+      "kind": "not-analysed",
+      "ips": [
+        "hmac"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "same site as the LNT-009 entry: partial drive through a run-time index",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/prim/rtl/prim_cipher_pkg.sv:367:LNT-044",
+      "rule": "LNT-044",
+      "file": "hw/ip/prim/rtl/prim_cipher_pkg.sv",
+      "line": 367,
+      "kind": "not-analysed",
+      "ips": [
+        "aes",
+        "csrng",
+        "entropy_src",
+        "hmac",
+        "i2c",
+        "kmac",
+        "otbn",
+        "rv_timer",
+        "spi_host",
+        "uart"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "element writes through a run-time index in a function loop (`state_out[perm[k]]`, `out[(k+shift)%N]`); the functions are not called by these IPs",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/prim/rtl/prim_cipher_pkg.sv:376:LNT-044",
+      "rule": "LNT-044",
+      "file": "hw/ip/prim/rtl/prim_cipher_pkg.sv",
+      "line": 376,
+      "kind": "not-analysed",
+      "ips": [
+        "aes",
+        "csrng",
+        "entropy_src",
+        "hmac",
+        "i2c",
+        "kmac",
+        "otbn",
+        "rv_timer",
+        "spi_host",
+        "uart"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "element writes through a run-time index in a function loop (`state_out[perm[k]]`, `out[(k+shift)%N]`); the functions are not called by these IPs",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/prim/rtl/prim_cipher_pkg.sv:385:LNT-044",
+      "rule": "LNT-044",
+      "file": "hw/ip/prim/rtl/prim_cipher_pkg.sv",
+      "line": 385,
+      "kind": "not-analysed",
+      "ips": [
+        "aes",
+        "csrng",
+        "entropy_src",
+        "hmac",
+        "i2c",
+        "kmac",
+        "otbn",
+        "rv_timer",
+        "spi_host",
+        "uart"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "element writes through a run-time index in a function loop (`state_out[perm[k]]`, `out[(k+shift)%N]`); the functions are not called by these IPs",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/prim/rtl/prim_cipher_pkg.sv:394:LNT-044",
+      "rule": "LNT-044",
+      "file": "hw/ip/prim/rtl/prim_cipher_pkg.sv",
+      "line": 394,
+      "kind": "not-analysed",
+      "ips": [
+        "aes",
+        "csrng",
+        "entropy_src",
+        "hmac",
+        "i2c",
+        "kmac",
+        "otbn",
+        "rv_timer",
+        "spi_host",
+        "uart"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "element writes through a run-time index in a function loop (`state_out[perm[k]]`, `out[(k+shift)%N]`); the functions are not called by these IPs",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/prim/rtl/prim_lfsr.sv:397:LNT-044",
+      "rule": "LNT-044",
+      "file": "hw/ip/prim/rtl/prim_lfsr.sv",
+      "line": 397,
+      "kind": "not-analysed",
+      "ips": [
+        "aes"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "element writes through a run-time index in a function loop (`state_out[perm[k]]`, `out[(k+shift)%N]`); the functions are not called by these IPs",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/prim/rtl/prim_diff_decode.sv:164:LNT-057",
+      "rule": "LNT-057",
+      "file": "hw/ip/prim/rtl/prim_diff_decode.sv",
+      "line": 164,
+      "kind": "not-analysed",
+      "ips": [
+        "aes",
+        "csrng",
+        "entropy_src",
+        "hmac",
+        "i2c",
+        "kmac",
+        "otbn",
+        "rv_timer",
+        "spi_host",
+        "uart"
+      ],
+      "classification": "tool gap",
+      "rationale": "fixed in the pass after f941840: a constant user function of parameters in a width is evaluated per specialisation like $clog2, and the guarded increment fits",
+      "review": "read",
+      "was": {
+        "classification": "honest undecidable",
+        "rationale": "width depends on a user function (`vbits(SkewCycles + 1)`) that the provenance model does not evaluate"
+      },
+      "fixed": true
+    },
+    {
+      "site": "hw/ip/rv_timer/rtl/rv_timer.sv:74:LNT-057",
+      "rule": "LNT-057",
+      "file": "hw/ip/rv_timer/rtl/rv_timer.sv",
+      "line": 74,
+      "kind": "not-analysed",
+      "ips": [
+        "rv_timer"
+      ],
+      "classification": "tool gap",
+      "rationale": "nested assignment patterns of known widths into an unpacked array of structs are decidable; the provenance model does not resolve this form (named in ANALYSIS.md as a gap)",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/otbn/rtl/otbn_controller.sv:453:LNT-068",
+      "rule": "LNT-068",
+      "file": "hw/ip/otbn/rtl/otbn_controller.sv",
+      "line": 453,
+      "kind": "not-analysed",
+      "ips": [
+        "otbn"
+      ],
+      "classification": "tool gap",
+      "rationale": "fixed in the pass after f941840: a test of a net with an undecided identity that guards a branch which only loads data is an enable, not a reset question",
+      "review": "sampled",
+      "was": {
+        "classification": "honest undecidable",
+        "rationale": "the first test of the always_ff block is a net whose reset identity cannot be decided"
+      },
+      "fixed": true
+    },
+    {
+      "site": "hw/ip/otbn/rtl/otbn_instruction_fetch.sv:299:LNT-068",
+      "rule": "LNT-068",
+      "file": "hw/ip/otbn/rtl/otbn_instruction_fetch.sv",
+      "line": 299,
+      "kind": "not-analysed",
+      "ips": [
+        "otbn"
+      ],
+      "classification": "tool gap",
+      "rationale": "fixed in the pass after f941840: a test of a net with an undecided identity that guards a branch which only loads data is an enable, not a reset question",
+      "review": "sampled",
+      "was": {
+        "classification": "honest undecidable",
+        "rationale": "the first test of the always_ff block is a net whose reset identity cannot be decided"
+      },
+      "fixed": true
+    },
+    {
+      "site": "hw/ip/otbn/rtl/otbn_instruction_fetch.sv:411:LNT-068",
+      "rule": "LNT-068",
+      "file": "hw/ip/otbn/rtl/otbn_instruction_fetch.sv",
+      "line": 411,
+      "kind": "not-analysed",
+      "ips": [
+        "otbn"
+      ],
+      "classification": "tool gap",
+      "rationale": "fixed in the pass after f941840: a test of a net with an undecided identity that guards a branch which only loads data is an enable, not a reset question",
+      "review": "sampled",
+      "was": {
+        "classification": "honest undecidable",
+        "rationale": "the first test of the always_ff block is a net whose reset identity cannot be decided"
+      },
+      "fixed": true
+    },
+    {
+      "site": "hw/ip/prim/rtl/prim_fifo_sync.sv:94:LNT-068",
+      "rule": "LNT-068",
+      "file": "hw/ip/prim/rtl/prim_fifo_sync.sv",
+      "line": 94,
+      "kind": "not-analysed",
+      "ips": [
+        "csrng",
+        "hmac",
+        "kmac",
+        "otbn",
+        "spi_host"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "the first test of the always_ff block is a net whose reset identity cannot be decided",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/prim/rtl/prim_fifo_sync.sv:189:LNT-068",
+      "rule": "LNT-068",
+      "file": "hw/ip/prim/rtl/prim_fifo_sync.sv",
+      "line": 189,
+      "kind": "not-analysed",
+      "ips": [
+        "csrng",
+        "entropy_src",
+        "hmac",
+        "i2c",
+        "kmac",
+        "otbn",
+        "spi_host",
+        "uart"
+      ],
+      "classification": "tool gap",
+      "rationale": "fixed in the pass after f941840: a test of a net with an undecided identity that guards a branch which only loads data is an enable, not a reset question",
+      "review": "sampled",
+      "was": {
+        "classification": "honest undecidable",
+        "rationale": "the first test of the always_ff block is a net whose reset identity cannot be decided"
+      },
+      "fixed": true
+    },
+    {
+      "site": "hw/ip/csrng/rtl/csrng_ctr_drbg.sv:151:LNT-071",
+      "rule": "LNT-071",
+      "file": "hw/ip/csrng/rtl/csrng_ctr_drbg.sv",
+      "line": 151,
+      "kind": "not-analysed",
+      "ips": [
+        "csrng"
+      ],
+      "classification": "tool gap",
+      "rationale": "fixed in the pass after f941840: a case in a procedure that writes the enum type only as a member of a record builds a data value, not a state machine",
+      "review": "sampled",
+      "was": {
+        "classification": "honest undecidable",
+        "rationale": "same site as an LNT-029 entry: transition relation unresolved, so reachability is an obligation"
+      },
+      "fixed": true
+    },
+    {
+      "site": "hw/ip/hmac/rtl/hmac.sv:367:LNT-071",
+      "rule": "LNT-071",
+      "file": "hw/ip/hmac/rtl/hmac.sv",
+      "line": 367,
+      "kind": "not-analysed",
+      "ips": [
+        "hmac"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "same site as an LNT-029 entry: transition relation unresolved, so reachability is an obligation",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/kmac/rtl/kmac_app.sv:1162:LNT-071",
+      "rule": "LNT-071",
+      "file": "hw/ip/kmac/rtl/kmac_app.sv",
+      "line": 1162,
+      "kind": "not-analysed",
+      "ips": [
+        "kmac"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "same site as an LNT-029 entry: transition relation unresolved, so reachability is an obligation",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/kmac/rtl/kmac_entropy.sv:555:LNT-071",
+      "rule": "LNT-071",
+      "file": "hw/ip/kmac/rtl/kmac_entropy.sv",
+      "line": 555,
+      "kind": "not-analysed",
+      "ips": [
+        "kmac"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "same site as an LNT-029 entry: transition relation unresolved, so reachability is an obligation",
+      "review": "sampled"
+    },
+    {
+      "site": "hw/ip/kmac/rtl/kmac_msgfifo.sv:244:LNT-071",
+      "rule": "LNT-071",
+      "file": "hw/ip/kmac/rtl/kmac_msgfifo.sv",
+      "line": 244,
+      "kind": "not-analysed",
+      "ips": [
+        "kmac"
+      ],
+      "classification": "honest undecidable",
+      "rationale": "same site as an LNT-029 entry: transition relation unresolved, so reachability is an obligation",
+      "review": "sampled"
+    }
+  ],
+  "obligation_sites": [
+    {
+      "site": "hw/ip/csrng/rtl/csrng_core.sv:572:LNT-006",
+      "rule": "LNT-006",
+      "file": "hw/ip/csrng/rtl/csrng_core.sv",
+      "line": 572,
+      "kind": "obligation",
+      "classification": "honest undecidable",
+      "rationale": "index from a software-written register field into the 3 command stages (2 bits, so 3 is representable): an input contract, a read of 3 returns X",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/csrng/rtl/csrng_core.sv:814:LNT-006",
+      "rule": "LNT-006",
+      "file": "hw/ip/csrng/rtl/csrng_core.sv",
+      "line": 814,
+      "kind": "obligation",
+      "classification": "honest undecidable",
+      "rationale": "arbiter pointer register (2 bits over 3 requesters): kept below 3 by the arbiter logic, a state invariant",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/csrng/rtl/csrng_core.sv:815:LNT-006",
+      "rule": "LNT-006",
+      "file": "hw/ip/csrng/rtl/csrng_core.sv",
+      "line": 815,
+      "kind": "obligation",
+      "classification": "honest undecidable",
+      "rationale": "as csrng_core.sv:814",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/csrng/rtl/csrng_core.sv:816:LNT-006",
+      "rule": "LNT-006",
+      "file": "hw/ip/csrng/rtl/csrng_core.sv",
+      "line": 816,
+      "kind": "obligation",
+      "classification": "honest undecidable",
+      "rationale": "as csrng_core.sv:814",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/csrng/rtl/csrng_core.sv:817:LNT-006",
+      "rule": "LNT-006",
+      "file": "hw/ip/csrng/rtl/csrng_core.sv",
+      "line": 817,
+      "kind": "obligation",
+      "classification": "honest undecidable",
+      "rationale": "as csrng_core.sv:814",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/csrng/rtl/csrng_core.sv:1009:LNT-006",
+      "rule": "LNT-006",
+      "file": "hw/ip/csrng/rtl/csrng_core.sv",
+      "line": 1009,
+      "kind": "obligation",
+      "classification": "honest undecidable",
+      "rationale": "instance id taken from the command bus (2 bits over 3 instances): an input contract",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/csrng/rtl/csrng_state_db.sv:169:LNT-006",
+      "rule": "LNT-006",
+      "file": "hw/ip/csrng/rtl/csrng_state_db.sv",
+      "line": 169,
+      "kind": "obligation",
+      "classification": "honest undecidable",
+      "rationale": "instance id of the write data (2 bits over 3 instances): an input contract",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/entropy_src/rtl/entropy_src_core.sv:3012:LNT-006",
+      "rule": "LNT-006",
+      "file": "hw/ip/entropy_src/rtl/entropy_src_core.sv",
+      "line": 3012,
+      "kind": "obligation",
+      "classification": "honest undecidable",
+      "rationale": "read-index register times the register width over a 512-bit buffer: a counter kept in range by the read logic",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/kmac/rtl/keccak_2share.sv:548:LNT-006",
+      "rule": "LNT-006",
+      "file": "hw/ip/kmac/rtl/keccak_2share.sv",
+      "line": 548,
+      "kind": "obligation",
+      "classification": "honest undecidable",
+      "rationale": "round number (5 bits) into the 24 round constants: a counter that the round logic stops at 23",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/kmac/rtl/kmac_app.sv:1275:LNT-006",
+      "rule": "LNT-006",
+      "file": "hw/ip/kmac/rtl/kmac_app.sv",
+      "line": 1275,
+      "kind": "obligation",
+      "classification": "honest undecidable",
+      "rationale": "digest index register times the digest width: a counter kept in range by the app state machine",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/otbn/rtl/otbn_mac_bignum_fsm.sv:327:LNT-006",
+      "rule": "LNT-006",
+      "file": "hw/ip/otbn/rtl/otbn_mac_bignum_fsm.sv",
+      "line": 327,
+      "kind": "obligation",
+      "classification": "honest undecidable",
+      "rationale": "cycle counter (4 bits) into 12 entries: counts up to the last cycle only, a state invariant",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/otbn/rtl/otbn_mac_bignum_fsm.sv:328:LNT-006",
+      "rule": "LNT-006",
+      "file": "hw/ip/otbn/rtl/otbn_mac_bignum_fsm.sv",
+      "line": 328,
+      "kind": "obligation",
+      "classification": "honest undecidable",
+      "rationale": "as otbn_mac_bignum_fsm.sv:327",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/prim/rtl/prim_fifo_sync.sv:187:LNT-006",
+      "rule": "LNT-006",
+      "file": "hw/ip/prim/rtl/prim_fifo_sync.sv",
+      "line": 187,
+      "kind": "obligation",
+      "classification": "honest undecidable",
+      "rationale": "FIFO read pointer of a non-power-of-two depth: wraps at Depth-1 in the pointer logic, a state invariant",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/prim/rtl/prim_fifo_sync.sv:191:LNT-006",
+      "rule": "LNT-006",
+      "file": "hw/ip/prim/rtl/prim_fifo_sync.sv",
+      "line": 191,
+      "kind": "obligation",
+      "classification": "honest undecidable",
+      "rationale": "FIFO write pointer of a non-power-of-two depth: wraps at Depth-1 in the pointer logic, a state invariant",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/prim_generic/rtl/prim_ram_1p.sv:63:LNT-006",
+      "rule": "LNT-006",
+      "file": "hw/ip/prim_generic/rtl/prim_ram_1p.sv",
+      "line": 63,
+      "kind": "obligation",
+      "classification": "honest undecidable",
+      "rationale": "RAM address input over a depth that is not a power of two: the address contract is the caller's",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/prim_generic/rtl/prim_ram_1p.sv:70:LNT-006",
+      "rule": "LNT-006",
+      "file": "hw/ip/prim_generic/rtl/prim_ram_1p.sv",
+      "line": 70,
+      "kind": "obligation",
+      "classification": "honest undecidable",
+      "rationale": "as prim_ram_1p.sv:63",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/prim_generic/rtl/prim_ram_1p.sv:72:LNT-006",
+      "rule": "LNT-006",
+      "file": "hw/ip/prim_generic/rtl/prim_ram_1p.sv",
+      "line": 72,
+      "kind": "obligation",
+      "classification": "honest undecidable",
+      "rationale": "as prim_ram_1p.sv:63",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/prim/rtl/prim_sha2.sv:135:LNT-006",
+      "rule": "LNT-006",
+      "file": "hw/ip/prim/rtl/prim_sha2.sv",
+      "line": 135,
+      "kind": "obligation",
+      "classification": "honest undecidable",
+      "rationale": "round counter (7 bits) into 80 constants: stops at the last round, a state invariant",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/prim/rtl/prim_trivium.sv:178:LNT-006",
+      "rule": "LNT-006",
+      "file": "hw/ip/prim/rtl/prim_trivium.sv",
+      "line": 178,
+      "kind": "obligation",
+      "classification": "honest undecidable",
+      "rationale": "indexed part-select base 'state_idx_q * PartialSeedWidth' (+:32 over a 256-bit seed): a register counter that the state machine keeps below the number of partial seeds; an invariant of the design, not visible from the select",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/tlul/rtl/tlul_adapter_sram.sv:529:LNT-006",
+      "rule": "LNT-006",
+      "file": "hw/ip/tlul/rtl/tlul_adapter_sram.sv",
+      "line": 529,
+      "kind": "obligation",
+      "classification": "honest undecidable",
+      "rationale": "as tlul_adapter_sram.sv:542",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/tlul/rtl/tlul_adapter_sram.sv:542:LNT-006",
+      "rule": "LNT-006",
+      "file": "hw/ip/tlul/rtl/tlul_adapter_sram.sv",
+      "line": 542,
+      "kind": "obligation",
+      "classification": "honest undecidable",
+      "rationale": "word offset kept in the request FIFO: 1 bit into a one-word array when the SRAM word is one bus word, always 0 there, but the value passes through a FIFO the tool does not follow",
+      "review": "read"
+    },
+    {
+      "site": "hw/ip/uart/rtl/uart_core.sv:128:LNT-071",
+      "rule": "LNT-071",
+      "file": "hw/ip/uart/rtl/uart_core.sv",
+      "line": 128,
+      "kind": "obligation",
+      "classification": "precision loss",
+      "rationale": "break_st_q FSM: the BRK_CHK exit guard event_rx_break_err reads the state through allzero_cnt_d, which the graph does not evaluate per state, so the graph stays undecided; BRK_CHK exits on an input-dependent guard and BRK_WAIT on rx_in, so no state is stuck",
+      "review": "read"
+    }
+  ],
+  "obligation_note": "Obligations are not compared per site by tools/dev/noise_gate.py (their per-IP counts are). These LNT-006 free-index obligations are new with the default free-input check (index-input-contract); each was read at its site: every one is a state invariant or an input contract the RTL does not show, none a false alarm. Replayed at the step-6 follow-up fix (not at 6623e2c)."
+}

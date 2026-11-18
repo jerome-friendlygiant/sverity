@@ -1,0 +1,56 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-D (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC06",
+    "sites": [
+      {
+        "line": 30
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "child output never driven",
+    "rationale": "The child declares a status output but provides no source for it; the parent exports the floating value."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC06",
+      "sites": [
+        {
+          "line": 30
+        }
+      ],
+      "critical": true,
+      "note": "Output status of status_hop is never driven, leaving top output y undriven.",
+      "other": "LC09 line 32 (summary unused)"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC06",
+      "sites": [
+        {
+          "line": 30
+        }
+      ],
+      "critical": true,
+      "note": "The status output of status_hop has no driver."
+    }
+  ],
+  "rationale": "The child declares a status output but provides no source for it; the parent exports the floating value.",
+  "verdict": "bad",
+  "class": "LC06",
+  "sites": [
+    {
+      "line": 30
+    }
+  ],
+  "critical": true
+}

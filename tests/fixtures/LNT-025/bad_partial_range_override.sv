@@ -1,4 +1,4 @@
-// sverity-args: --top top
+// sverity-args: --top top --option LNT-025.overrides=warning
 // conditional writes to the same slice also override each other
 // expect: LNT-025 WARNING
 module top(input logic c, d, input logic [3:0] a, b, output logic [3:0] y);

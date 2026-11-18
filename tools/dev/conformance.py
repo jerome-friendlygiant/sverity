@@ -7,6 +7,7 @@ each required shape. Usage:
     conformance.py [ROOT]               print a table per family and a summary per deck
     conformance.py --check [ROOT]       fail when a rule breaks a requirement it has already reached
     conformance.py --rule CDC-003 [ROOT] print what one rule still lacks
+    conformance.py --classes [ROOT]     print each lint workflow defect class, its rules and what they lack
 
 --check enforces, for every implemented rule, a spec block and a must-not-fire assertion, and for implemented CDC and RDC
 rules a mutation pair. For a validated rule it also requires every shape, a written severity and a recorded review.
@@ -20,6 +21,7 @@ SHAPES = ("good", "bad", "boundary", "unknown", "mutation")
 
 
 DECKS = ("core", "domain", "1.0")   # cumulative
+CLASSES_DOC = "docs/rules/LINT_WORKFLOW.md"   # the lint workflow deck: rules with a defect class
 
 
 def load_decks(root):
@@ -28,7 +30,16 @@ def load_decks(root):
     decks = {}
     for position, name in enumerate(DECKS):
         decks[name] = [rule["id"] for rule in catalog if rule.get("deck") in DECKS[: position + 1]]
+    decks["lint"] = [rule["id"] for rule in catalog if rule.get("classes")]
     return decks
+
+
+def defect_classes(root):
+    """Class ID -> (defect, critical) from the workflow table."""
+    found = {}
+    for match in re.finditer(r"^\| `(LC\d\d)` \| (.*?) \| (yes|no) \|", (root / CLASSES_DOC).read_text(), re.M):
+        found[match.group(1)] = (match.group(2), match.group(3) == "yes")
+    return found
 
 
 def spec_blocks(root):
@@ -40,9 +51,16 @@ def spec_blocks(root):
     return blocks
 
 
-def fixture_shapes(root, rule):
+def info_by_policy(block):
+    """True when the spec's Severity line makes INFO the rule's finding (LNT-074), so an INFO expectation is its bad case."""
+    match = re.search(r"\*\*Severity:\*\* (\w+)", block)
+    return bool(match) and match.group(1) == "INFO"
+
+
+def fixture_shapes(root, rule, info_is_bad=False):
     """Which shapes the rule's own directory shows. Annotations decide, not only file names."""
     shapes = set()
+    bad_severities = "ERROR|WARNING|INFO" if info_is_bad else "ERROR|WARNING"
     directory = root / "tests/fixtures" / rule
     if not directory.is_dir():
         return shapes
@@ -55,7 +73,7 @@ def fixture_shapes(root, rule):
         # Scoped to WARNING is still must-not-fire where the safe design has a recognised INFO by spec.
         if re.search(rf"// expect-none: {rule}\b(?! (INFO|ERROR|FATAL))", text):
             shapes.add("good")
-        if re.search(rf"// expect: {rule} (ERROR|WARNING)", text) and not name.startswith(("unknown_", "boundary_")):
+        if re.search(rf"// expect: {rule} ({bad_severities})", text) and not name.startswith(("unknown_", "boundary_")):
             shapes.add("bad")
         if name.startswith("boundary_"):
             shapes.add("boundary")
@@ -73,7 +91,7 @@ def assess(root):
     for rule in catalog:
         rid = rule["id"]
         block = blocks.get(rid, "")
-        shapes = fixture_shapes(root, rid)
+        shapes = fixture_shapes(root, rid, info_by_policy(block))
         rows.append({
             "id": rid,
             "status": rule["status"],
@@ -81,6 +99,7 @@ def assess(root):
             "review": rule.get("review"),
             "deck": rule.get("deck", ""),
             "deck_exclusion": rule.get("deck_exclusion", ""),
+            "classes": rule.get("classes", []),
             "spec": bool(block),
             "severity": "**Severity:**" in block,
             "unknown_outcome": "**Unknown:**" in block,
@@ -117,6 +136,52 @@ def problems(rows):
     return found
 
 
+OBLIGATION_SOURCES = "src/rules/lint"
+
+
+def obligation_problems(root):
+    """An obligation id a lint source emits is declared in the catalog, every declaration is emitted, and the
+    rule's spec block names it. Without a declaration the finding is a gap, or gates when it names an unknown id."""
+    catalog = json.loads((root / "docs/rules/catalog.json").read_text())["rules"]
+    blocks = spec_blocks(root)
+    declared = {}
+    found = []
+    for rule in catalog:
+        for item in rule.get("obligations", []):
+            declared.setdefault(item.get("id", ""), []).append(rule["id"])
+            if not rule["id"].startswith("LNT-"):
+                found.append(f"{rule['id']}: only lint (LNT) rules may declare obligations")
+            if not item.get("id"):
+                found.append(f"{rule['id']}: an obligation needs an id")
+            elif f"`{item['id']}`" not in blocks.get(rule["id"], ""):
+                found.append(f"{rule['id']}: the spec block does not name obligation `{item['id']}`")
+    emitted = set()
+    for path in sorted((root / OBLIGATION_SOURCES).glob("*.cpp")):
+        emitted |= set(re.findall(r"\.obligation = [^;{}]*?\"([a-z][a-z0-9-]*)\"", path.read_text()))
+    found += [f"obligation '{i}' is emitted by {OBLIGATION_SOURCES} but no catalog rule declares it" for i in sorted(emitted - set(declared))]
+    found += [f"obligation '{i}' is declared by {', '.join(declared[i])} but no source emits it" for i in sorted(set(declared) - emitted)]
+    return found
+
+
+def class_problems(root, rows):
+    """Every class of the workflow is covered by some rule, and every rule's class exists."""
+    classes = defect_classes(root)
+    found = [] if classes else [f"{CLASSES_DOC}: no defect classes found"]
+    used = {k for row in rows for k in row["classes"]}
+    found += [f"{k}: defect class with no rule" for k in sorted(set(classes) - used)]
+    found += [f"{row['id']}: names unknown defect class {k}" for row in rows for k in row["classes"] if k not in classes]
+    return found
+
+
+def class_table(root, rows):
+    for k, (defect, critical) in defect_classes(root).items():
+        mine = [row for row in rows if k in row["classes"]]
+        ready = sum(1 for row in mine if row["status"] == "validated")
+        print(f"{k} {'critical' if critical else 'hygiene '} {len(mine):2} rules, {ready} validated  {defect}")
+        for row in mine:
+            print(f"      {row['id']} {row['status']:12} {'gap ' if row['gap'] else ''}missing: {','.join(row['missing']) or 'none'}")
+
+
 def summary(root, rows):
     by_id = {row["id"]: row for row in rows}
     print(f"{'rule':9} {'status':12} spec sev  unk  fixtures missing")
@@ -147,11 +212,14 @@ def main(argv):
         print(json.dumps({**row, "shapes": sorted(row["shapes"])}, indent=2))
         return 0
     if "--check" in argv:
-        found = problems(rows)
+        found = problems(rows) + class_problems(root, rows) + obligation_problems(root)
         for line in found:
             print(line, file=sys.stderr)
         print(f"conformance: {len(rows)} rules, {len(found)} problem(s)")
         return 1 if found else 0
+    if "--classes" in argv:
+        class_table(root, rows)
+        return 0
     summary(root, rows)
     return 0
 

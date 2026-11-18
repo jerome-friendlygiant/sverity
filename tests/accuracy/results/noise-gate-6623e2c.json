@@ -1,0 +1,62 @@
+{
+  "schema": "sverity-noise-gate/1",
+  "tool_commit": "6623e2c",
+  "comment": "Per-IP counts of the ten-IP replay at 6623e2c (reference-lint-6623e2c.json): blocking findings, not-analysed gaps and obligations. tools/dev/noise_gate.py fails when a count rises; tighten this file by hand when one falls. Tightened at the step-6 follow-up: counts that fell are lowered; LNT-006 free-index obligations (read, see the ledger's obligation_sites) raise csrng, entropy_src, kmac and spi_host. Raised at fix pass 4: uart +1 LNT-071 obligation (a guard read through a state-derived net now keeps the FSM graph undecided; precision loss, in the ledger). Raised at fix pass 5: i2c and otbn +1 not analysed each, LNT-041 at prim_ram_1p.sv:61 (address from a register slice; the ledger's honest-undecidable site, hidden before by an index type-range shortcut the review rated false-safe). Lowered at fix pass 13: aes and kmac -1 LNT-049 obligation each (the sites read: aes_key_expand.sv `regular`, one word per generate share, and kmac.sv `sw_key_data_reg`, words 0 and 1; the writers never share a word).",
+  "ips": {
+    "uart": {
+      "blocking": 0,
+      "not_analysed": 9,
+      "obligations": 1
+    },
+    "csrng": {
+      "blocking": 0,
+      "not_analysed": 12,
+      "obligations": 42
+    },
+    "rv_timer": {
+      "blocking": 0,
+      "not_analysed": 9,
+      "obligations": 4
+    },
+    "spi_host": {
+      "blocking": 0,
+      "not_analysed": 10,
+      "obligations": 14
+    },
+    "i2c": {
+      "blocking": 0,
+      "not_analysed": 10,
+      "obligations": 6
+    },
+    "aes": {
+      "blocking": 0,
+      "not_analysed": 11,
+      "obligations": 54
+    },
+    "hmac": {
+      "blocking": 0,
+      "not_analysed": 21,
+      "obligations": 9
+    },
+    "kmac": {
+      "blocking": 1,
+      "not_analysed": 18,
+      "obligations": 99
+    },
+    "otbn": {
+      "blocking": 2,
+      "not_analysed": 20,
+      "obligations": 42
+    },
+    "entropy_src": {
+      "blocking": 0,
+      "not_analysed": 10,
+      "obligations": 23
+    }
+  },
+  "totals": {
+    "blocking": 3,
+    "not_analysed": 130,
+    "obligations": 294
+  }
+}

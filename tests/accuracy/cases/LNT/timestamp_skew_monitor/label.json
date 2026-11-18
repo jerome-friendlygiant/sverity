@@ -1,0 +1,43 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "class": "LC03",
+  "batch": "p2-lint-heldout",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "signed skew compared against an unsigned limit",
+  "sites": [
+    {
+      "line": 29,
+      "signal": "skew_q"
+    }
+  ],
+  "sdc": [],
+  "rationale": "A signed skew is compared with an unsigned limit, so the comparison is unsigned and every negative skew looks huge and is never below the limit.",
+  "mutation": {
+    "operator": "signedness-mix",
+    "description": "Compared the signed skew register directly with the unsigned limit port."
+  },
+  "author": "claude-sonnet-5-5",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "class": "LC03",
+      "sites": [
+        {
+          "line": 29,
+          "signal": "skew_q"
+        }
+      ],
+      "note": "The unsigned threshold makes the signed skew comparison unsigned."
+    }
+  ]
+}

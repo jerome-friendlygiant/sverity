@@ -1,0 +1,50 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "class": "LC08",
+  "batch": "p2-lint-heldout",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "counter enable input omitted from the instance",
+  "sites": [
+    {
+      "line": 54,
+      "signal": "en_i"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The counter instance leaves its en_i input unconnected, so it floats instead of receiving the enable.",
+  "mutation": {
+    "operator": "drop-port-connection",
+    "description": "Removed the enable connection from the counter instance."
+  },
+  "author": "claude-sonnet-5-5",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_max_counter.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Replaced the delta counter by a reduced local counter module and trimmed the ports."
+  },
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "class": "LC08",
+      "sites": [
+        {
+          "line": 54,
+          "signal": "en_i"
+        }
+      ],
+      "note": "The counter instance omits its enable input."
+    }
+  ]
+}

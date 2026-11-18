@@ -23,6 +23,7 @@ std::vector<std::unique_ptr<Rule>> makeAllRules() {
     append(makeLintProceduralRules());
     append(makeLintFlowRules());
     append(makeLintSynthRules());
+    append(makeLintPragmaRules());
     append(makeLintWidthRules());
     append(makeLintStructRules());
     append(makeLintModelRules());

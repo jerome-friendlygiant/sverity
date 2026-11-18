@@ -6,3 +6,5 @@ module top(input logic clk, rst_n, d, output logic q);
   assign gclk = clk & rst_n;
   always_ff @(posedge gclk or negedge rst_n) if (!rst_n) q <= 1'b0; else q <= d;
 endmodule
+// revert: clk & rst_n => clk
+// revert-expect-none: LNT-072

@@ -1,0 +1,78 @@
+{
+ "schema": "sverity-lint-resource-summary/1",
+ "date": "2026-11-18",
+ "tool_commit": "86604897a28980dd8f815798de83af17ce6eca2e",
+ "binary_sha256": "15c02cea0d34e5eed47d510151808ab9ff9fa3995b4c010c6a8f1e39beeea5df",
+ "source_commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+ "host": {
+  "cpu": "AMD Ryzen 7 PRO 6850H",
+  "logical_cpus": 16,
+  "memory_kib": 23846080,
+  "os": "Linux x86_64"
+ },
+ "conditions": "Binary built from the tool commit; goal lint (default lint deck, no rule disabled); single-unit; no SDC; no swap; shared host; filesystem cache state uncontrolled. Two runs under cgroup caps of 7 GiB and 6 GiB; their JSON reports are identical apart from run metadata.",
+ "runs": [
+  {
+   "name": "top_earlgrey_lint_cap7",
+   "top": "top_earlgrey",
+   "exit_code": 5,
+   "completion": "completed; report written",
+   "elapsed_wall_seconds": 75.4,
+   "peak_rss_kib": 5292512,
+   "summary": {
+    "execution_status": "SUCCESS",
+    "analysis_coverage": "INCOMPLETE",
+    "review_status": "FAIL",
+    "severity_counts": {
+     "FATAL": 0,
+     "ERROR": 1,
+     "WARNING": 33651,
+     "INFO": 306646
+    },
+    "disposition_counts": {
+     "OPEN": 306647,
+     "REVIEW_REQUIRED": 9577,
+     "RESOLVED": 0,
+     "WAIVED": 0,
+     "OBLIGATION": 7228,
+     "NOT_ANALYSED": 16846
+    },
+    "unresolved": {
+     "obligations": 7228,
+     "not_analysed": 16846
+    },
+    "defects": 9578,
+    "tool_coverage": {
+     "rules_complete": 77,
+     "rules_total": 88,
+     "rules_disabled": 80
+    },
+    "rules": {
+     "total": 168,
+     "executed": 77,
+     "partial": 9,
+     "disabled": 80,
+     "unimplemented": 2,
+     "not_run": 0,
+     "failed": 0
+    },
+    "exit_code_gate": 5,
+    "exit_code_strict": 5
+   }
+  },
+  {
+   "name": "top_earlgrey_lint_cap6",
+   "top": "top_earlgrey",
+   "exit_code": 5,
+   "completion": "completed; report identical to the 7 GiB run",
+   "elapsed_wall_seconds": 76.9,
+   "peak_rss_kib": 5280388
+  }
+ ],
+ "ip_replay": {
+  "ips": 10,
+  "elapsed_wall_seconds": 14.5,
+  "peak_rss_kib": 607437,
+  "note": "tools/dev/reference_lint.py over the ten pinned IPs under a 4 GiB cap with --max-gb 3; whole replay, not per IP"
+ }
+}

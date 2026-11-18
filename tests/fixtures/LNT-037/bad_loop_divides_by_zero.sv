@@ -2,7 +2,9 @@
 // revert: int i = 0; => int i = 1;
 // revert-expect-none: LNT-037
 // The first iteration divides by zero.
-// expect: LNT-037 WARNING 9
+// No input decides the divisor, so this is a defect of the loop, not an input contract.
+// expect: LNT-037 WARNING 11
+// expect-confidence: LNT-037 heuristic 11
 module top(input logic [7:0] n, output logic [7:0] x);
   always_comb begin
     x = '0;

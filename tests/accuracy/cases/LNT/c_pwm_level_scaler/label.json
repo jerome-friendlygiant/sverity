@@ -1,0 +1,91 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-C (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC15",
+    "sites": [
+      {
+        "line": 10
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "simulation-only real type in logic",
+    "rationale": "Datapath uses a real variable and $rtoi/$itor, which cannot be synthesized as written."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC15",
+      "sites": [
+        {
+          "line": 10
+        },
+        {
+          "line": 16
+        },
+        {
+          "line": 20
+        }
+      ],
+      "critical": true,
+      "note": "A real variable and $itor/$rtoi are used in design logic."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC15",
+      "sites": [
+        {
+          "line": 10
+        },
+        {
+          "line": 16
+        },
+        {
+          "line": 20
+        }
+      ],
+      "critical": true,
+      "note": "Uses a real variable and $itor/$rtoi, simulation types that synthesis cannot build."
+    }
+  ],
+  "settlement": {
+    "by": "settler (claude-fable-5-2, third reading)",
+    "verdict": "bad",
+    "class": "LC15",
+    "sites": [
+      {
+        "line": 10
+      },
+      {
+        "line": 16
+      },
+      {
+        "line": 20
+      }
+    ],
+    "critical": true,
+    "note": "A real variable (10) assigned real constants (16) and $itor/$rtoi real arithmetic (20) sit in the datapath; synthesis cannot build simulation types."
+  },
+  "rationale": "A real variable (10) assigned real constants (16) and $itor/$rtoi real arithmetic (20) sit in the datapath; synthesis cannot build simulation types.",
+  "verdict": "bad",
+  "class": "LC15",
+  "sites": [
+    {
+      "line": 10
+    },
+    {
+      "line": 16
+    },
+    {
+      "line": 20
+    }
+  ],
+  "critical": true
+}

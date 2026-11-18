@@ -1,0 +1,67 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-B (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC10",
+    "sites": [
+      {
+        "line": 10
+      },
+      {
+        "line": 25
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "cycle across two module instances (valid depends on ready, ready on valid)",
+    "rationale": "source valid = have_data & ready and sink ready = valid & space_ok form a combinational loop through the module ports."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC10",
+      "sites": [
+        {
+          "line": 10
+        },
+        {
+          "line": 25
+        }
+      ],
+      "critical": true,
+      "note": "valid = have_data & ready and ready = valid & space_ok form a combinational loop across the two instances."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC10",
+      "sites": [
+        {
+          "line": 10
+        },
+        {
+          "line": 25
+        }
+      ],
+      "critical": true,
+      "note": "valid depends on ready and ready on valid across source and sink: combinational loop."
+    }
+  ],
+  "rationale": "source valid = have_data & ready and sink ready = valid & space_ok form a combinational loop through the module ports.",
+  "verdict": "bad",
+  "class": "LC10",
+  "sites": [
+    {
+      "line": 10
+    },
+    {
+      "line": 25
+    }
+  ],
+  "critical": true
+}

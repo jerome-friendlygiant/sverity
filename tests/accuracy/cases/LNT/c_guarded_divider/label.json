@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-C (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC21",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "zero-guarded runtime divide, nonzero constant divisor",
+    "rationale": "Divide by den is guarded by a zero test and the constant divisor is 10."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "good",
+      "class": "LC21",
+      "sites": [],
+      "critical": false,
+      "note": "Division by den is guarded against zero and the other divisor is the constant 10; no constant comparison."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC21",
+      "sites": [],
+      "critical": false,
+      "note": "Division by den is guarded for zero and the constant divisor 10 is nonzero; no constant comparison."
+    }
+  ],
+  "rationale": "Divide by den is guarded by a zero test and the constant divisor is 10.",
+  "verdict": "good",
+  "class": "LC21",
+  "sites": [],
+  "critical": false
+}

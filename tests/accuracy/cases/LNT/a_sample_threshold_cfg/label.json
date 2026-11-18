@@ -1,0 +1,67 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-A (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "unknown",
+    "class": "LC03",
+    "sites": [
+      {
+        "line": 24
+      }
+    ],
+    "boundary": "unknown",
+    "subtype": "signedness of one operand chosen by a build define",
+    "rationale": "raw is declared signed or unsigned depending on the SIGNED_SENSOR define supplied by the flow; the compare against the signed threshold mixes signedness only when it is unsigned, which the file cannot decide."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "unknown",
+      "class": "LC03",
+      "sites": [
+        {
+          "line": 24
+        }
+      ],
+      "critical": true,
+      "note": "raw > thr mixes unsigned raw with signed thr unless SIGNED_SENSOR is defined."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "unknown",
+      "class": "LC03",
+      "sites": [
+        {
+          "line": 24
+        }
+      ],
+      "critical": true,
+      "note": "Without SIGNED_SENSOR raw is unsigned and the comparison with signed thr becomes unsigned; with it the comparison is signed. Depends on a build macro."
+    }
+  ],
+  "settlement": {
+    "by": "settler (claude-fable-5-2, third reading)",
+    "verdict": "bad",
+    "class": "LC03",
+    "sites": [
+      {
+        "line": 24
+      }
+    ],
+    "critical": true,
+    "note": "With no defines raw is unsigned, so raw > thr compares it with the signed thr as unsigned and negative thresholds compare as large values; the signed variant exists only under SIGNED_SENSOR."
+  },
+  "rationale": "With no defines raw is unsigned, so raw > thr compares it with the signed thr as unsigned and negative thresholds compare as large values; the signed variant exists only under SIGNED_SENSOR.",
+  "verdict": "bad",
+  "class": "LC03",
+  "sites": [
+    {
+      "line": 24
+    }
+  ],
+  "critical": true
+}

@@ -1,0 +1,10 @@
+{
+  "comment": "The lint workflow's reference IPs (docs/rules/LINT_WORKFLOW.md), replayed by tools/dev/reference_lint.py. Pinned public RTL and its own Verilator lint configuration, cloned into scratch space and never vendored.",
+  "url": "https://github.com/lowRISC/opentitan",
+  "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+  "licence": "Apache-2.0",
+  "fusesoc": "2.4.5",
+  "mapping": "lowrisc:prim_generic:all:0.1",
+  "target": "lint",
+  "ips": ["uart", "csrng", "rv_timer", "spi_host", "i2c", "aes", "hmac", "kmac", "otbn", "entropy_src"]
+}

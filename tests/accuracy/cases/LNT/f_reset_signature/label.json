@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-F (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC25",
+    "sites": [
+      {
+        "line": 20
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "translate-off reset-value override",
+    "rationale": "Simulation resets the signature to 0x5a; removal of the region leaves a synthesized reset value of 0xa5."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC25",
+      "sites": [
+        {
+          "line": 20
+        }
+      ],
+      "critical": true,
+      "note": "translate_off hides y <= 8'h5a, so simulation resets to 5a while synthesis resets to a5."
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC25",
+      "sites": [
+        {
+          "line": 20
+        }
+      ],
+      "critical": true,
+      "note": "translate_off removes the second reset assignment in synthesis, changing y's reset value."
+    }
+  ],
+  "rationale": "Simulation resets the signature to 0x5a; removal of the region leaves a synthesized reset value of 0xa5.",
+  "verdict": "bad",
+  "class": "LC25",
+  "sites": [
+    {
+      "line": 20
+    }
+  ],
+  "critical": true
+}

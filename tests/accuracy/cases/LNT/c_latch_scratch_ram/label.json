@@ -1,0 +1,56 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-C (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC20",
+    "sites": [
+      {
+        "line": 13
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "non-clocked (latch) memory writer",
+    "rationale": "scratch is written by a level-sensitive latch process with no clock."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC20",
+      "sites": [
+        {
+          "line": 13
+        }
+      ],
+      "critical": true,
+      "note": "The scratch memory is written from an always_latch, a level-sensitive non-clocked writer."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC20",
+      "sites": [
+        {
+          "line": 13
+        }
+      ],
+      "critical": true,
+      "note": "Memory scratch is written from an always_latch (level-sensitive, non-clocked writer).",
+      "other": "LC12 line 13: blocking write in latch"
+    }
+  ],
+  "rationale": "scratch is written by a level-sensitive latch process with no clock.",
+  "verdict": "bad",
+  "class": "LC20",
+  "sites": [
+    {
+      "line": 13
+    }
+  ],
+  "critical": true
+}

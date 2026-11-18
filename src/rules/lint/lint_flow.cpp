@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "analysis/flow.h"
+#include "rules/lint/value_range.h"
 #include "slang/ast/ValuePath.h"
 #include "rules/rules.h"
 #include "sverity/lint.h"
@@ -27,6 +28,7 @@
 #include "slang/ast/statements/MiscStatements.h"
 #include "slang/ast/symbols/BlockSymbols.h"
 #include "slang/ast/symbols/InstanceSymbols.h"
+#include "slang/ast/symbols/SubroutineSymbols.h"
 #include "slang/numeric/SVInt.h"
 
 namespace sverity {
@@ -95,7 +97,7 @@ public:
         : LintRule("LNT-018") {}
 
 private:
-    struct V : ASTVisitor<V, VisitFlags::AllCanonical> {
+    struct V : HardwareVisitor<V, VisitFlags::AllCanonical> {
         Lint& l;
         std::string hier;
         explicit V(Lint& lint) : l(lint) {}
@@ -146,7 +148,7 @@ private:
             if (c.conditions.size() == 1 && !c.conditions[0].pattern && l.isUser(c.sourceRange.start())) {
                 const Expression& cond = *c.conditions[0].expr;
                 auto cv = l.evalConst(cond);
-                if (!cv.bad()) {
+                if (!cv.bad() && (cv.isTrue() || cv.isFalse())) {
                     l.count();
                     emit(c.sourceRange.start(),
                          cv.isTrue() ? "constant condition selects the true operand: the false operand is unreachable"
@@ -156,25 +158,89 @@ private:
             }
             visitDefault(c);
         }
+        // A case item that is a runtime value (or a range with a runtime bound): whether it matches is decided at run
+        // time, so it claims nothing about reachability.
+        static bool runtimeItem(const Lint& l, const Expression& e) {
+            if (e.kind == ExpressionKind::ValueRange) {
+                const auto& r = e.as<ValueRangeExpression>();
+                return isRuntime(l, r.left()) || isRuntime(l, r.right());
+            }
+            return isRuntime(l, e);
+        }
+
+        // Whether a constant item matches a constant case expression, as slang's checkMatch does. Nullopt: not modelled
+        // (a non-integer value, or an inside-form match).
+        static std::optional<bool> constantMatch(CaseStatementCondition cond, const ConstantValue& expr,
+                                                 const ConstantValue& item) {
+            if (!expr.isInteger() || !item.isInteger() || cond == CaseStatementCondition::Inside) return std::nullopt;
+            if (cond == CaseStatementCondition::Normal) return expr == item;
+            if (cond == CaseStatementCondition::WildcardJustZ) return caseZWildcardEqual(expr.integer(), item.integer());
+            return caseXWildcardEqual(expr.integer(), item.integer());
+        }
+
+        // A constant case expression with at least one runtime item. Items are tested in order, as the case does. A
+        // constant item that matches always matches when it is reached, so every later item and the default are
+        // unreachable. A constant item that can never match is unreachable at that item. A runtime item may or may not
+        // match, so it claims nothing.
+        void checkMixedCase(const CaseStatement& c) {
+            const ConstantValue expr = l.evalConst(c.expr);
+            std::optional<size_t> definite;   // index of the group holding the first matching constant item
+            for (size_t gi = 0; gi < c.items.size() && !definite; gi++) {
+                for (const Expression* e : c.items[gi].expressions) {
+                    if (runtimeItem(l, *e)) continue;
+                    std::optional<bool> m;   // a constant range is not modelled
+                    if (e->kind != ExpressionKind::ValueRange) m = constantMatch(c.condition, expr, l.evalConst(*e));
+                    if (!m) {
+                        l.report(c.sourceRange.start(),
+                                 "constant case expression with a constant range, inside-form or non-integer item: which arms are reachable is not decided",
+                                 {.severity = Severity::Warning, .confidence = Confidence::Unresolved, .hierarchy = hier});
+                        return;
+                    }
+                    if (*m) {
+                        definite = gi;
+                        break;   // later items of this group are not listed: the arm is listed as a whole, as before
+                    }
+                    emit(e->sourceRange.start(), "constant case item can never equal the constant case expression: unreachable item",
+                         c.expr, false);
+                }
+            }
+            if (!definite) return;
+            std::vector<std::string> dead;
+            for (size_t gi = *definite + 1; gi < c.items.size(); gi++)
+                dead.push_back("item at line " + std::to_string(l.sm().getLineNumber(c.items[gi].expressions.front()->sourceRange.start())));
+            if (c.defaultCase) dead.push_back("default");
+            if (!dead.empty())
+                emit(c.sourceRange.start(), "constant case expression: unreachable arm(s) " + joinNames(dead), c.expr, false);
+        }
+
         void handle(const CaseStatement& c) {
             if (l.isUser(c.sourceRange.start()) && !l.evalConst(c.expr).bad()) {
                 l.count();
-                ASTContext ac(l.compilation().getRoot(), LookupLocation::max);
-                EvalContext ec(ac);
-                auto [taken, known] = c.getKnownBranch(ec);
-                if (!known) {
-                    l.report(c.sourceRange.start(),
-                             "constant case expression with non-constant items: which arms are reachable is not decided",
-                             {.severity = Severity::Warning, .confidence = Confidence::Unresolved, .hierarchy = hier});
+                bool runtime = std::any_of(c.items.begin(), c.items.end(), [&](const auto& g) {
+                    return std::any_of(g.expressions.begin(), g.expressions.end(),
+                                       [&](const Expression* e) { return runtimeItem(l, *e); });
+                });
+                if (runtime) {
+                    checkMixedCase(c);
                 }
                 else {
-                    std::vector<std::string> dead;
-                    for (auto& g : c.items)
-                        if (g.stmt.get() != taken)
-                            dead.push_back("item at line " + std::to_string(l.sm().getLineNumber(g.expressions.front()->sourceRange.start())));
-                    if (c.defaultCase && c.defaultCase != taken) dead.push_back("default");
-                    if (!dead.empty())
-                        emit(c.sourceRange.start(), "constant case expression: unreachable arm(s) " + joinNames(dead), c.expr, false);
+                    ASTContext ac(l.compilation().getRoot(), LookupLocation::max);
+                    EvalContext ec(ac);
+                    auto [taken, known] = c.getKnownBranch(ec);
+                    if (!known) {
+                        l.report(c.sourceRange.start(),
+                                 "constant case expression: its items could not be evaluated: which arms are reachable is not decided",
+                                 {.severity = Severity::Warning, .confidence = Confidence::Unresolved, .hierarchy = hier});
+                    }
+                    else {
+                        std::vector<std::string> dead;
+                        for (auto& g : c.items)
+                            if (g.stmt.get() != taken)
+                                dead.push_back("item at line " + std::to_string(l.sm().getLineNumber(g.expressions.front()->sourceRange.start())));
+                        if (c.defaultCase && c.defaultCase != taken) dead.push_back("default");
+                        if (!dead.empty())
+                            emit(c.sourceRange.start(), "constant case expression: unreachable arm(s) " + joinNames(dead), c.expr, false);
+                    }
                 }
             }
             visitDefault(c);
@@ -192,10 +258,11 @@ public:
         : LintRule("LNT-038") {}
 
 private:
-    struct V : ASTVisitor<V, VisitFlags::AllCanonical> {
+    struct V : HardwareVisitor<V, VisitFlags::AllCanonical> {
         Lint& l;
         std::string hier;
-        explicit V(Lint& lint) : l(lint) {}
+        lint::ValueRanges ranges;
+        explicit V(Lint& lint) : l(lint), ranges(lint) {}
 
         void handle(const InstanceBodySymbol& b) {
             auto saved = std::exchange(hier, b.getHierarchicalPath());
@@ -302,6 +369,7 @@ private:
             const Expression* operand;
             const Expression* konst;
             BinaryOperator op = b.op;
+            bool ranged = false;
             if (pureRef(lhs) && isRuntime(l, lhs) && !isRuntime(l, rhs)) {
                 operand = &lhs;
                 konst = &rhs;
@@ -311,6 +379,17 @@ private:
                 konst = &lhs;
                 op = mirror(op);
             }
+            else if (isRuntime(l, lhs) && !isRuntime(l, rhs)) {
+                operand = &lhs;
+                konst = &rhs;
+                ranged = true;
+            }
+            else if (isRuntime(l, rhs) && !isRuntime(l, lhs)) {
+                operand = &rhs;
+                konst = &lhs;
+                op = mirror(op);
+                ranged = true;
+            }
             else {
                 return;
             }
@@ -318,10 +397,43 @@ private:
             if (!cv.isInteger() || cv.integer().hasUnknown()) return;   // real or X/Z constants: other rules
             const Type& ot = *operand->type;
             if (!ot.isIntegral()) return;
+            if (ranged) {
+                rangedCompare(b, *operand, *konst, cv.integer(), op);
+                return;
+            }
             int64_t w = ot.getBitWidth();
             std::vector<std::pair<int64_t, int64_t>> ivs;
             auto c = smallValue(cv.integer());
-            if (!c || w == 0 || w > 62 || !operandDomain(ot.isSigned(), w, konst->type->isSigned(), *c, ivs)) {
+            bool cSigned = konst->type->isSigned();
+            // A negative constant no wider than an unsigned operand is a bit pattern there (zero-extended into the unsigned
+            // comparison), one the operand can take: compare by that pattern.
+            const int64_t cw = konst->type->getBitWidth();
+            if (c && *c < 0 && !ot.isSigned() && cSigned && cw <= w && cw <= 62) {
+                c = *c + (int64_t(1) << cw);
+                cSigned = false;
+            }
+            // A wider unsigned operand takes every value from 0 up past 2^62, so against zero, a fill literal or a constant that
+            // fits in 62 bits only `< 0` / `>= 0` (and `> '1` / `<= '1`) are constant.
+            if (w > 62 && !ot.isSigned()) {
+                const bool allOnes = konst->kind == ExpressionKind::UnbasedUnsizedIntegerLiteral && cv.integer().getBitWidth() >= w &&
+                                     cv.integer().countOnes() == cv.integer().getBitWidth();
+                const bool small = c && *c >= 0 && *c < (int64_t(1) << 62);
+                if (small || allOnes) {
+                    const bool zero = small && *c == 0;
+                    std::optional<bool> result;
+                    if (zero && op == BinaryOperator::LessThan) result = false;
+                    else if (zero && op == BinaryOperator::GreaterThanEqual) result = true;
+                    else if (allOnes && op == BinaryOperator::GreaterThan) result = false;
+                    else if (allOnes && op == BinaryOperator::LessThanEqual) result = true;
+                    if (result)
+                        report(b.sourceRange.start(),
+                               std::string("comparison of a ") + std::to_string(w) + "-bit unsigned operand with " +
+                                   (zero ? "0" : "all ones") + " is always " + (*result ? "true" : "false") + " for known values",
+                               konst, std::to_string(w) + ":0:" + (zero ? "0" : "ones"));
+                    return;
+                }
+            }
+            if (!c || w == 0 || w > 62 || !operandDomain(ot.isSigned(), w, cSigned, *c, ivs)) {
                 l.report(b.sourceRange.start(),
                          "comparison is outside the modelled domain (constant wider than 62 bits, a wide operand, or a negative constant against an unsigned operand): not analysed",
                          {.severity = Severity::Warning, .confidence = Confidence::Unresolved, .hierarchy = hier});
@@ -334,6 +446,26 @@ private:
                        " operand with constant " + std::to_string(*c) + " is always " + (*result ? "true" : "false") +
                        " for known values",
                    konst, std::to_string(w) + ":" + std::to_string(ot.isSigned()) + ":" + std::to_string(*c));
+        }
+
+        // An operand that is not a plain reference (a concatenation with a constant zero top, a mask, a sum in a wide context) is judged by
+        // its value range (ANALYSIS.md, Value ranges): the comparison is constant when every value in the range gives one answer. Only a
+        // non-negative range against a non-negative constant, so signedness cannot change the comparison.
+        void rangedCompare(const BinaryExpression& b, const Expression& operand, const Expression& konst, const SVInt& cv, BinaryOperator op) {
+            const auto c = smallValue(cv);
+            const auto range = ranges.of(operand);
+            if (!c || *c < 0 || !range || range->lo < 0 || range->hi > (Wide(1) << 62)) return;
+            // not narrower than the type: nothing the type-based test of a plain reference would not already say, and it is not modelled here
+            const auto full = lint::typeRange(*operand.type);
+            if (!full || (range->lo == full->lo && range->hi == full->hi)) return;
+            std::vector<std::pair<int64_t, int64_t>> ivs;
+            ivs.emplace_back(static_cast<int64_t>(range->lo), static_cast<int64_t>(range->hi));
+            const auto result = constantResult(op, *c, ivs);
+            if (!result) return;
+            report(b.sourceRange.start(),
+                   "comparison of a value that ranges over " + lint::toString(*range) + " with constant " + std::to_string(*c) + " is always " +
+                       (*result ? "true" : "false") + " for known values",
+                   &konst, "range:" + lint::toString(*range) + ":" + std::to_string(*c) + ":" + std::to_string(static_cast<int>(op)));
         }
 
         static BinaryOperator mirror(BinaryOperator op) {
@@ -372,6 +504,87 @@ private:
 // LNT-045: legacy always @(a or b ...) with an explicit level list: a module-level signal read by the body (before
 // the body assigns it) but missing from the list is a sensitivity mismatch (WARNING); a listed signal the body never
 // reads is INFO. always @*, always_comb and edge-sensitive blocks are not checked.
+
+// What the visible user functions a block calls read of the module's own state. `certain` are the signals every call reads (a read in
+// straight-line code of the callee); `possible` those read only under a condition, a loop or a short-circuit. `complete` is false when a
+// callee cannot be read (a task, a function with an output, inout or ref argument, DPI or a virtual method) or writes module state.
+struct CalleeReads {
+    std::set<const Symbol*> certain, possible;
+    bool complete = true;
+    bool called = false;   // the block calls a visible user function at all (else its opacity has another cause: a timing control)
+};
+
+CalleeReads calleeReadsOf(const Statement& body) {
+    struct Reads : ASTVisitor<Reads, VisitFlags::AllGood> {
+        const SubroutineSymbol* sub = nullptr;
+        CalleeReads& out;
+        int depth = 0;
+        std::set<const SubroutineSymbol*> seen;
+        std::vector<const SubroutineSymbol*> pending;
+        explicit Reads(CalleeReads& o) : out(o) {}
+        bool local(const Symbol& sym) const {
+            for (const Scope* sc = sym.getParentScope(); sc; sc = sc->asSymbol().getParentScope())
+                if (&sc->asSymbol() == sub) return true;
+            return false;
+        }
+        void handle(const NamedValueExpression& e) {
+            const Symbol& sym = e.symbol;
+            if (!sub || (sym.kind != SymbolKind::Variable && sym.kind != SymbolKind::Net) || local(sym)) return;
+            (depth == 0 ? out.certain : out.possible).insert(&sym);
+        }
+        void handle(const HierarchicalValueExpression&) { out.complete = false; }
+        void handle(const AssignmentExpression& a) {
+            if (sub) {
+                // a write to module state from a function is a side effect this walk does not follow
+                const Symbol* target = a.left().getSymbolReference();
+                if (!target || (!local(*target) && target->kind != SymbolKind::FormalArgument)) out.complete = false;
+            }
+            visitDefault(a);
+        }
+        void handle(const CallExpression& c) {
+            if (c.isSystemCall()) { visitDefault(c); return; }
+            const auto* callee = std::get_if<const SubroutineSymbol*>(&c.subroutine);
+            if (!callee || !*callee || (*callee)->subroutineKind != SubroutineKind::Function || c.thisClass()) { out.complete = false; return; }
+            for (const auto* formal : (*callee)->getArguments())
+                if (formal->direction != ArgumentDirection::In) out.complete = false;
+            out.called = true;
+            if (seen.insert(*callee).second) pending.push_back(*callee);
+            visitDefault(c);   // the actual arguments are read by the block itself (Flow sees those)
+        }
+        void handle(const ConditionalStatement& s) { for (auto& c : s.conditions) c.expr->visit(*this); ++depth; s.ifTrue.visit(*this); if (s.ifFalse) s.ifFalse->visit(*this); --depth; }
+        void handle(const CaseStatement& s) {
+            s.expr.visit(*this);
+            ++depth;
+            for (const auto& item : s.items) { for (auto* e : item.expressions) e->visit(*this); item.stmt->visit(*this); }
+            if (s.defaultCase) s.defaultCase->visit(*this);
+            --depth;
+        }
+        void handle(const ConditionalExpression& e) { for (auto& c : e.conditions) c.expr->visit(*this); ++depth; e.left().visit(*this); e.right().visit(*this); --depth; }
+        void handle(const BinaryExpression& e) {
+            const bool shortCircuit = e.op == BinaryOperator::LogicalAnd || e.op == BinaryOperator::LogicalOr || e.op == BinaryOperator::LogicalImplication;
+            if (!shortCircuit) { visitDefault(e); return; }
+            e.left().visit(*this);
+            ++depth; e.right().visit(*this); --depth;
+        }
+        void handle(const ForLoopStatement& s) { ++depth; visitDefault(s); --depth; }
+        void handle(const WhileLoopStatement& s) { ++depth; visitDefault(s); --depth; }
+        void handle(const DoWhileLoopStatement& s) { ++depth; visitDefault(s); --depth; }
+        void handle(const RepeatLoopStatement& s) { ++depth; visitDefault(s); --depth; }
+        void handle(const ForeachLoopStatement& s) { ++depth; visitDefault(s); --depth; }
+        void handle(const ForeverLoopStatement& s) { ++depth; visitDefault(s); --depth; }
+    };
+    CalleeReads out;
+    Reads r(out);
+    body.visit(r);   // the block itself: only its calls matter (sub is null)
+    while (!r.pending.empty()) {
+        r.sub = r.pending.back();
+        r.pending.pop_back();
+        r.depth = 0;
+        r.sub->getBody().visit(r);
+    }
+    return out;
+}
+
 void checkSensitivity(Lint& l, const ProceduralBlockSymbol& p) {
     const TimingControl& t = p.getBody().as<TimedStatement>().timing;
     std::vector<const TimingControl*> events;
@@ -382,7 +595,7 @@ void checkSensitivity(Lint& l, const ProceduralBlockSymbol& p) {
 
     // Listed entries as (symbol, bit range): a static select such as a[0] is sensitive to those bits only (IEEE 1800 9.4.2).
     slang::ast::EvalContext ec(p);
-    std::set<const Symbol*> listed;
+    std::set<const Symbol*> listed, uncertainListed;
     std::map<const Symbol*, std::vector<fl::Range>> listedRanges;
     bool unresolved = false;
     for (auto* e : events) {
@@ -391,6 +604,9 @@ void checkSensitivity(Lint& l, const ProceduralBlockSymbol& p) {
         auto* sym = vp.rootSymbol();
         if (!sym || !sym->isValue()) { unresolved = true; continue; }
         listed.insert(sym);
+        // A runtime select can observe only the currently selected bits. It cannot
+        // establish coverage of the root; leave its coverage unresolved.
+        if (!vp.isFullyStatic()) { unresolved = true; uncertainListed.insert(sym); continue; }
         uint64_t w = sym->as<ValueSymbol>().getType().isFixedSize() ? sym->as<ValueSymbol>().getType().getBitstreamWidth() : 1;
         fl::Range r{0, w ? w - 1 : 0};
         if (vp.lsp && vp.isFullyStatic()) { r = vp.lspBounds; if (r.first > r.second) std::swap(r.first, r.second); }
@@ -420,16 +636,53 @@ void checkSensitivity(Lint& l, const ProceduralBlockSymbol& p) {
             if (!b.count(s)) out.push_back(std::string(s->name));
         return out;
     };
-    auto missing = minus(external, {});   // `external` already excludes reads covered by a listed range
     auto unused = minus(listed, anyRead);
     std::string where = p.getHierarchicalPath();
 
-    if (!missing.empty())
+    // An entry listed through a runtime select makes only the symbols it names uncertain; a plainly missing signal is certain.
+    std::vector<std::string> certainMissing, uncertainMissing;
+    for (auto* s : external) (uncertainListed.count(s) ? uncertainMissing : certainMissing).push_back(std::string(s->name));
+    // A visible function the block calls reads module state too: a signal it always reads and the list lacks is a certain miss.
+    // What it reads only under a condition keeps the block's result Unresolved, but is named.
+    bool calleesOpen = flow.opaque;
+    std::vector<std::string> possibleMissing;
+    if (flow.opaque) {
+        const CalleeReads callee = calleeReadsOf(p.getBody());
+        calleesOpen = !callee.complete || !callee.called;
+        // A signal the block itself writes in every activation before EACH call that can read it is read as the block left it: it is no input
+        // of the block, and listing it would make the block trigger itself. A call that runs before the write (or on a path without it)
+        // reads the value from before the activation, so it counts.
+        struct UserCalls : ASTVisitor<UserCalls, VisitFlags::AllGood> {
+            std::vector<const CallExpression*> calls;
+            void handle(const CallExpression& c) { if (!c.isSystemCall()) calls.push_back(&c); visitDefault(c); }
+        } userCalls;
+        p.getBody().visit(userCalls);
+        const auto writtenFirst = [&](const Symbol* sym) {
+            const auto* value = sym->as_if<ValueSymbol>();
+            if (!value || userCalls.calls.empty()) return false;
+            for (const auto* call : userCalls.calls)
+                if (!flow.entryRangesAtCall(*call, *value).empty()) return false;
+            return true;
+        };
+        for (auto* sym : callee.certain)
+            if (!listed.count(sym) && !external.count(sym) && !writtenFirst(sym)) certainMissing.push_back(std::string(sym->name));
+        for (auto* sym : callee.possible)
+            if (!listed.count(sym) && !external.count(sym) && !callee.certain.count(sym) && !writtenFirst(sym)) { possibleMissing.push_back(std::string(sym->name)); calleesOpen = true; }
+    }
+    if (!certainMissing.empty())
         l.report(p.location,
-                 "always @(...) reads '" + joinNames(missing) + "' but they are not in its sensitivity list: the block does not re-run when they change",
-                 {.nextStep = "Add the signals to the list, or use always @* / always_comb.",
+                 "always @(...) reads '" + joinNames(certainMissing) + "' but they are not in its sensitivity list: the block does not re-run when they change",
+                 {.confidence = Confidence::Established,
+                  .nextStep = "Add the signals to the list, or use always @* / always_comb.",
                   .hierarchy = where,
-                  .signals = missing});
+                  .signals = certainMissing});
+    if (!uncertainMissing.empty())
+        l.report(p.location,
+                 "always @(...) reads '" + joinNames(uncertainMissing) + "' but its sensitivity list names them only through a runtime select: whether every bit read is covered is not established",
+                 {.confidence = Confidence::Unresolved,
+                  .nextStep = "List the signal itself, or use always @* / always_comb.",
+                  .hierarchy = where,
+                  .signals = uncertainMissing});
     if (!unused.empty() && !flow.opaque)
         l.report(p.location,
                  "sensitivity list entries '" + joinNames(unused) + "' are never read by the block",
@@ -437,12 +690,16 @@ void checkSensitivity(Lint& l, const ProceduralBlockSymbol& p) {
                   .nextStep = "Remove unused entries from the list.",
                   .hierarchy = where,
                   .signals = unused});
-    if (unresolved)
-        l.report(p.location, "sensitivity list entry is not a plain signal: the list is not checked",
+    if (unresolved) {
+        l.context().degradedReason = "sensitivity expression bit coverage is not established";
+        l.report(p.location, "sensitivity list entry has an unproved expression or dynamic select: its bit coverage is not established",
                  {.severity = Severity::Warning, .confidence = Confidence::Unresolved, .hierarchy = where});
-    if (flow.opaque)
-        l.report(p.location, "block calls a subroutine: signals read inside it are not checked against the sensitivity list",
-                 {.severity = Severity::Warning, .confidence = Confidence::Unresolved, .hierarchy = where});
+    }
+    if (calleesOpen)
+        l.report(p.location,
+                 std::string("block calls a subroutine: signals read inside it are not all checked against the sensitivity list") +
+                     (possibleMissing.empty() ? "" : " (it may read '" + joinNames(possibleMissing) + "', which the list lacks, on some paths)"),
+                 {.severity = Severity::Warning, .confidence = Confidence::Unresolved, .hierarchy = where, .signals = possibleMissing});
 }
 
 class SensitivityRule final : public LintRule {
@@ -450,7 +707,7 @@ public:
     SensitivityRule() : LintRule("LNT-045") {}
 
 private:
-    struct V : ASTVisitor<V, VisitFlags::AllCanonical> {
+    struct V : HardwareVisitor<V, VisitFlags::AllCanonical> {
         Lint& l;
         explicit V(Lint& lint) : l(lint) {}
         void handle(const ProceduralBlockSymbol& p) {

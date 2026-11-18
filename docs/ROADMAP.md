@@ -19,7 +19,7 @@ The target is the [1.0 criteria](SVerity_RFC.md#8-acceptance-criteria-for-10). I
 | Phase | Work | Gate to pass |
 |---|---|---|
 | **1. Measure** | An accuracy suite of independently labelled good, bad and unknown designs that were not used to develop the rules. Budgets for false alarms, missed defects, unresolved findings and review effort per family, fixed before evaluation. Capacity and review budgets on stated hardware. | The suite and budgets are published and a baseline is measured. No seeded critical defect is silently accepted. |
-| **2. Lint replacement** | Name the workflow and the defect classes it needs, and build the lint deck from those rather than from what exists. Migrate a real team's lint policy and waivers. | The deck is validated and meets its budgets, and an independent pilot switches, with every exclusion listed. |
+| **2. Lint replacement** | Name the workflow and the defect classes it needs, and build the lint deck from those rather than from what exists. Migrate a real team's lint policy and waivers. | The deck is validated and meets its budgets, and an independent pilot switches, with every exclusion listed (the pilot is not planned for 1.0). |
 | **3. CDC replacement** | Complete crossing inventory under reviewed clock intent, then a way to close what structure cannot show: stability of a qualified payload, protocols, reconvergence and glitches. Modes and exceptions, boundary contracts at block level, and library cells. | As for lint. Every obligation has a named closure step, inside the tool or accepted outside it. |
 | **4. RDC replacement** | Reset trees, independently asserted resets, user-declared sequencing, release order, and a model of a stopped clock and a held or released reset. The furthest behind, so it comes last. | As for lint. Sequencing can be stated and checked, not only reported as unresolved. |
 | **5. Integration** | ASIC and FPGA profile bundles, reconciling existing constraints and waivers, baselines and CI, and a full-SoC run with an SDC within budget. | Two independent pilot workflows run end to end, with anything unsupported visible and blocking a safety claim. |
@@ -34,6 +34,8 @@ Phases 2 to 4 can overlap, and a phase can draw from the [long-term goals](#3-lo
 
 **Phase 1: where it stands.** The [accuracy suite](../tests/accuracy/README.md) contains 426 independently AI-labelled cases, mixing reduced public RTL and authored designs. `tools/dev/accuracy.py` measures the baseline without changing the tool: 59 critical cases are missed or silent, so the phase gate is not met. The labels pass validation and the repository verification passes. Numeric budgets and human review of a label sample remain outstanding; the suite is evidence for improvement, not sign-off.
 
+**Phase 2 lint replacement.** The ASIC per-IP workflow has recorded accuracy, replay, recall and capacity evidence. The maintainer deferred the human label check and team pilot for 1.0. See [lint qualification](rules/LINT_WORKFLOW.md#qualification).
+
 **Validate in widening decks.** Each deck stays open until every rule in it has a written severity policy, good, bad, boundary, unknown and mutation fixtures, and a passed independent adversarial review. Independent review may be a separate AI reviewer, and the report says so; it is not a human signoff.
 
 | Deck | Contents | What it allows |
@@ -42,9 +44,9 @@ Phases 2 to 4 can overlap, and a phase can draw from the [long-term goals](#3-lo
 | Domain | All structural and protocol CDC and all RDC, with the CST rules they depend on | A meaningful CDC and RDC claim |
 | 1.0 | All of the above, the remaining lint and CST rules | Freezing 1.0. A rule leaves the deck only for a written reason, decided before the freeze |
 
-Each rule's `deck` field in the [catalog](rules/catalog.json) names the earliest deck holding it, and `tools/dev/conformance.py` shows how far each rule and deck is from `validated`. No rule is `validated` yet.
+Each rule's `deck` field in the [catalog](rules/catalog.json) names the earliest deck holding it, and `tools/dev/conformance.py` shows how far each rule and deck is from `validated`.
 
-**Coverage per deck.** `--deck` reports coverage for a deck, and no run can yet reach `COMPLETE`, because the decks hold rules that are still partial. A run can report `COMPLETE` for a frozen deck when all its rules ran and every limit it hit was disclosed. Unfinished rules outside the deck stay available as preview. This is what finally allows an honest clean exit, so the deck has to be validated first.
+**Coverage per deck.** `--deck` selects the coverage claim. A run can report `COMPLETE` when the selected deck executes in full and no analysis scope is limited. Rules outside the deck can still report preview findings. Check the catalog for release sign-off.
 
 **Capacity: OpenTitan Earl Grey.** 1.0 analyses the whole `top_earlgrey` SoC at a pinned commit, with published time, memory and coverage on stated hardware. Earlier runs measured about 19 MB per PicoRV32 copy, growing linearly, up to 170k register bits in 37 s and 1.3 GB. Steps: pin it in the public project manifest with a reproducible file list, profile bytes per edge and time per rule, and decide the policy for symbols over 16384 bits, which collapse to one node today.
 
@@ -57,9 +59,9 @@ Each rule's `deck` field in the [catalog](rules/catalog.json) names the earliest
 | `aes`, 2026-11-04 | Finished, INCOMPLETE, 1 false ERROR | 118 s | 0.9 GB | 7,478 | 118,344 nodes, 4,589,948 edges |
 | `aes`, 2026-11-05 | Finished, INCOMPLETE, no ERROR | 4.6 s | 0.4 GB | 7,478 | 118,947 nodes, 454,185 edges |
 | `top_earlgrey`, 2026-11-04 | Killed by the host's memory guard | 42 s | 9.1 GB at the kill | Unknown | Unknown |
-| `top_earlgrey`, 2026-11-05 | Lint finished with no ERROR. CDC and RDC ran out of memory at the 13.5 GB limit, so INCOMPLETE | 112 s | 10.7 GB | 237,159 | 3,266,136 nodes, 15,507,552 edges |
+| `top_earlgrey`, 2026-11-05 | Lint finished with no ERROR, but its AST rules saw no user code (below). CDC and RDC ran out of memory at the 13.5 GB limit, so INCOMPLETE | 112 s | 10.7 GB | 237,159 | 3,266,136 nodes, 15,507,552 edges |
 
-The target is not met: **`top_earlgrey` has not yet finished with CDC enabled.** The model builds in 9 s and every lint rule completes, including LNT-012, where 368 false ERRORs are now 0 (363 Unresolved and 54 heuristic WARNINGs remain to read). CDC and RDC each fail with `std::bad_alloc` in the fan-in walk at the 13.5 GB limit. The [cone budgets](rules/ANALYSIS.md#how-cones-are-computed-once) come to about 2.5 GB, yet the CDC pass takes the run from 3.6 GB to 10.7 GB, so most of that memory is something the budgets do not count.
+**Whole-SoC CDC remains open.** The November 5 run did not exercise the lint AST rules across the full single-unit input. See the [lint qualification evidence](rules/LINT_WORKFLOW.md#qualification) for the measured lint-only run. In the whole-SoC run, CDC and RDC exhausted memory in the fan-in walk at the 13.5 GB limit. The [cone budgets](rules/ANALYSIS.md#how-cones-are-computed-once) account for about 2.5 GB of that usage.
 
 Next, in order:
 

@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-E (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC08",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "driven bidirectional net",
+    "rationale": "The pad net has an explicit external-side driver and is connected to the reader."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC08",
+      "sites": [],
+      "critical": false,
+      "note": "inout pad is connected to a driven net"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "good",
+      "class": "LC08",
+      "sites": [],
+      "critical": false,
+      "note": "The inout pad is connected to a driven bus."
+    }
+  ],
+  "rationale": "The pad net has an explicit external-side driver and is connected to the reader.",
+  "verdict": "good",
+  "class": "LC08",
+  "sites": [],
+  "critical": false
+}

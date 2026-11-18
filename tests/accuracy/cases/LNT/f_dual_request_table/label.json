@@ -1,0 +1,67 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-F (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC20",
+    "sites": [
+      {
+        "line": 19
+      },
+      {
+        "line": 23
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "two same-clock procedural memory writers",
+    "rationale": "Two independently enabled processes can write different bytes to the same addressed entry on one edge."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC20",
+      "sites": [
+        {
+          "line": 19
+        },
+        {
+          "line": 23
+        }
+      ],
+      "critical": true,
+      "note": "entries written by two always blocks"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC20",
+      "sites": [
+        {
+          "line": 19
+        },
+        {
+          "line": 23
+        }
+      ],
+      "critical": true,
+      "note": "Two clocked processes write the same memory and may target one entry."
+    }
+  ],
+  "rationale": "Two independently enabled processes can write different bytes to the same addressed entry on one edge.",
+  "verdict": "bad",
+  "class": "LC20",
+  "sites": [
+    {
+      "line": 19
+    },
+    {
+      "line": 23
+    }
+  ],
+  "critical": true
+}

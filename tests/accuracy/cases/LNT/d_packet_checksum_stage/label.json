@@ -1,0 +1,67 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-D (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC01",
+    "sites": [
+      {
+        "line": 20
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "unresolved module type",
+    "rationale": "The instantiated checksum primitive has no declaration in the file, so elaboration fails."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "unknown",
+      "class": "LC01",
+      "sites": [
+        {
+          "line": 20
+        }
+      ],
+      "critical": true,
+      "note": "Module packet_fold_core is not in the file; elaboration depends on a module outside it."
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC01",
+      "sites": [
+        {
+          "line": 20
+        }
+      ],
+      "critical": true,
+      "note": "packet_fold_core is absent, so the instance cannot elaborate."
+    }
+  ],
+  "settlement": {
+    "by": "settler (gpt-6.1-sol, third reading)",
+    "verdict": "bad",
+    "class": "LC01",
+    "sites": [
+      {
+        "line": 20
+      }
+    ],
+    "critical": true,
+    "note": "packet_fold_core is not defined in the file, and elaboration of top fails at this instance. The brief explicitly requires bad for a missing module under LC01."
+  },
+  "rationale": "packet_fold_core is not defined in the file, and elaboration of top fails at this instance. The brief explicitly requires bad for a missing module under LC01.",
+  "verdict": "bad",
+  "class": "LC01",
+  "sites": [
+    {
+      "line": 20
+    }
+  ],
+  "critical": true
+}

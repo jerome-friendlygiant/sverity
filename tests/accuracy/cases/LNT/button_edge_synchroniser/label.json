@@ -1,0 +1,50 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "class": "LC22",
+  "batch": "p2-lint-heldout",
+  "verdict": "bad",
+  "critical": false,
+  "origin": "adapted",
+  "defect": "synchroniser level output left unconnected",
+  "sites": [
+    {
+      "line": 41,
+      "signal": "serial_o"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The serial_o output of the synchroniser instance is connected to nothing.",
+  "mutation": {
+    "operator": "open-output",
+    "description": "Left the level output of the edge detector instance open."
+  },
+  "author": "claude-sonnet-5-5",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_edge_detect.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Inlined a reduced synchroniser and edge detector and added a press counter."
+  },
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "bad",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": false,
+      "class": "LC22",
+      "sites": [
+        {
+          "line": 41,
+          "signal": "serial_o"
+        }
+      ],
+      "note": "The instantiated output is explicitly left unconnected."
+    }
+  ]
+}

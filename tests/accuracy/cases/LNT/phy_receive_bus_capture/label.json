@@ -1,0 +1,38 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "class": "LC06",
+  "batch": "p2-lint-heldout",
+  "verdict": "unknown",
+  "critical": true,
+  "origin": "authored",
+  "sites": [
+    {
+      "line": 20,
+      "signal": "rx_data"
+    }
+  ],
+  "sdc": [],
+  "rationale": "rx_data and rx_valid are connected to a macro with no body; whether the macro drives them cannot be seen, and nothing else does.",
+  "author": "claude-sonnet-5-5",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "unknown",
+      "critical": true,
+      "class": "LC06",
+      "sites": [
+        {
+          "line": 16,
+          "signal": "u_phy"
+        }
+      ],
+      "note": "The opaque receiver determines whether its data and valid outputs are driven."
+    }
+  ]
+}

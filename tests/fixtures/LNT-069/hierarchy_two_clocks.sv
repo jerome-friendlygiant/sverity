@@ -1,6 +1,6 @@
 // sverity-args: --top top
-// expect: LNT-069 WARNING 5
-// expect-count: LNT-069 WARNING 2
+// expect: LNT-069 ERROR 5
+// expect-count: LNT-069 ERROR 2
 module child(input logic clk1, clk2, a, output logic q);
   always @(posedge clk1 or posedge clk2) q <= a;
 endmodule

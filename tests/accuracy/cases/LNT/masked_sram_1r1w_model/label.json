@@ -1,0 +1,46 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "single-clock 1R1W array with no defined behaviour when the read address equals the write address in the same cycle",
+  "sites": [
+    {
+      "line": 37,
+      "signal": "b_rdata_o"
+    }
+  ],
+  "sdc": [],
+  "rationale": "Port A writes mem and port B reads mem on the same clock with nothing handling a same-address collision; simulation returns the old word but a synthesized RAM macro may return the new word, unknown or either, so the read behaviour depends on the implementation.",
+  "author": "claude-sonnet-5-5",
+  "provenance": {
+    "repository": "opentitan",
+    "commit": "92f3d03b0dcf6d5c1933a65d1497747f67d19f4c",
+    "path": "hw/ip/prim_generic/rtl/prim_ram_1r1w.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Merged the two clocks into one, removed the config, reset and assertion plumbing and the memory-load include."
+  },
+  "class": "LC24",
+  "batch": "p2-lint-heldout",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "class": "LC24",
+      "sites": [
+        {
+          "line": 37,
+          "signal": "mem"
+        }
+      ],
+      "note": "A simultaneous read and write to the same address depends on the memory implementation."
+    }
+  ]
+}

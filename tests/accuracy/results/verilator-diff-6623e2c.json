@@ -1,0 +1,974 @@
+{
+ "schema": "sverity-verilator-diff/1",
+ "tool_commit": "6623e2c",
+ "verilator": "5.046",
+ "flow": "verilator --lint-only -f <core>.vc <VERILATOR_OPTIONS> in each IP's FuseSoC lint-verilator directory (tools/dev/verilator_diff.py)",
+ "caveat": "OpenTitan's tool_requirements.py asks for Verilator 5.048; 5.046 was installed, so some warnings may not appear under the required version.",
+ "real_misses": "VARHIDDEN x7 (csrng StateWidth x2, kmac enumerators x5): at the 6623e2c replay LNT-078 did not report a local declaration that hides a wildcard-imported package name. Reported since: local declarations (f941840), subroutine formals (the pass after it); this file keeps the replay's counts",
+ "per_ip": [
+  {
+   "ip": "uart",
+   "verilator": 3,
+   "matched": 0,
+   "matched_blocking": 0,
+   "matched_info": 0,
+   "near": 0,
+   "other": 3,
+   "excluded": 0,
+   "silent": 0
+  },
+  {
+   "ip": "csrng",
+   "verilator": 13,
+   "matched": 1,
+   "matched_blocking": 1,
+   "matched_info": 0,
+   "near": 2,
+   "other": 4,
+   "excluded": 0,
+   "silent": 6
+  },
+  {
+   "ip": "rv_timer",
+   "verilator": 0,
+   "matched": 0,
+   "matched_blocking": 0,
+   "matched_info": 0,
+   "near": 0,
+   "other": 0,
+   "excluded": 0,
+   "silent": 0
+  },
+  {
+   "ip": "spi_host",
+   "verilator": 9,
+   "matched": 0,
+   "matched_blocking": 0,
+   "matched_info": 0,
+   "near": 0,
+   "other": 0,
+   "excluded": 0,
+   "silent": 9
+  },
+  {
+   "ip": "i2c",
+   "verilator": 0,
+   "matched": 0,
+   "matched_blocking": 0,
+   "matched_info": 0,
+   "near": 0,
+   "other": 0,
+   "excluded": 0,
+   "silent": 0
+  },
+  {
+   "ip": "aes",
+   "verilator": 14,
+   "matched": 0,
+   "matched_blocking": 0,
+   "matched_info": 0,
+   "near": 0,
+   "other": 0,
+   "excluded": 0,
+   "silent": 14
+  },
+  {
+   "ip": "hmac",
+   "verilator": 0,
+   "matched": 0,
+   "matched_blocking": 0,
+   "matched_info": 0,
+   "near": 0,
+   "other": 0,
+   "excluded": 0,
+   "silent": 0
+  },
+  {
+   "ip": "kmac",
+   "verilator": 19,
+   "matched": 0,
+   "matched_blocking": 0,
+   "matched_info": 0,
+   "near": 0,
+   "other": 0,
+   "excluded": 0,
+   "silent": 19
+  },
+  {
+   "ip": "otbn",
+   "verilator": 1,
+   "matched": 0,
+   "matched_blocking": 0,
+   "matched_info": 0,
+   "near": 0,
+   "other": 0,
+   "excluded": 0,
+   "silent": 1
+  },
+  {
+   "ip": "entropy_src",
+   "verilator": 5,
+   "matched": 0,
+   "matched_blocking": 0,
+   "matched_info": 0,
+   "near": 0,
+   "other": 4,
+   "excluded": 0,
+   "silent": 1
+  }
+ ],
+ "totals": {
+  "verilator": 64,
+  "matched": 1,
+  "matched_blocking": 1,
+  "matched_info": 0,
+  "near": 2,
+  "other": 11,
+  "excluded": 0,
+  "silent": 50
+ },
+ "classification": {
+  "reported under another rule (not a match)": 11,
+  "SVerity miss (real)": 7,
+  "Verilator false positive": 45,
+  "matched": 1
+ },
+ "by_code": {
+  "ALWCOMBORDER": {
+   "Verilator false positive": 1
+  },
+  "UNOPTFLAT": {
+   "Verilator false positive": 30
+  },
+  "VARHIDDEN": {
+   "SVerity miss (real)": 7
+  },
+  "WIDTHEXPAND": {
+   "reported under another rule (not a match)": 11,
+   "Verilator false positive": 13,
+   "matched": 1
+  },
+  "WIDTHTRUNC": {
+   "Verilator false positive": 1
+  }
+ },
+ "agreement": "in-class agreement is `matched` (a mapped rule at the site); a site reported only under another rule is counted apart",
+ "sites": [
+  {
+   "ip": "uart",
+   "code": "WIDTHEXPAND",
+   "site": "hw/ip/uart/rtl/uart_core.sv:318",
+   "status": "other",
+   "sverity_here": [
+    "LNT-005/INFO/OPEN"
+   ],
+   "classification": "reported under another rule (not a match)"
+  },
+  {
+   "ip": "uart",
+   "code": "WIDTHEXPAND",
+   "site": "hw/ip/uart/rtl/uart_core.sv:345",
+   "status": "other",
+   "sverity_here": [
+    "LNT-005/INFO/OPEN"
+   ],
+   "classification": "reported under another rule (not a match)"
+  },
+  {
+   "ip": "uart",
+   "code": "WIDTHEXPAND",
+   "site": "hw/ip/uart/rtl/uart_core.sv:341",
+   "status": "other",
+   "sverity_here": [
+    "LNT-005/INFO/OPEN"
+   ],
+   "classification": "reported under another rule (not a match)"
+  },
+  {
+   "ip": "csrng",
+   "code": "VARHIDDEN",
+   "site": "hw/ip/csrng/rtl/csrng_cmd_stage.sv:216",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "SVerity miss (real)",
+   "reason": "a local declaration hides a name wildcard-imported from a package; LNT-078 (slang shadow options) does not see it"
+  },
+  {
+   "ip": "csrng",
+   "code": "VARHIDDEN",
+   "site": "hw/ip/csrng/rtl/csrng_ctr_drbg.sv:88",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "SVerity miss (real)",
+   "reason": "a local declaration hides a name wildcard-imported from a package; LNT-078 (slang shadow options) does not see it"
+  },
+  {
+   "ip": "csrng",
+   "code": "WIDTHEXPAND",
+   "site": "hw/ip/csrng/rtl/csrng_ctr_drbg.sv:244",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "unsigned operand zero-extended to 32 bits in a comparison or constant arithmetic: the value is unchanged"
+  },
+  {
+   "ip": "csrng",
+   "code": "WIDTHEXPAND",
+   "site": "hw/ip/csrng/rtl/csrng_ctr_drbg.sv:261",
+   "status": "matched",
+   "matched_by": [
+    "LNT-036/WARNING/REVIEW_REQUIRED"
+   ],
+   "blocking": true,
+   "classification": "matched"
+  },
+  {
+   "ip": "csrng",
+   "code": "WIDTHEXPAND",
+   "site": "hw/ip/csrng/rtl/csrng_state_db.sv:82",
+   "status": "other",
+   "sverity_here": [
+    "LNT-005/INFO/OPEN"
+   ],
+   "classification": "reported under another rule (not a match)"
+  },
+  {
+   "ip": "csrng",
+   "code": "WIDTHEXPAND",
+   "site": "hw/ip/csrng/rtl/csrng_state_db.sv:128",
+   "status": "other",
+   "sverity_here": [
+    "LNT-005/INFO/OPEN"
+   ],
+   "classification": "reported under another rule (not a match)"
+  },
+  {
+   "ip": "csrng",
+   "code": "WIDTHEXPAND",
+   "site": "hw/ip/csrng/rtl/csrng_state_db.sv:138",
+   "status": "near",
+   "sverity_here": [
+    "LNT-005/INFO/OPEN"
+   ],
+   "classification": "Verilator false positive",
+   "reason": "unsigned operand zero-extended to 32 bits in a comparison or constant arithmetic: the value is unchanged"
+  },
+  {
+   "ip": "csrng",
+   "code": "WIDTHEXPAND",
+   "site": "hw/ip/csrng/rtl/csrng_state_db.sv:139",
+   "status": "near",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "unsigned operand zero-extended to 32 bits in a comparison or constant arithmetic: the value is unchanged"
+  },
+  {
+   "ip": "csrng",
+   "code": "WIDTHEXPAND",
+   "site": "hw/ip/csrng/rtl/csrng_state_db.sv:168",
+   "status": "other",
+   "sverity_here": [
+    "LNT-005/INFO/OPEN"
+   ],
+   "classification": "reported under another rule (not a match)"
+  },
+  {
+   "ip": "csrng",
+   "code": "WIDTHEXPAND",
+   "site": "hw/ip/csrng/rtl/csrng_core.sv:560",
+   "status": "other",
+   "sverity_here": [
+    "LNT-005/INFO/OPEN"
+   ],
+   "classification": "reported under another rule (not a match)"
+  },
+  {
+   "ip": "csrng",
+   "code": "ALWCOMBORDER",
+   "site": "hw/ip/prim/rtl/prim_leading_one_ppc.sv:25",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "bit-wise fill of ppc_out[i] from ppc_out[i-1]: each bit is written before it is read"
+  },
+  {
+   "ip": "csrng",
+   "code": "UNOPTFLAT",
+   "site": "hw/ip/csrng/rtl/csrng_core.sv:344",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "scheduling diagnostic, no signal-level cycle: Verilator treats a multi-output always block as one node, so a looped output that does not depend on the looped input still reads as a loop here; the arms are state-exclusive and LNT-012 reports no cycle on any of the ten IPs. Judged by this shared structure; 4 of the 30 chains were traced in the RTL and the file does not record which four"
+  },
+  {
+   "ip": "csrng",
+   "code": "UNOPTFLAT",
+   "site": "hw/ip/csrng/rtl/csrng_core.sv:133",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "scheduling diagnostic, no signal-level cycle: Verilator treats a multi-output always block as one node, so a looped output that does not depend on the looped input still reads as a loop here; the arms are state-exclusive and LNT-012 reports no cycle on any of the ten IPs. Judged by this shared structure; 4 of the 30 chains were traced in the RTL and the file does not record which four"
+  },
+  {
+   "ip": "spi_host",
+   "code": "WIDTHEXPAND",
+   "site": "hw/ip/spi_device/rtl/spi_device_pkg.sv:502",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "unsigned operand zero-extended to 32 bits in a comparison or constant arithmetic: the value is unchanged"
+  },
+  {
+   "ip": "spi_host",
+   "code": "WIDTHEXPAND",
+   "site": "hw/ip/spi_device/rtl/spi_device_pkg.sv:509",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "unsigned operand zero-extended to 32 bits in a comparison or constant arithmetic: the value is unchanged"
+  },
+  {
+   "ip": "spi_host",
+   "code": "WIDTHEXPAND",
+   "site": "hw/ip/spi_device/rtl/spi_device_pkg.sv:514",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "unsigned operand zero-extended to 32 bits in a comparison or constant arithmetic: the value is unchanged"
+  },
+  {
+   "ip": "spi_host",
+   "code": "WIDTHEXPAND",
+   "site": "hw/ip/spi_device/rtl/spi_device_pkg.sv:519",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "unsigned operand zero-extended to 32 bits in a comparison or constant arithmetic: the value is unchanged"
+  },
+  {
+   "ip": "spi_host",
+   "code": "WIDTHEXPAND",
+   "site": "hw/ip/spi_device/rtl/spi_device_pkg.sv:524",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "unsigned operand zero-extended to 32 bits in a comparison or constant arithmetic: the value is unchanged"
+  },
+  {
+   "ip": "spi_host",
+   "code": "WIDTHEXPAND",
+   "site": "hw/ip/spi_device/rtl/spi_device_pkg.sv:531",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "unsigned operand zero-extended to 32 bits in a comparison or constant arithmetic: the value is unchanged"
+  },
+  {
+   "ip": "spi_host",
+   "code": "WIDTHEXPAND",
+   "site": "hw/ip/spi_device/rtl/spi_device_pkg.sv:536",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "unsigned operand zero-extended to 32 bits in a comparison or constant arithmetic: the value is unchanged"
+  },
+  {
+   "ip": "spi_host",
+   "code": "WIDTHEXPAND",
+   "site": "hw/ip/spi_device/rtl/spi_device_pkg.sv:541",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "unsigned operand zero-extended to 32 bits in a comparison or constant arithmetic: the value is unchanged"
+  },
+  {
+   "ip": "spi_host",
+   "code": "WIDTHEXPAND",
+   "site": "hw/ip/spi_device/rtl/spi_device_pkg.sv:546",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "unsigned operand zero-extended to 32 bits in a comparison or constant arithmetic: the value is unchanged"
+  },
+  {
+   "ip": "aes",
+   "code": "UNOPTFLAT",
+   "site": "hw/ip/aes/rtl/aes_control_fsm_n.sv:362",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "scheduling diagnostic, no signal-level cycle: Verilator treats a multi-output always block as one node, so a looped output that does not depend on the looped input still reads as a loop here; the arms are state-exclusive and LNT-012 reports no cycle on any of the ten IPs. Judged by this shared structure; 4 of the 30 chains were traced in the RTL and the file does not record which four"
+  },
+  {
+   "ip": "aes",
+   "code": "UNOPTFLAT",
+   "site": "hw/ip/aes/rtl/aes_control_fsm_p.sv:358",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "scheduling diagnostic, no signal-level cycle: Verilator treats a multi-output always block as one node, so a looped output that does not depend on the looped input still reads as a loop here; the arms are state-exclusive and LNT-012 reports no cycle on any of the ten IPs. Judged by this shared structure; 4 of the 30 chains were traced in the RTL and the file does not record which four"
+  },
+  {
+   "ip": "aes",
+   "code": "UNOPTFLAT",
+   "site": "hw/ip/prim/rtl/prim_alert_sender.sv:159",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "scheduling diagnostic, no signal-level cycle: Verilator treats a multi-output always block as one node, so a looped output that does not depend on the looped input still reads as a loop here; the arms are state-exclusive and LNT-012 reports no cycle on any of the ten IPs. Judged by this shared structure; 4 of the 30 chains were traced in the RTL and the file does not record which four"
+  },
+  {
+   "ip": "aes",
+   "code": "UNOPTFLAT",
+   "site": "hw/ip/aes/rtl/aes_control_fsm_p.sv:339",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "scheduling diagnostic, no signal-level cycle: Verilator treats a multi-output always block as one node, so a looped output that does not depend on the looped input still reads as a loop here; the arms are state-exclusive and LNT-012 reports no cycle on any of the ten IPs. Judged by this shared structure; 4 of the 30 chains were traced in the RTL and the file does not record which four"
+  },
+  {
+   "ip": "aes",
+   "code": "UNOPTFLAT",
+   "site": "hw/ip/aes/rtl/aes_control_fsm_n.sv:343",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "scheduling diagnostic, no signal-level cycle: Verilator treats a multi-output always block as one node, so a looped output that does not depend on the looped input still reads as a loop here; the arms are state-exclusive and LNT-012 reports no cycle on any of the ten IPs. Judged by this shared structure; 4 of the 30 chains were traced in the RTL and the file does not record which four"
+  },
+  {
+   "ip": "aes",
+   "code": "UNOPTFLAT",
+   "site": "hw/ip/aes/rtl/aes_control_fsm_p.sv:275",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "scheduling diagnostic, no signal-level cycle: Verilator treats a multi-output always block as one node, so a looped output that does not depend on the looped input still reads as a loop here; the arms are state-exclusive and LNT-012 reports no cycle on any of the ten IPs. Judged by this shared structure; 4 of the 30 chains were traced in the RTL and the file does not record which four"
+  },
+  {
+   "ip": "aes",
+   "code": "UNOPTFLAT",
+   "site": "hw/ip/aes/rtl/aes_control_fsm_p.sv:255",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "scheduling diagnostic, no signal-level cycle: Verilator treats a multi-output always block as one node, so a looped output that does not depend on the looped input still reads as a loop here; the arms are state-exclusive and LNT-012 reports no cycle on any of the ten IPs. Judged by this shared structure; 4 of the 30 chains were traced in the RTL and the file does not record which four"
+  },
+  {
+   "ip": "aes",
+   "code": "UNOPTFLAT",
+   "site": "hw/ip/aes/rtl/aes_control_fsm.sv:78",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "scheduling diagnostic, no signal-level cycle: Verilator treats a multi-output always block as one node, so a looped output that does not depend on the looped input still reads as a loop here; the arms are state-exclusive and LNT-012 reports no cycle on any of the ten IPs. Judged by this shared structure; 4 of the 30 chains were traced in the RTL and the file does not record which four"
+  },
+  {
+   "ip": "aes",
+   "code": "UNOPTFLAT",
+   "site": "hw/ip/aes/rtl/aes_control_fsm.sv:199",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "scheduling diagnostic, no signal-level cycle: Verilator treats a multi-output always block as one node, so a looped output that does not depend on the looped input still reads as a loop here; the arms are state-exclusive and LNT-012 reports no cycle on any of the ten IPs. Judged by this shared structure; 4 of the 30 chains were traced in the RTL and the file does not record which four"
+  },
+  {
+   "ip": "aes",
+   "code": "UNOPTFLAT",
+   "site": "hw/ip/aes/rtl/aes_control_fsm.sv:198",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "scheduling diagnostic, no signal-level cycle: Verilator treats a multi-output always block as one node, so a looped output that does not depend on the looped input still reads as a loop here; the arms are state-exclusive and LNT-012 reports no cycle on any of the ten IPs. Judged by this shared structure; 4 of the 30 chains were traced in the RTL and the file does not record which four"
+  },
+  {
+   "ip": "aes",
+   "code": "UNOPTFLAT",
+   "site": "hw/ip/aes/rtl/aes_control_fsm.sv:162",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "scheduling diagnostic, no signal-level cycle: Verilator treats a multi-output always block as one node, so a looped output that does not depend on the looped input still reads as a loop here; the arms are state-exclusive and LNT-012 reports no cycle on any of the ten IPs. Judged by this shared structure; 4 of the 30 chains were traced in the RTL and the file does not record which four"
+  },
+  {
+   "ip": "aes",
+   "code": "UNOPTFLAT",
+   "site": "hw/ip/aes/rtl/aes_reg_status.sv:33",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "scheduling diagnostic, no signal-level cycle: Verilator treats a multi-output always block as one node, so a looped output that does not depend on the looped input still reads as a loop here; the arms are state-exclusive and LNT-012 reports no cycle on any of the ten IPs. Judged by this shared structure; 4 of the 30 chains were traced in the RTL and the file does not record which four"
+  },
+  {
+   "ip": "aes",
+   "code": "UNOPTFLAT",
+   "site": "hw/ip/aes/rtl/aes_reg_status.sv:26",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "scheduling diagnostic, no signal-level cycle: Verilator treats a multi-output always block as one node, so a looped output that does not depend on the looped input still reads as a loop here; the arms are state-exclusive and LNT-012 reports no cycle on any of the ten IPs. Judged by this shared structure; 4 of the 30 chains were traced in the RTL and the file does not record which four"
+  },
+  {
+   "ip": "aes",
+   "code": "UNOPTFLAT",
+   "site": "hw/ip/aes/rtl/aes_control_fsm_p.sv:267",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "scheduling diagnostic, no signal-level cycle: Verilator treats a multi-output always block as one node, so a looped output that does not depend on the looped input still reads as a loop here; the arms are state-exclusive and LNT-012 reports no cycle on any of the ten IPs. Judged by this shared structure; 4 of the 30 chains were traced in the RTL and the file does not record which four"
+  },
+  {
+   "ip": "kmac",
+   "code": "VARHIDDEN",
+   "site": "hw/ip/kmac/rtl/kmac_core.sv:112",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "SVerity miss (real)",
+   "reason": "a local declaration hides a name wildcard-imported from a package; LNT-078 (slang shadow options) does not see it"
+  },
+  {
+   "ip": "kmac",
+   "code": "VARHIDDEN",
+   "site": "hw/ip/kmac/rtl/kmac_errchk.sv:140",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "SVerity miss (real)",
+   "reason": "a local declaration hides a name wildcard-imported from a package; LNT-078 (slang shadow options) does not see it"
+  },
+  {
+   "ip": "kmac",
+   "code": "VARHIDDEN",
+   "site": "hw/ip/kmac/rtl/kmac_errchk.sv:141",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "SVerity miss (real)",
+   "reason": "a local declaration hides a name wildcard-imported from a package; LNT-078 (slang shadow options) does not see it"
+  },
+  {
+   "ip": "kmac",
+   "code": "VARHIDDEN",
+   "site": "hw/ip/kmac/rtl/kmac_errchk.sv:147",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "SVerity miss (real)",
+   "reason": "a local declaration hides a name wildcard-imported from a package; LNT-078 (slang shadow options) does not see it"
+  },
+  {
+   "ip": "kmac",
+   "code": "VARHIDDEN",
+   "site": "hw/ip/kmac/rtl/kmac_entropy.sv:175",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "SVerity miss (real)",
+   "reason": "a local declaration hides a name wildcard-imported from a package; LNT-078 (slang shadow options) does not see it"
+  },
+  {
+   "ip": "kmac",
+   "code": "WIDTHEXPAND",
+   "site": "hw/ip/kmac/rtl/kmac_staterdwr.sv:151",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "unsigned operand zero-extended to 32 bits in a comparison or constant arithmetic: the value is unchanged"
+  },
+  {
+   "ip": "kmac",
+   "code": "WIDTHTRUNC",
+   "site": "hw/ip/kmac/rtl/kmac_app.sv:1208",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "constant 512/64 = 8 fits the 5-bit target"
+  },
+  {
+   "ip": "kmac",
+   "code": "UNOPTFLAT",
+   "site": "hw/ip/kmac/rtl/kmac.sv:310",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "scheduling diagnostic, no signal-level cycle: Verilator treats a multi-output always block as one node, so a looped output that does not depend on the looped input still reads as a loop here; the arms are state-exclusive and LNT-012 reports no cycle on any of the ten IPs. Judged by this shared structure; 4 of the 30 chains were traced in the RTL and the file does not record which four"
+  },
+  {
+   "ip": "kmac",
+   "code": "UNOPTFLAT",
+   "site": "hw/ip/kmac/rtl/kmac_entropy.sv:220",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "scheduling diagnostic, no signal-level cycle: Verilator treats a multi-output always block as one node, so a looped output that does not depend on the looped input still reads as a loop here; the arms are state-exclusive and LNT-012 reports no cycle on any of the ten IPs. Judged by this shared structure; 4 of the 30 chains were traced in the RTL and the file does not record which four"
+  },
+  {
+   "ip": "kmac",
+   "code": "UNOPTFLAT",
+   "site": "hw/ip/kmac/rtl/sha3.sv:188",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "scheduling diagnostic, no signal-level cycle: Verilator treats a multi-output always block as one node, so a looped output that does not depend on the looped input still reads as a loop here; the arms are state-exclusive and LNT-012 reports no cycle on any of the ten IPs. Judged by this shared structure; 4 of the 30 chains were traced in the RTL and the file does not record which four"
+  },
+  {
+   "ip": "kmac",
+   "code": "UNOPTFLAT",
+   "site": "hw/ip/kmac/rtl/kmac.sv:262",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "scheduling diagnostic, no signal-level cycle: Verilator treats a multi-output always block as one node, so a looped output that does not depend on the looped input still reads as a loop here; the arms are state-exclusive and LNT-012 reports no cycle on any of the ten IPs. Judged by this shared structure; 4 of the 30 chains were traced in the RTL and the file does not record which four"
+  },
+  {
+   "ip": "kmac",
+   "code": "UNOPTFLAT",
+   "site": "hw/ip/kmac/rtl/kmac.sv:265",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "scheduling diagnostic, no signal-level cycle: Verilator treats a multi-output always block as one node, so a looped output that does not depend on the looped input still reads as a loop here; the arms are state-exclusive and LNT-012 reports no cycle on any of the ten IPs. Judged by this shared structure; 4 of the 30 chains were traced in the RTL and the file does not record which four"
+  },
+  {
+   "ip": "kmac",
+   "code": "UNOPTFLAT",
+   "site": "hw/ip/kmac/rtl/kmac_app.sv:491",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "scheduling diagnostic, no signal-level cycle: Verilator treats a multi-output always block as one node, so a looped output that does not depend on the looped input still reads as a loop here; the arms are state-exclusive and LNT-012 reports no cycle on any of the ten IPs. Judged by this shared structure; 4 of the 30 chains were traced in the RTL and the file does not record which four"
+  },
+  {
+   "ip": "kmac",
+   "code": "UNOPTFLAT",
+   "site": "hw/ip/kmac/rtl/kmac_app.sv:671",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "scheduling diagnostic, no signal-level cycle: Verilator treats a multi-output always block as one node, so a looped output that does not depend on the looped input still reads as a loop here; the arms are state-exclusive and LNT-012 reports no cycle on any of the ten IPs. Judged by this shared structure; 4 of the 30 chains were traced in the RTL and the file does not record which four"
+  },
+  {
+   "ip": "kmac",
+   "code": "UNOPTFLAT",
+   "site": "hw/ip/kmac/rtl/kmac_app.sv:450",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "scheduling diagnostic, no signal-level cycle: Verilator treats a multi-output always block as one node, so a looped output that does not depend on the looped input still reads as a loop here; the arms are state-exclusive and LNT-012 reports no cycle on any of the ten IPs. Judged by this shared structure; 4 of the 30 chains were traced in the RTL and the file does not record which four"
+  },
+  {
+   "ip": "kmac",
+   "code": "UNOPTFLAT",
+   "site": "hw/ip/kmac/rtl/kmac.sv:280",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "scheduling diagnostic, no signal-level cycle: Verilator treats a multi-output always block as one node, so a looped output that does not depend on the looped input still reads as a loop here; the arms are state-exclusive and LNT-012 reports no cycle on any of the ten IPs. Judged by this shared structure; 4 of the 30 chains were traced in the RTL and the file does not record which four"
+  },
+  {
+   "ip": "kmac",
+   "code": "UNOPTFLAT",
+   "site": "hw/ip/kmac/rtl/kmac_entropy.sv:198",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "scheduling diagnostic, no signal-level cycle: Verilator treats a multi-output always block as one node, so a looped output that does not depend on the looped input still reads as a loop here; the arms are state-exclusive and LNT-012 reports no cycle on any of the ten IPs. Judged by this shared structure; 4 of the 30 chains were traced in the RTL and the file does not record which four"
+  },
+  {
+   "ip": "kmac",
+   "code": "UNOPTFLAT",
+   "site": "hw/ip/kmac/rtl/kmac.sv:1424",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "scheduling diagnostic, no signal-level cycle: Verilator treats a multi-output always block as one node, so a looped output that does not depend on the looped input still reads as a loop here; the arms are state-exclusive and LNT-012 reports no cycle on any of the ten IPs. Judged by this shared structure; 4 of the 30 chains were traced in the RTL and the file does not record which four"
+  },
+  {
+   "ip": "kmac",
+   "code": "UNOPTFLAT",
+   "site": "hw/ip/kmac/rtl/kmac_entropy.sv:197",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "scheduling diagnostic, no signal-level cycle: Verilator treats a multi-output always block as one node, so a looped output that does not depend on the looped input still reads as a loop here; the arms are state-exclusive and LNT-012 reports no cycle on any of the ten IPs. Judged by this shared structure; 4 of the 30 chains were traced in the RTL and the file does not record which four"
+  },
+  {
+   "ip": "otbn",
+   "code": "UNOPTFLAT",
+   "site": "hw/ip/otbn/rtl/otbn_controller.sv:199",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "scheduling diagnostic, no signal-level cycle: Verilator treats a multi-output always block as one node, so a looped output that does not depend on the looped input still reads as a loop here; the arms are state-exclusive and LNT-012 reports no cycle on any of the ten IPs. Judged by this shared structure; 4 of the 30 chains were traced in the RTL and the file does not record which four"
+  },
+  {
+   "ip": "entropy_src",
+   "code": "WIDTHEXPAND",
+   "site": "hw/ip/entropy_src/rtl/entropy_src_markov_ht.sv:150",
+   "status": "other",
+   "sverity_here": [
+    "LNT-005/INFO/OPEN"
+   ],
+   "classification": "reported under another rule (not a match)"
+  },
+  {
+   "ip": "entropy_src",
+   "code": "WIDTHEXPAND",
+   "site": "hw/ip/entropy_src/rtl/entropy_src_adaptp_ht.sv:120",
+   "status": "other",
+   "sverity_here": [
+    "LNT-005/INFO/OPEN"
+   ],
+   "classification": "reported under another rule (not a match)"
+  },
+  {
+   "ip": "entropy_src",
+   "code": "WIDTHEXPAND",
+   "site": "hw/ip/entropy_src/rtl/entropy_src_repcnt_ht.sv:115",
+   "status": "other",
+   "sverity_here": [
+    "LNT-005/INFO/OPEN"
+   ],
+   "classification": "reported under another rule (not a match)"
+  },
+  {
+   "ip": "entropy_src",
+   "code": "WIDTHEXPAND",
+   "site": "hw/ip/entropy_src/rtl/entropy_src_core.sv:2334",
+   "status": "other",
+   "sverity_here": [
+    "LNT-005/INFO/OPEN"
+   ],
+   "classification": "reported under another rule (not a match)"
+  },
+  {
+   "ip": "entropy_src",
+   "code": "UNOPTFLAT",
+   "site": "hw/ip/kmac/rtl/sha3pad.sv:202",
+   "status": "silent",
+   "sverity_here": [],
+   "classification": "Verilator false positive",
+   "reason": "scheduling diagnostic, no signal-level cycle: Verilator treats a multi-output always block as one node, so a looped output that does not depend on the looped input still reads as a loop here; the arms are state-exclusive and LNT-012 reports no cycle on any of the ten IPs. Judged by this shared structure; 4 of the 30 chains were traced in the RTL and the file does not record which four"
+  }
+ ],
+ "sverity_only": [
+  {
+   "kind": "blocking",
+   "rule": "CST-010",
+   "sites": 1,
+   "verilator_checks_class": false,
+   "class_note": "tool precision loss, not a design property",
+   "locations": [
+    "hw/ip/prim_generic/rtl/prim_ram_1p.sv:61"
+   ]
+  },
+  {
+   "kind": "blocking",
+   "rule": "LNT-005",
+   "sites": 2,
+   "verilator_checks_class": false,
+   "class_note": "sign and conversion of a parameter override (LC03)",
+   "locations": [
+    "hw/ip/otbn/rtl/otbn_sec_add.sv:298",
+    "hw/ip/otbn/rtl/otbn_sec_add_mod.sv:260"
+   ]
+  },
+  {
+   "kind": "blocking",
+   "rule": "LNT-053",
+   "sites": 1,
+   "verilator_checks_class": false,
+   "class_note": "dead stores (LC18)",
+   "locations": [
+    "hw/ip/kmac/rtl/kmac_app.sv:559"
+   ]
+  },
+  {
+   "kind": "blocking",
+   "rule": "LNT-054",
+   "sites": 3,
+   "verilator_checks_class": false,
+   "class_note": "reset-free registers read in conditions (LC16/LC23)",
+   "locations": [
+    "hw/ip/otbn/rtl/otbn_core.sv:993",
+    "hw/ip/otbn/rtl/otbn_instruction_fetch.sv:436",
+    "hw/ip/prim/rtl/prim_edn_req.sv:100"
+   ]
+  },
+  {
+   "kind": "not-analysed",
+   "rule": "LNT-009",
+   "sites": 3,
+   "verilator_checks_class": true,
+   "class_note": "Verilator checks this class",
+   "locations": [
+    "hw/ip/aes/rtl/aes_core.sv:57",
+    "hw/ip/csrng/rtl/csrng_core.sv:19",
+    "hw/ip/hmac/rtl/hmac.sv:55"
+   ]
+  },
+  {
+   "kind": "not-analysed",
+   "rule": "LNT-019",
+   "sites": 3,
+   "verilator_checks_class": false,
+   "class_note": "unbounded loops (LC15)",
+   "locations": [
+    "hw/ip/prim/rtl/prim_cipher_pkg.sv:293",
+    "hw/ip/prim/rtl/prim_cipher_pkg.sv:304",
+    "hw/ip/prim/rtl/prim_cipher_pkg.sv:315"
+   ]
+  },
+  {
+   "kind": "not-analysed",
+   "rule": "LNT-020",
+   "sites": 10,
+   "verilator_checks_class": false,
+   "class_note": "reset identity (LC16)",
+   "locations": [
+    "hw/ip/otbn/rtl/otbn_controller.sv:455",
+    "hw/ip/otbn/rtl/otbn_instruction_fetch.sv:301",
+    "hw/ip/otbn/rtl/otbn_instruction_fetch.sv:413",
+    "hw/ip/otbn/rtl/otbn_lsu.sv:113",
+    "hw/ip/otbn/rtl/otbn_mac_bignum.sv:180",
+    "hw/ip/otbn/rtl/otbn_mac_bignum.sv:220",
+    "hw/ip/otbn/rtl/otbn_mac_bignum.sv:260",
+    "hw/ip/prim/rtl/prim_fifo_sync.sv:191",
+    "hw/ip/prim_generic/rtl/prim_ram_1p.sv:70",
+    "hw/ip/prim_generic/rtl/prim_ram_1p.sv:72"
+   ]
+  },
+  {
+   "kind": "not-analysed",
+   "rule": "LNT-029",
+   "sites": 16,
+   "verilator_checks_class": false,
+   "class_note": "FSM states (LC13)",
+   "locations": [
+    "hw/ip/csrng/rtl/csrng_ctr_drbg.sv:151",
+    "hw/ip/entropy_src/rtl/entropy_src_core.sv:1863",
+    "hw/ip/hmac/rtl/hmac.sv:309",
+    "hw/ip/hmac/rtl/hmac.sv:325",
+    "hw/ip/hmac/rtl/hmac.sv:367",
+    "hw/ip/hmac/rtl/hmac.sv:637",
+    "hw/ip/hmac/rtl/hmac_core.sv:373",
+    "hw/ip/kmac/rtl/kmac_app.sv:565",
+    "hw/ip/kmac/rtl/kmac_app.sv:1162",
+    "hw/ip/kmac/rtl/kmac_entropy.sv:555",
+    "hw/ip/kmac/rtl/kmac_errchk.sv:468",
+    "hw/ip/kmac/rtl/kmac_msgfifo.sv:244",
+    "hw/ip/otbn/rtl/otbn.sv:858",
+    "hw/ip/prim/rtl/prim_sha2.sv:104",
+    "hw/ip/prim/rtl/prim_sha2.sv:153",
+    "hw/ip/prim/rtl/prim_sha2.sv:440"
+   ]
+  },
+  {
+   "kind": "not-analysed",
+   "rule": "LNT-033",
+   "sites": 17,
+   "verilator_checks_class": false,
+   "class_note": "unique/priority claims (LC13)",
+   "locations": [
+    "hw/ip/aes/rtl/aes_reg_top.sv:1821",
+    "hw/ip/csrng/rtl/csrng_reg_top.sv:2550",
+    "hw/ip/entropy_src/rtl/entropy_src_reg_top.sv:3553",
+    "hw/ip/hmac/rtl/hmac_reg_top.sv:2422",
+    "hw/ip/i2c/rtl/i2c_reg_top.sv:3912",
+    "hw/ip/kmac/rtl/kmac_reg_top.sv:3107",
+    "hw/ip/otbn/rtl/otbn_alu_bignum.sv:477",
+    "hw/ip/otbn/rtl/otbn_alu_bignum.sv:490",
+    "hw/ip/otbn/rtl/otbn_controller.sv:815",
+    "hw/ip/otbn/rtl/otbn_controller.sv:902",
+    "hw/ip/otbn/rtl/otbn_mac_bignum.sv:212",
+    "hw/ip/otbn/rtl/otbn_mac_bignum.sv:252",
+    "hw/ip/otbn/rtl/otbn_mac_bignum.sv:594",
+    "hw/ip/otbn/rtl/otbn_reg_top.sv:1326",
+    "hw/ip/rv_timer/rtl/rv_timer_reg_top.sv:667",
+    "hw/ip/spi_host/rtl/spi_host_reg_top.sv:2011",
+    "hw/ip/uart/rtl/uart_reg_top.sv:1856"
+   ]
+  },
+  {
+   "kind": "not-analysed",
+   "rule": "LNT-041",
+   "sites": 11,
+   "verilator_checks_class": false,
+   "class_note": "partial drives through a run-time index (LC06)",
+   "locations": [
+    "hw/ip/aes/rtl/aes_ctr.sv:47",
+    "hw/ip/aes/rtl/aes_ctr.sv:48",
+    "hw/ip/csrng/rtl/csrng_state_db.sv:75",
+    "hw/ip/kmac/rtl/keccak_round.sv:479",
+    "hw/ip/otbn/rtl/otbn_stack.sv:60",
+    "hw/ip/prim/rtl/prim_fifo_sync.sv:184",
+    "hw/ip/prim_generic/rtl/prim_ram_1p.sv:61",
+    "hw/ip/tlul/rtl/tlul_adapter_sram.sv:434",
+    "hw/ip/tlul/rtl/tlul_adapter_sram.sv:435",
+    "hw/ip/tlul/rtl/tlul_adapter_sram.sv:438",
+    "hw/ip/tlul/rtl/tlul_adapter_sram.sv:439"
+   ]
+  },
+  {
+   "kind": "not-analysed",
+   "rule": "LNT-042",
+   "sites": 3,
+   "verilator_checks_class": false,
+   "class_note": "partial drives through a run-time index (LC06)",
+   "locations": [
+    "hw/ip/aes/rtl/aes_core.sv:57",
+    "hw/ip/csrng/rtl/csrng_core.sv:19",
+    "hw/ip/hmac/rtl/hmac.sv:55"
+   ]
+  },
+  {
+   "kind": "not-analysed",
+   "rule": "LNT-044",
+   "sites": 5,
+   "verilator_checks_class": false,
+   "class_note": "reads before writes in functions (LC11/LC12)",
+   "locations": [
+    "hw/ip/prim/rtl/prim_cipher_pkg.sv:367",
+    "hw/ip/prim/rtl/prim_cipher_pkg.sv:376",
+    "hw/ip/prim/rtl/prim_cipher_pkg.sv:385",
+    "hw/ip/prim/rtl/prim_cipher_pkg.sv:394",
+    "hw/ip/prim/rtl/prim_lfsr.sv:397"
+   ]
+  },
+  {
+   "kind": "not-analysed",
+   "rule": "LNT-057",
+   "sites": 2,
+   "verilator_checks_class": false,
+   "class_note": "width provenance (LC02)",
+   "locations": [
+    "hw/ip/prim/rtl/prim_diff_decode.sv:164",
+    "hw/ip/rv_timer/rtl/rv_timer.sv:74"
+   ]
+  },
+  {
+   "kind": "not-analysed",
+   "rule": "LNT-068",
+   "sites": 5,
+   "verilator_checks_class": false,
+   "class_note": "reset identity (LC16)",
+   "locations": [
+    "hw/ip/otbn/rtl/otbn_controller.sv:453",
+    "hw/ip/otbn/rtl/otbn_instruction_fetch.sv:299",
+    "hw/ip/otbn/rtl/otbn_instruction_fetch.sv:411",
+    "hw/ip/prim/rtl/prim_fifo_sync.sv:94",
+    "hw/ip/prim/rtl/prim_fifo_sync.sv:189"
+   ]
+  },
+  {
+   "kind": "not-analysed",
+   "rule": "LNT-071",
+   "sites": 5,
+   "verilator_checks_class": false,
+   "class_note": "FSM reachability (LC13, an obligation)",
+   "locations": [
+    "hw/ip/csrng/rtl/csrng_ctr_drbg.sv:151",
+    "hw/ip/hmac/rtl/hmac.sv:367",
+    "hw/ip/kmac/rtl/kmac_app.sv:1162",
+    "hw/ip/kmac/rtl/kmac_entropy.sv:555",
+    "hw/ip/kmac/rtl/kmac_msgfifo.sv:244"
+   ]
+  }
+ ],
+ "agreement_note": "the one `matched` site (csrng_ctr_drbg.sv:261, LNT-036 WARNING) is a finding the ledger classes as a false positive (since fixed): it is agreement on the site, not independent evidence that SVerity detects the Verilator class"
+}

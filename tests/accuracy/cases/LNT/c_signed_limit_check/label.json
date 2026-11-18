@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-C (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC21",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "signed sign test and in-range limits",
+    "rationale": "Signed >= comparisons and +/-2000 limits are within the 12-bit signed range, so each outcome is data dependent."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "good",
+      "class": "LC21",
+      "sites": [],
+      "critical": false,
+      "note": "Signed comparisons against +/-2000 are within the 12-bit range and not constant."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC21",
+      "sites": [],
+      "critical": false,
+      "note": "Signed comparisons against +/-2000 on a 12-bit signed value are not constant."
+    }
+  ],
+  "rationale": "Signed >= comparisons and +/-2000 limits are within the 12-bit signed range, so each outcome is data dependent.",
+  "verdict": "good",
+  "class": "LC21",
+  "sites": [],
+  "critical": false
+}

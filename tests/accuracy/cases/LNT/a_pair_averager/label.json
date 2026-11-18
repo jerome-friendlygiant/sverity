@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-A (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC02",
+    "sites": [
+      {
+        "line": 25
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "carry lost in an addition",
+    "rationale": "(prev_q + pix) is evaluated at the 8-bit width of the target, so the carry is dropped before the shift; 200 and 100 average to 22."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC02",
+      "sites": [
+        {
+          "line": 25
+        }
+      ],
+      "critical": true,
+      "note": "(prev_q + pix) is evaluated in the 8-bit context of avg_q, so the carry is lost before the >>1 and the average is wrong for sums >= 256."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC02",
+      "sites": [
+        {
+          "line": 25
+        }
+      ],
+      "critical": true,
+      "note": "prev_q + pix is evaluated at 8 bits (context width of 8-bit avg_q), so the carry is lost before the >>1 and averages of large pixels wrap."
+    }
+  ],
+  "rationale": "(prev_q + pix) is evaluated at the 8-bit width of the target, so the carry is dropped before the shift; 200 and 100 average to 22.",
+  "verdict": "bad",
+  "class": "LC02",
+  "sites": [
+    {
+      "line": 25
+    }
+  ],
+  "critical": true
+}

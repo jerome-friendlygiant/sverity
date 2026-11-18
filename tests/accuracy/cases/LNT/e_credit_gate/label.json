@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-E (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC08",
+    "sites": [
+      {
+        "line": 20
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "omitted scalar input",
+    "rationale": "The omitted permit input leaves the credit gate dependent on a floating control."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC08",
+      "sites": [
+        {
+          "line": 20
+        }
+      ],
+      "critical": true,
+      "note": "Input port permit of u_lane is omitted from the named connection list and floats."
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC08",
+      "sites": [
+        {
+          "line": 20
+        }
+      ],
+      "critical": true,
+      "note": "The lane permit input is omitted from the instance connection."
+    }
+  ],
+  "rationale": "The omitted permit input leaves the credit gate dependent on a floating control.",
+  "verdict": "bad",
+  "class": "LC08",
+  "sites": [
+    {
+      "line": 20
+    }
+  ],
+  "critical": true
+}

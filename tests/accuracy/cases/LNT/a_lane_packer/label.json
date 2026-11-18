@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-A (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC02",
+    "sites": [
+      {
+        "line": 20
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "shift result truncated inside a concatenation",
+    "rationale": "payload << {lane,3'b000} is a concatenation operand, so it is evaluated at 8 bits; for lane 1..3 the byte is shifted out and the word receives zero."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC02",
+      "sites": [
+        {
+          "line": 20
+        }
+      ],
+      "critical": true,
+      "note": "payload << {lane,3'b000} inside a concatenation is self-determined at 8 bits, so the shifted bits are lost instead of landing in the upper lanes."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC02",
+      "sites": [
+        {
+          "line": 20
+        }
+      ],
+      "critical": true,
+      "note": "payload << shift inside a concatenation is self-determined at 8 bits, so the shifted byte is truncated and lanes 1-3 get zero."
+    }
+  ],
+  "rationale": "payload << {lane,3'b000} is a concatenation operand, so it is evaluated at 8 bits; for lane 1..3 the byte is shifted out and the word receives zero.",
+  "verdict": "bad",
+  "class": "LC02",
+  "sites": [
+    {
+      "line": 20
+    }
+  ],
+  "critical": true
+}

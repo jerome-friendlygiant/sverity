@@ -1,0 +1,65 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-A (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC04",
+    "sites": [
+      {
+        "line": 22
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "indexed part-select running past the vector",
+    "rationale": "word_i is 24 bits wide but lane is two bits, so lane 3 selects bits [31:24], entirely outside the vector."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC04",
+      "sites": [
+        {
+          "line": 22
+        }
+      ],
+      "critical": true,
+      "note": "lane = 3 selects word_i[24 +: 8], outside the 24-bit word."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC04",
+      "sites": [
+        {
+          "line": 22
+        }
+      ],
+      "critical": true,
+      "note": "lane = 3 selects word_i[31:24], beyond the 24-bit word_i[23:0]."
+    }
+  ],
+  "rationale": "word_i is 24 bits wide but lane is two bits, so lane 3 selects bits [31:24], entirely outside the vector.",
+  "verdict": "unknown",
+  "class": "LC04",
+  "sites": [
+    {
+      "line": 22
+    }
+  ],
+  "critical": true,
+  "adjudication": {
+    "by": "maintainer delegate, policy decision after the score (convention 2)",
+    "was": {
+      "verdict": "bad",
+      "class": "LC04",
+      "critical": true
+    },
+    "reason": "index range comes from an unconstrained input (convention 2), consistent with a_channel_gain_mux",
+    "record": "tests/accuracy/results/p3-lint-fresh-adjudication.json"
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-F (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC21",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "zero divisor replaced before division",
+    "rationale": "The divisor is mapped from zero to one; the quotient always uses a nonzero byte."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC21",
+      "sites": [],
+      "critical": false,
+      "note": "Divisor is forced to 1 when b is zero, so no division by zero."
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "good",
+      "class": "LC21",
+      "sites": [],
+      "critical": false,
+      "note": "The denominator is forced to one whenever b is zero, so division by zero is excluded."
+    }
+  ],
+  "rationale": "The divisor is mapped from zero to one; the quotient always uses a nonzero byte.",
+  "verdict": "good",
+  "class": "LC21",
+  "sites": [],
+  "critical": false
+}

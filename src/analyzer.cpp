@@ -2,6 +2,8 @@
 #include <slang/ast/Compilation.h>
 #include <slang/ast/symbols/ValueSymbol.h>
 #include <slang/ast/types/Type.h>
+#include <slang/syntax/AllSyntax.h>
+#include <slang/syntax/SyntaxTree.h>
 #include "sverity/analyzer.h"
 #include "sverity/json.h"
 
@@ -139,6 +141,35 @@ static bool readFile(const std::string& path, std::string& out) {
     return true;
 }
 
+// Gives each finding the name of the definition (module, interface, program, package, class) whose text holds its location, so that a
+// baseline can tell the same defect in one module from the same name in another. Findings in macro text or outside any top-level
+// definition keep an empty scope.
+static void annotateScopes(const slang::ast::Compilation& compilation, Report& report) {
+    struct Range { uint32_t first, last; std::string name; };
+    std::map<std::string, std::vector<Range>> byFile;
+    const auto& sm = *compilation.getSourceManager();
+    for (const auto& tree : compilation.getSyntaxTrees()) {
+        if (!tree || tree->root().kind != slang::syntax::SyntaxKind::CompilationUnit) continue;
+        for (const auto* member : tree->root().as<slang::syntax::CompilationUnitSyntax>().members) {
+            std::string name;
+            if (const auto* decl = member->as_if<slang::syntax::ModuleDeclarationSyntax>()) name = std::string(decl->header->name.valueText());
+            else if (const auto* cls = member->as_if<slang::syntax::ClassDeclarationSyntax>()) name = std::string(cls->name.valueText());
+            const auto range = member->sourceRange();
+            const auto start = sm.getFullyExpandedLoc(range.start()), end = sm.getFullyExpandedLoc(range.end());
+            if (name.empty() || !start.valid() || !end.valid() || start.buffer() != end.buffer()) continue;
+            byFile[sm.getFullPath(start.buffer()).generic_string()].push_back(
+                {static_cast<uint32_t>(sm.getLineNumber(start)), static_cast<uint32_t>(sm.getLineNumber(end)), std::move(name)});
+        }
+    }
+    for (auto& d : report.mutableDiagnostics()) {
+        if (!d.scope.empty() || !d.location.valid()) continue;
+        const auto it = byFile.find(d.location.file);
+        if (it == byFile.end()) continue;
+        for (const auto& r : it->second)
+            if (d.location.line >= r.first && d.location.line <= r.last) { d.scope = r.name; break; }
+    }
+}
+
 Report analyze(const AnalyzerOptions& opts) {
     Report report;
     report.setToolInfo(SVERITY_VERSION, slangVersionString(), Catalog::embedded().version());
@@ -172,9 +203,11 @@ Report analyze(const AnalyzerOptions& opts) {
         auto effective = opts.config.ruleOptions;
         effective.try_emplace("CDC-005.min_stages", "2");
         effective.try_emplace("RDC-006.min_stages", "2");
+        effective.try_emplace("LNT-010.empty_output", "info");
         effective.try_emplace("LNT-025.priority_chains", "info");
+        effective.try_emplace("LNT-025.overrides", "info");
         effective.try_emplace("LNT-036.report_modular", "false");
-        effective.try_emplace("LNT-006.dynamic_index", "false");
+        effective.try_emplace("LNT-006.dynamic_index", "inputs");
         effective.try_emplace("LNT-037.dynamic_divisor", "false");
         effective.try_emplace("LNT-061.allow", "");
         for (auto& [key, value] : effective) options.set(key, value);
@@ -488,13 +521,20 @@ Report analyze(const AnalyzerOptions& opts) {
             design->model.reset();
         }
     }
-    if (measuring) { config.timings = &timings; timings.record("load_and_constraints", loadStart); }
+    if (measuring) { timings.setFile(opts.timingsFile); config.timings = &timings; timings.record("load_and_constraints", loadStart); }
     runRules(design.get(), report, config);
+    if (design && design->compilation) {
+        annotateScopes(*design->compilation, report);
+        json::Value tops = json::Value::array();
+        std::set<std::string> names;
+        for (const auto* top : design->compilation->getRoot().topInstances) names.insert(std::string(top->name));
+        for (const auto& n : names) tops.push(n);
+        report.addInput("elaborated_tops", tops);
+    }
     if (measuring) {
         // Measurements are written even for a failed run: that is when they matter most.
-        std::ofstream out(opts.timingsFile);
-        out << timings.toJson() << '\n';
-        if (!out) report.setExecutionError("could not write timings to '" + opts.timingsFile + "'");
+        timings.flush();
+        if (timings.writeFailed()) report.setExecutionError("could not write timings to '" + opts.timingsFile + "'");
     }
     if (design && design->hasCaseMode()) {
         json::Value modes = json::Value::array();
@@ -571,9 +611,12 @@ Report analyze(const AnalyzerOptions& opts) {
         }
         d.severity = effective;
         if (d.disposition != Disposition::Waived && d.disposition != Disposition::Resolved) {
-            if (effective == Severity::Warning || (d.originalSeverity >= Severity::Error && effective < Severity::Error))
-                d.disposition = Disposition::ReviewRequired;
-            else if (effective >= Severity::Error) d.disposition = Disposition::Open;
+            if (effective == Severity::Warning) d.applyDefaultDisposition();   // the one decision, shared with Report::add
+            else {
+                d.unresolvedKind = UnresolvedKind::None;
+                if (d.originalSeverity >= Severity::Error && effective < Severity::Error) d.disposition = Disposition::ReviewRequired;
+                else if (effective >= Severity::Error) d.disposition = Disposition::Open;
+            }
         }
     }
     return report;

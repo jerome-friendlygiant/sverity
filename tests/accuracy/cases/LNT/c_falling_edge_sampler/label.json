@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-C (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC17",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "falling-edge-only design",
+    "rationale": "Every register uses negedge clk; only one edge of the signal is used."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "good",
+      "class": "LC17",
+      "sites": [],
+      "critical": false,
+      "note": "All registers use only the falling edge of clk with an ordinary async reset."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC17",
+      "sites": [],
+      "critical": false,
+      "note": "All registers consistently use the falling edge of clk; no clock used as data, no mixed edges."
+    }
+  ],
+  "rationale": "Every register uses negedge clk; only one edge of the signal is used.",
+  "verdict": "good",
+  "class": "LC17",
+  "sites": [],
+  "critical": false
+}

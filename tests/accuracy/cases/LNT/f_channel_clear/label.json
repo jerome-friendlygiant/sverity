@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-F (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC17",
+    "sites": [
+      {
+        "line": 16
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "combinationally driven asynchronous control",
+    "rationale": "A combinational enable path enters the asynchronous reset pin, permitting enable transitions to clear stored data."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC17",
+      "sites": [
+        {
+          "line": 16
+        }
+      ],
+      "critical": true,
+      "note": "Asynchronous reset is driven by combinational logic (rst_n & en)."
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC17",
+      "sites": [
+        {
+          "line": 16
+        }
+      ],
+      "critical": true,
+      "note": "Combinational logic using en drives the asynchronous reset control."
+    }
+  ],
+  "rationale": "A combinational enable path enters the asynchronous reset pin, permitting enable transitions to clear stored data.",
+  "verdict": "bad",
+  "class": "LC17",
+  "sites": [
+    {
+      "line": 16
+    }
+  ],
+  "critical": true
+}

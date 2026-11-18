@@ -1,0 +1,67 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-F (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "unknown",
+    "class": "LC25",
+    "sites": [
+      {
+        "line": 20
+      }
+    ],
+    "boundary": "unknown",
+    "subtype": "input-dependent translate-off overlay",
+    "rationale": "The simulation-only overlay changes the payload only when the external diagnostic enable is asserted; the file does not constrain that enable."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC25",
+      "sites": [
+        {
+          "line": 19
+        }
+      ],
+      "critical": true,
+      "note": "translate_off hides the en-gated XOR that changes y in simulation only"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC25",
+      "sites": [
+        {
+          "line": 20
+        }
+      ],
+      "critical": true,
+      "note": "The translate_off overlay changes simulation output when en is asserted."
+    }
+  ],
+  "settlement": {
+    "by": "settler (gpt-6.1-sol, third reading)",
+    "verdict": "bad",
+    "class": "LC25",
+    "sites": [
+      {
+        "line": 20
+      }
+    ],
+    "critical": true,
+    "note": "translate_off removes an assignment that changes y from a to a XOR 8'h80 when en is asserted, so the pragma changes the synthesized function. Convention 3 makes this bad; the wrong design statement is the omitted assignment."
+  },
+  "rationale": "translate_off removes an assignment that changes y from a to a XOR 8'h80 when en is asserted, so the pragma changes the synthesized function. Convention 3 makes this bad; the wrong design statement is the omitted assignment.",
+  "verdict": "bad",
+  "class": "LC25",
+  "sites": [
+    {
+      "line": 20
+    }
+  ],
+  "critical": true
+}

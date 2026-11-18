@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-B (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC13",
+    "sites": [
+      {
+        "line": 24
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "reachable enum state with no case item (stuck state)",
+    "rationale": "S_RETRY is entered on nack but has no item, so the default holds it forever."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC13",
+      "sites": [
+        {
+          "line": 24
+        }
+      ],
+      "critical": true,
+      "note": "S_RETRY has no case item and falls to the default that holds state, so the FSM is stuck once it enters S_RETRY."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC13",
+      "sites": [
+        {
+          "line": 24
+        }
+      ],
+      "critical": true,
+      "note": "S_RETRY has no case item; the default holds the state, so the FSM is stuck in S_RETRY forever."
+    }
+  ],
+  "rationale": "S_RETRY is entered on nack but has no item, so the default holds it forever.",
+  "verdict": "bad",
+  "class": "LC13",
+  "sites": [
+    {
+      "line": 24
+    }
+  ],
+  "critical": true
+}

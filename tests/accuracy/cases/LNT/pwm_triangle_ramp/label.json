@@ -1,0 +1,28 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "origin": "authored",
+  "sites": [],
+  "sdc": [],
+  "rationale": "Every register is reset; the reset values differ by purpose (zero, a mid-scale localparam, one) but each register has a defined one.",
+  "author": "claude-sonnet-5-5",
+  "class": "LC23",
+  "batch": "p2-lint-heldout",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "class": "LC02",
+      "sites": [],
+      "note": "The saturation comparisons guard the arithmetic against wraparound."
+    }
+  ]
+}

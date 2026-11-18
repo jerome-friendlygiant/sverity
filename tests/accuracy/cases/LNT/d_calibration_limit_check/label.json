@@ -1,0 +1,67 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-D (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "unknown",
+    "class": "LC03",
+    "sites": [
+      {
+        "line": 20
+      }
+    ],
+    "boundary": "unknown",
+    "subtype": "input dependent mixed-domain comparison",
+    "rationale": "Signed negative offsets compare incorrectly against unsigned limits, while nonnegative offsets compare correctly. The offset input has no range constraint."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC03",
+      "sites": [
+        {
+          "line": 20
+        }
+      ],
+      "critical": true,
+      "note": "Signed a compared with unsigned b makes the comparison unsigned, so negative a compares as large."
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC03",
+      "sites": [
+        {
+          "line": 20
+        }
+      ],
+      "critical": true,
+      "note": "Mixing signed a with unsigned b makes the comparison unsigned for negative a."
+    }
+  ],
+  "settlement": {
+    "by": "settler (gpt-6.1-sol, third reading)",
+    "verdict": "unknown",
+    "class": "LC03",
+    "sites": [
+      {
+        "line": 20
+      }
+    ],
+    "critical": true,
+    "note": "The unsigned operand makes the comparison unsigned; simulation confirms an incorrect mathematical result for a negative a and a correct result for positive a. Whether signedness changes the result depends on unconstrained input values, so convention 2 requires unknown."
+  },
+  "rationale": "The unsigned operand makes the comparison unsigned; simulation confirms an incorrect mathematical result for a negative a and a correct result for positive a. Whether signedness changes the result depends on unconstrained input values, so convention 2 requires unknown.",
+  "verdict": "unknown",
+  "class": "LC03",
+  "sites": [
+    {
+      "line": 20
+    }
+  ],
+  "critical": true
+}

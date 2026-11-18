@@ -1,4 +1,4 @@
-// sverity-args: --top top
+// sverity-args: --top top --option LNT-025.overrides=warning
 // the child body is shared by two instances: one finding with count 2; a call in a condition makes the exclusivity undecidable, so it is still reported
 // expect: LNT-025 WARNING 13
 // expect-count: LNT-025 WARNING 2

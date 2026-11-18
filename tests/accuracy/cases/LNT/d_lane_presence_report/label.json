@@ -1,0 +1,67 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-D (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC06",
+    "sites": [
+      {
+        "line": 20
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "output upper range undriven",
+    "rationale": "Only the low nibble of the status output has a source; the upper nibble floats."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC06",
+      "sites": [
+        {
+          "line": 12
+        }
+      ],
+      "critical": true,
+      "note": "y[7:4] never driven"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC06",
+      "sites": [
+        {
+          "line": 12
+        }
+      ],
+      "critical": true,
+      "note": "The upper four bits of output y have no driver."
+    }
+  ],
+  "settlement": {
+    "by": "settler (gpt-6.1-sol, third reading)",
+    "verdict": "bad",
+    "class": "LC06",
+    "sites": [
+      {
+        "line": 12
+      }
+    ],
+    "critical": true,
+    "note": "The declaration exposes y[7:4], which have no driver anywhere in the file. The low-nibble assignment is valid, so the undriven output is located at its declaration."
+  },
+  "rationale": "The declaration exposes y[7:4], which have no driver anywhere in the file. The low-nibble assignment is valid, so the undriven output is located at its declaration.",
+  "verdict": "bad",
+  "class": "LC06",
+  "sites": [
+    {
+      "line": 12
+    }
+  ],
+  "critical": true
+}

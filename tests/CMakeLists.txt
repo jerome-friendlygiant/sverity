@@ -39,3 +39,11 @@ add_test(NAME accuracy.labels COMMAND python3 ${PROJECT_SOURCE_DIR}/tools/dev/ac
 
 # The scorer must reject invalid qualification evidence.
 add_test(NAME accuracy.gate COMMAND python3 ${PROJECT_SOURCE_DIR}/tests/test_accuracy.py $<TARGET_FILE:sverity>)
+
+# The Verilator policy migrator keeps each directive's scope, and its waivers apply in SVerity (synthetic inputs only).
+add_test(NAME tools.migrate_verilator COMMAND python3 ${PROJECT_SOURCE_DIR}/tests/test_migrate_verilator.py $<TARGET_FILE:sverity>)
+
+# The noise gate and the Verilator differential read reports; their reconciliation logic runs on synthetic input.
+add_test(NAME tools.replay_tools COMMAND python3 ${PROJECT_SOURCE_DIR}/tests/test_replay_tools.py)
+
+add_test(NAME fixtures.confidence_contract COMMAND python3 ${PROJECT_SOURCE_DIR}/tests/test_fixture_confidence.py $<TARGET_FILE:sverity_fixture_runner>)

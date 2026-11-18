@@ -1,4 +1,4 @@
-// sverity-args: --top top
+// sverity-args: --top top --option LNT-025.overrides=warning
 // Equal RHS spelling is insufficient: the low slice writes different bits of the value.
 // expect: LNT-025 WARNING
 module top(input logic a, b, output logic [3:0] q);

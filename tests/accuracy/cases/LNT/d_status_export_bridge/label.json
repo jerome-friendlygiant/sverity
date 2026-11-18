@@ -1,0 +1,56 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-D (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC06",
+    "sites": [
+      {
+        "line": 23
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "whole output undriven",
+    "rationale": "The byte-wide exported status has no source."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC06",
+      "sites": [
+        {
+          "line": 23
+        }
+      ],
+      "critical": true,
+      "note": "exported_status is never driven but drives output y.",
+      "other": "LC09 line 21 (metadata unused)"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC06",
+      "sites": [
+        {
+          "line": 23
+        }
+      ],
+      "critical": true,
+      "note": "exported_status is declared but never driven before feeding y."
+    }
+  ],
+  "rationale": "The byte-wide exported status has no source.",
+  "verdict": "bad",
+  "class": "LC06",
+  "sites": [
+    {
+      "line": 23
+    }
+  ],
+  "critical": true
+}

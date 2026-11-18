@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-A (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC07",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "mutually exclusive generate alternatives drive one net",
+    "rationale": "Both branches assign out_w, but the generate-if elaborates exactly one of them, so the net has a single driver."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "good",
+      "class": "LC07",
+      "sites": [],
+      "critical": false,
+      "note": "out_w has one driver in whichever generate branch is selected; the branches are mutually exclusive."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC07",
+      "sites": [],
+      "critical": false,
+      "note": "out_w is driven in exactly one of two mutually exclusive generate branches."
+    }
+  ],
+  "rationale": "Both branches assign out_w, but the generate-if elaborates exactly one of them, so the net has a single driver.",
+  "verdict": "good",
+  "class": "LC07",
+  "sites": [],
+  "critical": false
+}

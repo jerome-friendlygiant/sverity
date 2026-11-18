@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-B (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC08",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "wildcard .* connection that connects every port by name",
+    "rationale": "Every input of tick_gen and sec_counter has a same-named signal in top, so .* leaves no input unconnected."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "good",
+      "class": "LC08",
+      "sites": [],
+      "critical": false,
+      "note": "Wildcard connections bind every port of both children to an existing same-named signal."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC08",
+      "sites": [],
+      "critical": false,
+      "note": "Every port of both .* instances has a matching name in top (clk, rst_n, enable, tick, secs, minute_roll)."
+    }
+  ],
+  "rationale": "Every input of tick_gen and sec_counter has a same-named signal in top, so .* leaves no input unconnected.",
+  "verdict": "good",
+  "class": "LC08",
+  "sites": [],
+  "critical": false
+}

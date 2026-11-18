@@ -1,0 +1,35 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "origin": "adapted",
+  "sites": [],
+  "sdc": [],
+  "rationale": "default_nettype none is set, the package is imported once and its MaxFlags is used, no name shadows another, and every declaration is used.",
+  "author": "claude-sonnet-5-5",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_popcount.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Added a package-provided flag limit and a comparison output, and switched the ports to wires under default_nettype none."
+  },
+  "class": "LC19",
+  "batch": "p2-lint-heldout",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "class": "LC02",
+      "sites": [],
+      "note": "The count width represents every possible default input population."
+    }
+  ]
+}

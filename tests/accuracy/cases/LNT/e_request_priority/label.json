@@ -1,0 +1,70 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-E (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "unknown",
+    "class": "LC13",
+    "sites": [
+      {
+        "line": 21
+      }
+    ],
+    "boundary": "unknown",
+    "subtype": "external one-hot assumption",
+    "rationale": "The unique decoder is valid for one-hot-or-zero requests, but simultaneous requests violate uniqueness. No input protocol constrains sel."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "unknown",
+      "class": "LC13",
+      "sites": [
+        {
+          "line": 21
+        }
+      ],
+      "critical": true,
+      "note": "unique case(1'b1) items sel[0] and sel[1] overlap when sel==3; unconstrained input decides whether unique is violated."
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC13",
+      "sites": [
+        {
+          "line": 22
+        },
+        {
+          "line": 23
+        }
+      ],
+      "critical": true,
+      "note": "Both case items match when sel is 2'b11, violating unique case exclusivity."
+    }
+  ],
+  "settlement": {
+    "by": "settler (gpt-6.1-sol, third reading)",
+    "verdict": "unknown",
+    "class": "LC13",
+    "sites": [
+      {
+        "line": 21
+      }
+    ],
+    "critical": true,
+    "note": "The unique case matches both request items for sel=3 but is valid for one-hot-or-zero inputs. The file supplies no one-hot constraint, so whether uniqueness is violated depends on the environment."
+  },
+  "rationale": "The unique case matches both request items for sel=3 but is valid for one-hot-or-zero inputs. The file supplies no one-hot constraint, so whether uniqueness is violated depends on the environment.",
+  "verdict": "unknown",
+  "class": "LC13",
+  "sites": [
+    {
+      "line": 21
+    }
+  ],
+  "critical": true
+}

@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-C (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC24",
+    "sites": [
+      {
+        "line": 19
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "separate read and write address collision",
+    "rationale": "Independent waddr/raddr may match in one cycle with no handling."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "unknown",
+      "class": "LC24",
+      "sites": [
+        {
+          "line": 19
+        }
+      ],
+      "critical": true,
+      "note": "Registered read port and independent write port on one clock: RTL returns old data on a same-address read-during-write, but whether a collision occurs and whether the target memory is read-first is not fixed by the file."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC24",
+      "sites": [],
+      "critical": false,
+      "note": "Same-clock write port and registered read port in separate processes: read-during-write returns old data, a well-defined read-first behaviour that synthesis implements."
+    }
+  ],
+  "settlement": {
+    "by": "settler (claude-fable-5-2, third reading)",
+    "verdict": "good",
+    "class": "LC24",
+    "sites": [],
+    "critical": false,
+    "note": "Same-clock write port and registered read port: a same-address read during a write returns old data, fully defined by the RTL, so nothing depends on the memory implementation (convention 4)."
+  },
+  "rationale": "Same-clock write port and registered read port: a same-address read during a write returns old data, fully defined by the RTL, so nothing depends on the memory implementation (convention 4).",
+  "verdict": "good",
+  "class": "LC24",
+  "sites": [],
+  "critical": false
+}

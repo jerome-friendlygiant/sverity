@@ -7,6 +7,12 @@
 
 namespace sverity {
 
+/// An undecidable-by-lint question a rule may report as Unresolved without blocking by default.
+struct ObligationInfo {
+    std::string id;
+    std::string reason;
+};
+
 struct RuleInfo {
     std::string id;
     std::string category;                 // LNT STY SVA CDC RDC CST (the ID prefix)
@@ -16,9 +22,12 @@ struct RuleInfo {
     std::string wave;                     // foundation | breadth | advanced (ordering only)
     std::string gap;                      // what a partial rule does not cover (empty if none recorded)
     std::string deck;                     // earliest deck holding the rule: core | domain | 1.0 (decks are cumulative)
+    std::vector<std::string> classes;     // lint workflow defect classes it covers (docs/rules/LINT_WORKFLOW.md)
+    std::vector<ObligationInfo> obligations;   // predicates the rule may emit as obligations; empty = none declared
 };
 
 /// True for a known deck name. Decks are cumulative: core is inside domain, domain is inside 1.0.
+/// The workflow deck `lint` stands apart: the rules covering a defect class of the named lint workflow.
 bool isDeck(std::string_view name);
 /// True when `rule` belongs to `deck`.
 bool inDeck(const RuleInfo& rule, std::string_view deck);

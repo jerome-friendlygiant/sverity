@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-D (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC05",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "explicit monitor wire",
+    "rationale": "The observation net is explicitly declared and consistently spelled."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC05",
+      "sites": [],
+      "critical": false,
+      "note": "all nets declared"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "good",
+      "class": "LC05",
+      "sites": [],
+      "critical": false,
+      "note": "write_monitor is explicitly declared before use."
+    }
+  ],
+  "rationale": "The observation net is explicitly declared and consistently spelled.",
+  "verdict": "good",
+  "class": "LC05",
+  "sites": [],
+  "critical": false
+}

@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-C (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC24",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "explicit write-through on address match",
+    "rationale": "Collision case is defined by the bypass mux."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "good",
+      "class": "LC24",
+      "sites": [],
+      "critical": false,
+      "note": "Explicit bypass returns wdata on a same-address read, so the collision is defined."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC24",
+      "sites": [],
+      "critical": false,
+      "note": "Explicit write-through bypass defines same-address read-during-write behaviour independent of the RAM."
+    }
+  ],
+  "rationale": "Collision case is defined by the bypass mux.",
+  "verdict": "good",
+  "class": "LC24",
+  "sites": [],
+  "critical": false
+}

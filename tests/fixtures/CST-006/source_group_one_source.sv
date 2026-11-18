@@ -1,7 +1,7 @@
 // sverity-args: --top top --sdc @FIXTURES@/_common/async.sdc
 // A waiver for one of the two grouped sources says nothing about the other: it does not apply.
 // expect: RDC-004 WARNING
-// expect: CST-022 WARNING
+// expect: CST-022 INFO
 module top(input logic clk, r1, r2, d, output logic q);
   logic x, y;
   always_ff @(posedge clk or negedge r1) if (!r1) x <= 0; else x <= d;

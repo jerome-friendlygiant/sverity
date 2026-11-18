@@ -1,0 +1,35 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "class": "LC10",
+  "batch": "p2-lint-heldout",
+  "verdict": "good",
+  "critical": false,
+  "origin": "adapted",
+  "sites": [],
+  "sdc": [],
+  "rationale": "The valid condition depends on a registered hold bit, not on the combinational readies, so the readies depend on valid in one direction only.",
+  "author": "claude-sonnet-5-5",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_stream_join_dynamic.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Added a start input, a fire counter and a registered hold bit to the valid condition."
+  },
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "class": "LC10",
+      "sites": [],
+      "note": "The ready and valid paths are separated by the registered hold state."
+    }
+  ]
+}

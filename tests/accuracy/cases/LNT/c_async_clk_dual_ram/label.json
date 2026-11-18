@@ -1,0 +1,67 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-C (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC24",
+    "sites": [
+      {
+        "line": 19
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "cross-clock read/write collision",
+    "rationale": "Write on clk_w and read on clk_r of the same entry; result is implementation dependent."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC24",
+      "sites": [
+        {
+          "line": 19
+        }
+      ],
+      "critical": true,
+      "note": "Read port on clk_r reads a memory written on the unrelated clk_w with no collision handling; a read during a write is undefined in hardware though simulation returns a definite value."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "unknown",
+      "class": "LC24",
+      "sites": [
+        {
+          "line": 19
+        }
+      ],
+      "critical": true,
+      "note": "Write on clk_w and registered read on clk_r: a same-address read during write across clocks returns implementation-dependent data, and whether it happens depends on the external address discipline."
+    }
+  ],
+  "settlement": {
+    "by": "settler (claude-fable-5-2, third reading)",
+    "verdict": "unknown",
+    "class": "LC24",
+    "sites": [
+      {
+        "line": 19
+      }
+    ],
+    "critical": true,
+    "note": "Write on clk_w and registered read on unrelated clk_r give an implementation-dependent result on a same-address collision, but both addresses and we are free input ports, so only the environment decides whether a collision occurs."
+  },
+  "rationale": "Write on clk_w and registered read on unrelated clk_r give an implementation-dependent result on a same-address collision, but both addresses and we are free input ports, so only the environment decides whether a collision occurs.",
+  "verdict": "unknown",
+  "class": "LC24",
+  "sites": [
+    {
+      "line": 19
+    }
+  ],
+  "critical": true
+}

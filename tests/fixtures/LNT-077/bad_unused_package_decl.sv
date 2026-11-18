@@ -8,3 +8,5 @@ endpackage
 module top(output int y);
   assign y = p::USED_P;
 endmodule
+// revert: localparam int UNUSED_P = 3; => /* removed */
+// revert-expect-none: LNT-077

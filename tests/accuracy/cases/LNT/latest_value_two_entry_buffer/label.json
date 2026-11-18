@@ -1,0 +1,35 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "origin": "adapted",
+  "sites": [],
+  "sdc": [],
+  "rationale": "The array written in combinational blocks is only the next-state copy mem_d; the storage mem_q has a single clocked writer.",
+  "author": "claude-sonnet-5-5",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_lossy_valid_to_stream.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Fixed the payload to a logic vector and expanded the register macros into one clocked block."
+  },
+  "class": "LC20",
+  "batch": "p2-lint-heldout",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "class": "LC04",
+      "sites": [],
+      "note": "The one-bit pointers wrap within the two-entry packed array."
+    }
+  ]
+}

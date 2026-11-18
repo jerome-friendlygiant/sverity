@@ -6,3 +6,5 @@ module top(input logic a, b, output logic y);
     y <= a & b;
   end
 endmodule
+// revert: y <= a & b => y = a & b
+// revert-expect-none: LNT-062

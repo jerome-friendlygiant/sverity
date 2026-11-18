@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-F (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC17",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "different registers on opposite edges",
+    "rationale": "Separate nibbles capture on opposite edges; no individual bit has more than one edge-sensitive writer."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC17",
+      "sites": [],
+      "critical": false,
+      "note": "Different registers on opposite edges of one clock is explicitly not a defect."
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "good",
+      "class": "LC17",
+      "sites": [],
+      "critical": false,
+      "note": "Different registers use opposite edges of clk, which the class explicitly permits."
+    }
+  ],
+  "rationale": "Separate nibbles capture on opposite edges; no individual bit has more than one edge-sensitive writer.",
+  "verdict": "good",
+  "class": "LC17",
+  "sites": [],
+  "critical": false
+}

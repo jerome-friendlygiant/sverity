@@ -5,7 +5,9 @@ raises a false alarm, or calls an undecidable design clean. Score SVerity with `
 
 Each case is a directory `cases/<FAMILY>/<name>/` with `design.sv` (top module `top`), an optional `constraints.sdc`
 and `label.json`. Read any label for its fields. The verdict is `bad` (a defect at `sites`), `good` (nothing to report)
-or `unknown` (the RTL and constraints cannot decide; a tool should say so).
+or `unknown` (the RTL and constraints cannot decide; a tool should say so). A lint label may name its defect `class`
+from the [lint workflow](../../docs/rules/LINT_WORKFLOW.md#defect-classes) and the `batch` it was written in;
+`--batch` scores one batch, and `budgets.json` holds the budgets `--budgets` compares with.
 
 The few rules that keep it worth measuring:
 

@@ -1,4 +1,4 @@
-// sverity-args: --top top
+// sverity-args: --top top --option LNT-025.overrides=warning
 // expect-count: LNT-025 INFO 3
 // expect-none: LNT-025 WARNING
 // revert: if (b) => else if (b)

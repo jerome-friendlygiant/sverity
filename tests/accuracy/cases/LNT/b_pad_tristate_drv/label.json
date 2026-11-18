@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-B (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC14",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "tri-state driver using Z as a drive value",
+    "rationale": "1'bz is only driven when oe is clear; Z is never compared."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "good",
+      "class": "LC14",
+      "sites": [],
+      "critical": false,
+      "note": "Z is used only as the released value of a tri-state inout driver, never compared or used as a condition."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC14",
+      "sites": [],
+      "critical": false,
+      "note": "Z is used only for a legitimate tristate output driver on an inout; no X/Z comparison."
+    }
+  ],
+  "rationale": "1'bz is only driven when oe is clear; Z is never compared.",
+  "verdict": "good",
+  "class": "LC14",
+  "sites": [],
+  "critical": false
+}

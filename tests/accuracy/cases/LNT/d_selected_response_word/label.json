@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-D (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC06",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "selector has explicit input source",
+    "rationale": "The internal selector is driven by the transaction qualifier."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC06",
+      "sites": [],
+      "critical": false,
+      "note": "select_response is driven from valid."
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "good",
+      "class": "LC06",
+      "sites": [],
+      "critical": false,
+      "note": "select_response and all output bits have drivers."
+    }
+  ],
+  "rationale": "The internal selector is driven by the transaction qualifier.",
+  "verdict": "good",
+  "class": "LC06",
+  "sites": [],
+  "critical": false
+}

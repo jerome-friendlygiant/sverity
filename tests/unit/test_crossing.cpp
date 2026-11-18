@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <string>
 #include "sverity/analyzer.h"
+#include "rules/cdc/cdc_shared.h"
 #include "testing.h"
 using namespace sverity;
 
@@ -56,4 +57,25 @@ TEST(crossing_unavailable_edge_and_location_stay_unknown) {
     CHECK_EQ(crossing["launch"]["edge"].asString(), "unknown");
     CHECK(crossing["launch"]["location"].asObject().empty());
     CHECK_EQ(crossing["relationship"].asString(), "UNKNOWN");
+}
+
+TEST(crossing_disabled_diagnostic_payloads_are_not_retained_but_analysis_runs) {
+    const std::string root = SVERITY_SOURCE_DIR;
+    for (bool disabled : {false, true}) {
+        Report report;
+        FrontendOptions opts;
+        opts.slangArgs = {"--top", "top", "-I" + root + "/tests/data/crossing", root + "/tests/data/crossing/design.sv"};
+        auto design = loadDesign(opts, report);
+        CHECK(design != nullptr);
+        if (!design) continue;
+        Config config;
+        if (disabled) config.disabledRules.insert("CDC-003");
+        RuleContext ctx{*design, report, config};
+        cdc::Shared shared;
+        shared.ensure(ctx);
+        CHECK(shared.evaluated["CDC-003"] > 0);
+        const auto it = shared.findings.find("CDC-003");
+        if (disabled) CHECK(it == shared.findings.end());
+        else CHECK(it != shared.findings.end() && !it->second.empty());
+    }
 }

@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-F (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC21",
+    "sites": [
+      {
+        "line": 20
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "unsigned comparison below zero",
+    "rationale": "An unsigned byte can never be negative, so the alarm is permanently deasserted."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC21",
+      "sites": [
+        {
+          "line": 20
+        }
+      ],
+      "critical": true,
+      "note": "unsigned a < 0 is always false"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC21",
+      "sites": [
+        {
+          "line": 20
+        }
+      ],
+      "critical": true,
+      "note": "Unsigned a is never less than unsigned zero."
+    }
+  ],
+  "rationale": "An unsigned byte can never be negative, so the alarm is permanently deasserted.",
+  "verdict": "bad",
+  "class": "LC21",
+  "sites": [
+    {
+      "line": 20
+    }
+  ],
+  "critical": true
+}

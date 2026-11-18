@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-A (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC02",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "full-width product with explicit saturation slice",
+    "rationale": "The 16-bit product is held at full width; the narrowing to 8 bits is an explicit saturate-or-slice decision, so no value is silently lost."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "good",
+      "class": "LC02",
+      "sites": [],
+      "critical": false,
+      "note": "Product is evaluated at 16 bits and saturated explicitly."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC02",
+      "sites": [],
+      "critical": false,
+      "note": "prod is 16 bits and holds the full 8x8 product; saturation handles the upper byte."
+    }
+  ],
+  "rationale": "The 16-bit product is held at full width; the narrowing to 8 bits is an explicit saturate-or-slice decision, so no value is silently lost.",
+  "verdict": "good",
+  "class": "LC02",
+  "sites": [],
+  "critical": false
+}

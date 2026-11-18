@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-B (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC13",
+    "sites": [
+      {
+        "line": 18
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "duplicate case item (unreachable second item)",
+    "rationale": "4'h3 appears twice; the second item (8'h20) is unreachable and opcode 5 falls to default."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC13",
+      "sites": [
+        {
+          "line": 18
+        }
+      ],
+      "critical": true,
+      "note": "Case item 4'h3 is duplicated, so the second one is unreachable (and 4'h5 falls to default)."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC13",
+      "sites": [
+        {
+          "line": 18
+        }
+      ],
+      "critical": true,
+      "note": "Item 4'h3 appears twice; the second (8'h20) is unreachable and opcode 5 falls to default, so ctrl bit 5 is never produced."
+    }
+  ],
+  "rationale": "4'h3 appears twice; the second item (8'h20) is unreachable and opcode 5 falls to default.",
+  "verdict": "bad",
+  "class": "LC13",
+  "sites": [
+    {
+      "line": 18
+    }
+  ],
+  "critical": true
+}

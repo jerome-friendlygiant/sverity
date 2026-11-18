@@ -1,0 +1,50 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "class": "LC11",
+  "batch": "p2-lint-heldout",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "overflow next value not assigned on every path",
+  "sites": [
+    {
+      "line": 26,
+      "signal": "overflow_d"
+    }
+  ],
+  "sdc": [],
+  "rationale": "overflow_d is assigned only when the counter is enabled and no overflow is flagged, so in every other cycle the block holds its value in a latch.",
+  "mutation": {
+    "operator": "remove-default-assignment",
+    "description": "Removed the default assignment of overflow_d at the top of the block."
+  },
+  "author": "claude-sonnet-5-5",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_delta_counter.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Folded the sticky overflow variant into the top module with a wrap output."
+  },
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "class": "LC11",
+      "sites": [
+        {
+          "line": 26,
+          "signal": "overflow_d"
+        }
+      ],
+      "note": "The combinational overflow value is not assigned when disabled or already overflowing."
+    }
+  ]
+}

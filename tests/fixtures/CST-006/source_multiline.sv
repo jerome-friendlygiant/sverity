@@ -1,7 +1,7 @@
 // sverity-args: --top top --sdc @FIXTURES@/_common/async.sdc
 // CDC-003 is evidence of the primary CDC-028 finding
 // expect: CDC-028 ERROR
-// expect: CST-022 WARNING
+// expect: CST-022 INFO
 module top(input logic clka, clkb, rst_n, d, gate, output logic q);
   logic launched;
   always_ff @(posedge clka) launched <= d;

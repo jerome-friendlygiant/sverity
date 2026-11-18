@@ -1,0 +1,38 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "origin": "authored",
+  "sites": [],
+  "sdc": [],
+  "rationale": "The ? characters in casez items are wildcard match bits on a 2-state input, not X/Z values; every path drives a defined value.",
+  "author": "claude-sonnet-5-5",
+  "class": "LC14",
+  "batch": "p2-lint-heldout",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "class": "LC13",
+      "sites": [
+        {
+          "line": 17,
+          "signal": "size_i"
+        }
+      ],
+      "note": "casez treats Z bits in the selector as wildcards, potentially accepting an invalid input."
+    }
+  ],
+  "settled_by": {
+    "by": "gpt-6.1-sol (third reading, both labels shown)",
+    "verdict": "good",
+    "reason": "The casez items cover every binary selector combination and defaults assign both results on every path; wildcard items are intentional decoding."
+  }
+}

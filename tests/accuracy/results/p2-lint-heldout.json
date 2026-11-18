@@ -1,0 +1,1140 @@
+{
+ "budgets": [
+  {
+   "family": "LNT",
+   "limit": 0.05,
+   "measured": 0.32,
+   "metric": "missed_rate",
+   "within": false
+  },
+  {
+   "family": "LNT",
+   "limit": 0.0,
+   "measured": 0.0,
+   "metric": "false_error_rate",
+   "within": true
+  },
+  {
+   "family": "LNT",
+   "limit": 0.1,
+   "measured": 0.269,
+   "metric": "false_alarm_rate",
+   "within": false
+  },
+  {
+   "family": "LNT",
+   "limit": 0.1,
+   "measured": 0.04,
+   "metric": "unresolved_bad_rate",
+   "within": true
+  },
+  {
+   "family": "LNT",
+   "limit": 0.1,
+   "measured": 0.077,
+   "metric": "unresolved_good_rate",
+   "within": true
+  },
+  {
+   "family": "LNT",
+   "limit": 0.1,
+   "measured": 0.346,
+   "metric": "review_good_rate",
+   "within": false
+  },
+  {
+   "family": "LNT",
+   "limit": 0,
+   "measured": 0,
+   "metric": "silent_unknown",
+   "within": true
+  },
+  {
+   "family": "LNT",
+   "limit": 0,
+   "measured": 6,
+   "metric": "critical_classes_undetected",
+   "within": false
+  }
+ ],
+ "budgets_sha256": "ce62587587a19b535f073123b45bfcabdaacb54a1810718311396bfa7ca903ae",
+ "cases": [
+  {
+   "case": "LNT/axi_burst_next_address",
+   "class": "LC14",
+   "critical": true,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "missed",
+   "review_findings": 0,
+   "rules": [],
+   "unresolved_findings": 0,
+   "verdict": "bad"
+  },
+  {
+   "case": "LNT/axis_beat_byte_counter",
+   "class": "LC04",
+   "critical": true,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "missed",
+   "review_findings": 16,
+   "rules": [],
+   "unresolved_findings": 7,
+   "verdict": "bad"
+  },
+  {
+   "case": "LNT/axis_keep_frame_length_meter",
+   "class": "LC04",
+   "critical": false,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "clean",
+   "review_findings": 16,
+   "rules": [],
+   "unresolved_findings": 7,
+   "verdict": "good"
+  },
+  {
+   "case": "LNT/backoff_retry_timer",
+   "class": "LC12",
+   "critical": true,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "detected",
+   "review_findings": 16,
+   "rules": [
+    "LNT-015",
+    "LNT-060",
+    "LNT-063"
+   ],
+   "unresolved_findings": 7,
+   "verdict": "bad"
+  },
+  {
+   "case": "LNT/button_edge_synchroniser",
+   "class": "LC22",
+   "critical": false,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "detected",
+   "review_findings": 4,
+   "rules": [
+    "LNT-010"
+   ],
+   "unresolved_findings": 3,
+   "verdict": "bad"
+  },
+  {
+   "case": "LNT/channel_timeout_tracker",
+   "class": "LC07",
+   "critical": true,
+   "disputed": false,
+   "execution": "ERROR",
+   "family": "LNT",
+   "outcome": "missed",
+   "review_findings": 24,
+   "rules": [],
+   "unresolved_findings": 15,
+   "verdict": "bad"
+  },
+  {
+   "case": "LNT/cpu_dma_shared_mailbox",
+   "class": "LC20",
+   "critical": true,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "detected",
+   "review_findings": 31,
+   "rules": [
+    "LNT-049"
+   ],
+   "unresolved_findings": 12,
+   "verdict": "bad"
+  },
+  {
+   "case": "LNT/credit_return_counter",
+   "class": "LC21",
+   "critical": true,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "detected",
+   "review_findings": 13,
+   "rules": [
+    "LNT-038"
+   ],
+   "unresolved_findings": 6,
+   "verdict": "bad"
+  },
+  {
+   "case": "LNT/cycle_counter_load_update",
+   "class": "LC18",
+   "critical": false,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "missed",
+   "review_findings": 43,
+   "rules": [],
+   "unresolved_findings": 37,
+   "verdict": "bad"
+  },
+  {
+   "case": "LNT/delay_cell_feedback_path",
+   "class": "LC10",
+   "critical": true,
+   "disputed": false,
+   "execution": "ERROR",
+   "family": "LNT",
+   "outcome": "execution error",
+   "review_findings": 18,
+   "rules": [
+    "LNT-002",
+    "LNT-012"
+   ],
+   "unresolved_findings": 9,
+   "verdict": "unknown"
+  },
+  {
+   "case": "LNT/dual_path_delay_align",
+   "class": "LC18",
+   "critical": false,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "clean",
+   "review_findings": 21,
+   "rules": [],
+   "unresolved_findings": 19,
+   "verdict": "good"
+  },
+  {
+   "case": "LNT/dual_stage_register_slice",
+   "class": "LC01",
+   "critical": true,
+   "disputed": false,
+   "execution": "ERROR",
+   "family": "LNT",
+   "outcome": "detected",
+   "review_findings": 32,
+   "rules": [
+    "LNT-003"
+   ],
+   "unresolved_findings": 21,
+   "verdict": "bad"
+  },
+  {
+   "case": "LNT/ecc_scrubbed_shared_memory",
+   "class": "LC20",
+   "critical": true,
+   "disputed": false,
+   "execution": "ERROR",
+   "family": "LNT",
+   "outcome": "execution error",
+   "review_findings": 20,
+   "rules": [
+    "LNT-002"
+   ],
+   "unresolved_findings": 7,
+   "verdict": "unknown"
+  },
+  {
+   "case": "LNT/fifo_level_flags",
+   "class": "LC05",
+   "critical": true,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "detected",
+   "review_findings": 15,
+   "rules": [
+    "LNT-007"
+   ],
+   "unresolved_findings": 6,
+   "verdict": "bad"
+  },
+  {
+   "case": "LNT/fifo_occupancy_flags",
+   "class": "LC05",
+   "critical": false,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "noise",
+   "review_findings": 12,
+   "rules": [
+    "LNT-005",
+    "LNT-038"
+   ],
+   "unresolved_findings": 6,
+   "verdict": "good"
+  },
+  {
+   "case": "LNT/flag_vector_popcount_limit",
+   "class": "LC19",
+   "critical": false,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "clean",
+   "review_findings": 1,
+   "rules": [],
+   "unresolved_findings": 0,
+   "verdict": "good"
+  },
+  {
+   "case": "LNT/frame_byte_accumulator",
+   "class": "LC12",
+   "critical": false,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "clean",
+   "review_findings": 17,
+   "rules": [],
+   "unresolved_findings": 7,
+   "verdict": "good"
+  },
+  {
+   "case": "LNT/frame_length_monitor",
+   "class": "LC15",
+   "critical": true,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "unresolved",
+   "review_findings": 23,
+   "rules": [
+    "LNT-048"
+   ],
+   "unresolved_findings": 9,
+   "verdict": "bad"
+  },
+  {
+   "case": "LNT/gain_lookup_foreign_call",
+   "class": "LC15",
+   "critical": true,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "detected",
+   "review_findings": 8,
+   "rules": [
+    "LNT-080"
+   ],
+   "unresolved_findings": 6,
+   "verdict": "bad"
+  },
+  {
+   "case": "LNT/gated_sample_register_bank",
+   "class": "LC17",
+   "critical": true,
+   "disputed": false,
+   "execution": "ERROR",
+   "family": "LNT",
+   "outcome": "execution error",
+   "review_findings": 39,
+   "rules": [
+    "LNT-002"
+   ],
+   "unresolved_findings": 34,
+   "verdict": "unknown"
+  },
+  {
+   "case": "LNT/gpr_file_two_read_ports",
+   "class": "LC20",
+   "critical": false,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "clean",
+   "review_findings": 44,
+   "rules": [],
+   "unresolved_findings": 37,
+   "verdict": "good"
+  },
+  {
+   "case": "LNT/grant_index_encoder",
+   "class": "LC06",
+   "critical": true,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "detected",
+   "review_findings": 9,
+   "rules": [
+    "LNT-008"
+   ],
+   "unresolved_findings": 5,
+   "verdict": "bad"
+  },
+  {
+   "case": "LNT/handshake_ack_merge_blackbox",
+   "class": "LC07",
+   "critical": true,
+   "disputed": false,
+   "execution": "ERROR",
+   "family": "LNT",
+   "outcome": "execution error",
+   "review_findings": 15,
+   "rules": [
+    "LNT-002"
+   ],
+   "unresolved_findings": 9,
+   "verdict": "unknown"
+  },
+  {
+   "case": "LNT/highest_pending_irq",
+   "class": "LC21",
+   "critical": false,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "noise",
+   "review_findings": 15,
+   "rules": [
+    "LNT-005",
+    "LNT-036"
+   ],
+   "unresolved_findings": 5,
+   "verdict": "good"
+  },
+  {
+   "case": "LNT/input_stability_filter",
+   "class": "LC23",
+   "critical": false,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "missed",
+   "review_findings": 9,
+   "rules": [],
+   "unresolved_findings": 4,
+   "verdict": "bad"
+  },
+  {
+   "case": "LNT/input_sync_edge_level",
+   "class": "LC22",
+   "critical": false,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "clean",
+   "review_findings": 3,
+   "rules": [],
+   "unresolved_findings": 3,
+   "verdict": "good"
+  },
+  {
+   "case": "LNT/lane_pending_timeout_flags",
+   "class": "LC07",
+   "critical": false,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "noise",
+   "review_findings": 17,
+   "rules": [
+    "LNT-005",
+    "LNT-038",
+    "LNT-067"
+   ],
+   "unresolved_findings": 9,
+   "verdict": "good"
+  },
+  {
+   "case": "LNT/latest_value_two_entry_buffer",
+   "class": "LC20",
+   "critical": false,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "unresolved",
+   "review_findings": 17,
+   "rules": [
+    "LNT-041"
+   ],
+   "unresolved_findings": 8,
+   "verdict": "good"
+  },
+  {
+   "case": "LNT/lfsr_way_selector",
+   "class": "LC12",
+   "critical": false,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "clean",
+   "review_findings": 9,
+   "rules": [],
+   "unresolved_findings": 5,
+   "verdict": "good"
+  },
+  {
+   "case": "LNT/link_state_event_logger",
+   "class": "LC13",
+   "critical": true,
+   "disputed": false,
+   "execution": "ERROR",
+   "family": "LNT",
+   "outcome": "execution error",
+   "review_findings": 11,
+   "rules": [
+    "LNT-002"
+   ],
+   "unresolved_findings": 7,
+   "verdict": "unknown"
+  },
+  {
+   "case": "LNT/lookup_rom_from_macro_select",
+   "class": "LC04",
+   "critical": true,
+   "disputed": false,
+   "execution": "ERROR",
+   "family": "LNT",
+   "outcome": "execution error",
+   "review_findings": 10,
+   "rules": [
+    "LNT-002"
+   ],
+   "unresolved_findings": 6,
+   "verdict": "unknown"
+  },
+  {
+   "case": "LNT/mac_with_vendor_multiplier",
+   "class": "LC02",
+   "critical": true,
+   "disputed": false,
+   "execution": "ERROR",
+   "family": "LNT",
+   "outcome": "execution error",
+   "review_findings": 14,
+   "rules": [
+    "LNT-002"
+   ],
+   "unresolved_findings": 7,
+   "verdict": "unknown"
+  },
+  {
+   "case": "LNT/masked_sram_1r1w_model",
+   "class": "LC24",
+   "critical": true,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "missed",
+   "review_findings": 25,
+   "rules": [],
+   "unresolved_findings": 8,
+   "verdict": "bad"
+  },
+  {
+   "case": "LNT/onehot_index_encoder",
+   "class": "LC06",
+   "critical": false,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "clean",
+   "review_findings": 7,
+   "rules": [],
+   "unresolved_findings": 4,
+   "verdict": "good"
+  },
+  {
+   "case": "LNT/opcode_class_decoder",
+   "class": "LC13",
+   "critical": true,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "detected",
+   "review_findings": 1,
+   "rules": [
+    "LNT-032"
+   ],
+   "unresolved_findings": 0,
+   "verdict": "bad"
+  },
+  {
+   "case": "LNT/peak_tracking_counter",
+   "class": "LC08",
+   "critical": true,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "detected",
+   "review_findings": 36,
+   "rules": [
+    "LNT-010"
+   ],
+   "unresolved_findings": 18,
+   "verdict": "bad"
+  },
+  {
+   "case": "LNT/phy_receive_bus_capture",
+   "class": "LC06",
+   "critical": true,
+   "disputed": false,
+   "execution": "ERROR",
+   "family": "LNT",
+   "outcome": "execution error",
+   "review_findings": 13,
+   "rules": [
+    "LNT-002"
+   ],
+   "unresolved_findings": 9,
+   "verdict": "unknown"
+  },
+  {
+   "case": "LNT/popcount_byte_lane_mask",
+   "class": "LC15",
+   "critical": false,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "clean",
+   "review_findings": 10,
+   "rules": [],
+   "unresolved_findings": 5,
+   "verdict": "good"
+  },
+  {
+   "case": "LNT/pwm_triangle_ramp",
+   "class": "LC23",
+   "critical": false,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "clean",
+   "review_findings": 10,
+   "rules": [],
+   "unresolved_findings": 5,
+   "verdict": "good"
+  },
+  {
+   "case": "LNT/register_slice_chain_gen",
+   "class": "LC01",
+   "critical": false,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "noise",
+   "review_findings": 22,
+   "rules": [
+    "LNT-049"
+   ],
+   "unresolved_findings": 13,
+   "verdict": "good"
+  },
+  {
+   "case": "LNT/reset_stretcher_watchdog",
+   "class": "LC17",
+   "critical": true,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "detected",
+   "review_findings": 13,
+   "rules": [
+    "LNT-047"
+   ],
+   "unresolved_findings": 7,
+   "verdict": "bad"
+  },
+  {
+   "case": "LNT/reset_synchronizer_event_counter",
+   "class": "LC17",
+   "critical": false,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "clean",
+   "review_findings": 5,
+   "rules": [],
+   "unresolved_findings": 4,
+   "verdict": "good"
+  },
+  {
+   "case": "LNT/sdram_init_sequencer",
+   "class": "LC13",
+   "critical": false,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "noise",
+   "review_findings": 7,
+   "rules": [
+    "LNT-071"
+   ],
+   "unresolved_findings": 4,
+   "verdict": "good"
+  },
+  {
+   "case": "LNT/serial_line_deglitcher",
+   "class": "LC16",
+   "critical": true,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "detected",
+   "review_findings": 17,
+   "rules": [
+    "LNT-070"
+   ],
+   "unresolved_findings": 7,
+   "verdict": "bad"
+  },
+  {
+   "case": "LNT/shadowed_pad_calc",
+   "class": "LC19",
+   "critical": false,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "detected",
+   "review_findings": 15,
+   "rules": [
+    "LNT-078"
+   ],
+   "unresolved_findings": 6,
+   "verdict": "bad"
+  },
+  {
+   "case": "LNT/sram_trace_buffer_wrapper",
+   "class": "LC24",
+   "critical": true,
+   "disputed": false,
+   "execution": "ERROR",
+   "family": "LNT",
+   "outcome": "execution error",
+   "review_findings": 11,
+   "rules": [
+    "LNT-002"
+   ],
+   "unresolved_findings": 7,
+   "verdict": "unknown"
+  },
+  {
+   "case": "LNT/sram_wrapper_with_parity",
+   "class": "LC01",
+   "critical": true,
+   "disputed": false,
+   "execution": "ERROR",
+   "family": "LNT",
+   "outcome": "execution error",
+   "review_findings": 14,
+   "rules": [
+    "LNT-002",
+    "LNT-012"
+   ],
+   "unresolved_findings": 6,
+   "verdict": "unknown"
+  },
+  {
+   "case": "LNT/stream_join_gated",
+   "class": "LC10",
+   "critical": false,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "clean",
+   "review_findings": 17,
+   "rules": [],
+   "unresolved_findings": 7,
+   "verdict": "good"
+  },
+  {
+   "case": "LNT/stream_join_selected",
+   "class": "LC10",
+   "critical": true,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "detected",
+   "review_findings": 18,
+   "rules": [
+    "LNT-012"
+   ],
+   "unresolved_findings": 7,
+   "verdict": "bad"
+  },
+  {
+   "case": "LNT/strobe_lane_decoder",
+   "class": "LC14",
+   "critical": false,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "noise",
+   "review_findings": 1,
+   "rules": [
+    "LNT-065"
+   ],
+   "unresolved_findings": 0,
+   "verdict": "good"
+  },
+  {
+   "case": "LNT/thermometer_mask_gen",
+   "class": "LC02",
+   "critical": true,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "missed",
+   "review_findings": 10,
+   "rules": [],
+   "unresolved_findings": 5,
+   "verdict": "bad"
+  },
+  {
+   "case": "LNT/thermometer_mask_registered",
+   "class": "LC02",
+   "critical": false,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "clean",
+   "review_findings": 10,
+   "rules": [],
+   "unresolved_findings": 5,
+   "verdict": "good"
+  },
+  {
+   "case": "LNT/timestamp_skew_monitor",
+   "class": "LC03",
+   "critical": true,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "detected",
+   "review_findings": 16,
+   "rules": [
+    "LNT-005"
+   ],
+   "unresolved_findings": 6,
+   "verdict": "bad"
+  },
+  {
+   "case": "LNT/timestamp_skew_window_check",
+   "class": "LC03",
+   "critical": false,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "noise",
+   "review_findings": 15,
+   "rules": [
+    "LNT-005"
+   ],
+   "unresolved_findings": 6,
+   "verdict": "good"
+  },
+  {
+   "case": "LNT/uart_baud_sample_tick",
+   "class": "LC09",
+   "critical": false,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "clean",
+   "review_findings": 10,
+   "rules": [],
+   "unresolved_findings": 5,
+   "verdict": "good"
+  },
+  {
+   "case": "LNT/uart_baud_tick_gen",
+   "class": "LC09",
+   "critical": false,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "detected",
+   "review_findings": 11,
+   "rules": [
+    "LNT-011"
+   ],
+   "unresolved_findings": 5,
+   "verdict": "bad"
+  },
+  {
+   "case": "LNT/up_down_delta_counter",
+   "class": "LC11",
+   "critical": true,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "missed",
+   "review_findings": 33,
+   "rules": [],
+   "unresolved_findings": 16,
+   "verdict": "bad"
+  },
+  {
+   "case": "LNT/up_down_delta_counter_sticky",
+   "class": "LC11",
+   "critical": false,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "clean",
+   "review_findings": 32,
+   "rules": [],
+   "unresolved_findings": 16,
+   "verdict": "good"
+  },
+  {
+   "case": "LNT/valid_gated_delay_line",
+   "class": "LC08",
+   "critical": false,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "clean",
+   "review_findings": 16,
+   "rules": [],
+   "unresolved_findings": 12,
+   "verdict": "good"
+  },
+  {
+   "case": "LNT/watchdog_kick_timer",
+   "class": "LC16",
+   "critical": false,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "clean",
+   "review_findings": 11,
+   "rules": [],
+   "unresolved_findings": 8,
+   "verdict": "good"
+  },
+  {
+   "case": "LNT/write_bypass_descriptor_table",
+   "class": "LC24",
+   "critical": false,
+   "disputed": false,
+   "execution": "SUCCESS",
+   "family": "LNT",
+   "outcome": "unresolved",
+   "review_findings": 23,
+   "rules": [
+    "LNT-041"
+   ],
+   "unresolved_findings": 9,
+   "verdict": "good"
+  }
+ ],
+ "classes": {
+  "LC01": {
+   "bad detected": 1,
+   "good noise": 1,
+   "unknown execution error": 1
+  },
+  "LC02": {
+   "bad missed": 1,
+   "good clean": 1,
+   "unknown execution error": 1
+  },
+  "LC03": {
+   "bad detected": 1,
+   "good noise": 1
+  },
+  "LC04": {
+   "bad missed": 1,
+   "good clean": 1,
+   "unknown execution error": 1
+  },
+  "LC05": {
+   "bad detected": 1,
+   "good noise": 1
+  },
+  "LC06": {
+   "bad detected": 1,
+   "good clean": 1,
+   "unknown execution error": 1
+  },
+  "LC07": {
+   "bad missed": 1,
+   "good noise": 1,
+   "unknown execution error": 1
+  },
+  "LC08": {
+   "bad detected": 1,
+   "good clean": 1
+  },
+  "LC09": {
+   "bad detected": 1,
+   "good clean": 1
+  },
+  "LC10": {
+   "bad detected": 1,
+   "good clean": 1,
+   "unknown execution error": 1
+  },
+  "LC11": {
+   "bad missed": 1,
+   "good clean": 1
+  },
+  "LC12": {
+   "bad detected": 1,
+   "good clean": 2
+  },
+  "LC13": {
+   "bad detected": 1,
+   "good noise": 1,
+   "unknown execution error": 1
+  },
+  "LC14": {
+   "bad missed": 1,
+   "good noise": 1
+  },
+  "LC15": {
+   "bad detected": 1,
+   "bad unresolved": 1,
+   "good clean": 1
+  },
+  "LC16": {
+   "bad detected": 1,
+   "good clean": 1
+  },
+  "LC17": {
+   "bad detected": 1,
+   "good clean": 1,
+   "unknown execution error": 1
+  },
+  "LC18": {
+   "bad missed": 1,
+   "good clean": 1
+  },
+  "LC19": {
+   "bad detected": 1,
+   "good clean": 1
+  },
+  "LC20": {
+   "bad detected": 1,
+   "good clean": 1,
+   "good unresolved": 1,
+   "unknown execution error": 1
+  },
+  "LC21": {
+   "bad detected": 1,
+   "good noise": 1
+  },
+  "LC22": {
+   "bad detected": 1,
+   "good clean": 1
+  },
+  "LC23": {
+   "bad missed": 1,
+   "good clean": 1
+  },
+  "LC24": {
+   "bad missed": 1,
+   "good unresolved": 1,
+   "unknown execution error": 1
+  }
+ },
+ "families": {
+  "CDC": {
+   "cases": 0,
+   "counts": {},
+   "critical_classes_undetected": null,
+   "disputed": 0,
+   "false_alarm_rate": null,
+   "false_error_rate": null,
+   "mean_review_findings": null,
+   "missed_rate": null,
+   "review_good_rate": null,
+   "silent_unknown": 0,
+   "unresolved_bad_rate": null,
+   "unresolved_good_rate": null
+  },
+  "CST": {
+   "cases": 0,
+   "counts": {},
+   "critical_classes_undetected": null,
+   "disputed": 0,
+   "false_alarm_rate": null,
+   "false_error_rate": null,
+   "mean_review_findings": null,
+   "missed_rate": null,
+   "review_good_rate": null,
+   "silent_unknown": 0,
+   "unresolved_bad_rate": null,
+   "unresolved_good_rate": null
+  },
+  "LNT": {
+   "cases": 61,
+   "counts": {
+    "bad": {
+     "detected": 16,
+     "missed": 8,
+     "unresolved": 1
+    },
+    "good": {
+     "clean": 17,
+     "noise": 7,
+     "unresolved": 2
+    },
+    "unknown": {
+     "execution error": 10
+    }
+   },
+   "critical_classes_undetected": 6,
+   "disputed": 0,
+   "false_alarm_rate": 0.269,
+   "false_error_rate": 0.0,
+   "mean_review_findings": 15.918,
+   "missed_rate": 0.32,
+   "review_good_rate": 0.346,
+   "silent_unknown": 0,
+   "unresolved_bad_rate": 0.04,
+   "unresolved_good_rate": 0.077
+  },
+  "RDC": {
+   "cases": 0,
+   "counts": {},
+   "critical_classes_undetected": null,
+   "disputed": 0,
+   "false_alarm_rate": null,
+   "false_error_rate": null,
+   "mean_review_findings": null,
+   "missed_rate": null,
+   "review_good_rate": null,
+   "silent_unknown": 0,
+   "unresolved_bad_rate": null,
+   "unresolved_good_rate": null
+  }
+ },
+ "problems": [
+  "LNT/delay_cell_feedback_path: unexpected execution status ERROR",
+  "LNT/ecc_scrubbed_shared_memory: unexpected execution status ERROR",
+  "LNT/gated_sample_register_bank: unexpected execution status ERROR",
+  "LNT/handshake_ack_merge_blackbox: unexpected execution status ERROR",
+  "LNT/link_state_event_logger: unexpected execution status ERROR",
+  "LNT/lookup_rom_from_macro_select: unexpected execution status ERROR",
+  "LNT/mac_with_vendor_multiplier: unexpected execution status ERROR",
+  "LNT/phy_receive_bus_capture: unexpected execution status ERROR",
+  "LNT/sram_trace_buffer_wrapper: unexpected execution status ERROR",
+  "LNT/sram_wrapper_with_parity: unexpected execution status ERROR"
+ ],
+ "schema": "sverity-accuracy/1",
+ "silent_critical": [
+  "LNT/axi_burst_next_address",
+  "LNT/axis_beat_byte_counter",
+  "LNT/channel_timeout_tracker",
+  "LNT/masked_sram_1r1w_model",
+  "LNT/thermometer_mask_gen",
+  "LNT/up_down_delta_counter"
+ ],
+ "tool": "sverity 0.1.0 (slang 12.1.0, catalog 0.1-draft)"
+}

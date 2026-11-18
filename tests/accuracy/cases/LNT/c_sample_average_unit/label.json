@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-C (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC21",
+    "sites": [
+      {
+        "line": 28
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "constant division by zero",
+    "rationale": "DIVISOR = TAPS - SKIP is constant 0 and is used as a divisor."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC21",
+      "sites": [
+        {
+          "line": 28
+        }
+      ],
+      "critical": true,
+      "note": "DIVISOR = TAPS - SKIP = 0, a constant division by zero."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC21",
+      "sites": [
+        {
+          "line": 28
+        }
+      ],
+      "critical": true,
+      "note": "DIVISOR = TAPS - SKIP = 0, a constant division by zero."
+    }
+  ],
+  "rationale": "DIVISOR = TAPS - SKIP is constant 0 and is used as a divisor.",
+  "verdict": "bad",
+  "class": "LC21",
+  "sites": [
+    {
+      "line": 28
+    }
+  ],
+  "critical": true
+}

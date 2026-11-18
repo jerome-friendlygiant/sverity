@@ -1,0 +1,46 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "the output register's asynchronous reset value is the live input d_i rather than a constant",
+  "sites": [
+    {
+      "line": 46,
+      "signal": "q_o"
+    }
+  ],
+  "sdc": [],
+  "rationale": "During reset q_o is loaded from d_i, a non-constant reset value, so the reset state follows an unconstrained input and is not a defined state.",
+  "author": "claude-sonnet-5-5",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_serial_deglitch.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Expanded the register macros into clocked blocks, replaced the package index-width helper with $clog2 and removed the assertions."
+  },
+  "class": "LC16",
+  "batch": "p2-lint-heldout",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "class": "LC16",
+      "sites": [
+        {
+          "line": 46,
+          "signal": "q_o"
+        }
+      ],
+      "note": "The asynchronous reset loads a nonconstant input value."
+    }
+  ]
+}

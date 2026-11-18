@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-C (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC16",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "complete async-low reset",
+    "rationale": "Every register is reset with a constant under a matching negedge/active-low test; states read after reset are defined."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "good",
+      "class": "LC16",
+      "sites": [],
+      "critical": false,
+      "note": "All registers have constant asynchronous reset values with matching active-low polarity."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC16",
+      "sites": [],
+      "critical": false,
+      "note": "All registers take constant async reset values and no state is read before it is defined."
+    }
+  ],
+  "rationale": "Every register is reset with a constant under a matching negedge/active-low test; states read after reset are defined.",
+  "verdict": "good",
+  "class": "LC16",
+  "sites": [],
+  "critical": false
+}

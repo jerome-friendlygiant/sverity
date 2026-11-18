@@ -1,0 +1,67 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-C (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "unknown",
+    "class": "LC16",
+    "sites": [
+      {
+        "line": 14
+      }
+    ],
+    "boundary": "unknown",
+    "subtype": "reset value from an input port",
+    "rationale": "pc_q resets to the boot_addr_i input; it is constant only if the integration ties it off, which the file does not show."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC16",
+      "sites": [
+        {
+          "line": 14
+        }
+      ],
+      "critical": true,
+      "note": "pc_q is reset to the input boot_addr_i, a non-constant reset value."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC16",
+      "sites": [
+        {
+          "line": 14
+        }
+      ],
+      "critical": true,
+      "note": "pc_q resets to boot_addr_i, an input, not a constant."
+    }
+  ],
+  "settlement": {
+    "by": "settler (claude-fable-5-2, third reading)",
+    "verdict": "bad",
+    "class": "LC16",
+    "sites": [
+      {
+        "line": 14
+      }
+    ],
+    "critical": true,
+    "note": "pc_q is asynchronously reset to the input boot_addr_i: a non-constant reset value is structural, so bad whether or not the integration ties it off."
+  },
+  "rationale": "pc_q is asynchronously reset to the input boot_addr_i: a non-constant reset value is structural, so bad whether or not the integration ties it off.",
+  "verdict": "bad",
+  "class": "LC16",
+  "sites": [
+    {
+      "line": 14
+    }
+  ],
+  "critical": true
+}

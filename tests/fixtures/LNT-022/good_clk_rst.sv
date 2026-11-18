@@ -5,3 +5,4 @@ module top(input logic clk, rst_n, a, output logic q);
     if (!rst_n) q <= 1'b0;
     else q <= a;
 endmodule
+// expect-none: LNT-020

@@ -1,0 +1,29 @@
+`default_nettype none
+// Request priority.
+// Commands and payload are sampled in the local clock domain.
+module top (
+    input wire clk,
+    input wire rst_n,
+    input wire enable,
+    input wire [7:0] data,
+    input wire [1:0] sel,
+    output reg [7:0] value,
+    output wire status
+);
+    // The status port reports payload parity.
+    assign status = ^value;
+
+    // The payload interface carries one octet.
+    // Reset is active low where storage is present.
+    // Selection codes are supplied by the command source.
+    // The enable input qualifies command acceptance.
+    always @* begin
+        unique case (1'b1)
+            sel[0]: value = data;
+            sel[1]: value = ~data;
+            default: value = 8'h00;
+        endcase
+    end
+endmodule
+
+`default_nettype wire

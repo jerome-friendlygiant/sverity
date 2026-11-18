@@ -1,0 +1,61 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-C (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC17",
+    "sites": [
+      {
+        "line": 24
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "data-driven clock from a register",
+    "rationale": "beat_cnt is clocked by slow_clk, a flip-flop output."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC17",
+      "sites": [
+        {
+          "line": 24
+        }
+      ],
+      "critical": true,
+      "note": "beat_cnt is clocked by slow_clk, a flop output toggled by logic."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC17",
+      "sites": [
+        {
+          "line": 24
+        }
+      ],
+      "critical": true,
+      "note": "slow_clk is a flop output (data) used as the clock for beat_cnt: a generated ripple clock."
+    }
+  ],
+  "rationale": "beat_cnt is clocked by slow_clk, a flip-flop output.",
+  "verdict": "good",
+  "class": "LC17",
+  "sites": [],
+  "critical": false,
+  "adjudication": {
+    "by": "maintainer delegate, policy decision after the score (LC17 narrowed)",
+    "was": {
+      "verdict": "bad",
+      "class": "LC17",
+      "critical": true
+    },
+    "reason": "LC17 narrowed: a register-derived clock builds as written; disclosed as INFO",
+    "record": "tests/accuracy/results/p3-lint-fresh-adjudication.json"
+  }
+}

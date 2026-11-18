@@ -9,3 +9,5 @@ module top(input logic clk, a, output logic q, r);
     r <= c;                                // nonblocking in always_comb
   end
 endmodule
+// revert: q = a => q <= a
+// revert-expect-none: LNT-015

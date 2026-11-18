@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-E (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC12",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "nonblocking sequential transfer",
+    "rationale": "Both clocked writers use nonblocking assignments, preserving one-cycle separation."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC12",
+      "sites": [],
+      "critical": false,
+      "note": "two nonblocking registered stages, no discipline issue"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "good",
+      "class": "LC12",
+      "sites": [],
+      "critical": false,
+      "note": "Both clocked stages use nonblocking assignments."
+    }
+  ],
+  "rationale": "Both clocked writers use nonblocking assignments, preserving one-cycle separation.",
+  "verdict": "good",
+  "class": "LC12",
+  "sites": [],
+  "critical": false
+}

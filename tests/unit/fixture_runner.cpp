@@ -1,6 +1,8 @@
 // Fixture-driven conformance runner. Each fixture is a SystemVerilog file annotated with comments:
 //   // sverity-args: <extra slang args, e.g. --top top>
 //   // expect: RULE-ID SEVERITY [line]        (a finding must exist)
+//   // expect-confidence: RULE CONF [line] (at least one match; all must have this lowercase confidence)
+//   // expect-unresolved: RULE-ID [line]      (at least one match; every matching finding must be Unresolved)
 //   // expect-none: RULE-ID [SEVERITY]        (no finding of that rule (and severity) may exist: "good" case)
 //   // expect-coverage: <scope> INCOMPLETE    (scope must have exactly that coverage value)
 //   // expect-count: RULE-ID SEVERITY N       (total occurrence count of that rule+severity must equal N)
@@ -62,13 +64,13 @@ int main(int argc, char** argv) {
     for (auto& f : files) {
         total++;
         std::ifstream in(f);
-        std::vector<std::string> expects, nones, covs, counts, args, reverts, revNones;
+        std::vector<std::string> expects, unresolveds, confidences, nones, covs, counts, args, reverts, revNones;
         for (std::string line; std::getline(in, line);) {
             auto grab = [&](const char* key, std::vector<std::string>* out) {
                 auto p = line.find(key);
                 if (p != std::string::npos) out->push_back(line.substr(p + std::string(key).size()));
             };
-            grab("// expect: ", &expects); grab("// expect-none: ", &nones); grab("// expect-coverage: ", &covs); grab("// expect-count: ", &counts);
+            grab("// expect: ", &expects); grab("// expect-unresolved: ", &unresolveds); grab("// expect-confidence: ", &confidences); grab("// expect-none: ", &nones); grab("// expect-coverage: ", &covs); grab("// expect-count: ", &counts);
             grab("// revert: ", &reverts); grab("// revert-expect-none: ", &revNones);
             std::vector<std::string> a; grab("// sverity-args: ", &a);
             for (auto& x : a)
@@ -99,6 +101,33 @@ int main(int argc, char** argv) {
             if (w.size() < 2) { errs.push_back("bad expect line: " + e); continue; }
             uint32_t line = w.size() > 2 ? static_cast<uint32_t>(std::stoul(w[2])) : 0;
             if (!has(w[0], w[1], line)) errs.push_back("missing expected finding " + e);
+        }
+        auto confidenceMatches = [&](const std::string& rule, const std::string& confidence, uint32_t line,
+                                     const std::string& expectation) {
+            bool found = false, other = false;
+            for (const auto& d : r.diagnostics()) {
+                if (d.ruleId != rule || (line && d.location.line != line)) continue;
+                found = found || toString(d.confidence) == confidence;
+                other = other || toString(d.confidence) != confidence;
+            }
+            if (!found) errs.push_back("missing expected " + confidence + " finding " + expectation);
+            if (other) errs.push_back("different confidence beside expected " + confidence + " finding " + expectation);
+        };
+        for (auto& u : unresolveds) {
+            auto w = split(u);
+            if (w.empty() || w.size() > 2) { errs.push_back("bad expect-unresolved line: " + u); continue; }
+            const uint32_t line = w.size() > 1 ? static_cast<uint32_t>(std::stoul(w[1])) : 0;
+            confidenceMatches(w[0], "unresolved", line, u);
+        }
+        for (auto& expectation : confidences) {
+            auto w = split(expectation);
+            if (w.size() < 2 || w.size() > 3 ||
+                (w[1] != "unresolved" && w[1] != "established" && w[1] != "heuristic" && w[1] != "informational")) {
+                errs.push_back("bad expect-confidence line: " + expectation);
+                continue;
+            }
+            const uint32_t line = w.size() > 2 ? static_cast<uint32_t>(std::stoul(w[2])) : 0;
+            confidenceMatches(w[0], w[1], line, expectation);
         }
         for (auto& n : nones) {
             auto w = split(n);

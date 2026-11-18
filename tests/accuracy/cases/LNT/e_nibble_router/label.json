@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-E (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC11",
+    "sites": [
+      {
+        "line": 22
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "partially assigned vector",
+    "rationale": "The upper nibble retains its old value when the route is disabled."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC11",
+      "sites": [
+        {
+          "line": 22
+        }
+      ],
+      "critical": true,
+      "note": "value[7:4] not assigned when enable is low: latch"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC11",
+      "sites": [
+        {
+          "line": 22
+        }
+      ],
+      "critical": true,
+      "note": "The upper nibble retains its prior value when enable is low."
+    }
+  ],
+  "rationale": "The upper nibble retains its old value when the route is disabled.",
+  "verdict": "bad",
+  "class": "LC11",
+  "sites": [
+    {
+      "line": 22
+    }
+  ],
+  "critical": true
+}

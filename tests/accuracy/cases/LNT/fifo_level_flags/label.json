@@ -1,0 +1,43 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "class": "LC05",
+  "batch": "p2-lint-heldout",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "assignment target misspelt, creating an implicit net",
+  "sites": [
+    {
+      "line": 25,
+      "signal": "almost_ful"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The flag is assigned under the misspelt name almost_ful, which creates a new implicit one-bit net, and the declared almost_full is never driven.",
+  "mutation": {
+    "operator": "identifier-typo",
+    "description": "Dropped one letter from the target of the almost-full assignment."
+  },
+  "author": "claude-sonnet-5-5",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "class": "LC05",
+      "sites": [
+        {
+          "line": 25,
+          "signal": "almost_ful"
+        }
+      ],
+      "note": "The misspelled implicit net leaves almost_full undriven."
+    }
+  ]
+}

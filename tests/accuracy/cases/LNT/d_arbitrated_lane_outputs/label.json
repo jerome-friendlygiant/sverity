@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-D (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC07",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "child results selected by a single driver",
+    "rationale": "The child outputs have distinct nets and one mux drives the response."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC07",
+      "sites": [],
+      "critical": false,
+      "note": "each instance drives its own net; y driven once"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "good",
+      "class": "LC07",
+      "sites": [],
+      "critical": false,
+      "note": "Each child drives a separate wire and one mux drives y."
+    }
+  ],
+  "rationale": "The child outputs have distinct nets and one mux drives the response.",
+  "verdict": "good",
+  "class": "LC07",
+  "sites": [],
+  "critical": false
+}

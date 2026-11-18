@@ -76,3 +76,17 @@ TEST(catalog_every_rule_has_a_deck_or_a_written_exclusion) {
     CHECK(!inDeck(*c.find("RDC-029"), "1.0"));
     CHECK(!isDeck("nonsense"));
 }
+
+TEST(catalog_lint_deck_is_its_classes) {
+    auto& c = Catalog::embedded();
+    CHECK(isDeck("lint"));
+    size_t lint = 0;
+    for (auto& r : c.rules()) {
+        lint += inDeck(r, "lint");
+        CHECK(inDeck(r, "lint") == !r.classes.empty());
+        CHECK(r.classes.empty() || r.category == "LNT");   // classes are lint workflow classes
+        for (auto& k : r.classes) CHECK(k.size() == 4 && k.rfind("LC", 0) == 0);
+    }
+    CHECK(lint > 0);
+    CHECK(!inDeck(*c.find("LNT-071"), "lint"));            // an obligation, excluded in LINT_WORKFLOW.md
+}

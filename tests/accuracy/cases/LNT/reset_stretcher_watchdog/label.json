@@ -1,0 +1,50 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "the synchronizer's asynchronous reset is OR-ed with a combinational compare of a data counter",
+  "sites": [
+    {
+      "line": 23,
+      "signal": "arst"
+    },
+    {
+      "line": 36,
+      "signal": "arst"
+    }
+  ],
+  "sdc": [],
+  "rationale": "arst = rst | (hold_cnt == MaxHold) is a data-driven asynchronous reset: decode glitches of the counter can asynchronously set sync_reg, and the timeout it ends is itself driven by a register clocked in the same domain.",
+  "author": "claude-sonnet-5-5",
+  "provenance": {
+    "repository": "verilog-axis",
+    "commit": "48ff7a7e2ef782cf778d47910cf85835c64b1bce",
+    "path": "rtl/sync_reset.v",
+    "licence": "MIT",
+    "adaptation": "Converted to SystemVerilog and built the surrounding logic around the two-flop reset synchronizer."
+  },
+  "class": "LC17",
+  "batch": "p2-lint-heldout",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "class": "LC17",
+      "sites": [
+        {
+          "line": 23,
+          "signal": "arst"
+        }
+      ],
+      "note": "A data-dependent timeout drives an asynchronous reset input."
+    }
+  ]
+}

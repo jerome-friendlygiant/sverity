@@ -4,3 +4,5 @@ module top(input logic clk, d, output logic q, output logic seen);
   always_ff @(posedge clk) q <= d;
   always_ff @(posedge clk) seen <= clk;
 endmodule
+// revert: seen <= clk => seen <= d
+// revert-expect-none: LNT-027

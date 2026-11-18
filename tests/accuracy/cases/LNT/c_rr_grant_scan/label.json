@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-C (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC15",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "bounded loops, $clog2",
+    "rationale": "Loop bound is a constant parameter and unrolls; $clog2 is a constant function; no delay or sim-only construct."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "good",
+      "class": "LC15",
+      "sites": [],
+      "critical": false,
+      "note": "Loop is statically bounded by N and all constructs are synthesizable."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC15",
+      "sites": [],
+      "critical": false,
+      "note": "The loop is bounded by parameter N and the modulo is by a constant; no unsynthesizable construct."
+    }
+  ],
+  "rationale": "Loop bound is a constant parameter and unrolls; $clog2 is a constant function; no delay or sim-only construct.",
+  "verdict": "good",
+  "class": "LC15",
+  "sites": [],
+  "critical": false
+}

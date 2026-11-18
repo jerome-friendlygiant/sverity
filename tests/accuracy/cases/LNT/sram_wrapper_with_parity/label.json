@@ -1,0 +1,38 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "class": "LC01",
+  "batch": "p2-lint-heldout",
+  "verdict": "unknown",
+  "critical": true,
+  "origin": "authored",
+  "sites": [
+    {
+      "line": 20,
+      "signal": "u_mem"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The SRAM macro has no body in the design, so its parameter and port names and directions cannot be checked.",
+  "author": "claude-sonnet-5-5",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "unknown",
+      "critical": true,
+      "class": "LC24",
+      "sites": [
+        {
+          "line": 17,
+          "signal": "u_mem"
+        }
+      ],
+      "note": "The opaque SRAM determines the read timing expected by the parity check."
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "origin": "authored",
+  "sites": [],
+  "sdc": [],
+  "rationale": "Both resets are constants (a localparam and literals) and each control polarity matches its edge: negedge rst_ni with if (!rst_ni), posedge arst_i with if (arst_i).",
+  "author": "claude-sonnet-5-5",
+  "class": "LC16",
+  "batch": "p2-lint-heldout",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "class": "LC16",
+      "sites": [],
+      "note": "Both asynchronous reset branches assign constant parameter-derived values."
+    }
+  ]
+}

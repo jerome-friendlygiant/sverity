@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-F (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "unknown",
+    "class": "LC21",
+    "sites": [
+      {
+        "line": 22
+      }
+    ],
+    "boundary": "unknown",
+    "subtype": "unconstrained run-time divisor",
+    "rationale": "The divisor is an external byte; whether division is defined depends on the environment supplying a nonzero value."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "unknown",
+      "class": "LC21",
+      "sites": [
+        {
+          "line": 22
+        }
+      ],
+      "critical": true,
+      "note": "Divisor is the unconstrained input b, so division by zero depends on input values."
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "unknown",
+      "class": "LC21",
+      "sites": [
+        {
+          "line": 22
+        }
+      ],
+      "critical": true,
+      "note": "The unconstrained b input can be zero, so whether division by zero occurs depends on the environment."
+    }
+  ],
+  "rationale": "The divisor is an external byte; whether division is defined depends on the environment supplying a nonzero value.",
+  "verdict": "unknown",
+  "class": "LC21",
+  "sites": [
+    {
+      "line": 22
+    }
+  ],
+  "critical": true
+}

@@ -1,0 +1,67 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-A (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "unknown",
+    "class": "LC06",
+    "sites": [
+      {
+        "line": 10
+      }
+    ],
+    "boundary": "unknown",
+    "subtype": "driver exists only under a build define",
+    "rationale": "ecc_ok is assigned only inside an ifdef HAS_ECC region; whether it has a driver depends on a define supplied by the flow."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "unknown",
+      "class": "LC06",
+      "sites": [
+        {
+          "line": 10
+        }
+      ],
+      "critical": true,
+      "note": "ecc_ok is driven only when the HAS_ECC build macro is defined; without it it is undriven and feeds valid_q."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "unknown",
+      "class": "LC06",
+      "sites": [
+        {
+          "line": 10
+        }
+      ],
+      "critical": true,
+      "note": "ecc_ok is driven only when HAS_ECC is defined; without it ecc_ok is undriven and valid_q becomes X. Depends on a build macro the file does not fix."
+    }
+  ],
+  "settlement": {
+    "by": "settler (claude-fable-5-2, third reading)",
+    "verdict": "bad",
+    "class": "LC06",
+    "sites": [
+      {
+        "line": 10
+      }
+    ],
+    "critical": true,
+    "note": "With no defines the `ifdef HAS_ECC region is absent, so ecc_ok has no driver and feeds valid_q; the driver exists only under a define that is not this configuration."
+  },
+  "rationale": "With no defines the `ifdef HAS_ECC region is absent, so ecc_ok has no driver and feeds valid_q; the driver exists only under a define that is not this configuration.",
+  "verdict": "bad",
+  "class": "LC06",
+  "sites": [
+    {
+      "line": 10
+    }
+  ],
+  "critical": true
+}

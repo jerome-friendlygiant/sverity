@@ -35,7 +35,8 @@ build/sverity --help
 ```
 
 Unrecognised options go to slang (`-f`, `-D`, `-I`, `--top`, ...). Exit code is a bit mask: 1 = findings FAIL,
-2 = REVIEW_REQUIRED, 4 = analysis INCOMPLETE, 8 = execution error, 64 = usage error.
+2 = REVIEW_REQUIRED, 4 = analysis INCOMPLETE, 8 = execution error, 64 = usage error. The default `--exit-policy gate` counts
+Unresolved lint findings (obligations and not-analysed) without setting bit 2; `strict` makes them block, `violations` keeps bits 1 and 8.
 
 A JSON configuration can set rule options, severity overrides and enabled rules:
 
@@ -53,7 +54,7 @@ Use `--config settings.json`. The optional `sdc`, `library` and `waivers` arrays
 
 Use `--goal lint`, `--goal cdc` or `--goal rdc` to scope a run; repeat the option to select a union. A config file may instead contain `"goal": ["cdc", "rdc"]`; CLI goals replace that array. Goal selection comes first, then file `enable`/`disable`, then CLI `--enable-rule`/`--disable-rule`. An explicit enable can restore a rule outside the goal. Other rules remain DISABLED and coverage stays INCOMPLETE. Slang diagnostics remain visible under every goal, even when their mapped lint rules are disabled. The summary and report inputs identify scoped runs.
 
-Use `--deck core`, `--deck domain` or `--deck 1.0` to report coverage for a published deck ([what each holds](docs/rules/catalog.json), [where it stands](tools/dev/conformance.py)). Rules outside it still run and keep their findings, listed as `preview`, but the run claims nothing about them. A deck run reports COMPLETE only if every rule of the deck executed in full and no analysis scope was limited.
+Use `--deck core`, `--deck domain`, `--deck 1.0` or the workflow deck `--deck lint` ([what it is for](docs/rules/LINT_WORKFLOW.md)) to report coverage for a published deck ([what each holds](docs/rules/catalog.json), [where it stands](tools/dev/conformance.py)). Rules outside it still run and keep their findings, listed as `preview`, but the run claims nothing about them. A deck run reports COMPLETE only if every rule of the deck executed in full and no analysis scope was limited.
 
 Use `--group --json report.json` (or `--sarif report.sarif`) for a grouped console view; the announcement names the complete report, whose `root_cause` fields link individual findings. Without a successfully written report, the console remains complete. ERROR and FATAL groups appear first, including when `--max-console` limits other groups.
 
@@ -67,8 +68,8 @@ procedure analysis (`src/rules/lint/lint_dataflow.cpp`) or a model-based `sverit
 (`src/rules/registry.cpp` lists them). Embedders register their own with `sverity::registerRule()` (a rule outside the catalog is listed as `custom`).
 In one commit:
 
-1. the entry in `docs/rules/catalog.json` and its row in `docs/rules/<FAMILY>.md` (titles must match), `status: implemented` only if the whole
-   title is covered, otherwise a `gap`; the unit tests check catalog, docs and the registered rules agree;
+1. the entry in `docs/rules/catalog.json` and its row in `docs/rules/<FAMILY>.md` (lint titles come from `LNT.md` and other families keep matching catalog titles), `status: implemented` only if the whole
+   title is covered, otherwise a `gap`; the unit tests check catalog, docs and registered rules agree;
 2. the rule's spec block in the family doc: trigger, exemptions, severity, unknown outcome;
 3. fixtures in `tests/fixtures/<RULE-ID>/` (annotated SystemVerilog, no C++; format at the top of `tests/unit/fixture_runner.cpp`): good, bad, boundary,
    hierarchy/unknown, and for CDC/RDC a mutation (`// revert:`).

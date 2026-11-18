@@ -1,0 +1,35 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "class": "LC06",
+  "batch": "p2-lint-heldout",
+  "verdict": "good",
+  "critical": false,
+  "origin": "adapted",
+  "sites": [],
+  "sdc": [],
+  "rationale": "The generate loop covers every bit of index_o, so each output bit has exactly one driver.",
+  "author": "claude-sonnet-5-5",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_onehot_to_bin.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Folded the encoder into the top module and added any and multiple grant flags."
+  },
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "class": "LC06",
+      "sites": [],
+      "note": "The generate loop drives every index bit."
+    }
+  ]
+}

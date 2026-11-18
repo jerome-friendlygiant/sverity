@@ -6,3 +6,5 @@ module top(input logic a, b, output logic y);
     y = a & b;
   end
 endmodule
+// revert: always @(a) => always @(a or b)
+// revert-expect-none: LNT-045

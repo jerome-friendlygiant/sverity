@@ -1,5 +1,7 @@
+// revert: [2'd1:2'd3] => 2'd3
+// revert-expect-none: LNT-032
 // sverity-args: --top top
-// expect: LNT-032 WARNING 8
+// expect: LNT-032 WARNING 10
 module top(input logic [1:0] s, output logic y);
   always_comb begin
     y = 1'b0;

@@ -26,6 +26,19 @@ using namespace slang::analysis;
 
 namespace {
 
+// The most for-loop steps one procedure's analysis unrolls, over all its loops (slang counts one per step expression of each
+// iteration, nested loops weighing more, and restarts the count for each loop; Impl lowers the limit for each loop by what the
+// earlier ones used). A loop that needs more is not unrolled: it is walked once with its counter unknown and the result is
+// approximate. Measured: a 65000-iteration loop takes 0.2 s and 124 MB, 8000 iterations 0.04 s and 48 MB; the default 65535 is
+// affordable alone but not across many loops.
+constexpr uint32_t kUnrollBudget = 8192;
+
+AnalysisOptions flowOptions() {
+    AnalysisOptions o;
+    o.maxLoopAnalysisSteps = kUnrollBudget;
+    return o;
+}
+
 using DefSet = std::vector<uint32_t>;   // sorted; 0 = the value from before the procedure, d > 0 = access index d-1
 
 struct Seg {
@@ -46,7 +59,7 @@ uint64_t widthOf(const ValueSymbol& s) {
     return w ? w : 1;
 }
 
-bool tracked(const ValueSymbol& s) { return s.kind == SymbolKind::Variable || s.kind == SymbolKind::Net; }
+bool tracked(const ValueSymbol& s) { return s.kind == SymbolKind::Variable || s.kind == SymbolKind::Net || s.kind == SymbolKind::FormalArgument; }
 
 bool moduleLevel(const Symbol& s) {
     auto* sc = s.getParentScope();
@@ -97,12 +110,87 @@ struct Flow::Impl : AbstractFlowAnalysis<Impl, State> {
     GuardList emptyGuards;
     const GuardList* curGuards = &emptyGuards;
     const AssignmentExpression* curAsg = nullptr;
+    const UnaryExpression* curStep = nullptr;
+    uint32_t unrollUsed = 0;       // budget used by the outermost loops finished so far
+    uint32_t loopPeak = 0;         // the most steps the outermost loop being walked has counted
+    int loopDepth = 0;
+    int walkedDepth = 0;           // loops being walked that are not followed through their iterations
     const Statement* rootStmt = nullptr;
     State endState;
     std::set<std::pair<uint32_t, uint32_t>> killSeen;
+    // What a user subroutine can reach outside itself, through the bodies it calls: the symbols it names (read or written), or
+    // unknown when it cannot be told (a task, which may wait; a hierarchical name; a class or virtual method; an import; a call
+    // that loops back; an output, inout or ref argument; a static local, which keeps its value between calls).
+    struct Touch {
+        bool unknown = false;
+        std::set<const Symbol*> symbols;
+    };
+    std::map<const SubroutineSymbol*, Touch> touches;
+    std::set<const SubroutineSymbol*> touching;
+    static bool localTo(const Symbol& s, const SubroutineSymbol& sub) {
+        for (const Scope* scope = s.getParentScope(); scope; scope = scope->asSymbol().getParentScope())
+            if (&scope->asSymbol() == &sub) return true;
+        return false;
+    }
+    const Touch& touchedBy(const SubroutineSymbol& sub) {
+        if (auto it = touches.find(&sub); it != touches.end()) return it->second;
+        Touch result;
+        if (touching.count(&sub)) { result.unknown = true; return touches[&sub] = result; }   // loops back
+        touching.insert(&sub);
+        if (sub.subroutineKind != SubroutineKind::Function || sub.isVirtual() ||
+            sub.flags.has(MethodFlags::DPIImport | MethodFlags::InterfaceExtern) || sub.getBody().bad())
+            result.unknown = true;
+        for (const auto* arg : sub.getArguments())
+            if (arg->direction != ArgumentDirection::In) result.unknown = true;   // an output, inout or ref actual is written through the call
+        if (!result.unknown) {
+            struct Scan : ASTVisitor<Scan, VisitFlags::AllGood> {
+                Impl& impl;
+                const SubroutineSymbol& sub;
+                Touch& out;
+                Scan(Impl& i, const SubroutineSymbol& s, Touch& t) : impl(i), sub(s), out(t) {}
+                void handle(const NamedValueExpression& e) {
+                    const Symbol& s = e.symbol;
+                    if (s.kind == SymbolKind::Parameter || s.kind == SymbolKind::EnumValue || s.kind == SymbolKind::Specparam) return;
+                    if (localTo(s, sub)) {
+                        // A static local keeps its value between calls: the call is not a function of its arguments.
+                        const auto* local = s.kind == SymbolKind::Variable ? s.as_if<VariableSymbol>() : nullptr;
+                        if (local && local->lifetime == VariableLifetime::Static && &s != sub.returnValVar) out.unknown = true;
+                        return;
+                    }
+                    out.symbols.insert(&s);
+                }
+                void handle(const HierarchicalValueExpression&) { out.unknown = true; }
+                // A declaration initializer, a block local's or a loop variable's, is a read the visitor does not reach by itself.
+                void handle(const VariableDeclStatement& declaration) {
+                    if (const auto* init = declaration.symbol.getInitializer()) init->visit(*this);
+                }
+                void handle(const ForLoopStatement& loop) {
+                    for (const auto* var : loop.loopVars)
+                        if (const auto* init = var->getInitializer()) init->visit(*this);
+                    visitDefault(loop);
+                }
+                void handle(const CallExpression& call) {
+                    if (!call.isSystemCall()) {
+                        const auto* callee = call.thisClass() ? nullptr : std::get_if<const SubroutineSymbol*>(&call.subroutine);
+                        if (!callee || !*callee) out.unknown = true;
+                        else {
+                            const Touch& inner = impl.touchedBy(**callee);
+                            out.unknown = out.unknown || inner.unknown;
+                            out.symbols.insert(inner.symbols.begin(), inner.symbols.end());
+                        }
+                    }
+                    visitDefault(call);
+                }
+            } scan(*this, sub, result);
+            sub.getBody().visit(scan);
+        }
+        touching.erase(&sub);
+        return touches[&sub] = std::move(result);
+    }
+    std::map<const CallExpression*, State> callStates;   // the state just before each user call (joined when it is reached again)
 
     Impl(Flow& flow, const Symbol& owner, const Statement& body)
-        : Base(owner, AnalysisOptions{}, nullptr), f(flow), ec(getEvalContext()), guardMap(body, getEvalContext()) {
+        : Base(owner, flowOptions(), nullptr), f(flow), ec(getEvalContext()), guardMap(body, getEvalContext()) {
         rootStmt = &body;
         curGuards = &emptyGuards;
         if (auto* g = guardMap.of(rootStmt)) curGuards = g;
@@ -158,6 +246,16 @@ struct Flow::Impl : AbstractFlowAnalysis<Impl, State> {
         f.opaque = true;
         forEachDef([&](uint32_t d) { f.accesses[d - 1].exposed = true; });
     }
+    // A call whose body (and the bodies it calls) names only these symbols outside itself: only a write to one of them can have
+    // been read, and nothing else in the procedure is affected. A callee touching nothing outside itself (a function of its
+    // arguments) leaves the procedure as it was.
+    void markExposed(const std::set<const Symbol*>& touched) {
+        if (touched.empty()) return;
+        f.opaque = true;
+        forEachDef([&](uint32_t d) {
+            if (touched.count(f.accesses[d - 1].sym)) f.accesses[d - 1].exposed = true;
+        });
+    }
     void markOpaque() {
         f.opaque = f.timing = true;
         forEachDef([&](uint32_t d) { f.accesses[d - 1].observed = true; });
@@ -180,7 +278,9 @@ struct Flow::Impl : AbstractFlowAnalysis<Impl, State> {
         a.whole = exact && r.first == 0 && r.second == widthOf(sym) - 1;
         a.local = !moduleLevel(sym);
         a.asg = curAsg;
+        a.step = curStep;
         a.guards = curGuards;
+        a.inWalkedLoop = walkedDepth > 0;
         a.inLoop = guardMap.inLoop(*curGuards);   // unrolled iterations share statements, so guard comparison between them is not meaningful
         return a;
     }
@@ -191,17 +291,26 @@ struct Flow::Impl : AbstractFlowAnalysis<Impl, State> {
         Access a = makeAccess(sym, r, false, exact);
         a.loc = loc;
         auto& segs = segsFor(st, sym);
-        bool maybe = false, only = true;
+        bool maybe = false, only = true, hard = false;
         DefSet reach;
         for (auto& s : segs) {
             if (s.hi < r.first || s.lo > r.second) continue;
             bool hasEntry = !s.blk.empty() && s.blk.front() == 0;
+            if (hasEntry) {
+                bool uncertain = false;   // a write that may be what fills these bits: run-time indexed, or in a loop not followed
+                for (auto d : s.blk)
+                    if (d && (!f.accesses[d - 1].exact || f.accesses[d - 1].inWalkedLoop)) uncertain = true;
+                hard = hard || !uncertain;
+                a.entrySegs.push_back({{std::max(s.lo, r.first), std::min(s.hi, r.second)},
+                                       uncertain ? Access::Entry::Unsure : s.blk.size() == 1 ? Access::Entry::Sole : Access::Entry::Some});
+            }
             maybe = maybe || hasEntry;
             only = only && s.blk.size() == 1 && hasEntry;
             reach = unite(reach, s.blk);
         }
         a.entryMaybe = maybe;
         a.entryOnly = only;
+        a.entryHard = hard && !a.inWalkedLoop;
         for (auto d : reach)
             if (d) {
                 a.reaching.push_back(d - 1);
@@ -222,7 +331,7 @@ struct Flow::Impl : AbstractFlowAnalysis<Impl, State> {
         auto& segs = segsFor(st, sym);
         splitAt(segs, r.first);
         splitAt(segs, r.second + 1);
-        bool kill = exact && !compound;   // a compound write keeps part of the old value
+        bool kill = exact;   // a compound write reads the old value first (its own Read access comes before it), then replaces the bits it covers
         for (auto& s : segs) {
             if (s.hi < r.first || s.lo > r.second) continue;
             if (kill) {
@@ -245,8 +354,9 @@ struct Flow::Impl : AbstractFlowAnalysis<Impl, State> {
                 if (!nonblocking) s.blk = {id};
             }
             else {
-                s.all = unite(s.all, {id});
-                if (!nonblocking) s.blk = unite(s.blk, {id});
+                // IDs increase monotonically. Appending preserves order and avoids quadratic copying.
+                s.all.push_back(id);
+                if (!nonblocking) s.blk.push_back(id);
             }
         }
     }
@@ -276,6 +386,23 @@ struct Flow::Impl : AbstractFlowAnalysis<Impl, State> {
         }
     }
 
+    // `v[i]` on a packed vector declared [N-1:0] with an unsigned selector of w bits (the selector as written, no arithmetic): the
+    // bits it can reach end at element 2^w - 1.
+    void narrowByIndexWidth(const Expression& e, const ValueSymbol& sym, Range& r) {
+        if (e.kind != ExpressionKind::ElementSelect) return;
+        const auto& es = e.as<ElementSelectExpression>();
+        if (es.value().kind != ExpressionKind::NamedValue || &es.value().as<NamedValueExpression>().symbol != &sym) return;
+        const Type& vt = sym.getType();
+        if (!vt.isIntegral() || vt.isScalar() || !vt.hasFixedRange() || vt.getFixedRange().lower() != 0 || !vt.getFixedRange().isDescending()) return;
+        const Expression& sel = es.selector().unwrapImplicitConversions();
+        if (!sel.type || !sel.type->isIntegral() || sel.type->isSigned() || sel.type->getBitWidth() > 16) return;
+        const uint64_t elems = uint64_t{1} << sel.type->getBitWidth();
+        const uint64_t width = es.type->getBitWidth();
+        if (!width) return;
+        r.second = std::min(r.second, elems * width - 1);
+        r.first = std::min(r.first, r.second);
+    }
+
     bool pathOf(const Expression& e, const ValueSymbol*& sym, Range& r, bool& exact) {
         ValuePath p(e, ec);
         if (p.empty()) return false;
@@ -288,6 +415,7 @@ struct Flow::Impl : AbstractFlowAnalysis<Impl, State> {
             r.second = std::min(r.second, w - 1);
             r.first = std::min(r.first, r.second);
             exact = p.isFullyStatic();
+            if (!exact) narrowByIndexWidth(e, *sym, r);
         }
         else {
             r = {0, w - 1};
@@ -300,6 +428,7 @@ struct Flow::Impl : AbstractFlowAnalysis<Impl, State> {
         requires(IsAnyOf<T, ElementSelectExpression, RangeSelectExpression, MemberAccessExpression>)
     void handle(const T& e) {
         visitSelectors(e);
+        if (&e == headerArray) return;
         const ValueSymbol* sym;
         Range r;
         bool exact;
@@ -307,9 +436,11 @@ struct Flow::Impl : AbstractFlowAnalysis<Impl, State> {
         else this->visitExpr(e);
     }
     void handle(const NamedValueExpression& e) {
+        if (&e == headerArray) return;
         noteRead(e.symbol, {0, widthOf(e.symbol) - 1}, true, e.sourceRange.start(), &e);
     }
     void handle(const HierarchicalValueExpression& e) {
+        if (&e == headerArray) return;
         noteRead(e.symbol, {0, widthOf(e.symbol) - 1}, true, e.sourceRange.start(), &e);
     }
 
@@ -320,6 +451,12 @@ struct Flow::Impl : AbstractFlowAnalysis<Impl, State> {
                 return;
             case ExpressionKind::Conversion:
                 writeTarget(e.as<ConversionExpression>().operand(), nonblocking, compound);
+                return;
+            case ExpressionKind::SimpleAssignmentPattern:   // `T'{a, b} <= x`: each element, wrapped by slang as an output-argument assignment,
+                for (auto* op : e.as<SimpleAssignmentPatternExpression>().elements()) {   // takes the kind of the enclosing write
+                    const auto* w = op->as_if<AssignmentExpression>();
+                    writeTarget(w && w->isLValueArg() ? w->left() : *op, nonblocking, compound);
+                }
                 return;
             case ExpressionKind::NamedValue:
             case ExpressionKind::HierarchicalValue:
@@ -358,19 +495,200 @@ struct Flow::Impl : AbstractFlowAnalysis<Impl, State> {
             case UnaryOperator::Preincrement:
             case UnaryOperator::Predecrement:
             case UnaryOperator::Postincrement:
-            case UnaryOperator::Postdecrement:
+            case UnaryOperator::Postdecrement: {
+                auto* saved = curStep;
+                curStep = &e;
                 this->visit(e.operand());
                 writeTarget(e.operand(), false, true);
+                curStep = saved;
                 break;
+            }
             default:
                 this->visitExpr(e);
         }
     }
 
     void handle(const CallExpression& c) {
-        if (!c.isSystemCall()) markExposed();
+        if (!c.isSystemCall()) {
+            const State& here = getState();
+            auto [it, fresh] = callStates.try_emplace(&c, here);
+            if (!fresh) joinState(it->second, here);
+            const auto* callee = c.thisClass() ? nullptr : std::get_if<const SubroutineSymbol*>(&c.subroutine);
+            const Touch* touch = callee && *callee ? &touchedBy(**callee) : nullptr;
+            if (!touch || touch->unknown) markExposed();
+            else markExposed(touch->symbols);
+        }
         this->visitExpr(c);
     }
+
+    // ---- `for` loops: slang unrolls a loop only when its counter is declared by the header (or an automatic variable) and its bounds
+    // are constant. A counter declared outside (a module-level `integer i`, a function-local `integer j`, which is static) is refused
+    // for fear another process changes it, which cannot happen inside one activation: nothing else runs, and a call is the only way
+    // the body could write it. So such a counter is made automatic while the base class walks the loop, when no assignment, step or
+    // call in the body can write it. Every other loop that is not unrolled is walked once and marks the result approximate.
+    struct CounterScan : ASTVisitor<CounterScan, VisitFlags::AllGood> {
+        std::set<const Symbol*> vars;
+        bool writes = false, calls = false, callsName = false;
+        static const Symbol* rootOf(const Expression& e) {
+            const Expression* x = &e;
+            while (true) {
+                switch (x->kind) {
+                    case ExpressionKind::Conversion: x = &x->as<ConversionExpression>().operand(); break;
+                    case ExpressionKind::ElementSelect: x = &x->as<ElementSelectExpression>().value(); break;
+                    case ExpressionKind::RangeSelect: x = &x->as<RangeSelectExpression>().value(); break;
+                    case ExpressionKind::MemberAccess: x = &x->as<MemberAccessExpression>().value(); break;
+                    case ExpressionKind::NamedValue: return &x->as<NamedValueExpression>().symbol;
+                    default: return nullptr;
+                }
+            }
+        }
+        void target(const Expression& e) {
+            if (e.kind == ExpressionKind::Concatenation) {
+                for (auto* op : e.as<ConcatenationExpression>().operands()) target(*op);
+                return;
+            }
+            const Symbol* r = rootOf(e);
+            writes = writes || !r || vars.count(r);   // a target that cannot be traced to a variable is taken to write it
+        }
+        void handle(const AssignmentExpression& a) { target(a.left()); visitDefault(a); }
+        void handle(const UnaryExpression& u) {
+            if (u.op == UnaryOperator::Preincrement || u.op == UnaryOperator::Predecrement || u.op == UnaryOperator::Postincrement ||
+                u.op == UnaryOperator::Postdecrement) target(u.operand());
+            visitDefault(u);
+        }
+        void handle(const CallExpression& c) {
+            if (!c.isSystemCall()) {
+                calls = true;
+                c.visitSymbolReferences([&](const Expression&, const Symbol& s) { callsName = callsName || vars.count(&s); });
+            }
+            visitDefault(c);
+        }
+    };
+    // The static counters the header initialises, when nothing in the loop can write them; empty otherwise.
+    std::vector<VariableSymbol*> unrollableCounters(const ForLoopStatement& stmt) {
+        std::vector<VariableSymbol*> out;
+        if (!stmt.loopVars.empty() || !stmt.stopExpr || stmt.steps.empty() || stmt.initializers.empty()) return out;
+        CounterScan scan;
+        for (auto* init : stmt.initializers) {
+            const auto* a = init->as_if<AssignmentExpression>();
+            const auto* n = a && !a->isCompound() ? a->left().as_if<NamedValueExpression>() : nullptr;
+            const auto* v = n ? n->symbol.as_if<VariableSymbol>() : nullptr;
+            if (!v || !v->getType().isIntegral()) return {};
+            if (v->lifetime == VariableLifetime::Static) out.push_back(const_cast<VariableSymbol*>(v));
+            scan.vars.insert(v);
+        }
+        stmt.body.visit(scan);
+        bool moduleState = false;
+        for (auto* v : out) moduleState = moduleState || moduleLevel(*v);
+        if (scan.writes || scan.callsName || (moduleState && scan.calls)) return {};
+        return out;
+    }
+    void visitStmt(const ForLoopStatement& stmt) {
+        std::vector<VariableSymbol*> counters = unrollableCounters(stmt);
+        for (auto* v : counters) v->lifetime = VariableLifetime::Automatic;
+        struct Restore { std::vector<VariableSymbol*>& v; ~Restore() { for (auto* x : v) x->lifetime = VariableLifetime::Static; } } restore{counters};
+        bool unrolled = false, dead = false, noSteps = false;
+        if (stmt.stopExpr) {
+            if (auto cv = tryEvalBool(*stmt.stopExpr)) dead = !cv.isTrue();
+            else {   // what the base class will do: it unrolls exactly when this yields iteration values
+                const uint32_t steps = forLoopSteps;
+                SmallVector<ConstantValue> values;
+                ForLoopVars vars;
+                const auto will = tryGetLoopIterValues(stmt, values, vars);
+                unrolled = !values.empty();
+                dead = will == WillExecute::No && !unrolled;
+                for (auto& [_, var] : vars) evalContext.deleteLocal(var);
+                forLoopSteps = steps;
+                if (dead) {
+                    // The base class answers "No" both for a loop whose first test is false and for one whose first test it cannot
+                    // evaluate (a run-time bound), and then takes the body for unreachable. Ask again with no steps, which it
+                    // answers "Maybe" for the second case; that loop is walked once.
+                    ForLoopStatement probe(stmt.initializers, stmt.stopExpr, {}, stmt.body, stmt.sourceRange);
+                    probe.loopVars = stmt.loopVars;
+                    SmallVector<ConstantValue> none;
+                    ForLoopVars probeVars;
+                    dead = tryGetLoopIterValues(probe, none, probeVars) == WillExecute::No;
+                    for (auto& [_, var] : probeVars) evalContext.deleteLocal(var);
+                    forLoopSteps = steps;
+                    noSteps = !dead;
+                }
+            }
+        }
+        if (!unrolled && !dead) f.approximated = f.truncated = f.walkedOnce = true;
+        struct Walked { int& d; bool on; Walked(int& depth, bool o) : d(depth), on(o) { d += on; } ~Walked() { d -= on; } } walkedScope(walkedDepth, !unrolled && !dead);
+        if (noSteps) {
+            ForLoopStatement walk(stmt.initializers, stmt.stopExpr, {}, stmt.body, stmt.sourceRange);
+            walk.loopVars = stmt.loopVars;
+            Base::visitStmt(walk);
+        }
+        else Base::visitStmt(stmt);
+    }
+    // ---- `foreach` over fixed-size dimensions is followed through its iterations, as slang's driver analysis does: each iteration binds
+    // the loop variables, so a select on one is exact. The array named in the header supplies only its dimensions: its value is not
+    // read. The base class walks a body once and joins its end state with the loop's breaks, so a body that can leave the loop early
+    // (break, continue, return, disable) would apply the later iterations' writes to the paths that left: such a loop, a dynamic
+    // dimension and a loop over the budget are walked once with the variables unknown (`walkedOnce`).
+    const Expression* headerArray = nullptr;   // the array of the foreach being walked: named, not read
+    struct JumpFinder : ASTVisitor<JumpFinder, VisitFlags::AllGood> {
+        bool found = false;
+        void handle(const BreakStatement&) { found = true; }
+        void handle(const ContinueStatement&) { found = true; }
+        void handle(const ReturnStatement&) { found = true; }
+        void handle(const DisableStatement&) { found = true; }
+        void handle(const DisableForkStatement&) { found = true; }
+    };
+    void visitStmt(const ForeachLoopStatement& stmt) {
+        const Expression* outerHeader = std::exchange(headerArray, &stmt.arrayRef);
+        std::vector<const ForeachLoopStatement::LoopDim*> dims;
+        uint64_t total = 1;
+        bool followed = true;
+        for (const auto& d : stmt.loopDims) {
+            if (!d.loopVar) continue;
+            if (!d.range) { followed = false; break; }
+            dims.push_back(&d);
+            total *= d.range->width();
+            if (total > options.maxLoopAnalysisSteps) { followed = false; break; }
+        }
+        if (dims.empty()) followed = false;
+        if (followed) {
+            JumpFinder jumps;
+            stmt.body.visit(jumps);
+            if (jumps.found) followed = false;
+        }
+        const uint32_t oldSteps = forLoopSteps;
+        if (followed && oldSteps + total > options.maxLoopAnalysisSteps) {
+            followed = false;
+            f.approximated = f.truncated = true;
+        }
+        if (!followed) {
+            f.walkedOnce = true;
+            ++walkedDepth;
+            Base::visitStmt(stmt);
+            --walkedDepth;
+            headerArray = outerHeader;
+            return;
+        }
+        forLoopSteps = oldSteps + static_cast<uint32_t>(total);
+        const bool savedUnrolled = std::exchange(inUnrolledForLoop, true);
+        auto iterate = [&](auto&& self, size_t k) -> void {
+            if (k == dims.size()) { Base::visitStmt(stmt); return; }
+            const auto& dim = *dims[k];
+            const Type& t = dim.loopVar->getType();
+            ConstantValue* local = evalContext.createLocal(dim.loopVar, ConstantValue());
+            const int32_t step = dim.range->left <= dim.range->right ? 1 : -1;
+            for (int32_t i = dim.range->left;; i += step) {
+                *local = SVInt(static_cast<bitwidth_t>(t.getBitWidth()), static_cast<uint64_t>(static_cast<int64_t>(i)), t.isSigned());
+                self(self, k + 1);
+                if (i == dim.range->right) break;
+            }
+            evalContext.deleteLocal(dim.loopVar);
+        };
+        iterate(iterate, 0);
+        inUnrolledForLoop = savedUnrolled;
+        forLoopSteps = oldSteps;
+        headerArray = outerHeader;
+    }
+    using Base::visitStmt;
 
     // ---- statements: attach the path guards, flag timing, record declaration initialisers
     template <typename T>
@@ -381,7 +699,29 @@ struct Flow::Impl : AbstractFlowAnalysis<Impl, State> {
         if constexpr (IsAnyOf<T, TimedStatement, WaitStatement, WaitOrderStatement, WaitForkStatement>) {
             if (&s != rootStmt) markOpaque();
         }
-        if constexpr (std::is_same_v<T, ContinueStatement>) f.approximated = true;   // slang's base analysis drops the continue path
+        // The unroll budget is per procedure: the outermost loop gets what the earlier ones left, and its use is the most steps slang
+        // counted while walking it (nested loops included, as slang weighs them).
+        struct Loop {
+            Impl& i;
+            const bool isLoop, outer;
+            Loop(Impl& impl, bool loop) : i(impl), isLoop(loop), outer(loop && impl.loopDepth == 0) {
+                if (isLoop) i.loopDepth++;
+                if (outer) {
+                    i.options.maxLoopAnalysisSteps = i.unrollUsed >= kUnrollBudget ? 0 : kUnrollBudget - i.unrollUsed;
+                    i.loopPeak = 0;
+                }
+            }
+            ~Loop() {
+                if (isLoop) i.loopDepth--;
+                if (outer) i.unrollUsed = std::min<uint32_t>(kUnrollBudget, i.unrollUsed + i.loopPeak);
+            }
+        } loop(*this, std::is_same_v<T, ForLoopStatement> || std::is_same_v<T, ForeachLoopStatement>);
+        if (loopDepth > 0) loopPeak = std::max(loopPeak, forLoopSteps);
+        // A loop whose unrolling stopped at its limit is visited once with the counter unknown: absence of a write, a latch or an
+        // overwrite after it is not proven.
+        if (forLoopSteps > options.maxLoopAnalysisSteps) f.approximated = f.truncated = f.walkedOnce = f.overBudget = true;
+        if constexpr (IsAnyOf<T, WhileLoopStatement, DoWhileLoopStatement, RepeatLoopStatement, ForeverLoopStatement>) f.walkedOnce = true;   // a foreach decides for itself
+        if constexpr (std::is_same_v<T, ContinueStatement>) f.approximated = f.pathsDropped = true;   // slang's base analysis drops the continue path
         if constexpr (std::is_same_v<T, CaseStatement>) {
             // slang counts items that cannot match (x/z bits, values wider than the selector) towards full coverage
             if (s.condition == CaseStatementCondition::Normal && s.expr.type) {
@@ -389,11 +729,14 @@ struct Flow::Impl : AbstractFlowAnalysis<Impl, State> {
                 for (auto& item : s.items)
                     for (auto* e : item.expressions) {
                         ConstantValue cv = e->eval(ec);
-                        if (cv.isInteger() && (cv.integer().hasUnknown() || cv.integer().getMinRepresentedBits() > sw)) f.approximated = true;
+                        if (cv.isInteger() && (cv.integer().hasUnknown() || cv.integer().getMinRepresentedBits() > sw)) f.approximated = f.pathsDropped = true;
                     }
             }
         }
+        constexpr bool walked = IsAnyOf<T, WhileLoopStatement, DoWhileLoopStatement, RepeatLoopStatement, ForeverLoopStatement>;
+        walkedDepth += walked;
         this->visitStmt(s);
+        walkedDepth -= walked;
         if constexpr (std::is_same_v<T, VariableDeclStatement>) {
             if (s.symbol.lifetime != VariableLifetime::Static && s.symbol.getInitializer())
                 noteWrite(s.symbol, {0, widthOf(s.symbol) - 1}, true, false, false, s.sourceRange.start());
@@ -472,6 +815,21 @@ std::vector<Range> Flow::unassignedAtEnd(const ValueSymbol& sym) const {
     if (it == st.vars.end()) return {{0, widthOf(sym) - 1}};
     for (auto& s : it->second)
         if (!s.all.empty() && s.all.front() == 0) {
+            if (!out.empty() && out.back().second + 1 == s.lo) out.back().second = s.hi;
+            else out.push_back({s.lo, s.hi});
+        }
+    return out;
+}
+
+std::vector<Range> Flow::entryRangesAtCall(const CallExpression& call, const ValueSymbol& sym) const {
+    const std::vector<Range> whole{{0, widthOf(sym) - 1}};
+    auto call_it = impl_->callStates.find(&call);
+    if (call_it == impl_->callStates.end() || !call_it->second.reachable) return whole;
+    auto it = call_it->second.vars.find(&sym);
+    if (it == call_it->second.vars.end()) return whole;
+    std::vector<Range> out;
+    for (auto& s : it->second)
+        if (!s.blk.empty() && s.blk.front() == 0) {
             if (!out.empty() && out.back().second + 1 == s.lo) out.back().second = s.hi;
             else out.push_back({s.lo, s.hi});
         }

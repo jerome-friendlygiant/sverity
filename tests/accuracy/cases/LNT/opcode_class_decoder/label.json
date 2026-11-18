@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "a casez item is wholly covered by an earlier wider item so the coprocessor class can never be decoded",
+  "sites": [
+    {
+      "line": 28,
+      "signal": "op_class"
+    }
+  ],
+  "sdc": [],
+  "rationale": "6'b0110?? is a subset of the earlier 6'b01???? item; the first match wins, so CL_COPROC is unreachable and is_coproc_o is stuck at 0.",
+  "author": "claude-sonnet-5-5",
+  "class": "LC13",
+  "batch": "p2-lint-heldout",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "class": "LC13",
+      "sites": [
+        {
+          "line": 28,
+          "signal": "op_class"
+        }
+      ],
+      "note": "The coprocessor pattern is entirely covered by the preceding memory pattern."
+    }
+  ]
+}

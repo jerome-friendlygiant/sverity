@@ -1,0 +1,35 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "class": "LC22",
+  "batch": "p2-lint-heldout",
+  "verdict": "good",
+  "critical": false,
+  "origin": "adapted",
+  "sites": [],
+  "sdc": [],
+  "rationale": "Every output of the synchroniser instance is connected and used; the level output reaches a top-level port.",
+  "author": "claude-sonnet-5-5",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_edge_detect.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Inlined a reduced synchroniser and edge detector, added a press counter and exposed the level."
+  },
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "class": "LC22",
+      "sites": [],
+      "note": "All synchronizer outputs are connected and used."
+    }
+  ]
+}

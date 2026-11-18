@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-D (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC06",
+    "sites": [
+      {
+        "line": 20
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "internal scalar undriven",
+    "rationale": "The selector has no source, so unequal response words merge to unknown bits."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC06",
+      "sites": [
+        {
+          "line": 20
+        }
+      ],
+      "critical": true,
+      "note": "select_response is declared but never driven, yet it selects y."
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC06",
+      "sites": [
+        {
+          "line": 20
+        }
+      ],
+      "critical": true,
+      "note": "select_response is declared but never driven."
+    }
+  ],
+  "rationale": "The selector has no source, so unequal response words merge to unknown bits.",
+  "verdict": "bad",
+  "class": "LC06",
+  "sites": [
+    {
+      "line": 20
+    }
+  ],
+  "critical": true
+}

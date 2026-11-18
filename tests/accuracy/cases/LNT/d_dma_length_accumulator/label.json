@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-D (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC02",
+    "sites": [
+      {
+        "line": 24
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "carry discarded in addition",
+    "rationale": "Each burst count is in the range 128 through 255. Their sum always needs nine bits, but the byte result discards the carry."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC02",
+      "sites": [
+        {
+          "line": 24
+        }
+      ],
+      "critical": true,
+      "note": "sum of two values each >=128 into 8 bits always loses the carry"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC02",
+      "sites": [
+        {
+          "line": 24
+        }
+      ],
+      "critical": true,
+      "note": "Adding two eight-bit values can produce a ninth carry bit that y discards."
+    }
+  ],
+  "rationale": "Each burst count is in the range 128 through 255. Their sum always needs nine bits, but the byte result discards the carry.",
+  "verdict": "bad",
+  "class": "LC02",
+  "sites": [
+    {
+      "line": 24
+    }
+  ],
+  "critical": true
+}

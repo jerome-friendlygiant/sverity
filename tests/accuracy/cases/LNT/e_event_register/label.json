@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-E (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC10",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "registered feedback boundary",
+    "rationale": "A flip-flop separates the event feedback path."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC10",
+      "sites": [],
+      "critical": false,
+      "note": "Feedback passes through a register; no combinational loop."
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "good",
+      "class": "LC10",
+      "sites": [],
+      "critical": false,
+      "note": "The feedback passes through a clocked register, so it is not combinational."
+    }
+  ],
+  "rationale": "A flip-flop separates the event feedback path.",
+  "verdict": "good",
+  "class": "LC10",
+  "sites": [],
+  "critical": false
+}

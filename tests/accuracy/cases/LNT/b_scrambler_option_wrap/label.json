@@ -1,0 +1,69 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-B (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "unknown",
+    "class": "LC08",
+    "sites": [
+      {
+        "line": 34
+      }
+    ],
+    "boundary": "unknown",
+    "subtype": "input port conditionally left floating (driven with z) depending on a run-time input",
+    "rationale": "The load input of lfsr7 is driven only while seed_valid is high and is left at z otherwise; whether the input floats depends on the run-time value of seed_valid, which the file does not constrain."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC08",
+      "sites": [
+        {
+          "line": 34
+        }
+      ],
+      "critical": true,
+      "note": "Input load is connected to an expression that is 1'bz when seed_valid is low, leaving the input without a driver and used as a condition.",
+      "other": "LC14 line 34: Z used as a mux value feeding a condition"
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC08",
+      "sites": [
+        {
+          "line": 34
+        }
+      ],
+      "critical": true,
+      "note": "Input load is connected to 1'bz whenever seed_valid is low, so it floats/undefined.",
+      "other": "LC14 line 34: Z driven into logic input"
+    }
+  ],
+  "settlement": {
+    "by": "settler (claude-fable-5-2, third reading)",
+    "verdict": "bad",
+    "class": "LC08",
+    "sites": [
+      {
+        "line": 34
+      }
+    ],
+    "critical": true,
+    "note": "Input load of u_lfsr is connected to an expression that is 1'bz when seed_valid is low: a floating input connection (and Z in design logic) is structural, so bad whatever seed_valid does."
+  },
+  "rationale": "Input load of u_lfsr is connected to an expression that is 1'bz when seed_valid is low: a floating input connection (and Z in design logic) is structural, so bad whatever seed_valid does.",
+  "verdict": "bad",
+  "class": "LC08",
+  "sites": [
+    {
+      "line": 34
+    }
+  ],
+  "critical": true
+}

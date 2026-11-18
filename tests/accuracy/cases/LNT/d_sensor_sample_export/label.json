@@ -1,0 +1,68 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-D (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "unknown",
+    "class": "LC02",
+    "sites": [
+      {
+        "line": 20
+      }
+    ],
+    "boundary": "unknown",
+    "subtype": "environment constrained narrowing",
+    "rationale": "The byte export loses data if the 12-bit sample exceeds 255. The file gives no sensor range contract."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC02",
+      "sites": [
+        {
+          "line": 20
+        }
+      ],
+      "critical": true,
+      "note": "12-bit a truncated to 8-bit y",
+      "other": "LC09: tag unused (line 21)"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC02",
+      "sites": [
+        {
+          "line": 20
+        }
+      ],
+      "critical": true,
+      "note": "Assigning twelve-bit a to eight-bit y discards its upper four bits."
+    }
+  ],
+  "settlement": {
+    "by": "settler (gpt-6.1-sol, third reading)",
+    "verdict": "unknown",
+    "class": "LC02",
+    "sites": [
+      {
+        "line": 20
+      }
+    ],
+    "critical": true,
+    "note": "The assignment discards a[11:8], but a numerical value is lost only when those unconstrained input bits are nonzero. Simulation confirms both preserving and losing inputs, so the value-dependent convention requires unknown."
+  },
+  "rationale": "The assignment discards a[11:8], but a numerical value is lost only when those unconstrained input bits are nonzero. Simulation confirms both preserving and losing inputs, so the value-dependent convention requires unknown.",
+  "verdict": "unknown",
+  "class": "LC02",
+  "sites": [
+    {
+      "line": 20
+    }
+  ],
+  "critical": true
+}

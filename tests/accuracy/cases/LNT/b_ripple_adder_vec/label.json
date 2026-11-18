@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-B (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC10",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "vector carry chain where c[i+1] depends on c[i] bitwise",
+    "rationale": "The carry vector refers to itself but each bit depends only on lower bits, so there is no cycle."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "good",
+      "class": "LC10",
+      "sites": [],
+      "critical": false,
+      "note": "Carry chain is acyclic bit by bit."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC10",
+      "sites": [],
+      "critical": false,
+      "note": "c[i+1] depends only on c[i]; the carry chain is acyclic despite sharing one vector."
+    }
+  ],
+  "rationale": "The carry vector refers to itself but each bit depends only on lower bits, so there is no cycle.",
+  "verdict": "good",
+  "class": "LC10",
+  "sites": [],
+  "critical": false
+}

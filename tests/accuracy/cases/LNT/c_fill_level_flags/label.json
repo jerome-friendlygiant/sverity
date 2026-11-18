@@ -1,0 +1,57 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-C (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC21",
+    "sites": [
+      {
+        "line": 28
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "comparison always false at the width limit",
+    "rationale": "4-bit fill_cnt can never exceed 15, so overflow is constant 0."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC21",
+      "sites": [
+        {
+          "line": 28
+        }
+      ],
+      "critical": true,
+      "note": "4-bit fill_cnt > 4'd15 is always false.",
+      "other": "LC02/overflow: fill_cnt wraps at line 19 (16-entry buffer in a 4-bit counter)"
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC21",
+      "sites": [
+        {
+          "line": 28
+        }
+      ],
+      "critical": true,
+      "note": "fill_cnt is 4 bits, so fill_cnt > 15 is always false.",
+      "other": "LC02 line 19 (fill_cnt wraps 15->0 on push, losing the count)"
+    }
+  ],
+  "rationale": "4-bit fill_cnt can never exceed 15, so overflow is constant 0.",
+  "verdict": "bad",
+  "class": "LC21",
+  "sites": [
+    {
+      "line": 28
+    }
+  ],
+  "critical": true
+}

@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-D (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC04",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "selector covers exactly the vector range",
+    "rationale": "A three-bit selector addresses all eight bits without reaching outside the vector."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC04",
+      "sites": [],
+      "critical": false,
+      "note": "3-bit index into an 8-bit vector is always in range."
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "good",
+      "class": "LC04",
+      "sites": [],
+      "critical": false,
+      "note": "The three-bit index can only select bits zero through seven."
+    }
+  ],
+  "rationale": "A three-bit selector addresses all eight bits without reaching outside the vector.",
+  "verdict": "good",
+  "class": "LC04",
+  "sites": [],
+  "critical": false
+}

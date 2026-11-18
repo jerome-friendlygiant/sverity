@@ -11,3 +11,5 @@ module top(input logic clk, rst_n, a, output logic q, r, s);
     end
   end
 endmodule
+// revert: s <= a; => s <= a; q <= a;
+// revert-expect-none: LNT-020

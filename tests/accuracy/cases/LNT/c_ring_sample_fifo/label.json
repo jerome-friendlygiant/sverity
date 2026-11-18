@@ -1,0 +1,59 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-C (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "unknown",
+    "class": "LC24",
+    "sites": [
+      {
+        "line": 42
+      }
+    ],
+    "boundary": "unknown",
+    "subtype": "unconditional read at the write pointer when empty",
+    "rationale": "rdata reads mem[rptr] every cycle and can collide with a push into the empty slot; whether the consumer uses it is outside the file."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC24",
+      "sites": [
+        {
+          "line": 42
+        }
+      ],
+      "critical": true,
+      "note": "Registered read of mem[rptr] collides with the write at mem[wptr] when the FIFO is empty (wptr==rptr), so rdata depends on read-during-write behaviour and is stale while empty deasserts."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC24",
+      "sites": [
+        {
+          "line": 42
+        }
+      ],
+      "critical": true,
+      "note": "When pushing into an empty FIFO wptr==rptr, so rdata reads the entry being written in the same cycle; the next cycle (empty low) shows old or new data depending on the RAM's read-during-write mode."
+    }
+  ],
+  "settlement": {
+    "by": "settler (claude-fable-5-2, third reading)",
+    "verdict": "good",
+    "class": "LC24",
+    "sites": [],
+    "critical": false,
+    "note": "Same-clock registered read of mem[rptr]: the collision with a push into the empty FIFO does occur structurally, but the RTL defines the result (old data), so it does not depend on the memory implementation. Simulation shows that defined result is itself a functional bug (empty low with stale rdata for one cycle), which is not an LC24 matter."
+  },
+  "rationale": "Same-clock registered read of mem[rptr]: the collision with a push into the empty FIFO does occur structurally, but the RTL defines the result (old data), so it does not depend on the memory implementation. Simulation shows that defined result is itself a functional bug (empty low with stale rdata for one cycle), which is not an LC24 matter.",
+  "verdict": "good",
+  "class": "LC24",
+  "sites": [],
+  "critical": false
+}

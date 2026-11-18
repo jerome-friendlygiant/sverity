@@ -148,18 +148,18 @@ void RdcShared::structure(RuleContext& ctx) {
         }
         if (usersOf.at(root).empty() || m_->nodes[root].sym == nullptr) continue;
         if (!m_->in[root].size()) continue;   // primary input or undriven: nothing to analyse
-        std::vector<NodeId> resetLeaves, dataLeaves;
+        std::vector<NodeId> resetLeaves, dataLeaves, undecidedLeaves;
         std::unordered_set<NodeId> seen{root};
         std::vector<NodeId> st{root};
         bool logicSeen = false;
         while (!st.empty()) {
             NodeId n = st.back(); st.pop_back();
             if (n != root && (resetRoots.count(n) || (n < m_->topInput.size() && m_->topInput[n]))) {
-                // a primary input is reset-like when it is a reset root itself or is named like a reset (heuristic)
-                std::string nm = stripBit(m_->nameOf(n));
-                for (auto& c : nm) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-                bool resetLike = resetRoots.count(n) || nm.find("rst") != std::string::npos || nm.find("reset") != std::string::npos;
-                (resetLike ? resetLeaves : dataLeaves).push_back(n);
+                // A leaf is a reset (a reset root, or a primary input the shared classifier takes as one), data, or undecided: a name
+                // that may or may not be a reset is not a claim either way.
+                const model::ResetClass cls = resetRoots.count(n) ? model::ResetClass{} : model::classifyResetNode(*m_, n);
+                const bool isReset = resetRoots.count(n) || cls.reset;
+                (isReset ? resetLeaves : cls.undecided ? undecidedLeaves : dataLeaves).push_back(n);
                 continue;
             }
             if (m_->flopOfQ.count(n)) {
@@ -198,7 +198,25 @@ void RdcShared::structure(RuleContext& ctx) {
                     break;
                 }
             }
-        if (resetLeaves.size() >= 2 && dataLeaves.empty()) {
+        if (!undecidedLeaves.empty() && dataLeaves.empty()) {
+            // Whether a source is a reset decides between a combination of resets (RDC-008) and a reset gated by functional signals
+            // (RDC-009): neither is claimed.
+            std::string l;
+            for (auto n : resetLeaves) l += (l.empty() ? "" : ", ") + stripBit(m_->nameOf(n));
+            std::string u;
+            for (auto n : undecidedLeaves) u += (u.empty() ? "" : ", ") + stripBit(m_->nameOf(n));
+            const std::string why = "whether [" + u + "] is a reset is undecided (not clearly named like one, no asynchronous reset use)";
+            for (const char* id : {"RDC-008", "RDC-009"}) {
+                if (std::string(id) == "RDC-008" && resetLeaves.size() + undecidedLeaves.size() < 2) continue;
+                evaluated[id]++;
+                Diagnostic d = mk(id, Severity::Warning, std::string("Unresolved: ") + (std::string(id) == "RDC-008" ? "reset " + rname + " may be a logic combination of resets" +
+                                  (l.empty() ? "" : " [" + l + "]") : "reset " + rname + " may be gated or multiplexed by functional signals") + ": " + why,
+                                  procLoc(u0).loc, procLoc(u0).instancePath, Confidence::Unresolved);
+                d.signals = {rname};
+                d.nextStep = "Name the source like a reset, or use it as an asynchronous reset.";
+                add(std::move(d));
+            }
+        } else if (resetLeaves.size() >= 2 && dataLeaves.empty()) {
             evaluated["RDC-008"]++;
             std::string l;
             for (auto n : resetLeaves) l += (l.empty() ? "" : ", ") + stripBit(m_->nameOf(n));

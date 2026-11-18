@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-D (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC01",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "legal parameter override and named ports",
+    "rationale": "All child ports exist and the parameter override preserves the full byte."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC01",
+      "sites": [],
+      "critical": false,
+      "note": "compiles and elaborates; parameter override and ports are legal"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "good",
+      "class": "LC01",
+      "sites": [],
+      "critical": false,
+      "note": "The parameterized child module and its ports are defined in the file."
+    }
+  ],
+  "rationale": "All child ports exist and the parameter override preserves the full byte.",
+  "verdict": "good",
+  "class": "LC01",
+  "sites": [],
+  "critical": false
+}

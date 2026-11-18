@@ -1,0 +1,4 @@
+{"cells": [{"name": "MAC_REG", "kind": "blackbox",
+  "ports": [{"name": "clk", "dir": "in", "role": "clock"},
+            {"name": "a", "dir": "in", "role": "data_in", "clock": "clk"},
+            {"name": "y", "dir": "out", "role": "data_out", "clock": "clk"}]}]}

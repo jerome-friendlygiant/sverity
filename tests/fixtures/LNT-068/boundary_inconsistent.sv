@@ -6,3 +6,5 @@ module top(input logic clk, rst_n, a, output logic q, r);
     else q <= a;
   always_ff @(posedge clk) r <= a;
 endmodule
+// revert: always_ff @(posedge clk) r <= a; => always_ff @(posedge clk or negedge rst_n) if (!rst_n) r <= 0; else r <= a;
+// revert-expect-none: LNT-068

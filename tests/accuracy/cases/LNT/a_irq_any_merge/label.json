@@ -1,0 +1,68 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-A (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "unknown",
+    "class": "LC05",
+    "sites": [
+      {
+        "line": 18
+      }
+    ],
+    "boundary": "unknown",
+    "subtype": "net declaration policy depends on a build define",
+    "rationale": "irq_any is assigned without a declaration: it is an implicit wire normally, but the STRICT_NETS define turns on default_nettype none; the file alone cannot say which."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "unknown",
+      "class": "LC05",
+      "sites": [
+        {
+          "line": 18
+        }
+      ],
+      "critical": true,
+      "note": "irq_any is never declared: an implicit net by default, a compile error under the STRICT_NETS default_nettype none.",
+      "other": "LC01 line 18 when STRICT_NETS is defined (undeclared irq_any)"
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC05",
+      "sites": [
+        {
+          "line": 18
+        }
+      ],
+      "critical": true,
+      "note": "irq_any is never declared, so it is an implicit net unless STRICT_NETS is defined (in which case it fails to compile)."
+    }
+  ],
+  "settlement": {
+    "by": "settler (claude-fable-5-2, third reading)",
+    "verdict": "bad",
+    "class": "LC05",
+    "sites": [
+      {
+        "line": 18
+      }
+    ],
+    "critical": true,
+    "note": "With no defines default_nettype stays wire, so the undeclared irq_any is an implicit net; under STRICT_NETS it would instead be a compile error, which is not this configuration."
+  },
+  "rationale": "With no defines default_nettype stays wire, so the undeclared irq_any is an implicit net; under STRICT_NETS it would instead be a compile error, which is not this configuration.",
+  "verdict": "bad",
+  "class": "LC05",
+  "sites": [
+    {
+      "line": 18
+    }
+  ],
+  "critical": true
+}

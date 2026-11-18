@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-D (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC02",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "explicit full precision addition",
+    "rationale": "The nine-bit result retains the carry from both byte counts."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC02",
+      "sites": [],
+      "critical": false,
+      "note": "9-bit sum keeps the carry"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "good",
+      "class": "LC02",
+      "sites": [],
+      "critical": false,
+      "note": "The operands and result are nine bits, preserving the sum carry."
+    }
+  ],
+  "rationale": "The nine-bit result retains the carry from both byte counts.",
+  "verdict": "good",
+  "class": "LC02",
+  "sites": [],
+  "critical": false
+}

@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-F (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC25",
+    "sites": [
+      {
+        "line": 22
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "translate-off clocked update override",
+    "rationale": "A simulation-only later nonblocking assignment replaces each synthesized counter update with a different value."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC25",
+      "sites": [
+        {
+          "line": 22
+        }
+      ],
+      "critical": true,
+      "note": "translate_off hides y<=y+2, which wins in simulation; synthesis builds y+1"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC25",
+      "sites": [
+        {
+          "line": 22
+        }
+      ],
+      "critical": true,
+      "note": "Simulation applies the second update while synthesis omits it."
+    }
+  ],
+  "rationale": "A simulation-only later nonblocking assignment replaces each synthesized counter update with a different value.",
+  "verdict": "bad",
+  "class": "LC25",
+  "sites": [
+    {
+      "line": 22
+    }
+  ],
+  "critical": true
+}

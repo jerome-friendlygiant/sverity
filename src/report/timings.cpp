@@ -2,6 +2,8 @@
 
 #include <sys/resource.h>
 
+#include <fstream>
+
 #include "sverity/json.h"
 
 namespace sverity {
@@ -10,6 +12,19 @@ void Timings::record(std::string phase, Clock::time_point start) {
     rusage usage{};
     getrusage(RUSAGE_SELF, &usage);
     entries_.push_back({std::move(phase), std::chrono::duration<double>(Clock::now() - start).count(), static_cast<uint64_t>(usage.ru_maxrss)});
+    flush();
+}
+
+void Timings::count(std::string name, uint64_t value) {
+    counts_.emplace_back(std::move(name), value);
+    flush();
+}
+
+void Timings::flush() {
+    if (file_.empty()) return;
+    std::ofstream out(file_, std::ios::trunc);
+    out << toJson() << '\n';
+    writeFailed_ = !out;
 }
 
 std::string Timings::toJson() const {

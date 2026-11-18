@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-E (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC10",
+    "sites": [
+      {
+        "line": 21
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "direct combinational self feedback",
+    "rationale": "The event feedback is a combinational self-loop rather than a clocked event register."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC10",
+      "sites": [
+        {
+          "line": 21
+        }
+      ],
+      "critical": true,
+      "note": "event_seen is assigned from itself through an OR: combinational loop"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC10",
+      "sites": [
+        {
+          "line": 21
+        }
+      ],
+      "critical": true,
+      "note": "event_seen feeds its own combinational assignment."
+    }
+  ],
+  "rationale": "The event feedback is a combinational self-loop rather than a clocked event register.",
+  "verdict": "bad",
+  "class": "LC10",
+  "sites": [
+    {
+      "line": 21
+    }
+  ],
+  "critical": true
+}

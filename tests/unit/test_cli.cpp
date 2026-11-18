@@ -38,6 +38,7 @@ std::string slurp(const std::string& path) {
     ss << f.rdbuf();
     return ss.str();
 }
+const char* kClocked = "module top(input logic clk, d, output logic q); always_ff @(posedge clk) q <= d; endmodule\n";
 const char* kClean = "module top(input logic a, output logic y); assign y = ~a; endmodule\n";
 } // namespace
 
@@ -48,11 +49,11 @@ TEST(cli_usage_errors_exit_64) {
     CHECK_EQ(run("--max-console 5 x.sv"), 64);                // truncation needs a complete report on disk
     CHECK_EQ(run("--json - --sarif - x.sv"), 64);
 }
-TEST(cli_exit_code_is_a_bit_mask_and_never_green_while_rules_are_missing) {
+TEST(cli_exit_code_is_a_bit_mask_and_strict_keeps_rules_that_are_missing) {
     auto sv = write("clean.sv", kClean);
-    int strict = run("--top top " + sv);
-    CHECK((strict & 4) != 0);          // analysis INCOMPLETE: catalog rules are unimplemented/partial
-    CHECK((strict & 2) != 0);          // CST-019 warning needs review
+    CHECK_EQ(run("--top top --goal lint " + sv), 0);           // gate: a rule partial in the tool version is a coverage statement
+    int strict = run("--top top --goal lint --exit-policy strict " + sv);
+    CHECK((strict & 4) != 0);          // strict: analysis INCOMPLETE, catalog rules are unimplemented/partial
     CHECK((strict & 1) == 0);          // no violations
     CHECK_EQ(run("--top top --exit-policy violations " + sv), 0);
 }
@@ -81,6 +82,83 @@ TEST(cli_json_and_sarif_are_valid_and_complete) {
     CHECK_EQ(s.value["version"].asString(), std::string("2.1.0"));
     CHECK_EQ(s.value["runs"].asArray()[0]["results"].asArray().size(), j.value["diagnostics"].asArray().size());
 }
+
+TEST(cli_inferred_latch_reports_assigned_signal_as_metadata) {
+    auto sv = write("inferred_latch_metadata.sv",
+                    "module top(input logic sel, input logic a, input logic b, output logic overflow_d, output logic unrelated);\n"
+                    "always_comb begin\n"
+                    "  if (sel) overflow_d = a;\n"
+                    "  unrelated = b;\n"
+                    "end\n"
+                    "endmodule\n");
+    auto out = scratch() / "inferred_latch_metadata.json";
+    run("--top top --goal lint --json " + out.string() + " " + sv);
+    auto report = sverity::json::parse(slurp(out.string()));
+    CHECK(report.ok);
+    bool matched = false;
+    for (const auto& diagnostic : report.value["diagnostics"].asArray()) {
+        if (diagnostic["rule_id"].asString() != "LNT-013") continue;
+        const auto& signals = diagnostic["signals"].asArray();
+        CHECK_EQ(signals.size(), size_t(1));
+        CHECK_EQ(signals[0].asString(), std::string("overflow_d"));
+        CHECK(diagnostic["hierarchy"].asString() == "top");
+        matched = true;
+    }
+    CHECK(matched);
+}
+TEST(cli_latch_metadata_does_not_identify_a_shadowed_module_variable) {
+    auto sv = write("latch_shadow_metadata.sv",
+                    "module top(input logic en,d,output logic q);\n"
+                    "logic v; assign v=d;\n"
+                    "always_comb begin : named\n"
+                    "logic v; if(en) v=d; q=v;\n"
+                    "end endmodule\n");
+    auto out = scratch() / "latch_shadow_metadata.json";
+    run("--top top --goal lint --json " + out.string() + " " + sv);
+    auto report = sverity::json::parse(slurp(out.string()));
+    CHECK(report.ok);
+    bool matched = false;
+    for (const auto& diagnostic : report.value["diagnostics"].asArray()) {
+        if (diagnostic["rule_id"].asString() != "LNT-013") continue;
+        CHECK(diagnostic["signals"].asArray().empty());
+        matched = true;
+    }
+    CHECK(matched);
+}
+
+TEST(cli_multiple_always_assigns_reports_exact_signal_with_malformed_source) {
+    auto sv = write("multiple_always_signal_metadata.sv",
+                    "module top(input logic clk, input logic a, input logic b, output logic q, output logic r);\n"
+                    "always_ff @(posedge clk) begin q <= a; r <= a; end\n"
+                    "always_ff @(posedge clk) q <= b;\n"
+                    "endmodule\n"
+                    "module malformed(input logic a, output logic y) assign y = a; endmodule\n");
+    auto out = scratch() / "multiple_always_signal_metadata.json";
+    run("--top top --goal lint --json " + out.string() + " " + sv);
+    auto report = sverity::json::parse(slurp(out.string()));
+    CHECK(report.ok);
+    CHECK_EQ(report.value["summary"]["execution_status"].asString(), std::string("ERROR"));
+    bool multipleAlwaysAssigns = false;
+    bool malformedSourceError = false;
+    for (const auto& diagnostic : report.value["diagnostics"].asArray()) {
+        if (diagnostic["rule_id"].asString() == "LNT-009" &&
+            diagnostic["upstream_code"].asString() == "multiple-always-assigns") {
+            const auto& signals = diagnostic["signals"].asArray();
+            CHECK_EQ(signals.size(), size_t(1));
+            CHECK_EQ(signals[0].asString(), std::string("q"));
+            CHECK_EQ(diagnostic["hierarchy"].asString(), std::string("top.q"));
+            CHECK_EQ(diagnostic["location"]["line"].asInt(), int64_t(3));
+            multipleAlwaysAssigns = true;
+        }
+        if (diagnostic["origin"].asString() == "slang" &&
+            diagnostic["severity"].asString() == "ERROR" &&
+            diagnostic["rule_id"].asString() != "LNT-009")
+            malformedSourceError = true;
+    }
+    CHECK(multipleAlwaysAssigns);
+    CHECK(malformedSourceError);
+}
+
 TEST(cli_output_is_deterministic) {
     auto sv = write("det.sv", kClean);
     auto a = (scratch() / "a.json").string(), b = (scratch() / "b.json").string();
@@ -169,7 +247,14 @@ TEST(cli_dynamic_index_and_divisor_options) {
             index |= d["rule_id"].asString() == "LNT-006";
             divisor |= d["rule_id"].asString() == "LNT-037";
         }
-        CHECK_EQ(index, !setting.empty()); CHECK_EQ(divisor, !setting.empty());
+        CHECK(index);   // a free index is an obligation by default
+        CHECK(divisor);   // a free divisor is an obligation by default too
+    }
+    {   // the default is switched off by the option
+        fs::remove(out);
+        CHECK(run("--top top --json " + out + " --option LNT-006.dynamic_index=false " + sv) != 64);
+        auto j = sverity::json::parse(slurp(out)); CHECK(j.ok);
+        for (const auto& d : j.value["diagnostics"].asArray()) CHECK(d["rule_id"].asString() != "LNT-006");
     }
     for (const char* key : {"LNT-006.dynamic_index", "LNT-037.dynamic_divisor"}) {
         for (const char* value : {"1", "\"true\"", "null"}) {
@@ -223,8 +308,8 @@ TEST(cli_config_override_retains_identity_and_original_severity) {
     CHECK_EQ(z.value["runs"].asArray()[0]["properties"]["inputs"]["severity_overrides"]["CDC-005"].asString(),std::string("WARNING")); CHECK_EQ(y.value["summary"]["review_status"].asString(),std::string("REVIEW_REQUIRED"));
 }
 TEST(cli_config_unresolved_floor_is_visible) {
-    auto out=cfgRun(R"({"severity":{"CST-019":"INFO"}})"); auto j=sverity::json::parse(slurp(out)); bool found=false;
-    for(const auto& d:j.value["diagnostics"].asArray()) if(d["rule_id"].asString()=="CST-019") found=d["severity"].asString()=="WARNING" && d["requested_severity"].asString()=="INFO" && !d["severity_override_reason"].asString().empty();
+    auto out=cfgRun(R"({"severity":{"CST-011":"INFO"}})", "", kClocked); auto j=sverity::json::parse(slurp(out)); bool found=false;
+    for(const auto& d:j.value["diagnostics"].asArray()) if(d["rule_id"].asString()=="CST-011") found=d["severity"].asString()=="WARNING" && d["requested_severity"].asString()=="INFO" && !d["severity_override_reason"].asString().empty();
     CHECK(found);
 }
 TEST(cli_config_override_never_raises_a_trusted_recognition) {
@@ -240,9 +325,9 @@ TEST(cli_config_override_never_raises_a_trusted_recognition) {
     CHECK(found);
 }
 TEST(cli_config_cli_severity_wins_and_invalid_file_still_rejected) {
-    auto out=cfgRun(R"({"severity":{"CST-019":"ERROR"}})", "--severity CST-019=INFO");
+    auto out=cfgRun(R"({"severity":{"CST-011":"ERROR"}})", "--severity CST-011=INFO", kClocked);
     auto j=sverity::json::parse(slurp(out)); bool seen=false;
-    for(const auto& d:j.value["diagnostics"].asArray()) if(d["rule_id"].asString()=="CST-019") seen=d["requested_severity"].asString()=="INFO" && d["severity"].asString()=="WARNING";
+    for(const auto& d:j.value["diagnostics"].asArray()) if(d["rule_id"].asString()=="CST-011") seen=d["requested_severity"].asString()=="INFO" && d["severity"].asString()=="WARNING";
     CHECK(seen);
     auto f=write("invalid-overridden.json", R"({"options":{"CDC-005.min_stages":1}})");
     CHECK_EQ(run("--config " + f + " --option CDC-005.min_stages=3 x.sv"),64);
@@ -269,7 +354,7 @@ TEST(cli_config_enable_cannot_implement_proposed_rule) {
     auto out=cfgRun(R"({"enable":["CST-013"],"disable":["CST-013"]})", "--enable-rule CST-013");
     auto j=sverity::json::parse(slurp(out)); bool seen=false;
     for(const auto& r:j.value["coverage"]["rules"].asArray()) if(r["rule_id"].asString()=="CST-013") { seen=true; CHECK_EQ(r["state"].asString(),std::string("UNIMPLEMENTED")); }
-    CHECK(seen); CHECK_EQ(j.value["summary"]["analysis_coverage"].asString(),std::string("INCOMPLETE"));
+    CHECK(seen); CHECK((j.value["summary"]["exit_code_strict"].asInt() & 4) != 0);   // the rule stays unimplemented: strict still reports it
 }
 TEST(cli_config_fingerprint_waiver_matches_after_override) {
     auto source=std::string(SVERITY_SOURCE_DIR)+"/tests/fixtures/CDC-005/bad_three_required.sv";
@@ -363,7 +448,7 @@ size_t goalFindings(const sverity::json::Value& r, const std::string& prefix) {
 TEST(cli_goal_lint_disables_cdc_rdc_and_discloses_scope) {
     auto r=goalReport("lint",kGoalsCDC,"--goal lint");
     CHECK_EQ(goalFindings(r,"CDC-"),0u); CHECK_EQ(goalFindings(r,"RDC-"),0u);
-    CHECK_EQ(r["summary"]["analysis_coverage"].asString(),std::string("INCOMPLETE"));
+    CHECK(r["summary"]["tool_coverage"]["rules_disabled"].asInt() > 0); CHECK((r["summary"]["exit_code_strict"].asInt() & 4) != 0);   // disabled by the goal: stated, and INCOMPLETE under strict
     CHECK_EQ(r["inputs"]["goals"].asArray()[0].asString(),std::string("lint"));
     for(const auto& x:r["coverage"]["rules"].asArray()) if(x["rule_id"].asString().rfind("CDC-",0)==0 || x["rule_id"].asString().rfind("RDC-",0)==0) CHECK_EQ(x["state"].asString(),std::string("DISABLED"));
 }
@@ -415,10 +500,10 @@ TEST(cli_goal_console_discloses_limited_and_broadened_scope) {
     (void)std::system(cmd.c_str());
     auto text=slurp(out); CHECK(text.find("goal:              limited to lint (explicit enables broaden scope)")!=std::string::npos);
 }
-TEST(cli_goal_cdc_retains_slang_warning_and_disabled_disclosure) {
+TEST(cli_goal_cdc_retains_slang_advisory_and_disabled_disclosure) {
     auto source="module top(input logic a, output logic y); logic unused_signal; assign y=a; endmodule\n";
     auto r=goalReport("slang-warning",source,"--goal cdc"); bool warning=false, disclosed=false;
-    for(const auto& d:r["diagnostics"].asArray()) if(d["rule_id"].asString()=="LNT-011" && d["origin"].asString()=="slang" && d["severity"].asString()=="WARNING") warning=true;
+    for(const auto& d:r["diagnostics"].asArray()) if(d["rule_id"].asString()=="LNT-011" && d["origin"].asString()=="slang" && d["severity"].asString()=="INFO" && d["upstream_severity"].asString()=="warning") warning=true;
     for(const auto& rule:r["coverage"]["rules"].asArray()) if(rule["rule_id"].asString()=="LNT-011")
         disclosed=rule["state"].asString()=="DISABLED" && rule["reason"].asString().find("slang still produces")!=std::string::npos;
     CHECK(warning); CHECK(disclosed);
@@ -632,7 +717,7 @@ TEST(cli_summary_matches_json_and_shows_state) {
     for (const auto& rule : parsed.value["coverage"]["rules"].asArray()) {
         std::string row = rule["rule_id"].asString() + " " + rule["state"].asString();
         for (const char* key : {"FATAL", "ERROR", "WARNING", "INFO"}) row += " " + std::to_string(rule["severity_counts"][key].asInt());
-        for (const char* key : {"OPEN", "REVIEW_REQUIRED", "RESOLVED", "WAIVED"}) row += " " + std::to_string(rule["disposition_counts"][key].asInt());
+        for (const char* key : {"OPEN", "REVIEW_REQUIRED", "RESOLVED", "WAIVED", "OBLIGATION", "NOT_ANALYSED"}) row += " " + std::to_string(rule["disposition_counts"][key].asInt());
         CHECK(text.find(row + "\n") != std::string::npos);
     }
 }
@@ -776,4 +861,439 @@ TEST(cli_deck_claims_only_its_rules_and_keeps_every_finding) {
     CHECK(preview > 0);
     CHECK(deck.value["summary"]["analysis_coverage"].asString() == "INCOMPLETE");   // core rules are still partial
     CHECK_EQ(run("--deck nonsense" + common), 64);
+}
+
+TEST(cli_single_unit_lints_every_source_file) {
+    // With --single-unit all files form one syntax tree; native lint must still see each file as user code.
+    const auto first = write("unit_first.sv", "module leaf(input logic clk, input logic d, output logic q);\n"
+                                              "  always_ff @(posedge clk) q <= d;\nendmodule\n");
+    const auto second = write("unit_second.sv", "module top(input logic clk, input logic d, output logic q);\n"
+                                                "  logic r;\n  always_ff @(posedge clk) begin r = d; q <= r; end\n"
+                                                "  leaf u_leaf(.clk(clk), .d(d), .q());\nendmodule\n");
+    for (const std::string mode : {"", "--single-unit "}) {
+        const auto out = (scratch() / "single_unit.json").string();
+        run(mode + "--top top --goal lint --json " + out + " " + first + " " + second);
+        auto js = sverity::json::parse(slurp(out));
+        CHECK(js.ok);
+        bool blocking = false;   // LNT-015: blocking write to state in a clocked block, in the second file
+        for (const auto& d : js.value["diagnostics"].asArray())
+            blocking = blocking || (d["rule_id"].asString() == "LNT-015" && d["location"]["file"].asString().find("unit_second.sv") != std::string::npos);
+        CHECK(blocking);
+    }
+}
+
+TEST(cli_slang_style_warnings_are_advisory_and_keep_upstream_severity) {
+    // A redundant default in a full unique case is slang -Wextra style: INFO, with slang's own severity recorded.
+    const auto sv = write("redundant_default.sv", "module top(input logic [1:0] s, output logic y);\n  always_comb begin\n"
+                                                  "    unique case (s)\n      2'd0: y = 1'b0;\n      2'd1, 2'd2, 2'd3: y = 1'b1;\n"
+                                                  "      default: y = 1'b0;\n    endcase\n  end\nendmodule\n");
+    const auto out = (scratch() / "redundant_default.json").string();
+    run("--top top --goal lint --json " + out + " " + sv);
+    auto js = sverity::json::parse(slurp(out));
+    CHECK(js.ok);
+    bool seen = false;
+    for (const auto& d : js.value["diagnostics"].asArray())
+        if (d["rule_id"].asString() == "SLANG-case-redundant-default") {
+            seen = true;
+            CHECK(d["severity"].asString() == "INFO");
+            CHECK(d["upstream_severity"].asString() == "warning");
+        }
+    CHECK(seen);
+}
+
+// ---- exit policy gate: obligations and gaps are counted, not blocking, unless strict or new against a baseline
+namespace {
+const char* kOneFlop = "module top(input clk, rst_n, d, output logic q);\n"
+    "  always_ff @(posedge clk or negedge rst_n)\n    if (!rst_n) q <= 0; else q <= d;\nendmodule\n";
+// An idiomatic synchronous FIFO beside an enum FSM: only obligations and gaps, no defect.
+const char* kFifoFsm = R"(module top #(parameter int W = 8, parameter int DEPTH = 16, parameter int AW = 4) (
+  input logic clk, rst_n, wr_en, rd_en, input logic [W-1:0] wdata, output logic [W-1:0] rdata, output logic full, empty,
+  input logic start, done, output logic busy);
+  logic [W-1:0] mem [DEPTH];
+  logic [AW:0] wptr, rptr;
+  assign full  = (wptr[AW-1:0] == rptr[AW-1:0]) && (wptr[AW] != rptr[AW]);
+  assign empty = (wptr == rptr);
+  always_ff @(posedge clk) if (wr_en && !full) mem[wptr[AW-1:0]] <= wdata;
+  assign rdata = mem[rptr[AW-1:0]];
+  always_ff @(posedge clk or negedge rst_n)
+    if (!rst_n) begin wptr <= '0; rptr <= '0; end
+    else begin
+      if (wr_en && !full) wptr <= wptr + 1'b1;
+      if (rd_en && !empty) rptr <= rptr + 1'b1;
+    end
+  typedef enum logic [1:0] {IDLE, RUN, FIN} st_t;
+  st_t st, nx;
+  always_ff @(posedge clk or negedge rst_n) if (!rst_n) st <= IDLE; else st <= nx;
+  always_comb begin
+    nx = st;
+    case (st)
+      IDLE: if (start) nx = RUN;
+      RUN:  if (done) nx = FIN;
+      FIN:  nx = st_t'(wdata[1:0]);   // not a constant: the transition graph cannot be read, so reachability stays an obligation
+      default: nx = IDLE;
+    endcase
+  end
+  assign busy = (st == RUN);
+endmodule
+)";
+const char* kLatch = "module top(input logic en, d, output logic q); always_comb if (en) q = d; endmodule\n";
+const char* kTwoClocks = "module top(input logic clka, clkb, d, output logic q);\n  logic a;\n"
+    "  always_ff @(posedge clka) a <= d;\n  always_ff @(posedge clkb) q <= a;\nendmodule\n";
+struct Run { int rc; std::string text; sverity::json::Value report; };
+Run runGate(const std::string& name, const std::string& source, const std::string& args, const std::string& src = "") {
+    const auto sv = write((src.empty() ? name : src) + ".sv", source);   // the same source name keeps fingerprints comparable
+    const auto json = (scratch() / (name + ".json")).string(), text = (scratch() / (name + ".txt")).string();
+    const auto cmd = std::string(SVERITY_BIN) + " --no-color --top top --json " + json + " " + args + " " + sv + " >" + text + " 2>&1";
+    const int rc = std::system(cmd.c_str());
+    auto parsed = sverity::json::parse(slurp(json));
+    CHECK(parsed.ok);
+    return {WIFEXITED(rc) ? WEXITSTATUS(rc) : -1, slurp(text), std::move(parsed.value)};
+}
+std::string lastLine(const std::string& text) {
+    auto end = text.find_last_not_of('\n');
+    auto start = text.rfind('\n', end);
+    return text.substr(start == std::string::npos ? 0 : start + 1, end - (start == std::string::npos ? 0 : start));
+}
+}
+TEST(cli_gate_a_one_flop_exits_zero_and_states_tool_coverage) {
+    auto r = runGate("gate_a", kOneFlop, "--deck lint --goal lint");
+    CHECK_EQ(r.rc, 0);
+    CHECK(r.text.find("tool coverage: ") != std::string::npos && r.text.find(" deck rules complete") != std::string::npos);
+    CHECK_EQ(lastLine(r.text), std::string("PASS: 0 defects; 0 obligations, 0 not analysed (see report)"));
+    CHECK_EQ(r.report["summary"]["analysis_coverage"].asString(), std::string("COMPLETE"));
+}
+TEST(cli_gate_b_obligations_and_gaps_exit_zero_with_counts) {
+    auto r = runGate("gate_b", kFifoFsm, "--deck lint --goal lint");
+    CHECK_EQ(r.rc, 0);
+    const auto obligations = r.report["summary"]["unresolved"]["obligations"].asInt(), gaps = r.report["summary"]["unresolved"]["not_analysed"].asInt();
+    CHECK(obligations > 0 && gaps > 0);
+    CHECK_EQ(lastLine(r.text), "PASS: 0 defects; " + std::to_string(obligations) + " obligations, " + std::to_string(gaps) + " not analysed (see report)");
+    bool listed = false;   // never silent: the findings are in the report with their kind and disposition
+    for (const auto& d : r.report["diagnostics"].asArray())
+        listed = listed || (d["rule_id"].asString() == "LNT-071" && d["disposition"].asString() == "OBLIGATION" &&
+                            d["unresolved_kind"].asString() == "obligation" && d["obligation"].asString() == "fsm-reachability-liveness");
+    CHECK(listed);
+    CHECK(r.text.find("<NOT_ANALYSED>") != std::string::npos);
+}
+TEST(cli_gate_c_strict_blocks_on_obligations_and_gaps) {
+    auto r = runGate("gate_c", kFifoFsm, "--deck lint --goal lint --exit-policy strict");
+    CHECK((r.rc & 2) != 0);
+    CHECK_EQ(r.report["summary"]["exit_code_gate"].asInt(), 0);
+    CHECK((r.report["summary"]["exit_code_strict"].asInt() & 2) != 0);
+}
+TEST(cli_gate_d_established_and_heuristic_warnings_still_block) {
+    auto r = runGate("gate_d", kLatch, "--deck lint --goal lint");   // LNT-013: an established WARNING
+    CHECK((r.rc & 2) != 0);
+    CHECK_EQ(r.report["summary"]["defects"].asInt(), 1);
+    CHECK(lastLine(r.text).find("REVIEW_REQUIRED: 1 defects;") == 0);
+}
+TEST(cli_gate_e_cdc_unresolved_still_blocks) {
+    auto r = runGate("gate_e", kTwoClocks, "--goal cdc");
+    CHECK((r.rc & 2) != 0);
+    bool unresolved = false;
+    for (const auto& d : r.report["diagnostics"].asArray())
+        if (d["rule_id"].asString().rfind("CDC-", 0) == 0 && d["confidence"].asString() == "unresolved") {
+            unresolved = true;
+            CHECK_EQ(d["disposition"].asString(), std::string("REVIEW_REQUIRED"));
+        }
+    CHECK(unresolved);
+}
+TEST(cli_gate_f_elaboration_error_is_still_incomplete) {
+    auto r = runGate("gate_f", "module top(input clk, d, output logic q); always_ff @(posedge clk) q <= undefined_sig; endmodule\n", "--deck lint --goal lint");
+    CHECK((r.rc & 4) != 0 && (r.rc & 1) != 0);
+}
+TEST(cli_gate_baseline_blocks_only_new_unresolved_findings) {
+    auto first = runGate("gate_base", kFifoFsm, "--deck lint --goal lint");
+    CHECK_EQ(first.rc, 0);
+    const auto baseline = (scratch() / "gate_base.json").string();
+    auto same = runGate("gate_base_same", kFifoFsm, "--deck lint --goal lint --baseline " + baseline, "gate_base");
+    CHECK_EQ(same.rc, 0);                                               // every obligation and gap is in the baseline
+    auto changed = runGate("gate_base_new", kFifoFsm, "--deck lint --goal lint --baseline " + (scratch() / "gate_a.json").string(), "gate_base");
+    CHECK((changed.rc & 2) != 0);                                       // the one-flop baseline has none of them
+    CHECK_EQ(run("--top top --baseline " + (scratch() / "missing.json").string() + " " + write("gate_x.sv", kOneFlop)), 64);
+    // The new ones are marked in the console and the JSON; the known ones are not.
+    CHECK(changed.text.find("NEW against baseline") != std::string::npos);
+    CHECK(changed.report["summary"]["unresolved"]["new_against_baseline"].asInt() > 0);
+    CHECK(same.text.find("NEW against baseline") == std::string::npos);
+    CHECK_EQ(same.report["summary"]["unresolved"]["new_against_baseline"].asInt(), 0);
+}
+TEST(cli_gate_malformed_baseline_fails_loudly) {
+    const auto sv = write("gate_malformed.sv", kOneFlop);
+    CHECK_EQ(run("--top top --baseline " + write("base-no-list.json", R"({"schema":"sverity-report/1","diagnostics":{}})") + " " + sv), 64);
+    CHECK_EQ(run("--top top --baseline " + write("base-no-diagnostics.json", R"({"schema":"sverity-report/1"})") + " " + sv), 64);
+    CHECK_EQ(run("--top top --baseline " + write("base-no-fingerprint.json", R"({"schema":"sverity-report/1","diagnostics":[{"rule_id":"LNT-082"}]})") + " " + sv), 64);
+    CHECK_EQ(run("--top top --baseline " + write("base-empty.json", R"({"schema":"sverity-report/1","diagnostics":[]})") + " --deck lint --goal lint " + sv), 0);
+}
+// ---- baseline mode: --write-baseline records the findings, --baseline makes the known ones non-gating
+namespace {
+const char* kOneLatch = "module top(input logic en, d, output logic q);\n  always_comb if (en) q = d;\nendmodule\n";
+const char* kTwoLatches = "module top(input logic en, d, e2, d2, output logic q, r);\n  always_comb if (en) q = d;\n  always_comb if (e2) r = d2;\nendmodule\n";
+Run capture(const std::string& args) {
+    const auto text = (scratch() / "capture.txt").string();
+    const int rc = std::system((std::string(SVERITY_BIN) + " --no-color " + args + " >" + text + " 2>&1").c_str());
+    return {WIFEXITED(rc) ? WEXITSTATUS(rc) : -1, slurp(text), sverity::json::Value()};
+}
+}
+TEST(cli_baseline_is_written_with_its_context_and_does_not_accept_the_run) {
+    const auto base = (scratch() / "bl_write.base.json").string();
+    auto r = runGate("bl_write", kOneLatch, "--deck lint --goal lint --write-baseline " + base);
+    CHECK((r.rc & 2) != 0);   // writing is not accepting: this run still gates
+    auto b = sverity::json::parse(slurp(base));
+    CHECK(b.ok);
+    CHECK_EQ(b.value["schema"].asString(), std::string("sverity-baseline/1"));
+    CHECK_EQ(b.value["context"]["top"].asString(), std::string("top"));
+    CHECK_EQ(b.value["context"]["deck"].asString(), std::string("lint"));
+    CHECK_EQ(b.value["findings"].asArray().size(), r.report["diagnostics"].asArray().size());   // every finding, none waived here
+    std::set<std::string> written, reported;
+    for (const auto& f : b.value["findings"].asArray()) {
+        CHECK(!f["key"].asString().empty() && f["line"].asInt() > 0);
+        written.insert(f["fingerprint"].asString());
+    }
+    for (const auto& d : r.report["diagnostics"].asArray()) reported.insert(d["fingerprint"].asString());
+    CHECK(written == reported);
+    CHECK(!r.report["summary"]["baseline"].isObject());   // no baseline was read
+}
+TEST(cli_baseline_matches_through_moved_lines_and_blocking_findings_stop_gating) {
+    const auto base = (scratch() / "bl_move.base.json").string();
+    auto first = runGate("bl_move0", kOneLatch, "--deck lint --goal lint --write-baseline " + base, "bl_move");
+    CHECK((first.rc & 2) != 0);
+    // The same design with lines added above it: every position changed, no finding did.
+    auto moved = runGate("bl_move1", std::string("// header\n// another line\n\n") + kOneLatch, "--deck lint --goal lint --baseline " + base, "bl_move");
+    CHECK_EQ(moved.rc, 0);
+    CHECK_EQ(moved.report["summary"]["defects"].asInt(), 0);
+    const auto& counts = moved.report["summary"]["baseline"];
+    CHECK_EQ(counts["new"].asInt(), 0);
+    CHECK(counts["baselined"].asInt() > 0);
+    CHECK(counts["matched_by"]["key"].asInt() > 0);          // matched without the line
+    bool latch = false;
+    for (const auto& d : moved.report["diagnostics"].asArray())
+        if (d["rule_id"].asString() == "LNT-013") {
+            latch = true;
+            CHECK_EQ(d["severity"].asString(), std::string("WARNING"));   // still a WARNING, listed and counted
+            CHECK_EQ(d["baseline"].asString(), std::string("BASELINED"));
+        }
+    CHECK(latch);
+    CHECK(moved.text.find("BASELINED") != std::string::npos);
+    CHECK_EQ(lastLine(moved.text).find("PASS: 0 defects;"), 0u);
+    // The same file again matches on the fingerprint alone.
+    auto same = runGate("bl_move2", kOneLatch, "--deck lint --goal lint --baseline " + base, "bl_move");
+    CHECK_EQ(same.rc, 0);
+    CHECK_EQ(same.report["summary"]["baseline"]["matched_by"]["key"].asInt(), 0);
+}
+TEST(cli_baseline_gates_on_a_new_finding_beside_baselined_ones) {
+    const auto base = (scratch() / "bl_new.base.json").string();
+    runGate("bl_new0", kOneLatch, "--deck lint --goal lint --write-baseline " + base, "bl_new");
+    auto r = runGate("bl_new1", kTwoLatches, "--deck lint --goal lint --baseline " + base, "bl_new");
+    CHECK((r.rc & 2) != 0);                                    // the second latch is new
+    CHECK_EQ(r.report["summary"]["defects"].asInt(), 1);       // and the baselined one is not counted as a defect
+    int fresh = 0, known = 0;
+    for (const auto& d : r.report["diagnostics"].asArray()) {
+        if (d["rule_id"].asString() != "LNT-013") continue;
+        (d["baseline"].asString() == "NEW" ? fresh : known)++;
+    }
+    CHECK_EQ(fresh, 1);
+    CHECK_EQ(known, 1);
+    const auto& counts = r.report["summary"]["baseline"];
+    CHECK(counts["entries"].asInt() > 0 && counts["new"].asInt() >= 1 && counts["baselined"].asInt() >= 1);
+    CHECK(counts["fixed_since_baseline"].isInt());
+    CHECK(r.text.find("  baseline   " + std::to_string(counts["new"].asInt()) + " new, " + std::to_string(counts["baselined"].asInt()) + " baselined") != std::string::npos);
+    CHECK(lastLine(r.text).find("; " + std::to_string(counts["baselined"].asInt()) + " baselined (see report)") != std::string::npos);
+    // A second finding of the same kind is new even where the baseline holds one of that kind.
+    auto doubled = runGate("bl_new2", "module top(input logic en, d, output logic q);\n  always_comb if (en) q = d;\n  always_comb if (d) q = en;\nendmodule\n",
+                           "--deck lint --goal lint --baseline " + base, "bl_new");
+    int open = 0;
+    for (const auto& d : doubled.report["diagnostics"].asArray())
+        if (d["rule_id"].asString() == "LNT-013" && d["baseline"].asString() == "NEW") ++open;
+    CHECK(open >= 1);
+}
+namespace {
+// A module whose unreset register steers a comparison (LNT-054) and whose constant comparison (LNT-005) is INFO while the constant is 10.
+std::string twoModules(const std::string& first, const std::string& second, const std::string& constant) {
+    const std::string head = "module m1(input logic clk, rst_n, ack, input logic [3:0] d, input logic [2:0] l, output logic y, z);\n  logic [3:0] word_q;\n";
+    const std::string mid = "  assign y = (word_q == 4'd3) ? 1'b1 : 1'b0;\n  localparam int D = " + constant + ";\n  assign z = (l >= (D - 8)) ? 1'b1 : 1'b0;\nendmodule\n";
+    const std::string m2head = "module m2(input logic clk, rst_n, ack, input logic [3:0] d, input logic [2:0] l, output logic y, z);\n  logic [3:0] word_q;\n";
+    const std::string m2tail = "  assign y = (word_q == 4'd3) ? 1'b1 : 1'b0;\n  assign z = l[0];\nendmodule\n";
+    return head + first + mid + m2head + second + m2tail +
+           "module top(input logic clk, rst_n, ack, input logic [3:0] d, input logic [2:0] l, output logic [1:0] y, z);\n"
+           "  m1 u1(.clk, .rst_n, .ack, .d, .l, .y(y[0]), .z(z[0]));\n  m2 u2(.clk, .rst_n, .ack, .d, .l, .y(y[1]), .z(z[1]));\nendmodule\n";
+}
+const char* kUnreset = "  always_ff @(posedge clk) if (ack) word_q <= d;\n";
+const char* kReset = "  always_ff @(posedge clk or negedge rst_n) if (!rst_n) word_q <= '0; else if (ack) word_q <= d;\n";
+}
+TEST(cli_baseline_does_not_cover_a_finding_that_became_more_severe_at_the_same_place) {
+    const auto base = (scratch() / "bl_sev.base.json").string();
+    runGate("bl_sev0", twoModules(kReset, kReset, "10"), "--deck lint --goal lint --write-baseline " + base, "bl_sev");
+    // The constant now makes the comparison wrong: the same rule at the same line is a WARNING where the baseline holds an INFO.
+    auto worse = runGate("bl_sev1", twoModules(kReset, kReset, "6"), "--deck lint --goal lint --baseline " + base, "bl_sev");
+    bool seen = false;
+    for (const auto& d : worse.report["diagnostics"].asArray())
+        if (d["rule_id"].asString() == "LNT-005" && d["severity"].asString() == "WARNING") {
+            seen = true;
+            CHECK_EQ(d["baseline"].asString(), std::string("NEW"));
+        }
+    CHECK(seen);
+    CHECK((worse.rc & 2) != 0);
+    // At or below its recorded severity a finding stays covered.
+    auto same = runGate("bl_sev2", twoModules(kReset, kReset, "10"), "--deck lint --goal lint --baseline " + base, "bl_sev");
+    CHECK_EQ(same.rc, 0);
+}
+TEST(cli_baseline_does_not_carry_a_finding_into_another_module) {
+    const auto base = (scratch() / "bl_scope.base.json").string();
+    // The unreset register is in m1 when the baseline is written, and in m2 afterwards (m1 was fixed).
+    runGate("bl_scope0", twoModules(kUnreset, kReset, "10"), "--deck lint --goal lint --write-baseline " + base, "bl_scope");
+    auto moved = runGate("bl_scope1", twoModules(kReset, kUnreset, "10"), "--deck lint --goal lint --baseline " + base, "bl_scope");
+    int fresh = 0;
+    for (const auto& d : moved.report["diagnostics"].asArray())
+        if (d["rule_id"].asString() == "LNT-054") {
+            CHECK_EQ(d["baseline"].asString(), std::string("NEW"));   // same rule, file and signal name, another module
+            ++fresh;
+        }
+    CHECK_EQ(fresh, 1);
+    CHECK((moved.rc & 2) != 0);
+    CHECK(moved.report["summary"]["baseline"]["fixed_since_baseline"].asInt() >= 1);   // the m1 finding is no longer present
+    // In its own module a finding that moved by a few lines is still the baselined one.
+    auto shifted = runGate("bl_scope2", std::string("// one\n// two\n") + twoModules(kUnreset, kReset, "10"), "--deck lint --goal lint --baseline " + base, "bl_scope");
+    CHECK_EQ(shifted.rc, 0);
+}
+TEST(cli_baseline_context_names_the_elaborated_top_not_only_the_argument) {
+    const auto one = write("bl_top1.sv", "module top(input logic a, output logic y);\n  assign y = a;\nendmodule\n");
+    const auto two = write("bl_top2.sv", "module top(input logic a, output logic y);\n  assign y = a;\nendmodule\nmodule extra(input logic a, output logic y);\n  assign y = a;\nendmodule\n");
+    const auto base = (scratch() / "bl_top.base.json").string();
+    CHECK_EQ(capture("--deck lint --goal lint --write-baseline " + base + " " + one).rc & 12, 0);
+    auto b = sverity::json::parse(slurp(base));
+    CHECK_EQ(b.value["context"]["top"].asString(), std::string("top"));   // no --top: the top the design elaborated to
+    auto other = capture("--deck lint --goal lint --baseline " + base + " " + two);   // two tops now: not the design the baseline was written for
+    CHECK_EQ(other.rc, 64);
+    CHECK(other.text.find("top 'top' (this run: 'extra,top')") != std::string::npos);
+    CHECK_EQ(capture("--deck lint --goal lint --baseline " + base + " " + one).rc, 0);
+}
+TEST(cli_baseline_for_another_top_or_deck_is_rejected) {
+    const auto src = write("bl_ctx.sv", std::string(kOneLatch) + "module other(input logic en, d, output logic q);\n  always_comb if (en) q = d;\nendmodule\n");
+    const auto base = (scratch() / "bl_ctx.base.json").string();
+    CHECK_EQ(capture("--top top --deck lint --goal lint --write-baseline " + base + " " + src).rc & 12, 0);
+    auto top = capture("--top other --deck lint --goal lint --baseline " + base + " " + src);
+    CHECK_EQ(top.rc, 64);
+    CHECK(top.text.find("top 'top' (this run: 'other')") != std::string::npos);
+    auto deck = capture("--top top --goal lint --baseline " + base + " " + src);
+    CHECK_EQ(deck.rc, 64);
+    CHECK(deck.text.find("deck 'lint' (this run: '(none)')") != std::string::npos);
+    CHECK_EQ(capture("--top top --deck lint --goal lint --baseline " + base + " " + src).rc, 0);   // the same context is fine
+    // A baseline that cannot be read exactly is an error, not an empty baseline.
+    CHECK_EQ(run("--top top --baseline " + write("bl_bad.json", R"({"schema":"sverity-baseline/1","context":{"top":"top","deck":""}})") + " " + src), 64);
+    CHECK_EQ(run("--top top --baseline " + write("bl_bad2.json", R"({"schema":"sverity-baseline/1","context":{"top":"top","deck":""},"findings":[{"rule_id":"LNT-013"}]})") + " " + src), 64);
+}
+TEST(cli_gate_strict_policy_is_what_json_and_sarif_state) {
+    const auto sarif = (scratch() / "gate_policy.sarif").string();
+    auto strict = runGate("gate_policy_strict", kFifoFsm, "--deck lint --goal lint --exit-policy strict --sarif " + sarif);
+    CHECK_EQ(strict.report["summary"]["review_status"].asString(), std::string("REVIEW_REQUIRED"));
+    CHECK_EQ(strict.report["inputs"]["exit_policy"].asString(), std::string("strict"));
+    auto parsed = sverity::json::parse(slurp(sarif));
+    CHECK(parsed.ok);
+    CHECK_EQ(parsed.value["runs"].asArray()[0]["properties"]["reviewStatus"].asString(), std::string("REVIEW_REQUIRED"));
+    // Without a deck the catalog has partial rules, which strict counts: coverage is stated under the policy too.
+    auto catalog = runGate("gate_policy_catalog", kOneFlop, "--goal lint --exit-policy strict");
+    CHECK_EQ(catalog.report["summary"]["analysis_coverage"].asString(), std::string("INCOMPLETE"));
+    auto gate = runGate("gate_policy_gate", kFifoFsm, "--deck lint --goal lint");
+    CHECK_EQ(gate.report["summary"]["review_status"].asString(), std::string("PASS"));
+    CHECK_EQ(gate.report["inputs"]["exit_policy"].asString(), std::string("gate"));
+}
+TEST(cli_gate_a_known_range_is_a_finding_and_only_a_free_input_is_an_obligation) {
+    const char* source = R"(module top(input logic [7:0] d, input logic [2:0] free, input logic [3:0] n, output logic [7:0] q, output logic [7:0] r);
+  always_comb begin
+    q = '0;
+    for (int i = 0; i < 4; i++) q = q + d / 8'(i);
+    for (int j = 0; j < 3; j++) q[j ** 2] = d[j];
+  end
+  logic [5:0] data;
+  assign r = {7'b0, data[free]} / n;
+endmodule
+)";
+    auto out = runGate("gate_range", source, "--deck lint --goal lint --option LNT-006.dynamic_index=true --option LNT-037.dynamic_divisor=true");
+    bool knownDivisor = false, gap = false, freeIndex = false, freeDivisor = false;
+    for (const auto& d : out.report["diagnostics"].asArray()) {
+        const auto rule = d["rule_id"].asString(), kind = d["unresolved_kind"].asString(), msg = d["message"].asString();
+        if (rule == "LNT-037" && msg.find("'8'(i)'") != std::string::npos) {
+            knownDivisor = d["disposition"].asString() == "REVIEW_REQUIRED" && d["confidence"].asString() == "heuristic";
+        }
+        if (rule == "LNT-006" && msg.find("j ** 2") != std::string::npos) gap = kind == "gap" && d["obligation"].asString().empty();
+        if (rule == "LNT-006" && msg.find("'free'") != std::string::npos) freeIndex = d["obligation"].asString() == "index-input-contract" && kind == "obligation";
+        if (rule == "LNT-037" && msg.find("'n'") != std::string::npos) freeDivisor = d["obligation"].asString() == "divisor-input-contract" && kind == "obligation";
+    }
+    CHECK(knownDivisor && gap && freeIndex && freeDivisor);
+    CHECK((out.rc & 2) != 0);   // the divisor that is zero in its first iteration blocks
+    // An FSM relation the inventory cannot attribute (state in an array) is a tool gap, not an obligation.
+    auto fsm = runGate("gate_fsm_array", slurp(std::string(SVERITY_SOURCE_DIR) + "/tests/fixtures/LNT-029/unknown_array_selector_state.sv"), "--deck lint --goal lint");
+    bool unattributed = false;
+    for (const auto& d : fsm.report["diagnostics"].asArray())
+        if (d["rule_id"].asString() == "LNT-029" && d["confidence"].asString() == "unresolved") {
+            unattributed = true;
+            CHECK_EQ(d["unresolved_kind"].asString(), std::string("gap"));
+            CHECK(d["obligation"].isNull());
+        }
+    CHECK(unattributed);
+}
+TEST(cli_gate_uninstantiated_definitions_are_listed_in_the_coverage_output) {
+    auto out = runGate("gate_uninst", "module top(input logic [7:0] a, output logic [7:0] y); assign y = a; endmodule\n"
+                       "module orphan(input logic [7:0] a, output logic [3:0] y); assign y = a; endmodule\n", "--deck lint --goal lint");
+    const auto& listed = out.report["coverage"]["uninstantiated_definitions"].asArray();
+    CHECK_EQ(listed.size(), 1u);
+    CHECK(!listed.empty() && listed[0].asString() == "orphan");
+    CHECK(out.text.find("not linted  1 definition(s) the top does not instantiate: orphan") != std::string::npos);
+    CHECK_EQ(out.report["coverage"]["design_objects"]["uninstantiated_definitions"].asInt(), 1);
+}
+TEST(cli_gate_a_black_box_stays_incomplete_when_the_cst_rules_are_off) {
+    const char* source = "(* blackbox *) module opaque(input logic c, output logic y); assign y = c; endmodule\n"
+        "module top(input logic clk, d, output logic q, observed);\n  always_ff @(posedge clk) q <= d;\n  opaque u(clk, observed);\nendmodule\n";
+    auto on = runGate("gate_bb_on", source, "--deck lint --goal lint");
+    auto off = runGate("gate_bb_off", source, "--deck lint --goal lint --disable-rule CST-*");
+    for (const auto* r : {&on, &off}) {
+        CHECK((r->rc & 4) != 0);
+        bool scope = false;
+        for (const auto& s : r->report["coverage"]["scopes"].asArray())
+            scope = scope || (s["scope"].asString() == "blackboxes" && s["analysis_coverage"].asString() == "INCOMPLETE");
+        CHECK(scope);
+    }
+}
+TEST(cli_gate_called_write_whose_value_is_not_established_degrades_the_style_rules) {
+    const char* source = R"(module top(input logic [7:0] x, input logic [3:0] n, output logic [7:0] y);
+  task automatic t(input logic [7:0] v, input logic [3:0] k, output logic [7:0] o);
+    logic [7:0] acc;
+    acc = '0;
+    for (logic [3:0] i = 0; i < k; i++) acc = acc + v;
+    o = acc;
+  endtask
+  always_comb t(x, n, y);
+endmodule
+)";
+    auto out = runGate("gate_copyback", source, "--deck lint --goal lint");
+    CHECK((out.rc & 4) != 0);
+    for (const auto& rule : out.report["coverage"]["rules"].asArray())
+        if (rule["rule_id"].asString() == "LNT-062" || rule["rule_id"].asString() == "LNT-063")
+            CHECK_EQ(rule["state"].asString(), std::string("PARTIAL"));
+}
+TEST(cli_gate_a_missing_sensitivity_entry_gates_beside_an_uncertain_one) {
+    const char* source = R"(module top(input logic [3:0] a, input logic [1:0] sel, input logic b, output logic y);
+  always @(a[sel] or sel) y = a[0] | b;
+endmodule
+)";
+    auto out = runGate("gate_sens", source, "--deck lint --goal lint");
+    CHECK((out.rc & 2) != 0);
+    bool certain = false, uncertain = false;
+    for (const auto& d : out.report["diagnostics"].asArray()) {
+        if (d["rule_id"].asString() != "LNT-045" || d["severity"].asString() != "WARNING") continue;
+        const auto msg = d["message"].asString();
+        if (msg.find("reads 'b'") != std::string::npos) certain = d["disposition"].asString() == "REVIEW_REQUIRED";
+        if (msg.find("reads 'a'") != std::string::npos) uncertain = d["disposition"].asString() == "NOT_ANALYSED";
+    }
+    CHECK(certain && uncertain);
+}
+TEST(cli_html_detail_row_spans_every_column_and_lists_no_known_disposition) {
+    const auto sv = write("gate_html.sv", kFifoFsm), html = (scratch() / "gate.html").string();
+    CHECK_EQ(run("--top top --deck lint --goal lint --html " + html + " " + sv), 0);
+    const auto text = slurp(html);
+    CHECK(text.find("colspan=\"16\"") != std::string::npos);
+    for (size_t at = 0; (at = text.find("colspan=\"16\">", at)) != std::string::npos; ++at) {   // the dispositions are columns, not extras
+        const auto row = text.substr(at, text.find("</td>", at) - at);
+        CHECK(row.find("OBLIGATION") == std::string::npos && row.find("NOT_ANALYSED") == std::string::npos);
+    }
 }

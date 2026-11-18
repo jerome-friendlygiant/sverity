@@ -1,0 +1,50 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "class": "LC06",
+  "batch": "p2-lint-heldout",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "most significant output bit has no driver",
+  "sites": [
+    {
+      "line": 24,
+      "signal": "index_d"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The generate loop stops one bit early, so the most significant bit of index_o is never driven.",
+  "mutation": {
+    "operator": "loop-bound-off-by-one",
+    "description": "Reduced the encoder loop bound by one."
+  },
+  "author": "claude-sonnet-5-5",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_onehot_to_bin.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Folded the encoder into the top module and added any and multiple grant flags."
+  },
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "class": "LC06",
+      "sites": [
+        {
+          "line": 17,
+          "signal": "index_d"
+        }
+      ],
+      "note": "The generate loop never drives the most significant index bit."
+    }
+  ]
+}

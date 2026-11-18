@@ -1,0 +1,38 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "class": "LC10",
+  "batch": "p2-lint-heldout",
+  "verdict": "unknown",
+  "critical": true,
+  "origin": "authored",
+  "sites": [
+    {
+      "line": 19,
+      "signal": "fb"
+    }
+  ],
+  "sdc": [],
+  "rationale": "mix feeds a delay cell macro whose output fb feeds mix; the macro has no body, so whether the path is combinational cannot be seen.",
+  "author": "claude-sonnet-5-5",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "unknown",
+      "critical": true,
+      "class": "LC10",
+      "sites": [
+        {
+          "line": 17,
+          "signal": "u_dly"
+        }
+      ],
+      "note": "The missing delay cell body determines whether the feedback path is combinational."
+    }
+  ]
+}

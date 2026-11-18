@@ -11,7 +11,11 @@
 namespace sverity {
 
 enum class Severity { Info, Warning, Error, Fatal };
-enum class Disposition { Open, ReviewRequired, Resolved, Waived };
+/// Obligation and NotAnalysed hold an Unresolved lint finding outside the default gate (see Diagnostic::applyDefaultDisposition).
+enum class Disposition { Open, ReviewRequired, Resolved, Waived, Obligation, NotAnalysed };
+/// Why a lint finding is Unresolved: a question lint cannot decide by nature (a declared obligation), or a construct the tool
+/// should handle and did not (a gap). None for every other finding, which keeps gating.
+enum class UnresolvedKind { None, Obligation, Gap };
 /// Formal-proof extension contract (RFC section 3). Structural rules use NotApplicable.
 enum class ProofState { NotApplicable, Proven, Counterexample, Unknown, NotAttempted };
 /// How strongly the finding is established.
@@ -24,6 +28,7 @@ enum class Confidence {
 
 const char* toString(Severity);
 const char* toString(Disposition);
+const char* toString(UnresolvedKind);
 const char* toString(ProofState);
 const char* toString(Confidence);
 std::optional<Severity> severityFromString(std::string_view);
@@ -90,6 +95,8 @@ struct Diagnostic {
     Confidence confidence = Confidence::Established;
     ProofState proofState = ProofState::NotApplicable;
     Disposition disposition = Disposition::Open;
+    std::string obligation;             // obligation predicate id the emitting rule declares in the catalog; empty otherwise
+    UnresolvedKind unresolvedKind = UnresolvedKind::None;   // set by applyDefaultDisposition
     std::string nextStep;               // actionable next step
     std::string origin = "sverity";     // "sverity" or "slang"
     std::string upstreamCode;           // original upstream diagnostic code, e.g. slang "unused-net"
@@ -101,17 +108,26 @@ struct Diagnostic {
     uint32_t count = 1;                 // number of exact-duplicate occurrences grouped here
     std::string fingerprint;            // stable identity (filled by Report::finalize)
     std::string rootCause;              // console grouping identity, not a waiver key
+    bool baselined = false;             // present in the baseline of this run (Report::setBaseline): visible, counted, not gating
+    std::string baselineBasis;          // how it matched: "fingerprint", "key" (same identity, another line) or "anchor" (same rule, file and name)
     std::string originalFile, originalMessage; // internal, before report-root relativization
     std::vector<std::string> originalEvidence, originalEvidenceFiles, originalIdentityArguments;
     bool groupingOriginCaptured = false;
     std::string groupingUnit;            // internal elaborated module/interface definition
+    std::string scope;                   // name of the module, interface, program, package or class definition the location lies in (empty: unknown); part of the baseline identity
     uint32_t groupingProcedureOrdinal = 0; // distinguishes procedures sharing a macro expansion
 
-    /// Default disposition implied by severity/confidence (Warning/unresolved -> REVIEW_REQUIRED).
+    /// The one place that decides the disposition of an unwaived finding: Warning/unresolved -> REVIEW_REQUIRED, except an
+    /// Unresolved LNT finding, which is OBLIGATION (its rule declares the predicate in the catalog) or NOT_ANALYSED (a gap).
+    /// Never keyed on confidence alone: CDC, RDC, CST, Heuristic and Established findings keep REVIEW_REQUIRED.
     void applyDefaultDisposition();
 };
 
 std::string findingIdentity(const Diagnostic&);
 std::string computeFingerprint(const Diagnostic&);
+/// Baseline identity without the position: the fingerprint's inputs minus line and column (and their evidence's), plus the enclosing
+/// definition (`scope`), so a finding that only moved keeps its key and one that appears in another module does not. Empty `baselineAnchor` when the finding names no signal or identity to follow it by.
+std::string baselineKey(const Diagnostic&);
+std::string baselineAnchor(const Diagnostic&);
 
 } // namespace sverity

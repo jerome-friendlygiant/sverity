@@ -1,0 +1,67 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-C (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "unknown",
+    "class": "LC17",
+    "sites": [
+      {
+        "line": 14
+      }
+    ],
+    "boundary": "unknown",
+    "subtype": "clock multiplexer driven by an input select",
+    "rationale": "Whether clk_sel is a static strap or changes at run time (glitching clock) cannot be decided from the file."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC17",
+      "sites": [
+        {
+          "line": 14
+        }
+      ],
+      "critical": true,
+      "note": "core_clk is produced by a combinational mux steered by the data signal clk_sel and used as a flop clock."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC17",
+      "sites": [
+        {
+          "line": 14
+        }
+      ],
+      "critical": true,
+      "note": "Clock is muxed by data input clk_sel through ordinary logic (glitchy data-driven clock)."
+    }
+  ],
+  "settlement": {
+    "by": "settler (claude-fable-5-2, third reading)",
+    "verdict": "bad",
+    "class": "LC17",
+    "sites": [
+      {
+        "line": 14
+      }
+    ],
+    "critical": true,
+    "note": "core_clk is produced by a mux on the data input clk_sel and clocks a flop; a logic-driven clock is structural and bad regardless of how clk_sel behaves."
+  },
+  "rationale": "core_clk is produced by a mux on the data input clk_sel and clocks a flop; a logic-driven clock is structural and bad regardless of how clk_sel behaves.",
+  "verdict": "bad",
+  "class": "LC17",
+  "sites": [
+    {
+      "line": 14
+    }
+  ],
+  "critical": true
+}

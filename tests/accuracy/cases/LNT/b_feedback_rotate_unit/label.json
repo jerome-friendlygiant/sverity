@@ -1,0 +1,67 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-B (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "unknown",
+    "class": "LC10",
+    "sites": [
+      {
+        "line": 21
+      }
+    ],
+    "boundary": "unknown",
+    "subtype": "self-referencing assignment that closes a loop only for one value of an input",
+    "rationale": "y is defined in terms of itself when keep=1 (and load=0); with keep=0 the path is open. Whether the loop is ever sensitised depends on the run-time value of keep, which the file does not constrain."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC10",
+      "sites": [
+        {
+          "line": 21
+        }
+      ],
+      "critical": true,
+      "note": "y is a continuous assignment that depends on y itself when keep is set and load is clear."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC10",
+      "sites": [
+        {
+          "line": 21
+        }
+      ],
+      "critical": true,
+      "note": "y is computed from itself via {y[6:0],y[7]} when keep && !load: combinational loop."
+    }
+  ],
+  "settlement": {
+    "by": "settler (claude-fable-5-2, third reading)",
+    "verdict": "bad",
+    "class": "LC10",
+    "sites": [
+      {
+        "line": 21
+      }
+    ],
+    "critical": true,
+    "note": "y is continuously assigned from y itself through the keep branch: the combinational loop is in the netlist whatever the run-time value of keep."
+  },
+  "rationale": "y is continuously assigned from y itself through the keep branch: the combinational loop is in the netlist whatever the run-time value of keep.",
+  "verdict": "bad",
+  "class": "LC10",
+  "sites": [
+    {
+      "line": 21
+    }
+  ],
+  "critical": true
+}

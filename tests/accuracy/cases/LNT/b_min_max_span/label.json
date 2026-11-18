@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-B (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC12",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "several blocking writes and reads in one always_comb, write before read",
+    "rationale": "Every value is written before it is read inside the block."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "good",
+      "class": "LC12",
+      "sites": [],
+      "critical": false,
+      "note": "always_comb with blocking assignments, each value written before it is read."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC12",
+      "sites": [],
+      "critical": false,
+      "note": "Pure combinational always_comb with blocking writes, each variable written before it is read."
+    }
+  ],
+  "rationale": "Every value is written before it is read inside the block.",
+  "verdict": "good",
+  "class": "LC12",
+  "sites": [],
+  "critical": false
+}

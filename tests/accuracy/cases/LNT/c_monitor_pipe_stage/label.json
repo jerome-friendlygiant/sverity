@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-C (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC25",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "translate_off around a checker only",
+    "rationale": "The region holds a monitor with no effect on outputs."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "good",
+      "class": "LC25",
+      "sites": [],
+      "critical": false,
+      "note": "The translate_off region holds only a $display checker with its own registers that drive nothing in the design, so the synthesized function is unchanged."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC25",
+      "sites": [],
+      "critical": false,
+      "note": "translate_off encloses only a simulation checker whose signals feed nothing in the design; hardware unchanged."
+    }
+  ],
+  "rationale": "The region holds a monitor with no effect on outputs.",
+  "verdict": "good",
+  "class": "LC25",
+  "sites": [],
+  "critical": false
+}

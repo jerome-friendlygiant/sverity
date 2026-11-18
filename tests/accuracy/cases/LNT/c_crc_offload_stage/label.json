@@ -1,0 +1,70 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-C (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC15",
+    "sites": [
+      {
+        "line": 12
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "foreign DPI-C import in design logic",
+    "rationale": "CRC update is computed by a DPI-C function, which has no hardware."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC15",
+      "sites": [
+        {
+          "line": 12
+        }
+      ],
+      "critical": true,
+      "note": "The CRC step is an imported DPI-C function called in design logic (line 20), which synthesis cannot build."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC15",
+      "sites": [
+        {
+          "line": 12
+        },
+        {
+          "line": 20
+        }
+      ],
+      "critical": true,
+      "note": "Next-CRC is computed by an imported DPI-C function, which synthesis cannot build."
+    }
+  ],
+  "settlement": {
+    "by": "settler (claude-fable-5-2, third reading)",
+    "verdict": "bad",
+    "class": "LC15",
+    "sites": [
+      {
+        "line": 12
+      }
+    ],
+    "critical": true,
+    "note": "The CRC step is an imported DPI-C function used in design logic (called at line 20); foreign code has no hardware, the site is the import declaration."
+  },
+  "rationale": "The CRC step is an imported DPI-C function used in design logic (called at line 20); foreign code has no hardware, the site is the import declaration.",
+  "verdict": "bad",
+  "class": "LC15",
+  "sites": [
+    {
+      "line": 12
+    }
+  ],
+  "critical": true
+}

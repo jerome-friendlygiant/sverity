@@ -1,0 +1,46 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": false,
+  "origin": "adapted",
+  "defect": "generate alternative selected by a localparam fixed to 0 can never be elaborated",
+  "sites": [
+    {
+      "line": 37,
+      "signal": "UseSyncReset"
+    }
+  ],
+  "sdc": [],
+  "rationale": "UseSyncReset is a localparam set to 1'b0, so the g_cnt_sync_rst branch is unreachable in every instantiation and cannot be overridden.",
+  "author": "claude-sonnet-5-5",
+  "provenance": {
+    "repository": "ibex",
+    "commit": "2373e5dadcfc4f56672962fa242f6a051acc9aca",
+    "path": "rtl/ibex_counter.sv",
+    "licence": "Apache-2.0",
+    "adaptation": "Reduced to a single-width counter with a localparam reset-style selector and removed the FPGA DSP and 64-bit variants."
+  },
+  "class": "LC18",
+  "batch": "p2-lint-heldout",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "bad",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "class": "LC18",
+      "sites": [],
+      "note": "The constant generate condition selects the intended reset implementation."
+    }
+  ],
+  "settled_by": {
+    "by": "gpt-6.1-sol (third reading, both labels shown)",
+    "verdict": "bad",
+    "reason": "UseSyncReset is a non-overridable localparam fixed to zero, so g_cnt_sync_rst can never elaborate; the unreachable alternative is LC18."
+  }
+}

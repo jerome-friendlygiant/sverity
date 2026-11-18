@@ -1,0 +1,67 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-D (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC07",
+    "sites": [
+      {
+        "line": 20
+      },
+      {
+        "line": 21
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "partially overlapping slice drivers",
+    "rationale": "Bit 4 is driven by both fields and resolves to unknown when their values differ."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC07",
+      "sites": [
+        {
+          "line": 20
+        },
+        {
+          "line": 21
+        }
+      ],
+      "critical": true,
+      "note": "bit y[4] driven by both assigns"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC07",
+      "sites": [
+        {
+          "line": 20
+        },
+        {
+          "line": 21
+        }
+      ],
+      "critical": true,
+      "note": "Both assignments drive y[4]."
+    }
+  ],
+  "rationale": "Bit 4 is driven by both fields and resolves to unknown when their values differ.",
+  "verdict": "bad",
+  "class": "LC07",
+  "sites": [
+    {
+      "line": 20
+    },
+    {
+      "line": 21
+    }
+  ],
+  "critical": true
+}

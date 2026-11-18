@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-A (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC06",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "output driven in every generate alternative",
+    "rationale": "The optional underflow flag is assigned in both branches of the generate-if, so the output always has exactly one driver."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "good",
+      "class": "LC06",
+      "sites": [],
+      "critical": false,
+      "note": "underflow_o is driven in both generate alternatives and every other output is driven."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC06",
+      "sites": [],
+      "critical": false,
+      "note": "Every signal and output is driven in both generate alternatives."
+    }
+  ],
+  "rationale": "The optional underflow flag is assigned in both branches of the generate-if, so the output always has exactly one driver.",
+  "verdict": "good",
+  "class": "LC06",
+  "sites": [],
+  "critical": false
+}

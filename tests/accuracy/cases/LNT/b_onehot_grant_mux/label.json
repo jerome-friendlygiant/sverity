@@ -1,0 +1,67 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-B (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "unknown",
+    "class": "LC13",
+    "sites": [
+      {
+        "line": 17
+      }
+    ],
+    "boundary": "unknown",
+    "subtype": "unique case on 1'b1 whose items can overlap depending on an input",
+    "rationale": "If req is not one-hot, two items match and unique is violated; the input has no stated range."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC13",
+      "sites": [
+        {
+          "line": 17
+        }
+      ],
+      "critical": true,
+      "note": "unique case (1'b1) over req bits that may be set together (lowest index serviced first) overlaps, violating unique and letting synthesis drop the priority."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC13",
+      "sites": [
+        {
+          "line": 17
+        }
+      ],
+      "critical": true,
+      "note": "unique case(1'b1) on req whose bits may be set together violates uniqueness; the lowest-index priority described needs priority/if-else, synthesis may build a parallel OR mux."
+    }
+  ],
+  "settlement": {
+    "by": "settler (claude-fable-5-2, third reading)",
+    "verdict": "unknown",
+    "class": "LC13",
+    "sites": [
+      {
+        "line": 17
+      }
+    ],
+    "critical": true,
+    "note": "unique case (1'b1) items overlap only when req is not one-hot; req is an unconstrained input port and the question is a one-hot value assumption, so the file cannot decide (convention 2)."
+  },
+  "rationale": "unique case (1'b1) items overlap only when req is not one-hot; req is an unconstrained input port and the question is a one-hot value assumption, so the file cannot decide (convention 2).",
+  "verdict": "unknown",
+  "class": "LC13",
+  "sites": [
+    {
+      "line": 17
+    }
+  ],
+  "critical": true
+}

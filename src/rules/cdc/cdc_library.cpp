@@ -43,7 +43,7 @@ void Shared::libraryCells() {
         Diagnostic d = mk(rule, Severity::Warning, what + ": whether it crosses a clock domain is unresolved, not safe", loc, hier, Confidence::Unresolved);
         d.nextStep = "Declare the port's clock in the --library file (\"clock\": <clock port>) and constrain the primary inputs.";
         add(std::move(d));
-        report->markIncomplete(scope, what);
+        incomplete(scope, what);
     };
 
     // ---- CDC-035: library RAM
@@ -55,7 +55,7 @@ void Shared::libraryCells() {
                               ram.loc, ram.hierarchy, Confidence::Unresolved);
             d.nextStep = "Connect the RAM clock ports to resolvable clocks or declare the clocks with --sdc.";
             add(std::move(d));
-            report->markIncomplete("clock-extraction", "library RAM " + ram.hierarchy + " clock unresolved");
+            incomplete("clock-extraction", "library RAM " + ram.hierarchy + " clock unresolved");
         }
         else if (ram.writeDomain != ram.readDomain) {
             Relation rel = relation(static_cast<uint32_t>(ram.writeDomain), static_cast<uint32_t>(ram.readDomain));
@@ -171,7 +171,7 @@ void Shared::libraryCells() {
                               bb.loc, bb.hierarchy, Confidence::Unresolved);
             d.nextStep = "Declare the cell in a --library file (kind blackbox, port directions, roles and clocks) or provide its source.";
             add(std::move(d));
-            report->markIncomplete("blackboxes", "black box " + bb.hierarchy + ": input domains unresolved");
+            incomplete("blackboxes", "black box " + bb.hierarchy + ": input domains unresolved");
         }
         // Clocks of several domains entering the box: it may cross between them inside, where nothing is analysed.
         // A clock that clocks nothing outside the box has no domain, so its SDC declaration names it.
@@ -196,14 +196,14 @@ void Shared::libraryCells() {
                               bb.loc, bb.hierarchy, Confidence::Unresolved);
             d.nextStep = "Provide the box's source, or declare it in a --library file with each port's clock so its crossings can be checked.";
             add(std::move(d));
-            report->markIncomplete("blackboxes", "black box " + bb.hierarchy + ": receives clocks of several domains");
+            incomplete("blackboxes", "black box " + bb.hierarchy + ": receives clocks of several domains");
         }
         if (unidentified) {
             Diagnostic d = mk("CDC-046", Severity::Warning,
                               "black box '" + bb.module + "' at " + bb.hierarchy + " receives a signal from a register with an unidentified clock: crossing status is unresolved",
                               bb.loc, bb.hierarchy, Confidence::Unresolved);
             add(std::move(d));
-            report->markIncomplete("clock-extraction", "black box " + bb.hierarchy + " input from unidentified clock");
+            incomplete("clock-extraction", "black box " + bb.hierarchy + " input from unidentified clock");
         }
     }
 
@@ -230,7 +230,7 @@ void Shared::libraryCells() {
             Diagnostic d = mk("CDC-020", Severity::Warning, "library clock gate '" + g.module + "' at " + g.hierarchy + ": its clock does not resolve to a clock root, so the enable crossing is unresolved",
                               g.loc, g.hierarchy, Confidence::Unresolved);
             add(std::move(d));
-            report->markIncomplete("clock-extraction", "library clock gate " + g.hierarchy + " clock unresolved");
+            incomplete("clock-extraction", "library clock gate " + g.hierarchy + " clock unresolved");
             continue;
         }
         Cone c = cones_->ofNodes(g.enable);

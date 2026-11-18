@@ -1,0 +1,35 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "class": "LC02",
+  "batch": "p2-lint-heldout",
+  "verdict": "good",
+  "critical": false,
+  "origin": "adapted",
+  "sites": [],
+  "sdc": [],
+  "rationale": "The shift amount is four bits and the subtraction is nine bits wide; the narrowing to eight bits is an explicit cast of a value that fits.",
+  "author": "claude-sonnet-5-5",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_heaviside.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Reduced the Heaviside mask to eight lanes, registered it and added a lane count."
+  },
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "class": "LC02",
+      "sites": [],
+      "note": "The widened shift count and intermediate represent all eight enabled lanes."
+    }
+  ]
+}

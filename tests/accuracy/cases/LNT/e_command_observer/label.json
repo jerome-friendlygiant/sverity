@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-E (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC12",
+    "sites": [
+      {
+        "line": 21
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "incomplete sensitivity list",
+    "rationale": "Changing the selector alone leaves a stale result in simulation while combinational hardware responds."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC12",
+      "sites": [
+        {
+          "line": 21
+        }
+      ],
+      "critical": true,
+      "note": "Sensitivity list @(data) omits enable, which is read at line 21; simulation differs from hardware."
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC12",
+      "sites": [
+        {
+          "line": 21
+        }
+      ],
+      "critical": true,
+      "note": "The manual sensitivity list omits enable, so its changes do not update simulation value."
+    }
+  ],
+  "rationale": "Changing the selector alone leaves a stale result in simulation while combinational hardware responds.",
+  "verdict": "bad",
+  "class": "LC12",
+  "sites": [
+    {
+      "line": 21
+    }
+  ],
+  "critical": true
+}

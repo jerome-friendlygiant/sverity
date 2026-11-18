@@ -13,3 +13,5 @@ module top(input logic [1:0] s, output logic [1:0] y);
     endcase
   end
 endmodule
+// revert: casex => casez
+// revert-expect-none: LNT-016

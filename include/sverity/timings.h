@@ -16,11 +16,18 @@ struct TimingEntry {
 class Timings {
 public:
     using Clock = std::chrono::steady_clock;
+    /// With a file set, every record and count rewrites the whole file, so a run killed by a memory cap still leaves the phases it
+    /// finished. `writeFailed` tells the caller that a write did not succeed.
+    void setFile(std::string path) { file_ = std::move(path); }
     void record(std::string phase, Clock::time_point start);
-    void count(std::string name, uint64_t value) { counts_.emplace_back(std::move(name), value); }
+    void count(std::string name, uint64_t value);
     std::string toJson() const;
+    void flush();
+    bool writeFailed() const { return writeFailed_; }
 
 private:
+    std::string file_;
+    bool writeFailed_ = false;
     std::vector<TimingEntry> entries_;
     std::vector<std::pair<std::string, uint64_t>> counts_;
 };

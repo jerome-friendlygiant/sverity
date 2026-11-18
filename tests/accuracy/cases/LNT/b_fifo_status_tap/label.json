@@ -1,0 +1,41 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-B (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC08",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "output ports left unconnected (empty connections) with every input connected",
+    "rationale": "Empty connections .full() and .almost_full() are on output ports only; all inputs of occ_counter are driven."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "good",
+      "class": "LC08",
+      "sites": [],
+      "critical": false,
+      "note": "All input ports of u_occ are connected; only outputs are left empty.",
+      "other": "LC22 lines 48, 50 (outputs full and almost_full connected empty)"
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC08",
+      "sites": [],
+      "critical": false,
+      "note": "All inputs of u_occ are connected; only outputs are left open.",
+      "other": "LC22 lines 48,50 (full and almost_full outputs left unconnected)"
+    }
+  ],
+  "rationale": "Empty connections .full() and .almost_full() are on output ports only; all inputs of occ_counter are driven.",
+  "verdict": "good",
+  "class": "LC08",
+  "sites": [],
+  "critical": false
+}

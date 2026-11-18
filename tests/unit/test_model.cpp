@@ -1,6 +1,7 @@
 // Shared model: edge operators, reset values per bit, library cell kinds, black-box ports.
 #include <filesystem>
 #include <fstream>
+#include <limits>
 
 #include "domains/model.h"
 #include "domains/cone.h"
@@ -10,6 +11,14 @@
 
 using namespace sverity;
 using namespace sverity::model;
+
+namespace sverity::model {
+struct ConeFinderTestAccess {
+    static const Cone& hub(ConeFinder& finder, NodeId id) { return finder.hubCone(id); }
+    static size_t coneBytes(const ConeFinder& finder) { return finder.retainedConeBytes(); }
+    static size_t hubBytes(const ConeFinder& finder) { return finder.retainedHubBytes(); }
+};
+} // namespace sverity::model
 
 namespace {
 struct Loaded {
@@ -284,6 +293,32 @@ TEST(model_subroutine_uncertainty_stops_at_the_register_boundary) {
     CHECK(cones.of(*l->m->flopAt(next))->uncertainCalls.empty());
 }
 
+TEST(model_cone_cache_budget_counts_uncertainty_and_keeps_uncached_content) {
+    auto l = load(R"(module top(input logic clk, output logic q);
+      function automatic logic sample(); static logic saved; saved = 1'b0; return saved; endfunction
+      always_ff @(posedge clk) q <= sample();
+    endmodule)");
+    auto* q = l->m->flopAt(nodeNamed(*l->m, "top.q"));
+    CHECK(q != nullptr);
+    if (!q) return;
+    ConeFinder cached(*l->m);
+    ConeFinder uncached(*l->m, 0, 0);
+    const auto a = cached.of(*q), b = uncached.of(*q), bAgain = uncached.of(*q);
+    CHECK(!a->uncertainCalls.empty());
+    CHECK(a->flops.empty() && a->inputs.empty() && a->bbLeaves.empty() && a->unresolved.empty() && a->undriven.empty());
+    const auto sameSources = [](const std::vector<ConeSrc>& x, const std::vector<ConeSrc>& y) {
+        if (x.size() != y.size()) return false;
+        for (size_t i = 0; i < x.size(); ++i) if (x[i].q != y[i].q || x[i].logic != y[i].logic) return false;
+        return true;
+    };
+    CHECK(sameSources(a->flops, b->flops) && sameSources(a->inputs, b->inputs));
+    CHECK(a->bbLeaves == b->bbLeaves && a->unresolved == b->unresolved && a->undriven == b->undriven);
+    CHECK(a->uncertainCalls == b->uncertainCalls);
+    CHECK(b.get() != bAgain.get());  // a rejected result is not kept alive by the register lookup table
+    CHECK_EQ(ConeFinderTestAccess::coneBytes(uncached), size_t{0});
+    CHECK(ConeFinderTestAccess::coneBytes(cached) >= a->uncertainCalls.capacity() * sizeof(uint32_t));
+}
+
 namespace {
 bool reaches(const Model& m, const std::string& from, const std::string& to) {
     for (const auto& e : m.edges)
@@ -353,6 +388,62 @@ TEST(model_hubs_on_a_cycle_keep_every_source_and_finish) {
     CHECK(named(cone->inputs, "top.a[")); CHECK(named(cone->inputs, "top.b["));
 }
 
+TEST(model_oversized_hub_does_not_consume_budget_for_a_small_hub) {
+    auto l = load("module top(input logic clk, input logic [47:0] a, input logic [47:0] b, input logic [46:0] c, d, output logic [47:0] q, output logic [46:0] z);\n"
+                  "  logic [47:0] x, y, r, s;\n"
+                  "  always_ff @(posedge clk) begin r <= a; s <= b; end\n"
+                  "  assign x = (y + r) * a;\n"
+                  "  assign y = (x + s) * b;\n"
+                  "  assign z = c * d;\n"
+                  "  always_ff @(posedge clk) q <= x;\nendmodule\n");
+    std::vector<NodeId> hubs;
+    for (NodeId n = 0; n < l->m->nodes.size(); ++n) if (!l->m->nodes[n].sym) hubs.push_back(n);
+    CHECK(hubs.size() >= 2);
+    if (hubs.size() < 2) return;
+    const auto payload = [](const Cone& c) {
+        return c.flops.capacity() * sizeof(ConeSrc) + c.inputs.capacity() * sizeof(ConeSrc) +
+               c.bbLeaves.capacity() * sizeof(NodeId) + c.unresolved.capacity() * sizeof(NodeId) +
+               c.uncertainCalls.capacity() * sizeof(uint32_t) + c.undriven.capacity() * sizeof(NodeId);
+    };
+    ConeFinder probe(*l->m, 0, 0);
+    NodeId large = kNoNode, small = kNoNode;
+    size_t largeBytes = 0, smallBytes = std::numeric_limits<size_t>::max();
+    for (auto hub : hubs) {
+        const size_t bytes = payload(ConeFinderTestAccess::hub(probe, hub));
+        if (bytes > largeBytes) { large = hub; largeBytes = bytes; }
+        if (bytes && bytes < smallBytes) { small = hub; smallBytes = bytes; }
+    }
+    CHECK(large != kNoNode && small != kNoNode && largeBytes > smallBytes);
+    if (large == kNoNode || small == kNoNode || largeBytes <= smallBytes) return;
+    ConeFinder bounded(*l->m, 0, smallBytes);
+    (void)ConeFinderTestAccess::hub(bounded, large);
+    CHECK_EQ(ConeFinderTestAccess::hubBytes(bounded), size_t{0});
+    (void)ConeFinderTestAccess::hub(bounded, small);
+    CHECK_EQ(ConeFinderTestAccess::hubBytes(bounded), smallBytes);
+}
+
+TEST(model_reconvergent_hubs_normalize_uncertainty_without_losing_sources) {
+    auto l = load(R"(module top(input logic clk, input logic [39:0] a,b, output logic [39:0] q);
+      logic [39:0] p,x,y;
+      function automatic logic [39:0] sample(); static logic [39:0] saved; saved='0; return saved; endfunction
+      assign p=sample();
+      assign x=p*a;
+      assign y=p*b;
+      always_ff @(posedge clk) q<=x*y;
+    endmodule)");
+    ConeFinder cached(*l->m), uncached(*l->m, 0, 0);
+    bool sawUncertainty = false;
+    for (NodeId n = 0; n < l->m->nodes.size(); ++n) {
+        if (l->m->nodes[n].sym) continue;
+        const auto& a = ConeFinderTestAccess::hub(cached, n);
+        const auto& b = ConeFinderTestAccess::hub(uncached, n);
+        sawUncertainty = sawUncertainty || !a.uncertainCalls.empty();
+        CHECK(std::adjacent_find(a.uncertainCalls.begin(), a.uncertainCalls.end()) == a.uncertainCalls.end());
+        CHECK(a.uncertainCalls == b.uncertainCalls);
+    }
+    CHECK(sawUncertainty);
+}
+
 TEST(repeated_edges_keep_what_is_common_whatever_their_order) {
     using namespace sverity::model;
     const auto edge = [](Branch branch, uint8_t inv, Op op, bool approximate, bool internalRead) {
@@ -360,7 +451,7 @@ TEST(repeated_edges_keep_what_is_common_whatever_their_order) {
         e.branch = branch; e.inv = inv; e.op = op; e.approximate = approximate; e.internalRead = internalRead;
         return e;
     };
-    const Edge taken = edge(Branch::Taken, 0, Op::And, false, true), notTaken = edge(Branch::NotTaken, 1, Op::Or, true, false);
+    const Edge taken = edge(Branch::Taken, 0, Op::And, false, true), notTaken = edge(Branch::NotTaken, 1, Op::Or, false, false);
     for (const auto& pair : {std::vector<Edge>{taken, notTaken}, std::vector<Edge>{notTaken, taken}}) {
         Model m;
         m.edges = pair;
@@ -369,7 +460,12 @@ TEST(repeated_edges_keep_what_is_common_whatever_their_order) {
         CHECK(m.edges[0].branch == Branch::None);
         CHECK_EQ(int(m.edges[0].inv), 2);
         CHECK(m.edges[0].op == Op::Other);
-        CHECK(m.edges[0].approximate);
+        CHECK(!m.edges[0].approximate);
         CHECK(!m.edges[0].internalRead);
     }
+    // An approximate edge and a precise one between the same nodes stay two edges: one may close a loop that the other cannot prove.
+    Model m;
+    m.edges = {edge(Branch::Taken, 0, Op::And, true, false), edge(Branch::Taken, 0, Op::And, false, false)};
+    m.compactEdges();
+    CHECK_EQ(m.edges.size(), size_t{2});
 }

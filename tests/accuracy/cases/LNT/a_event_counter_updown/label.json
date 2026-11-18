@@ -1,0 +1,82 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-A (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC07",
+    "sites": [
+      {
+        "line": 17
+      },
+      {
+        "line": 22
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "register written from two processes (lost update)",
+    "rationale": "cnt_q is assigned in both the increment and the decrement process; when inc and dec coincide only the later process's write survives and the other event is lost."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC07",
+      "sites": [
+        {
+          "line": 16
+        },
+        {
+          "line": 21
+        }
+      ],
+      "critical": true,
+      "note": "cnt_q is assigned from two separate always blocks."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC07",
+      "sites": [
+        {
+          "line": 17
+        },
+        {
+          "line": 22
+        }
+      ],
+      "critical": true,
+      "note": "cnt_q is written by two always processes (increment and decrement), conflicting drivers."
+    }
+  ],
+  "settlement": {
+    "by": "settler (claude-fable-5-2, third reading)",
+    "verdict": "bad",
+    "class": "LC07",
+    "sites": [
+      {
+        "line": 17
+      },
+      {
+        "line": 22
+      }
+    ],
+    "critical": true,
+    "note": "cnt_q is assigned from two clocked processes; the increment (17) and decrement (22) writes conflict when inc and dec coincide and one update is lost. The reset writes at 16 and 21 are also in both processes but agree."
+  },
+  "rationale": "cnt_q is assigned from two clocked processes; the increment (17) and decrement (22) writes conflict when inc and dec coincide and one update is lost. The reset writes at 16 and 21 are also in both processes but agree.",
+  "verdict": "bad",
+  "class": "LC07",
+  "sites": [
+    {
+      "line": 17
+    },
+    {
+      "line": 22
+    }
+  ],
+  "critical": true
+}

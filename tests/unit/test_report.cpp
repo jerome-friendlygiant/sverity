@@ -22,7 +22,7 @@ TEST(dimensions_are_orthogonal) {
     CHECK_EQ(r.executionStatus(), ExecutionStatus::Success);
     CHECK_EQ(r.analysisCoverage(), AnalysisCoverage::Incomplete);
     CHECK_EQ(r.reviewStatus(), ReviewStatus::Fail);
-    CHECK_EQ(r.exitCode(true), 1 | 4);
+    CHECK_EQ(r.exitCode(ExitPolicy::Gate), 1 | 4);
 }
 TEST(clean_complete_run_is_pass_exit0) {
     Report r = fullCoverage();
@@ -30,7 +30,7 @@ TEST(clean_complete_run_is_pass_exit0) {
     r.finalize();
     CHECK_EQ(r.reviewStatus(), ReviewStatus::Pass);
     CHECK_EQ(r.analysisCoverage(), AnalysisCoverage::Complete);
-    CHECK_EQ(r.exitCode(true), 0);
+    CHECK_EQ(r.exitCode(ExitPolicy::Gate), 0);
 }
 TEST(warning_requires_review_and_unknown_is_not_safe) {
     Report r = fullCoverage();
@@ -39,18 +39,34 @@ TEST(warning_requires_review_and_unknown_is_not_safe) {
     CHECK_EQ(r.reviewStatus(), ReviewStatus::ReviewRequired);
     CHECK_EQ(r.diagnostics()[0].disposition, Disposition::ReviewRequired);
 }
-TEST(unimplemented_rule_makes_coverage_incomplete) {
+TEST(unimplemented_rule_is_a_tool_statement_that_only_strict_gates) {
     Report r;
     r.addRuleCoverage({"CDC-003", RuleState::Unimplemented, "proposed", "x", 0, 0});
     r.finalize();
+    CHECK_EQ(r.analysisCoverage(), AnalysisCoverage::Complete);
+    CHECK_EQ(r.analysisCoverage(ExitPolicy::Strict), AnalysisCoverage::Incomplete);
+    CHECK_EQ(r.toolCoverage().complete, 0u); CHECK_EQ(r.toolCoverage().total, 1u);
+    CHECK_EQ(r.exitCode(ExitPolicy::Gate), 0); CHECK_EQ(r.exitCode(ExitPolicy::Strict), 4);
+}
+TEST(run_specific_rule_loss_makes_coverage_incomplete) {
+    Report failed; failed.addRuleCoverage({"LNT-001", RuleState::Failed, "implemented", "x", 0, 0}); failed.finalize();
+    CHECK_EQ(failed.analysisCoverage(), AnalysisCoverage::Incomplete);
+    RuleCoverage degraded{"LNT-002", RuleState::Partial, "implemented", "elaboration errors", 0, 0}; degraded.degraded = true;
+    Report r; r.addRuleCoverage(degraded); r.finalize();
     CHECK_EQ(r.analysisCoverage(), AnalysisCoverage::Incomplete);
+}
+TEST(user_disabled_rule_is_stated_not_incomplete_until_strict) {
+    Report r; r.addRuleCoverage({"CDC-003", RuleState::Disabled, "implemented", "disabled by configuration", 0, 0}); r.finalize();
+    CHECK_EQ(r.analysisCoverage(), AnalysisCoverage::Complete);
+    CHECK_EQ(r.analysisCoverage(ExitPolicy::Strict), AnalysisCoverage::Incomplete);
+    CHECK_EQ(r.toolCoverage().disabled, 1u);
 }
 TEST(fatal_sets_execution_error) {
     Report r = fullCoverage();
     r.add(mk("LNT-001", Severity::Fatal, "dead"));
     r.finalize();
     CHECK_EQ(r.executionStatus(), ExecutionStatus::Error);
-    CHECK((r.exitCode(false) & 8) != 0);
+    CHECK((r.exitCode(ExitPolicy::Violations) & 8) != 0);
 }
 TEST(duplicates_are_grouped_not_dropped) {
     Report r = fullCoverage();

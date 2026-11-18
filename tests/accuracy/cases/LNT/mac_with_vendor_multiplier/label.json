@@ -1,0 +1,38 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "class": "LC02",
+  "batch": "p2-lint-heldout",
+  "verdict": "unknown",
+  "critical": true,
+  "origin": "authored",
+  "sites": [
+    {
+      "line": 18,
+      "signal": "prod"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The multiplier macro has no body, so the width of its product port, connected to a 32-bit net, is not known.",
+  "author": "claude-sonnet-5-5",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "unknown",
+      "critical": true,
+      "class": "LC02",
+      "sites": [
+        {
+          "line": 15,
+          "signal": "u_mult"
+        }
+      ],
+      "note": "The opaque multiplier determines whether the product has the expected value and width."
+    }
+  ]
+}

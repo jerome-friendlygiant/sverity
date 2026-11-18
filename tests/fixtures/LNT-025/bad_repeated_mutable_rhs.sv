@@ -1,4 +1,4 @@
-// sverity-args: --top top
+// sverity-args: --top top --option LNT-025.overrides=warning
 // Identical variable expressions need not evaluate equally at different writes.
 // expect: LNT-025 WARNING
 module top(input logic a, b, d, output logic q);

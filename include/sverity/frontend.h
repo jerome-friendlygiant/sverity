@@ -57,12 +57,18 @@ public:
     std::unique_ptr<slang::analysis::AnalysisManager> analysis;
     /// Lazily built by model::getModel(): the shared connectivity/clock/reset model (one per run).
     std::shared_ptr<model::Model> model;
+    /// How many times a rule or the analyzer asked for the model (not counting the up-front build for timings): the run's own
+    /// coverage statement about the model's gaps is made only when a rule used it.
+    int modelRequests = 0;
     std::map<std::string, LibCell> libCells;   // by module (definition) name
     struct CaseResult { bool applied = false; bool assumed = false; std::string reason; std::vector<std::string> names; };
     std::vector<CaseResult> caseResults;
     std::map<const slang::ast::ValueSymbol*, int> caseConstants;
     std::map<const slang::ast::ValueSymbol*, std::vector<int8_t>> caseBits;   // vector inputs, by bit offset; -1 = no mode fixes the bit
     bool hasCaseMode() const { return !caseConstants.empty() || !caseBits.empty(); }
+    /// Lines of the translate_off regions that hold only a simulation checker (LNT-083): the findings inside are advisory (demoteSimulationRegionFindings).
+    struct SimulationRegion { std::string file; uint32_t first = 0, last = 0; };
+    std::vector<SimulationRegion> simulationRegions;
     int numUpstreamErrors = 0;
     int numUpstreamWarnings = 0;
 };

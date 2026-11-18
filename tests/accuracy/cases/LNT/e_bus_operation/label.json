@@ -1,0 +1,63 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-E (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC13",
+    "sites": [
+      {
+        "line": 22
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "uncovered selector value",
+    "rationale": "Selector 3 has no case item in the command decoder; the separate default value prevents storage but does not cover that command."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC13",
+      "sites": [],
+      "critical": false,
+      "note": "sel 3 uncovered but default assignment before case handles it"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC13",
+      "sites": [
+        {
+          "line": 22
+        }
+      ],
+      "critical": true,
+      "note": "The case omits selector value three."
+    }
+  ],
+  "settlement": {
+    "by": "settler (gpt-6.1-sol, third reading)",
+    "verdict": "bad",
+    "class": "LC13",
+    "sites": [
+      {
+        "line": 22
+      }
+    ],
+    "critical": true,
+    "note": "The case statement omits selector value 3 and has no default item. The preceding output default prevents a latch but does not make the case cover every selector value under LC13."
+  },
+  "rationale": "The case statement omits selector value 3 and has no default item. The preceding output default prevents a latch but does not make the case cover every selector value under LC13.",
+  "verdict": "bad",
+  "class": "LC13",
+  "sites": [
+    {
+      "line": 22
+    }
+  ],
+  "critical": true
+}

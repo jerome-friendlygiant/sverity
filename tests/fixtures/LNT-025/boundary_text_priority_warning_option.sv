@@ -1,4 +1,4 @@
-// sverity-args: --top top
+// sverity-args: --top top --option LNT-025.overrides=warning
 // sverity-args: --option LNT-025.priority_chains=warning
 // expect-count: LNT-025 WARNING 3
 // expect-none: LNT-025 INFO

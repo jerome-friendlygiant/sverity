@@ -23,6 +23,24 @@ const char* toString(ReviewStatus r) {
     }
     return "?";
 }
+const char* toString(ExitPolicy p) {
+    switch (p) {
+        case ExitPolicy::Gate: return "gate";
+        case ExitPolicy::Strict: return "strict";
+        case ExitPolicy::Violations: return "violations";
+    }
+    return "?";
+}
+// Every disposition, in the order the reports list them.
+static constexpr Disposition kDispositions[] = {Disposition::Open, Disposition::ReviewRequired, Disposition::Resolved,
+                                                Disposition::Waived, Disposition::Obligation, Disposition::NotAnalysed};
+static std::string joinList(const std::vector<std::string>& v) {
+    std::string out;
+    for (size_t i = 0; i < v.size() && i < 8; ++i) out += (i ? ", " : "") + v[i];
+    if (v.size() > 8) out += ", ... (" + std::to_string(v.size() - 8) + " more)";
+    return out;
+}
+static bool nonGating(const Diagnostic& d) { return d.disposition == Disposition::Obligation || d.disposition == Disposition::NotAnalysed; }
 const char* toString(RuleState s) {
     switch (s) {
         case RuleState::Executed: return "EXECUTED";
@@ -321,24 +339,178 @@ ExecutionStatus Report::executionStatus() const {
     return ExecutionStatus::Success;
 }
 
-AnalysisCoverage Report::analysisCoverage() const {
+AnalysisCoverage Report::analysisCoverage(ExitPolicy policy) const {
+    // A rule that is partial or unimplemented in this tool version is a statement about the tool (toolCoverage), not a loss
+    // on this design, and a rule the user disabled is the user's choice; only strict counts them. A rule that failed, did not
+    // run, or ran degraded on this design is a loss of this run.
     for (auto& s : scopes_)
         if (s.coverage == AnalysisCoverage::Incomplete) return AnalysisCoverage::Incomplete;
-    // A catalog rule that is not executed means an advertised check was not evaluated.
-    for (auto& rc : ruleCoverage_)
-        if (rc.state != RuleState::Executed && !rc.preview) return AnalysisCoverage::Incomplete;
+    for (auto& rc : ruleCoverage_) {
+        if (rc.preview) continue;
+        if (rc.state == RuleState::Failed || rc.state == RuleState::NotRun || rc.degraded) return AnalysisCoverage::Incomplete;
+        if (policy == ExitPolicy::Strict && rc.state != RuleState::Executed) return AnalysisCoverage::Incomplete;
+    }
     if (executionStatus() == ExecutionStatus::Error) return AnalysisCoverage::Incomplete;
     return AnalysisCoverage::Complete;
 }
 
-ReviewStatus Report::reviewStatus() const {
+Report::ToolCoverage Report::toolCoverage() const {
+    ToolCoverage c;
+    for (auto& rc : ruleCoverage_) {
+        if (rc.preview) continue;
+        if (rc.state == RuleState::Disabled) { c.disabled++; continue; }
+        c.total++;
+        if (rc.state == RuleState::Executed) c.complete++;
+    }
+    return c;
+}
+
+ReviewStatus Report::reviewStatus(ExitPolicy policy) const {
     bool review = false;
     for (auto& d : diags_) {
         if (d.disposition == Disposition::Waived || d.disposition == Disposition::Resolved) continue;
+        if (d.baselined) continue;   // known at the baseline: reported and counted, not gating, whatever its severity
+        if (nonGating(d)) {
+            if (policy == ExitPolicy::Strict || newAgainstBaseline(d)) review = true;
+            continue;
+        }
         if (d.severity >= Severity::Error) return ReviewStatus::Fail;
         if (d.severity == Severity::Warning || d.disposition == Disposition::ReviewRequired) review = true;
     }
     return review ? ReviewStatus::ReviewRequired : ReviewStatus::Pass;
+}
+
+bool Report::newAgainstBaseline(const Diagnostic& d) const {
+    return hasBaseline_ && nonGating(d) && !d.baselined;
+}
+
+void Report::setBaseline(std::set<std::string> fingerprints) {
+    std::vector<BaselineEntry> entries;
+    for (auto& f : fingerprints) { BaselineEntry e; e.fingerprint = f; entries.push_back(std::move(e)); }
+    setBaseline(std::move(entries));
+}
+
+std::vector<BaselineEntry> Report::baselineEntries() const {
+    std::vector<BaselineEntry> out;
+    for (const auto& d : diags_) {
+        if (d.disposition == Disposition::Waived || d.disposition == Disposition::Resolved) continue;
+        BaselineEntry e;
+        e.rule = d.ruleId; e.file = d.location.file; e.scope = d.scope; e.line = d.location.line; e.severity = toString(d.severity);
+        e.disposition = toString(d.disposition);
+        e.key = baselineKey(d); e.anchor = baselineAnchor(d); e.fingerprint = d.fingerprint;
+        out.push_back(std::move(e));
+    }
+    return out;
+}
+
+// A finding blocks the gate when it is neither an obligation nor a gap and is a WARNING or worse, or was left REVIEW_REQUIRED.
+static bool blockingFinding(Severity severity, const std::string& disposition) {
+    if (disposition == "OBLIGATION" || disposition == "NOT_ANALYSED") return false;
+    return severity >= Severity::Warning || disposition == "REVIEW_REQUIRED";
+}
+
+// An entry covers a finding only at or below its recorded severity, and a finding that blocks where the entry did not is new: a
+// baselined INFO that has become a WARNING, or a gap that has become a defect, must not be hidden by the old entry.
+static bool entryCovers(const BaselineEntry& e, const Diagnostic& d) {
+    if (const auto recorded = severityFromString(e.severity); recorded && d.severity > *recorded) return false;
+    if (!e.disposition.empty()) {
+        const auto recorded = severityFromString(e.severity);
+        if (blockingFinding(d.severity, toString(d.disposition)) && !blockingFinding(recorded ? *recorded : Severity::Info, e.disposition)) return false;
+    }
+    return true;
+}
+
+// The nearest-line steps pair a finding with an entry no further than this many lines away (and in the same definition).
+static constexpr uint64_t kBaselineLineWindow = 200;
+
+void Report::setBaseline(std::vector<BaselineEntry> entries) {
+    if (!finalized_) finalize();
+    hasBaseline_ = true;
+    baseline_.clear();
+    baselineEntries_ = static_cast<uint32_t>(entries.size());
+    for (const auto& e : entries) if (!e.fingerprint.empty()) baseline_.insert(e.fingerprint);
+    for (auto& d : diags_) { d.baselined = false; d.baselineBasis.clear(); }
+    std::vector<bool> used(entries.size(), false);
+    const auto open = [&](const Diagnostic& d) { return d.disposition != Disposition::Waived && d.disposition != Disposition::Resolved; };
+    // 1. The same fingerprint.
+    {
+        std::map<std::string, std::vector<size_t>> byFingerprint;
+        for (size_t i = 0; i < entries.size(); ++i) if (!entries[i].fingerprint.empty()) byFingerprint[entries[i].fingerprint].push_back(i);
+        for (auto& d : diags_) {
+            if (!open(d)) continue;
+            auto it = byFingerprint.find(d.fingerprint);
+            if (it == byFingerprint.end()) continue;
+            for (size_t i : it->second)
+                if (!used[i] && entryCovers(entries[i], d)) { used[i] = true; d.baselined = true; d.baselineBasis = "fingerprint"; break; }
+        }
+    }
+    // 2 and 3. A finding that moved or changed in an unrelated way: the nearest unused entry of the same identity (key), then of the
+    // same rule, file and anchor, the closest pairs first.
+    const auto match = [&](const char* basis, auto keyOfEntry, auto keyOfFinding) {
+        std::map<std::string, std::vector<size_t>> byKey;
+        for (size_t i = 0; i < entries.size(); ++i) {
+            if (used[i]) continue;
+            const auto k = keyOfEntry(entries[i]);
+            if (!k.empty()) byKey[k].push_back(i);
+        }
+        struct Pair { uint64_t distance; size_t finding, entry; };
+        std::vector<Pair> pairs;
+        for (size_t f = 0; f < diags_.size(); ++f) {
+            const auto& d = diags_[f];
+            if (d.baselined || !open(d)) continue;
+            const auto k = keyOfFinding(d);
+            if (k.empty()) continue;
+            auto it = byKey.find(k);
+            if (it == byKey.end()) continue;
+            for (size_t i : it->second) {
+                const uint64_t a = d.location.line, b = entries[i].line;
+                const uint64_t distance = a > b ? a - b : b - a;
+                if (distance > kBaselineLineWindow || entries[i].scope != d.scope || !entryCovers(entries[i], d)) continue;
+                pairs.push_back({distance, f, i});
+            }
+        }
+        std::sort(pairs.begin(), pairs.end(), [](const Pair& x, const Pair& y) {
+            return std::tie(x.distance, x.finding, x.entry) < std::tie(y.distance, y.finding, y.entry);
+        });
+        for (const auto& p : pairs) {
+            if (used[p.entry] || diags_[p.finding].baselined) continue;
+            used[p.entry] = true;
+            diags_[p.finding].baselined = true;
+            diags_[p.finding].baselineBasis = basis;
+        }
+    };
+    match("key", [](const BaselineEntry& e) { return e.key; }, [](const Diagnostic& d) { return baselineKey(d); });
+    const auto anchored = [](const std::string& rule, const std::string& file, const std::string& scope, const std::string& anchor) {
+        return anchor.empty() ? std::string() : rule + "\x1f" + file + "\x1f" + scope + "\x1f" + anchor;
+    };
+    match("anchor", [&](const BaselineEntry& e) { return anchored(e.rule, e.file, e.scope, e.anchor); },
+          [&](const Diagnostic& d) { return anchored(d.ruleId, d.location.file, d.scope, baselineAnchor(d)); });
+    baselineFixed_ = static_cast<uint32_t>(std::count(used.begin(), used.end(), false));
+}
+
+Report::BaselineCounts Report::baselineCounts() const {
+    BaselineCounts c;
+    if (!hasBaseline_) return c;
+    c.entries = baselineEntries_;
+    c.fixed = baselineFixed_;
+    for (const auto& d : diags_) {
+        if (d.baselined) {
+            c.baselined += d.count;
+            (d.baselineBasis == "fingerprint" ? c.byFingerprint : d.baselineBasis == "key" ? c.byKey : c.byAnchor) += d.count;
+        }
+        else if (d.disposition != Disposition::Waived && d.disposition != Disposition::Resolved) c.fresh += d.count;
+    }
+    return c;
+}
+
+// What the gate blocks on: any unwaived finding that sets the review bit (a WARNING or worse, or one a severity override left
+// REVIEW_REQUIRED), never an obligation or a gap.
+uint32_t Report::countDefects() const {
+    uint32_t n = 0;
+    for (auto& d : diags_)
+        if (d.disposition != Disposition::Waived && d.disposition != Disposition::Resolved && !d.baselined && !nonGating(d) &&
+            (d.severity >= Severity::Warning || d.disposition == Disposition::ReviewRequired)) n += d.count;
+    return n;
 }
 
 uint32_t Report::countSeverity(Severity s) const {
@@ -352,13 +524,14 @@ uint32_t Report::countDisposition(Disposition x) const {
     return n;
 }
 
-int Report::exitCode(bool strict) const {
+int Report::exitCode(ExitPolicy policy) const {
     int code = 0;
-    if (reviewStatus() == ReviewStatus::Fail) code |= 1;
-    if (reviewStatus() == ReviewStatus::ReviewRequired) code |= 2;
-    if (analysisCoverage() == AnalysisCoverage::Incomplete) code |= 4;
+    const auto review = reviewStatus(policy);
+    if (review == ReviewStatus::Fail) code |= 1;
+    if (review == ReviewStatus::ReviewRequired) code |= 2;
+    if (analysisCoverage(policy) == AnalysisCoverage::Incomplete) code |= 4;
     if (executionStatus() == ExecutionStatus::Error) code |= 8;
-    if (!strict) code &= (1 | 8);
+    if (policy == ExitPolicy::Violations) code &= (1 | 8);
     return code;
 }
 
@@ -393,17 +566,37 @@ json::Value Report::toJson() const {
 
     json::Value sum = json::Value::object();
     sum.set("execution_status", toString(executionStatus()));
-    sum.set("analysis_coverage", toString(analysisCoverage()));
-    sum.set("review_status", toString(reviewStatus()));
+    sum.set("analysis_coverage", toString(analysisCoverage(policy_)));
+    sum.set("review_status", toString(reviewStatus(policy_)));
     if (!executionError_.empty()) sum.set("execution_error", executionError_);
     json::Value sev = json::Value::object();
     for (auto s : {Severity::Fatal, Severity::Error, Severity::Warning, Severity::Info})
         sev.set(toString(s), countSeverity(s));
     sum.set("severity_counts", sev);
     json::Value disp = json::Value::object();
-    for (auto d : {Disposition::Open, Disposition::ReviewRequired, Disposition::Resolved, Disposition::Waived})
-        disp.set(toString(d), countDisposition(d));
+    for (auto d : kDispositions) disp.set(toString(d), countDisposition(d));
     sum.set("disposition_counts", disp);
+    // Unresolved findings outside the default gate are always counted, never only listed.
+    json::Value unresolved = json::Value::object();
+    unresolved.set("obligations", countDisposition(Disposition::Obligation)).set("not_analysed", countDisposition(Disposition::NotAnalysed));
+    if (hasBaseline_) {
+        uint32_t fresh = 0;
+        for (auto& d : diags_) if (newAgainstBaseline(d)) fresh += d.count;
+        unresolved.set("new_against_baseline", fresh);
+    }
+    sum.set("unresolved", unresolved);
+    sum.set("defects", countDefects());
+    if (hasBaseline_) {
+        sum.set("baseline_fingerprints", static_cast<uint64_t>(baseline_.size()));
+        const auto c = baselineCounts();
+        json::Value b = json::Value::object();
+        b.set("entries", c.entries).set("new", c.fresh).set("baselined", c.baselined).set("fixed_since_baseline", c.fixed);
+        b.set("matched_by", json::Value::object().set("fingerprint", c.byFingerprint).set("key", c.byKey).set("anchor", c.byAnchor));
+        sum.set("baseline", b);
+    }
+    const auto toolRules = toolCoverage();
+    sum.set("tool_coverage", json::Value::object().set("rules_complete", toolRules.complete).set("rules_total", toolRules.total)
+        .set("rules_disabled", toolRules.disabled));
     uint32_t cnt[6] = {0, 0, 0, 0, 0, 0};
     for (auto& rc : ruleCoverage_) cnt[static_cast<int>(rc.state)]++;
     json::Value rules = json::Value::object();
@@ -415,7 +608,8 @@ json::Value Report::toJson() const {
         .set("not_run", cnt[static_cast<int>(RuleState::NotRun)])
         .set("failed", cnt[static_cast<int>(RuleState::Failed)]);
     sum.set("rules", rules);
-    sum.set("exit_code_strict", exitCode(true));
+    sum.set("exit_code_gate", exitCode(ExitPolicy::Gate));
+    sum.set("exit_code_strict", exitCode(ExitPolicy::Strict));
     root.set("summary", sum);
     root.set("inputs", inputs_);
 
@@ -431,7 +625,7 @@ json::Value Report::toJson() const {
             uint32_t n = 0; for (const auto& d : diags_) if (d.ruleId == rc.ruleId && d.severity == severity) n += d.count;
             severities.set(toString(severity), n);
         }
-        for (auto disposition : {Disposition::Open, Disposition::ReviewRequired, Disposition::Resolved, Disposition::Waived}) {
+        for (auto disposition : kDispositions) {
             uint32_t n = 0; for (const auto& d : diags_) if (d.ruleId == rc.ruleId && d.disposition == disposition) n += d.count;
             dispositions.set(toString(disposition), n);
         }
@@ -453,6 +647,9 @@ json::Value Report::toJson() const {
     json::Value objs = json::Value::object();
     for (auto& [k, v] : objectCounts_) objs.set(k, v);
     cov.set("design_objects", objs);
+    json::Value unused = json::Value::array();
+    for (const auto& name : uninstantiated_) unused.push(name);
+    cov.set("uninstantiated_definitions", unused);
     root.set("coverage", cov);
 
     json::Value ws = json::Value::array();
@@ -471,6 +668,14 @@ json::Value Report::toJson() const {
             .set("root_cause", d.rootCause).set("message", d.message).set("location", locJson(d.location)).set("hierarchy", d.hierarchy)
             .set("confidence", toString(d.confidence)).set("proof_state", toString(d.proofState))
             .set("disposition", toString(d.disposition)).set("origin", d.origin);
+        if (!d.scope.empty()) o.set("scope", d.scope);
+        if (d.unresolvedKind != UnresolvedKind::None) o.set("unresolved_kind", toString(d.unresolvedKind));
+        if (hasBaseline_ && nonGating(d)) o.set("new_against_baseline", newAgainstBaseline(d));
+        if (hasBaseline_ && d.disposition != Disposition::Waived && d.disposition != Disposition::Resolved) {
+            o.set("baseline", d.baselined ? "BASELINED" : "NEW");
+            if (d.baselined) o.set("baseline_match", d.baselineBasis);
+        }
+        if (!d.obligation.empty()) o.set("obligation", d.obligation);
         if (d.originalSeverity) o.set("original_severity", toString(*d.originalSeverity));
         if (d.requestedSeverity) o.set("requested_severity", toString(*d.requestedSeverity));
         if (!d.severityOverrideReason.empty()) o.set("severity_override_reason", d.severityOverrideReason);
@@ -510,7 +715,7 @@ json::Value Report::toJson() const {
 }
 
 // The canonical serializer owns finding fields and accounting; events never duplicate it.
-std::string Report::toJsonl(bool strict, int extra) const {
+std::string Report::toJsonl(ExitPolicy policy, int extra) const {
     const auto data = toJson();
     std::string out;
     uint64_t sequence = 0;
@@ -529,7 +734,7 @@ std::string Report::toJsonl(bool strict, int extra) const {
     uint64_t occurrences = 0;
     for (const auto& d : diags_) occurrences += d.count;
     emit("run_end", json::Value::object().set("summary", summary)
-        .set("exit_policy", strict ? "strict" : "violations").set("exit_code", exitCode(strict) | extra)
+        .set("exit_policy", toString(policy)).set("exit_code", exitCode(policy) | extra)
         .set("finding_records", static_cast<uint64_t>(diags_.size())).set("occurrences", occurrences)
         .set("record_count", sequence + 1).set("complete", true).set("truncated", false));
     return out;
@@ -587,11 +792,11 @@ std::string Report::toHtml() const {
     const auto& sum = data["summary"];
     for (const auto& item : {std::pair<const char*,const char*>{"execution_status", "Whether the tool completed its run."}, {"analysis_coverage", "Whether the declared analysis scopes were complete."}, {"review_status", "Whether findings require action or review."}})
         out += "<p><strong>" + std::string(item.first) + ": " + show(sum[item.first]) + "</strong><br>" + item.second + "</p>";
-    out += "</div><h2>What this run did not establish</h2><p>Unimplemented: " + show(sum["rules"]["unimplemented"]) + "; partial: " + show(sum["rules"]["partial"]) + "; disabled: " + show(sum["rules"]["disabled"]) + ".</p><ul>";
+    out += "</div><h2>Unresolved, outside the default gate</h2><p>Obligations (questions lint cannot decide): " + show(sum["unresolved"]["obligations"]) + "; not analysed (constructs the tool gave up on): " + show(sum["unresolved"]["not_analysed"]) + ". Both are listed with their disposition below and block under <code>--exit-policy strict</code> or when new against a baseline.</p><p>Tool coverage: " + show(sum["tool_coverage"]["rules_complete"]) + "/" + show(sum["tool_coverage"]["rules_total"]) + " rules complete in this tool version.</p><h2>What this run did not establish</h2><p>Unimplemented: " + show(sum["rules"]["unimplemented"]) + "; partial: " + show(sum["rules"]["partial"]) + "; disabled: " + show(sum["rules"]["disabled"]) + ".</p><ul>";
     for (const auto& d : data["diagnostics"].asArray()) if (d["rule_id"].asString() == "CST-019") out += "<li>CST-019: " + show(d["message"]) + "</li>";
     for (const auto& scope : data["coverage"]["scopes"].asArray()) if (scope["analysis_coverage"].asString() == "INCOMPLETE") out += "<li>" + show(scope["scope"]) + ": INCOMPLETE " + htmlValue(scope["reasons"]) + "</li>";
     out += "</ul><h2>Rule accounting</h2>" + htmlValue(sum["rules"]) + "<h2>Rule coverage</h2><details><summary>Rule table</summary><table><thead><tr>";
-    const std::vector<std::string> cols = {"rule_id","state","catalog_status","objects_evaluated","findings","FATAL","ERROR","WARNING","INFO","OPEN","REVIEW_REQUIRED","RESOLVED","WAIVED","reason"};
+    const std::vector<std::string> cols = {"rule_id","state","catalog_status","objects_evaluated","findings","FATAL","ERROR","WARNING","INFO","OPEN","REVIEW_REQUIRED","RESOLVED","WAIVED","OBLIGATION","NOT_ANALYSED","reason"};
     for (const auto& c : cols) out += "<th>" + htmlEscape(c) + "</th>";
     out += "</tr></thead><tbody>";
     std::vector<const json::Value*> rules;
@@ -606,10 +811,10 @@ std::string Report::toHtml() const {
     for (const auto* r : rules) {
         out += "<tr>";
         for (const auto& c : cols) {
-            const auto& v = (c == "FATAL" || c == "ERROR" || c == "WARNING" || c == "INFO") ? (*r)["severity_counts"][c] : (c == "OPEN" || c == "REVIEW_REQUIRED" || c == "RESOLVED" || c == "WAIVED") ? (*r)["disposition_counts"][c] : (*r)[c];
+            const auto& v = (c == "FATAL" || c == "ERROR" || c == "WARNING" || c == "INFO") ? (*r)["severity_counts"][c] : (c == "OPEN" || c == "REVIEW_REQUIRED" || c == "RESOLVED" || c == "WAIVED" || c == "OBLIGATION" || c == "NOT_ANALYSED") ? (*r)["disposition_counts"][c] : (*r)[c];
             out += "<td data-label=\"" + htmlEscape(c) + "\"" + (v.dump(-1) == "0" ? " class=\"quiet\"" : c == "state" && v.asString() != "EXECUTED" ? " class=\"state\"" : "") + ">" + (v.isNull() ? "" : show(v)) + "</td>";
         }
-        out += "</tr><tr><td colspan=\"14\">" + extras(*r, {"rule_id","state","catalog_status","objects_evaluated","findings","severity_counts","disposition_counts","reason"}) + extras((*r)["severity_counts"], {"FATAL","ERROR","WARNING","INFO"}) + extras((*r)["disposition_counts"], {"OPEN","REVIEW_REQUIRED","RESOLVED","WAIVED"}) + "</td></tr>";
+        out += "</tr><tr><td colspan=\"" + std::to_string(cols.size()) + "\">" + extras(*r, {"rule_id","state","catalog_status","objects_evaluated","findings","severity_counts","disposition_counts","reason","preview"}) + extras((*r)["severity_counts"], {"FATAL","ERROR","WARNING","INFO"}) + extras((*r)["disposition_counts"], {"OPEN","REVIEW_REQUIRED","RESOLVED","WAIVED","OBLIGATION","NOT_ANALYSED"}) + "</td></tr>";
     }
     out += "</tbody></table></details><h2>Findings</h2>";
     std::map<std::string, std::vector<const json::Value*>> groups;
@@ -690,6 +895,7 @@ json::Value Report::toSarif() const {
         Value r = Value::object();
         r.set("ruleId", d.ruleId).set("ruleIndex", static_cast<uint64_t>(ruleIdx[d.ruleId]));
         r.set("level", sarifLevel(d.severity));
+        if (nonGating(d)) r.set("kind", "review");   // an obligation or a gap: reviewed, not a defect (properties.disposition says which)
         Value msg = Value::object();
         msg.set("text", d.message + (d.nextStep.empty() ? "" : " Next step: " + d.nextStep));
         r.set("message", msg);
@@ -718,6 +924,8 @@ json::Value Report::toSarif() const {
         Value pf = Value::object();
         pf.set("sverity/v1", d.fingerprint);
         r.set("partialFingerprints", pf);
+        if (hasBaseline_ && d.disposition != Disposition::Waived && d.disposition != Disposition::Resolved)
+            r.set("baselineState", d.baselined ? "unchanged" : "new");
         if (d.disposition == Disposition::Waived) {
             Value sup = Value::object();
             sup.set("kind", d.waiver && d.waiver->sourceLocation.valid() ? "inSource" : "external").set("status", "accepted");
@@ -734,6 +942,8 @@ json::Value Report::toSarif() const {
         if (d.waiver) props.set("waiver", Value::object().set("id", d.waiver->waiverId)
             .set("reason", d.waiver->reason).set("owner", d.waiver->owner)
             .set("source_location", locJson(d.waiver->sourceLocation)));
+        if (d.unresolvedKind != UnresolvedKind::None) props.set("unresolvedKind", toString(d.unresolvedKind));
+        if (!d.obligation.empty()) props.set("obligation", d.obligation);
         if (d.originalSeverity) props.set("originalSeverity", toString(*d.originalSeverity));
         if (d.requestedSeverity) props.set("requestedSeverity", toString(*d.requestedSeverity));
         if (!d.severityOverrideReason.empty()) props.set("severityOverrideReason", d.severityOverrideReason);
@@ -746,8 +956,9 @@ json::Value Report::toSarif() const {
     }
     run.set("results", results);
     Value props = Value::object();
-    props.set("executionStatus", toString(executionStatus())).set("analysisCoverage", toString(analysisCoverage()))
-        .set("reviewStatus", toString(reviewStatus())).set("inputs", inputs_);
+    props.set("executionStatus", toString(executionStatus())).set("analysisCoverage", toString(analysisCoverage(policy_)))
+        .set("reviewStatus", toString(reviewStatus(policy_))).set("inputs", inputs_);
+    props.set("obligations", countDisposition(Disposition::Obligation)).set("notAnalysed", countDisposition(Disposition::NotAnalysed));
     const auto canonical = toJson();
     props.set("coverage", canonical["coverage"]).set("waivers", canonical["waivers"]);
     run.set("properties", props);
@@ -774,13 +985,13 @@ json::Value Report::toSarif() const {
 
 // ------------------------------------------------------------------- text
 std::string Report::ruleSummary() const {
-    struct Row { std::string id, state; uint32_t counts[8] = {}; };
+    struct Row { std::string id, state; uint32_t counts[10] = {}; };
     std::map<std::string, Row> rows;
     for (const auto& rc : ruleCoverage_) { auto& r = rows[rc.ruleId]; r.id = rc.ruleId; r.state = toString(rc.state); }
     for (const auto& d : diags_) {
         auto& r = rows[d.ruleId]; r.id = d.ruleId; if (r.state.empty()) r.state = "NOT_RUN";
         int i = d.severity == Severity::Fatal ? 0 : d.severity == Severity::Error ? 1 : d.severity == Severity::Warning ? 2 : 3;
-        int j = d.disposition == Disposition::Open ? 4 : d.disposition == Disposition::ReviewRequired ? 5 : d.disposition == Disposition::Resolved ? 6 : 7;
+        int j = 4 + static_cast<int>(d.disposition);   // Open, ReviewRequired, Resolved, Waived, Obligation, NotAnalysed
         r.counts[i] += d.count; r.counts[j] += d.count;
     }
     std::vector<Row> sorted; for (const auto& [id, row] : rows) sorted.push_back(row);
@@ -788,7 +999,7 @@ std::string Report::ruleSummary() const {
         for (int i = 0; i < 4; ++i) if ((a.counts[i] != 0) != (b.counts[i] != 0)) return a.counts[i] != 0;
         return a.id < b.id;
     });
-    std::ostringstream out; out << "\n== Per-rule summary ==\nRULE STATE FATAL ERROR WARNING INFO OPEN REVIEW_REQUIRED RESOLVED WAIVED\n";
+    std::ostringstream out; out << "\n== Per-rule summary ==\nRULE STATE FATAL ERROR WARNING INFO OPEN REVIEW_REQUIRED RESOLVED WAIVED OBLIGATION NOT_ANALYSED\n";
     for (const auto& r : sorted) { out << r.id << ' ' << r.state; for (auto n : r.counts) out << ' ' << n; out << '\n'; }
     return out.str();
 }
@@ -814,29 +1025,43 @@ std::string Report::statistics() const {
     return out.str();
 }
 
-std::string Report::toText(bool color, size_t maxDiagnostics, const std::string& completeReportHint, bool group, bool verbose, bool strict, int extra, bool showStatistics) const {
+std::string Report::toText(bool color, size_t maxDiagnostics, const std::string& completeReportHint, bool group, bool verbose, ExitPolicy policy, int extra, bool showStatistics) const {
     auto paint = [&](Severity s, const char* txt) -> std::string {
         if (!color) return txt;
         const char* c = s == Severity::Info ? "\x1b[36m" : s == Severity::Warning ? "\x1b[33m" : "\x1b[31m";
         return std::string(c) + txt + "\x1b[0m";
     };
     std::ostringstream o;
-    const int exit = exitCode(strict) | extra;
-    const bool noOpenFindings = reviewStatus() == ReviewStatus::Pass && analysisCoverage() == AnalysisCoverage::Incomplete;
-    const std::string review = noOpenFindings ? "NO_OPEN_FINDINGS" : toString(reviewStatus());
+    const int exit = exitCode(policy) | extra;
+    const auto reviewState = reviewStatus(policy);
+    const auto coverage = analysisCoverage(policy);
+    const bool noOpenFindings = reviewState == ReviewStatus::Pass && coverage == AnalysisCoverage::Incomplete;
+    const std::string review = noOpenFindings ? "NO_OPEN_FINDINGS" : toString(reviewState);
+    const uint32_t obligations = countDisposition(Disposition::Obligation), notAnalysed = countDisposition(Disposition::NotAnalysed);
+    const auto tool = toolCoverage();
     std::string exitMeaning;
     for (auto [bit, name] : {std::pair<int, const char*>{1, "FAIL"}, {2, "REVIEW_REQUIRED"}, {4, "INCOMPLETE"}, {8, "execution ERROR"}})
         if (exit & bit) exitMeaning += (exitMeaning.empty() ? "" : " + ") + std::string(name);
     if (!exitMeaning.empty()) exitMeaning += "; ";
-    const Severity verdict = reviewStatus() == ReviewStatus::Fail || (extra & 8) ? Severity::Error :
-                             reviewStatus() == ReviewStatus::Pass && analysisCoverage() != AnalysisCoverage::Incomplete ? Severity::Info : Severity::Warning;
-    o << "Result: " << paint(verdict, review.c_str()) << ", exit " << exit << " (" << exitMeaning << (strict ? "strict" : "violations") << " policy)\n"
+    const Severity verdict = reviewState == ReviewStatus::Fail || (extra & 8) ? Severity::Error :
+                             reviewState == ReviewStatus::Pass && coverage != AnalysisCoverage::Incomplete ? Severity::Info : Severity::Warning;
+    o << "Result: " << paint(verdict, review.c_str()) << ", exit " << exit << " (" << exitMeaning << toString(policy) << " policy)\n"
       << "  execution  " << ((extra & 8) ? "ERROR" : toString(executionStatus())) << '\n'
-      << "  coverage   " << toString(analysisCoverage()) << '\n'
+      << "  coverage   " << toString(coverage) << '\n'
+      << "  tool coverage: " << tool.complete << '/' << tool.total << (inputs_["deck"].asString().empty() ? " catalog" : " deck") << " rules complete"
+      << (tool.disabled ? "; " + std::to_string(tool.disabled) + " disabled by configuration" : std::string()) << '\n'
+      << (uninstantiated_.empty() ? std::string() : "  not linted  " + std::to_string(uninstantiated_.size()) + " definition(s) the top does not instantiate: " + joinList(uninstantiated_) + "\n")
       << "  review     " << review << (noOpenFindings ? " (coverage incomplete)" : "") << '\n'
       << "  findings   " << countSeverity(Severity::Fatal) << " FATAL, " << countSeverity(Severity::Error)
       << " ERROR, " << countSeverity(Severity::Warning) << " WARNING, " << countSeverity(Severity::Info)
-      << " INFO (" << countDisposition(Disposition::Waived) << " waived)\n";
+      << " INFO (" << countDisposition(Disposition::Waived) << " waived)\n"
+      << "  unresolved " << obligations << " obligations, " << notAnalysed << " not analysed"
+      << (policy == ExitPolicy::Strict ? " (blocking under strict)" : hasBaseline_ ? " (blocking when new against the baseline)" : " (not blocking by default)") << '\n';
+    if (hasBaseline_) {
+        const auto c = baselineCounts();
+        o << "  baseline   " << c.fresh << " new, " << c.baselined << " baselined (" << c.byFingerprint << " exact, " << c.byKey << " moved, "
+          << c.byAnchor << " by name), " << c.fixed << " of " << c.entries << " entries no longer present\n";
+    }
     if (diags_.size() > 20) {
         // On a large run, say where the volume is before the first finding.
         std::map<std::string, std::pair<int, uint64_t>> perRule;
@@ -908,7 +1133,7 @@ std::string Report::toText(bool color, size_t maxDiagnostics, const std::string&
         }
     };
     if (group && !completeReportHint.empty()) {
-        struct ConsoleGroup { std::string id; std::vector<const Diagnostic*> items; uint64_t severities[4] = {}, dispositions[4] = {}; uint64_t waived = 0, downgradedError = 0; Severity worst = Severity::Info; };
+        struct ConsoleGroup { std::string id; std::vector<const Diagnostic*> items; uint64_t severities[4] = {}, dispositions[6] = {}; uint64_t waived = 0, downgradedError = 0; Severity worst = Severity::Info; };
         std::map<std::string, ConsoleGroup> groups;
         uint64_t total = 0;
         for (const auto& d : diags_) {
@@ -953,6 +1178,7 @@ std::string Report::toText(bool color, size_t maxDiagnostics, const std::string&
                 auto member = [&](const char* name, uint64_t n) { if (n) members += "; " + std::string(name) + "=" + std::to_string(n); };
                 member("OPEN", g->dispositions[0]); member("REVIEW_REQUIRED", g->dispositions[1]);
                 member("RESOLVED", g->dispositions[2]); member("WAIVED", g->dispositions[3]);
+                member("OBLIGATION", g->dispositions[4]); member("NOT_ANALYSED", g->dispositions[5]);
                 o << "  members: " << g->items.size() << (g->items.size() == 1 ? " record" : " records") << members
                   << "; representative <" << toString(rep->disposition) << ">\n";
             }
@@ -963,22 +1189,31 @@ std::string Report::toText(bool color, size_t maxDiagnostics, const std::string&
         size_t shown = 0;
         std::vector<const Diagnostic*> ordered;
         for (const auto& d : diags_) ordered.push_back(&d);
-        std::sort(ordered.begin(), ordered.end(), [](const auto* a, const auto* b) {
+        // Defects first; obligations and gaps follow in their own sections, so they are never mixed into the defect list.
+        const auto section = [](const Diagnostic* d) { return d->disposition == Disposition::Obligation ? 1 : d->disposition == Disposition::NotAnalysed ? 2 : 0; };
+        std::sort(ordered.begin(), ordered.end(), [&](const auto* a, const auto* b) {
+            if (section(a) != section(b)) return section(a) < section(b);
             if (a->severity != b->severity) return a->severity > b->severity;
             return std::tie(a->location.file, a->location.line, a->location.column, a->ruleId, a->fingerprint, a->disposition) <
                    std::tie(b->location.file, b->location.line, b->location.column, b->ruleId, b->fingerprint, b->disposition);
         });
+        int currentSection = 0;
         for (const auto* item : ordered) {
             const auto& d = *item;
             if (maxDiagnostics && shown >= maxDiagnostics) break;
             shown++;
+            if (section(item) != currentSection) {
+                currentSection = section(item);
+                o << (currentSection == 1 ? "== Obligations: questions lint cannot decide; reviewed, not defects ==\n"
+                                          : "== Not analysed: constructs the tool did not handle; reviewed, not defects ==\n");
+            }
             if (d.location.valid()) o << d.location.file << ':' << d.location.line << ':' << d.location.column << ": ";
             o << paint(d.severity, toString(d.severity)) << " [" << d.ruleId << "] " << d.message;
             if (d.originalSeverity && *d.originalSeverity != d.severity) o << " (was " << toString(*d.originalSeverity) << ")";
             if (d.count > 1) o << " (x" << d.count << ")";
             // OPEN and REVIEW_REQUIRED are the expected states; only a closed one changes how to read the line.
-            if (verbose || d.disposition == Disposition::Waived || d.disposition == Disposition::Resolved)
-                o << "  <" << toString(d.disposition) << ">";
+            if (verbose || d.baselined || d.disposition == Disposition::Waived || d.disposition == Disposition::Resolved || nonGating(d))
+                o << "  <" << toString(d.disposition) << (d.baselined ? ", BASELINED" : newAgainstBaseline(d) ? ", NEW against baseline" : "") << ">";
             o << '\n';
             details(d);
         }
@@ -989,7 +1224,7 @@ std::string Report::toText(bool color, size_t maxDiagnostics, const std::string&
     }
     if (!diags_.empty()) o << '\n';
     o << "Rule help: sverity --explain <RULE-ID>\n";
-    if (analysisCoverage() == AnalysisCoverage::Incomplete)
+    if (coverage == AnalysisCoverage::Incomplete)
         o << "Coverage is INCOMPLETE; absence of findings is not evidence of safety.\n";
     if (verbose) {
         // A goal run disables every other rule: the list belongs in the report, its size here.
@@ -1021,8 +1256,13 @@ std::string Report::toText(bool color, size_t maxDiagnostics, const std::string&
     if (showStatistics) {
         o << statistics();
         o << "Result: " << paint(verdict, review.c_str()) << ", exit " << exit
-          << " (" << exitMeaning << (strict ? "strict" : "violations") << " policy)\n";
+          << " (" << exitMeaning << toString(policy) << " policy)\n";
     }
+    // The last line always states the unresolved counts, so a pass never hides them.
+    o << paint(verdict, review.c_str()) << ": " << countDefects() << " defects; "
+      << obligations << " obligations, " << notAnalysed << " not analysed";
+    if (hasBaseline_) o << "; " << baselineCounts().baselined << " baselined";
+    o << " (see report)\n";
     return o.str();
 }
 

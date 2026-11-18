@@ -1,0 +1,73 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-E (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC12",
+    "sites": [
+      {
+        "line": 22
+      },
+      {
+        "line": 23
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "combinational read before write",
+    "rationale": "The output uses the previous temporary value in simulation rather than the current transform."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC12",
+      "sites": [
+        {
+          "line": 22
+        }
+      ],
+      "critical": true,
+      "note": "transformed read before it is written in the combinational block"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC12",
+      "sites": [
+        {
+          "line": 22
+        },
+        {
+          "line": 23
+        }
+      ],
+      "critical": true,
+      "note": "The combinational block reads transformed before updating it, creating a stale-value simulation dependency."
+    }
+  ],
+  "settlement": {
+    "by": "settler (gpt-6.1-sol, third reading)",
+    "verdict": "bad",
+    "class": "LC12",
+    "sites": [
+      {
+        "line": 22
+      }
+    ],
+    "critical": true,
+    "note": "value reads transformed before its blocking update, and simulation confirms value retains the previous transform after data changes. The premature read at line 22 is the wrong statement; line 23 computes the correct transform."
+  },
+  "rationale": "value reads transformed before its blocking update, and simulation confirms value retains the previous transform after data changes. The premature read at line 22 is the wrong statement; line 23 computes the correct transform.",
+  "verdict": "bad",
+  "class": "LC12",
+  "sites": [
+    {
+      "line": 22
+    }
+  ],
+  "critical": true
+}

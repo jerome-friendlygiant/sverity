@@ -1,0 +1,43 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "two independent processes write the same memory array",
+  "sites": [
+    {
+      "line": 26,
+      "signal": "mbox"
+    },
+    {
+      "line": 32,
+      "signal": "mbox"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The CPU and DMA write ports each have their own clocked block writing the mbox array with no arbitration, so the memory has several writers and cannot map to a single-write-port RAM; same-slot writes conflict.",
+  "author": "claude-sonnet-5-5",
+  "class": "LC20",
+  "batch": "p2-lint-heldout",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "class": "LC20",
+      "sites": [
+        {
+          "line": 32,
+          "signal": "mbox"
+        }
+      ],
+      "note": "Independent write processes can write the same memory address simultaneously."
+    }
+  ]
+}

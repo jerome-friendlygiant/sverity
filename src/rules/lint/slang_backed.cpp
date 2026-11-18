@@ -10,7 +10,7 @@
 namespace sverity {
 namespace {
 
-class SlangBackedRule final : public Rule {
+class SlangBackedRule : public Rule {
 public:
     SlangBackedRule(std::string id, bool full, std::string gap)
         : id_(std::move(id)), full_(full), gap_(std::move(gap)) {}
@@ -33,6 +33,29 @@ private:
     std::string gap_;
 };
 
+// LNT-004 and LNT-005 also demote the findings whose values are proven preserved (value_proofs.cpp); nothing else changes.
+class ProvenRule final : public SlangBackedRule {
+public:
+    explicit ProvenRule(std::string id) : SlangBackedRule(id, true, ""), id_(std::move(id)) {}
+    void run(RuleContext& ctx) override {
+        SlangBackedRule::run(ctx);
+        if (ctx.design.compilation) demoteProvenFindings(ctx, id_);
+    }
+
+private:
+    std::string id_;
+};
+
+// LNT-065: a missing default on a case whose items cover every two-state value is style, not a gap.
+class CaseRule final : public SlangBackedRule {
+public:
+    CaseRule() : SlangBackedRule("LNT-065", true, "") {}
+    void run(RuleContext& ctx) override {
+        SlangBackedRule::run(ctx);
+        demoteCompleteCaseDefaults(ctx);
+    }
+};
+
 } // namespace
 
 std::vector<std::unique_ptr<Rule>> makeSlangBackedRules() {
@@ -46,12 +69,11 @@ std::vector<std::unique_ptr<Rule>> makeSlangBackedRules() {
     full("LNT-017");   // slang case-enum / case-enum-explicit
     full("LNT-031");   // slang errors: illegal assignment targets
     full("LNT-050");   // slang errors: direction / modport misuse
-    full("LNT-004");   // slang width-trunc/-expand and port-width-* diagnostics; parameter-dependent truncation is also LNT-057
-    full("LNT-005");   // slang sign-conversion/sign-compare/implicit-conv
-    full("LNT-065");   // slang case-default/-incomplete/-none/-not-wildcard/-wildcard-2state/-too-complex
+    v.push_back(std::make_unique<ProvenRule>("LNT-004"));   // slang width-trunc/-expand and port-width-* diagnostics, value proofs applied; parameter-dependent truncation is also LNT-057
+    v.push_back(std::make_unique<ProvenRule>("LNT-005"));   // slang sign-conversion/sign-compare/implicit-conv, value proofs applied
+    v.push_back(std::make_unique<CaseRule>());   // LNT-065: slang case-default/-incomplete/-none/-not-wildcard/-wildcard-2state/-too-complex; a default missing on a complete case is INFO
     full("LNT-059");   // slang unused-import and duplicate-import
     full("LNT-077");   // slang unused-package-*
-    full("LNT-078");   // slang shadowing
     return v;
 }
 

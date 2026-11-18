@@ -1,0 +1,38 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "unknown",
+  "critical": true,
+  "origin": "authored",
+  "sites": [
+    {
+      "line": 17,
+      "signal": "u_mon"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The unique case omits encoding 2'b11 and has no default; whether that value can occur depends on the body-less phy_link_monitor that drives link_state.",
+  "author": "claude-sonnet-5-5",
+  "class": "LC13",
+  "batch": "p2-lint-heldout",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "unknown",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "unknown",
+      "critical": true,
+      "class": "LC13",
+      "sites": [
+        {
+          "line": 17,
+          "signal": "u_mon"
+        }
+      ],
+      "note": "The opaque monitor determines whether the uncovered state encoding can occur."
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "class": "LC05",
+  "batch": "p2-lint-heldout",
+  "verdict": "good",
+  "critical": false,
+  "origin": "authored",
+  "sites": [],
+  "sdc": [],
+  "rationale": "Every assigned name is declared and spelt as declared; almost_full and almost_full_o are distinct declared signals.",
+  "author": "claude-sonnet-5-5",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "class": "LC05",
+      "sites": [],
+      "note": "The almost-full signal is declared and driven consistently."
+    }
+  ]
+}

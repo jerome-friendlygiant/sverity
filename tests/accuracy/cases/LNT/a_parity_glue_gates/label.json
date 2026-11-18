@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-A (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC05",
+    "sites": [
+      {
+        "line": 16
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "implicit net from a gate primitive output",
+    "rationale": "p23 is the output terminal of a gate instance and is never declared, so it becomes an implicit wire feeding the final gate."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC05",
+      "sites": [
+        {
+          "line": 16
+        }
+      ],
+      "critical": true,
+      "note": "p23 is never declared and is created implicitly by the primitive connection."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC05",
+      "sites": [
+        {
+          "line": 16
+        }
+      ],
+      "critical": true,
+      "note": "p23 is used as a primitive output without declaration, creating an implicit net."
+    }
+  ],
+  "rationale": "p23 is the output terminal of a gate instance and is never declared, so it becomes an implicit wire feeding the final gate.",
+  "verdict": "bad",
+  "class": "LC05",
+  "sites": [
+    {
+      "line": 16
+    }
+  ],
+  "critical": true
+}

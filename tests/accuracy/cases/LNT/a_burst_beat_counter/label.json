@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-A (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC05",
+    "sites": [
+      {
+        "line": 15
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "implicit net on a continuous assignment target",
+    "rationale": "beat_last is only ever the target of an assign and a condition; it was never declared, so the assign creates an implicit one-bit wire."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC05",
+      "sites": [
+        {
+          "line": 15
+        }
+      ],
+      "critical": true,
+      "note": "beat_last is never declared and is created implicitly."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC05",
+      "sites": [
+        {
+          "line": 15
+        }
+      ],
+      "critical": true,
+      "note": "beat_last is never declared, creating an implicit net."
+    }
+  ],
+  "rationale": "beat_last is only ever the target of an assign and a condition; it was never declared, so the assign creates an implicit one-bit wire.",
+  "verdict": "bad",
+  "class": "LC05",
+  "sites": [
+    {
+      "line": 15
+    }
+  ],
+  "critical": true
+}

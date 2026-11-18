@@ -14,6 +14,7 @@
 #include <unordered_set>
 #include <optional>
 
+#include "sverity/catalog.h"
 #include "domains/cone.h"
 #include "domains/model.h"
 #include "domains/relations.h"
@@ -49,6 +50,8 @@ class Shared {
 public:
     Model* m = nullptr;     // owned by the Design (shared with other rule families)
     bool built = false;
+    bool domainRulesEnabled_ = false;   // some CDC or RDC rule runs in this configuration
+    bool crossingStages_ = false;       // some enabled rule needs the clock, reset, crossing or output stages
     std::map<std::string, std::vector<Diagnostic>> findings;
     std::map<std::string, uint64_t> evaluated;
     std::unique_ptr<ClockRelations> rel_;
@@ -81,18 +84,39 @@ public:
     std::vector<const sdc::PathException*> exceptionsFor(NodeId src, NodeId dst, bool anyKind,
                                                          sdc::PathException::Kind kind) const;
 
+    /// Marks a scope incomplete. The clock, reset and constraint scopes describe what a CDC or RDC rule needs; a run with
+    /// none of them enabled (a lint goal) loses nothing by an absent constraint file, so those scopes are left alone.
+    void incomplete(const std::string& scope, const std::string& reason) {
+        static const std::set<std::string, std::less<>> domainScopes = {"clock-extraction", "reset-extraction", "clock-relationships",
+            "constraints", "case-analysis-modes", "payload-qualification", "cdc-017"};
+        if (!domainRulesEnabled_ && domainScopes.count(scope)) return;
+        report->markIncomplete(scope, reason);
+    }
+
     void ensure(RuleContext& ctx) {
         if (built) return;
         built = true;
         cfg = &ctx.config;
         report = &ctx.report;
+        for (const auto& rule : Catalog::embedded().rules())
+            if ((rule.category == "CDC" || rule.category == "RDC") && !ctx.config.disabledRules.count(rule.id)) domainRulesEnabled_ = true;
         for (const char* sc : {"clock-extraction", "reset-extraction", "clock-relationships", "constraints",
                                "graph-precision", "blackboxes"})
             report->declareScope(sc);
         design_ = &ctx.design;
         m = &getModel(ctx.design);
+        // Only the crossing, clock, reset and output stages need the shared cones (the memory of a large design). A run whose enabled
+        // rules are all among the constraint, black-box and precision-fallback rules needs none of them: see ANALYSIS.md, "CDC pass stages".
+        crossingStages_ = domainRulesEnabled_;
+        for (const char* id : {"CST-001", "CST-004", "CST-011", "CST-012"})
+            if (!ctx.config.disabledRules.count(id)) crossingStages_ = true;
         cones_ = &model::sharedCones(*m);
-        findGrayNets();
+        auto timed = [&](const char* phase, auto&& stage) {
+            const auto start = Timings::Clock::now();
+            stage();
+            if (ctx.config.timings) ctx.config.timings->record(phase, start);
+        };
+        if (crossingStages_) timed("cdc:gray_nets", [&] { findGrayNets(); });
         report->setObjectCount("instances", m->numInstances);
         report->setObjectCount("procedures_analysed", m->numProcedures);
         report->setObjectCount("sequential_procedures", m->numSeqProcedures);
@@ -104,14 +128,20 @@ public:
         report->setObjectCount("precision_fallbacks", m->fallbacks.size());
         report->setObjectCount("subroutine_summaries", m->subroutineSummaries);
         report->setObjectCount("subroutine_body_nodes", m->subroutineBodyNodes);
-        mapConstraints();
-        analyseFallbacks();
-        analyseBlackBoxes();
-        analyseConstraints();
-        analyseClocks();
-        analyseResets();
-        analyseCrossings();
-        analyseOutputs();
+        timed("cdc:constraints", [&] {
+            mapConstraints();
+            analyseFallbacks();
+            analyseBlackBoxes();
+            analyseConstraints();
+        });
+        if (crossingStages_) {
+            timed("cdc:clocks", [&] { analyseClocks(); });
+            timed("cdc:resets", [&] { analyseResets(); });
+            timed("cdc:crossings", [&] { analyseCrossings(); });
+            timed("cdc:outputs", [&] { analyseOutputs(); });
+        } else {
+            timed("cdc:capture_uncertainty", [&] { analyseCaptureUncertainty(); });
+        }
     }
 
     void flush(const std::string& rule, RuleContext& ctx) {
@@ -132,7 +162,12 @@ private:
         d.confidence = conf;
         return d;
     }
-    void add(Diagnostic d) { findings[d.ruleId].push_back(std::move(d)); }
+    void add(Diagnostic d) {
+        // Disabled findings are never flushed; keep the analysis and scope effects,
+        // but do not retain diagnostic payloads that this run cannot report.
+        if (cfg && cfg->disabledRules.count(d.ruleId)) return;
+        findings[d.ruleId].push_back(std::move(d));
+    }
 
     const ProcInfo& procOf(const Flop& f) const { return m->procs[f.proc]; }
     std::string flopName(const Flop& f) const { return m->nameOf(f.q); }
@@ -161,7 +196,7 @@ private:
             if (v.size() > 8) d.evidence.push_back({"fallback", "... and " + std::to_string(v.size() - 8) + " more", {}});
             d.nextStep = "Restructure the construct or review it manually; the fallback detail above names what is not modelled.";
             add(std::move(d));
-            report->markIncomplete("graph-precision", cat + ": " + std::to_string(v.size()) + " occurrence(s)");
+            incomplete("graph-precision", cat + ": " + std::to_string(v.size()) + " occurrence(s)");
         }
     }
     void analyseBlackBoxes() {
@@ -179,7 +214,7 @@ private:
                 d.evidence.push_back({"blackbox_instance", v[i]->hierarchy, v[i]->loc});
             d.nextStep = "Provide the module source or a model with clock/reset/CDC metadata.";
             add(std::move(d));
-            report->markIncomplete("blackboxes", "unmodeled black box '" + mod + "'");
+            incomplete("blackboxes", "unmodeled black box '" + mod + "'");
         }
     }
 
@@ -198,17 +233,17 @@ private:
             d.evidence.push_back({"sdc_command", v[0]->text, v[0]->loc});
             d.nextStep = "Check whether the missing constraint changes any CDC conclusion; supported commands are listed in docs.";
             add(std::move(d));
-            report->markIncomplete("constraints", "unsupported SDC command '" + cmd + "'");
+            incomplete("constraints", "unsupported SDC command '" + cmd + "'");
         }
         for (auto& p : c.problems) {
             add(mk("CST-018", Severity::Warning, "constraint parse problem: " + p.message, p.loc, {}, Confidence::Unresolved));
-            report->markIncomplete("constraints", "constraint parse problem: " + p.message);
+            incomplete("constraints", "constraint parse problem: " + p.message);
         }
         // Validate every reference before applying an output contract.
         auto problem = [&](const std::string& message, const SourceLocation& loc) {
             evaluated["CST-018"]++;
             add(mk("CST-018", Severity::Warning, message, loc, {}, Confidence::Unresolved));
-            report->markIncomplete("constraints", message);
+            incomplete("constraints", message);
         };
         auto resolve = [&](const std::vector<sdc::ObjectRef>& refs, bool output, const SourceLocation& loc, bool bits = false) {
             bool valid = true;
@@ -234,7 +269,7 @@ private:
             d.evidence.push_back({"sdc_command", text, loc});
             d.nextStep = "Review this assumption manually; the declaration does not establish safety.";
             add(std::move(d));
-            report->markIncomplete("constraints", std::string("unapplied SDC command '") + command + "'");
+            incomplete("constraints", std::string("unapplied SDC command '") + command + "'");
         };
         for (const auto& d : c.outputDelays) {
             bool valid = resolve(d.ports, true, d.loc);
@@ -263,11 +298,11 @@ private:
             d.evidence.push_back({"sdc_command", cse.text, cse.loc});
             d.nextStep = "Run each alternative mode separately and review crossings in that run.";
             add(std::move(d));
-            report->markIncomplete("constraints", "selected case-analysis mode does not cover alternatives");
-            report->markIncomplete("case-analysis-modes", "alternative case-analysis values are not analysed");
+            incomplete("constraints", "selected case-analysis mode does not cover alternatives");
+            incomplete("case-analysis-modes", "alternative case-analysis values are not analysed");
         }
         if (!cfg->constraintsProvided) {
-            report->markIncomplete("constraints", "no constraint file provided: clock relationships are unknown");
+            incomplete("constraints", "no constraint file provided: clock relationships are unknown");
         }
         // Keep declaration history for conflicts, but use the latest definition for ancestry.
         evaluated["CST-003"] = c.clocks.size() + c.clockGroups.size();
@@ -360,7 +395,7 @@ private:
                 add(mk("CST-002", Severity::Warning, "generated clock '" + ck.name + "': " + detail +
                        "; derivation does not establish a relationship (UNKNOWN unless clock groups relate the names)",
                        ck.loc, {}, Confidence::Unresolved));
-                report->markIncomplete("constraints", detail);
+                incomplete("constraints", detail);
             };
             if (!ck.explicitMasterClock.empty() && std::none_of(latest.begin(), latest.end(), [&](const auto& entry) {
                     return entry.first != ck.name && globMatch(ck.explicitMasterClock, entry.first); }))
@@ -382,7 +417,7 @@ private:
                         add(mk("CST-002", Severity::Warning,
                                "clock constraint '" + ck.name + "' names '" + s.pattern + "' which resolves to no design object",
                                ck.loc, {}, Confidence::Unresolved));
-                        report->markIncomplete("constraints", "constraint object '" + s.pattern + "' does not resolve");
+                        incomplete("constraints", "constraint object '" + s.pattern + "' does not resolve");
                     }
                 }
         }
@@ -460,7 +495,7 @@ private:
                 boundary.widthBits = matched.size();
                 boundary.logicOnPath = logic;
                 d.crossing = std::move(boundary);
-                if (uncertain) report->markIncomplete("constraints", "unresolved output-boundary contract for '" + name + "'");
+                if (uncertain) incomplete("constraints", "unresolved output-boundary contract for '" + name + "'");
                 add(std::move(d));
             }
         }
@@ -480,7 +515,7 @@ private:
                               m->procs[proc].loc, m->procs[proc].instancePath, Confidence::Unresolved);
             d.nextStep = "Use a single clock edge event; reset events must be tested in the first if/else of the block.";
             add(std::move(d));
-            report->markIncomplete("clock-extraction", "unidentified clock in sequential block at " +
+            incomplete("clock-extraction", "unidentified clock in sequential block at " +
                                    m->procs[proc].loc.file + ":" + std::to_string(m->procs[proc].loc.line));
         }
         std::map<uint32_t, uint32_t> perDomain;
@@ -504,7 +539,7 @@ private:
                 g.identityKey = dom.name;
                 g.nextStep = "Declare it with create_generated_clock / clock groups, or model the clock-generation cell.";
                 add(std::move(g));
-                report->markIncomplete("clock-extraction", std::string("clock '") + dom.name + "' is " + kind);
+                incomplete("clock-extraction", std::string("clock '") + dom.name + "' is " + kind);
             }
             if (domainClockName(i).empty()) {
                 Diagnostic g = mk("CST-011", Severity::Warning,
@@ -513,7 +548,7 @@ private:
                 g.identityKey = dom.name;
                 g.nextStep = "Add create_clock for it (--sdc); until then every crossing involving it is UNKNOWN, not safe.";
                 add(std::move(g));
-                report->markIncomplete("constraints", "no constraint for clock '" + dom.name + "'");
+                incomplete("constraints", "no constraint for clock '" + dom.name + "'");
             }
         }
     }
@@ -571,7 +606,7 @@ private:
                 g.identityKey = "unresolved:" + m->nameOf(node);
                 g.nextStep = "Check the reset generation/synchroniser; RDC analysis of this reset is incomplete.";
                 add(std::move(g));
-                report->markIncomplete("reset-extraction", "reset '" + m->nameOf(node) + "' is " + kind);
+                incomplete("reset-extraction", "reset '" + m->nameOf(node) + "' is " + kind);
             }
         }
         {   // synchronous reset candidates (heuristic: top-level if on one signal, constant assignments), polarity from the condition shape
@@ -609,7 +644,7 @@ private:
         if (unk) {
             add(mk("CST-001", Severity::Warning, std::to_string(unk) + " register bit(s) have no identified clock (see CDC-001)",
                    {}, {}, Confidence::Unresolved));
-            report->markIncomplete("clock-extraction", std::to_string(unk) + " register bit(s) without an identified clock");
+            incomplete("clock-extraction", std::to_string(unk) + " register bit(s) without an identified clock");
         }
     }
 
@@ -938,6 +973,81 @@ private:
         add(std::move(primary));
     }
 
+    /// Registers that capture a value of uncertain origin, by capture symbol. Filled from the full cones by analyseCrossings, or by
+    /// analyseCaptureUncertainty when no crossing rule runs.
+    struct CaptureSets {
+        std::map<std::string, std::vector<uint32_t>> bb, unresolved, undriven;
+        std::map<std::pair<std::string, uint32_t>, std::vector<uint32_t>> calls;
+        std::map<std::string, std::set<std::string>> undrivenLeaves;
+    };
+
+    // ---- sources that cannot be classified: never silent
+    void reportUnresolvedCaptures(CaptureSets& cap) {
+        auto& bbCaptures = cap.bb;
+        auto& unresolvedCaptures = cap.unresolved;
+        auto& undrivenCaptures = cap.undriven;
+        auto& callCaptures = cap.calls;
+        auto& undrivenLeaves = cap.undrivenLeaves;
+        auto unresolvedSource = [&](const char* rule, std::map<std::string, std::vector<uint32_t>>& caps, const char* what, const char* gapScope) {
+            for (auto& [sym, dis] : caps) {
+                const Flop& f0 = m->flops[dis[0]];
+                Diagnostic d = mk(rule, Severity::Warning,
+                                  "register '" + sym + "' (" + std::to_string(dis.size()) + " bit(s)) captures a value that " + what +
+                                  "; whether it crosses a clock domain is unresolved",
+                                  procOf(f0).loc, procOf(f0).instancePath, Confidence::Unresolved);
+                d.identityKey = sym + ":" + (&caps == &bbCaptures ? "blackbox" : &caps == &undrivenCaptures ? "undriven" : "truncated");
+                d.evidence.push_back({"capture_register", sym, procOf(f0).loc});
+                if (&caps == &undrivenCaptures)
+                    for (const auto& leaf : undrivenLeaves[sym]) d.evidence.push_back({"undriven_source", leaf, {}});
+                d.nextStep = "Model the source (provide the module, remove the unsupported construct) or review manually.";
+                add(std::move(d));
+                incomplete(gapScope, sym + ": " + what);
+            }
+        };
+        unresolvedSource("CDC-023", bbCaptures, "may originate from an unmodeled black box", "blackboxes");
+        unresolvedSource("CST-010", unresolvedCaptures, "depends on logic whose dependencies were truncated by a precision fallback", "graph-precision");
+        unresolvedSource("CST-010", undrivenCaptures, "has an undriven or unmodeled source", "graph-precision");
+
+        for (auto& [key, captures] : callCaptures) {
+            const auto& [reg, issueId] = key;
+            const auto& issue = m->callUncertainties[issueId];
+            const auto& first = m->flops[captures.front()];
+            Diagnostic diagnostic = mk("CST-010", Severity::Warning,
+                "register '" + reg + "' depends on unresolved call '" + issue.call + "': " + issue.reason +
+                "; its crossing dependencies and capture semantics are not fully established",
+                procOf(first).loc, procOf(first).instancePath, Confidence::Unresolved);
+            diagnostic.signals = {reg};
+            diagnostic.proofState = ProofState::NotAttempted;
+            diagnostic.evidence.push_back({"call", issue.call, issue.location});
+            diagnostic.evidence.push_back({"capture_register", reg, procOf(first).loc});
+            diagnostic.evidence.push_back({"proof_obligation", "establish the reads, writes and capture behavior of '" +
+                issue.call + "' on the path to '" + reg + "': " + issue.reason, issue.location});
+            diagnostic.nextStep = "Provide a supported subroutine body or review this capture path manually.";
+            add(std::move(diagnostic));
+            incomplete("graph-precision", reg + ": unresolved call '" + issue.call + "'");
+        }
+    }
+
+    /// The CST-010 findings that crossings otherwise produce (a capture whose cone holds a truncated, undriven or unresolved-call source),
+    /// computed without the cones' sources. Same registers, same symbols, same text as the crossing stage.
+    void analyseCaptureUncertainty() {
+        CaptureSets cap;
+        const auto stageStart = Timings::Clock::now();
+        for (const auto& [di, u] : cones_->uncertaintyOfRegisters()) {
+            const Flop& d = m->flops[di];
+            const std::string dstSym = stripBit(m->nameOf(d.q));
+            for (auto issue : u.calls) cap.calls[{dstSym, issue}].push_back(di);
+            if (u.blackBox) cap.bb[dstSym].push_back(di);
+            if (u.unresolved) cap.unresolved[dstSym].push_back(di);
+            if (u.undriven) cap.undriven[dstSym].push_back(di);
+        }
+        if (cfg->timings) cfg->timings->record("cdc:capture_uncertainty:masks_and_calls", stageStart);
+        // The nets are named per symbol, and the symbol's registers are walked together: a net shared by several bits is found once.
+        for (const auto& [sym, flops] : cap.undriven)
+            for (auto leaf : cones_->undrivenOf(flops)) cap.undrivenLeaves[sym].insert(stripBit(m->nameOf(leaf)));
+        reportUnresolvedCaptures(cap);
+    }
+
     void analyseCrossings() {
         evaluated["CDC-026"] = evaluated["CDC-032"] = 0;
         evaluated["CDC-016"] = evaluated["CDC-017"] = evaluated["CDC-018"] = evaluated["CDC-028"] = evaluated["CDC-039"] = 0;
@@ -957,9 +1067,12 @@ private:
         std::set<std::pair<uint32_t, uint32_t>> unknownPairs;
         std::map<std::pair<uint32_t, uint32_t>, uint64_t> unknownPairCount;
         uint64_t unresolvedEnds = 0;
-        std::map<std::string, std::vector<uint32_t>> bbCaptures, unresolvedCaptures, undrivenCaptures;
-        std::map<std::pair<std::string, uint32_t>, std::vector<uint32_t>> callCaptures;
-        std::map<std::string, std::set<std::string>> undrivenLeaves;
+        CaptureSets cap;
+        auto& bbCaptures = cap.bb;
+        auto& unresolvedCaptures = cap.unresolved;
+        auto& undrivenCaptures = cap.undriven;
+        auto& callCaptures = cap.calls;
+        auto& undrivenLeaves = cap.undrivenLeaves;
         chains_.assign(m->flops.size(), Chain{});
         haveChain_.assign(m->flops.size(), 0);
         auto& chains = chains_;
@@ -1132,7 +1245,7 @@ private:
                 d.evidence.push_back({"capture_register", g.dstName + " (clock domain " + m->domains[g.dstDomain].name + ")", procOf(f0).loc});
                 d.nextStep = "Split the bus into narrower signals or review the crossing manually.";
                 add(std::move(d));
-                report->markIncomplete("graph-precision", "wide crossing " + g.srcName + " -> " + g.dstName + " not classified");
+                incomplete("graph-precision", "wide crossing " + g.srcName + " -> " + g.dstName + " not classified");
                 continue;
             }
             std::optional<std::vector<Evidence>> witness;   // computed once per group, for the findings it actually gets
@@ -1178,7 +1291,7 @@ private:
                 d.nextStep = "Review the capture predicate and protocol state; separately establish data stability and timing.";
                 add(std::move(d));
                 evaluated["CDC-039"] += width;
-                report->markIncomplete("payload-qualification", g.srcName + " -> " + g.dstName + ": " + qualifierReason);
+                incomplete("payload-qualification", g.srcName + " -> " + g.dstName + ": " + qualifierReason);
             }
             if (qualified && unsynced) {
                 Diagnostic d = base("CDC-039", Severity::Info,
@@ -1280,7 +1393,7 @@ private:
                 d.evidence.push_back({"proof_obligation", "establish the pointer encoding and verify that at most one bit changes between sampled values", {}});
                 d.nextStep = "Review the function and all writes to the pointer, and prove the required crossing protocol.";
                 add(std::move(d));
-                report->markIncomplete("cdc-017", "user-function output prevents classification of " + g.srcName);
+                incomplete("cdc-017", "user-function output prevents classification of " + g.srcName);
             }
             if (width > 1 && (gray || counter)) {
                 evaluated["CDC-017"] += width; evaluated["CDC-018"] += width;
@@ -1372,7 +1485,7 @@ private:
                 cov.signals = {inFull};
                 cov.nextStep = "Add set_input_delay -clock <launch clock> for it, or declare it asynchronous and synchronise it.";
                 add(std::move(cov));
-                report->markIncomplete("constraints", "input '" + inFull + "' has no input delay");
+                incomplete("constraints", "input '" + inFull + "' has no input delay");
             }
             bool declaredSync = decl && inRel == Relation::Same;
             std::string contract = decl ? "set_input_delay -clock " + decl->clock + " (" + decl->loc.file + ":" + std::to_string(decl->loc.line) + ") relates it to " +
@@ -1441,45 +1554,7 @@ private:
             add(std::move(d));
         }
 
-        // ---- sources that cannot be classified: never silent
-        auto unresolvedSource = [&](const char* rule, std::map<std::string, std::vector<uint32_t>>& caps, const char* what, const char* gapScope) {
-            for (auto& [sym, dis] : caps) {
-                const Flop& f0 = m->flops[dis[0]];
-                Diagnostic d = mk(rule, Severity::Warning,
-                                  "register '" + sym + "' (" + std::to_string(dis.size()) + " bit(s)) captures a value that " + what +
-                                  "; whether it crosses a clock domain is unresolved",
-                                  procOf(f0).loc, procOf(f0).instancePath, Confidence::Unresolved);
-                d.identityKey = sym + ":" + (&caps == &bbCaptures ? "blackbox" : &caps == &undrivenCaptures ? "undriven" : "truncated");
-                d.evidence.push_back({"capture_register", sym, procOf(f0).loc});
-                if (&caps == &undrivenCaptures)
-                    for (const auto& leaf : undrivenLeaves[sym]) d.evidence.push_back({"undriven_source", leaf, {}});
-                d.nextStep = "Model the source (provide the module, remove the unsupported construct) or review manually.";
-                add(std::move(d));
-                report->markIncomplete(gapScope, sym + ": " + what);
-            }
-        };
-        unresolvedSource("CDC-023", bbCaptures, "may originate from an unmodeled black box", "blackboxes");
-        unresolvedSource("CST-010", unresolvedCaptures, "depends on logic whose dependencies were truncated by a precision fallback", "graph-precision");
-        unresolvedSource("CST-010", undrivenCaptures, "has an undriven or unmodeled source", "graph-precision");
-
-        for (auto& [key, captures] : callCaptures) {
-            const auto& [reg, issueId] = key;
-            const auto& issue = m->callUncertainties[issueId];
-            const auto& first = m->flops[captures.front()];
-            Diagnostic diagnostic = mk("CST-010", Severity::Warning,
-                "register '" + reg + "' depends on unresolved call '" + issue.call + "': " + issue.reason +
-                "; its crossing dependencies and capture semantics are not fully established",
-                procOf(first).loc, procOf(first).instancePath, Confidence::Unresolved);
-            diagnostic.signals = {reg};
-            diagnostic.proofState = ProofState::NotAttempted;
-            diagnostic.evidence.push_back({"call", issue.call, issue.location});
-            diagnostic.evidence.push_back({"capture_register", reg, procOf(first).loc});
-            diagnostic.evidence.push_back({"proof_obligation", "establish the reads, writes and capture behavior of '" +
-                issue.call + "' on the path to '" + reg + "': " + issue.reason, issue.location});
-            diagnostic.nextStep = "Provide a supported subroutine body or review this capture path manually.";
-            add(std::move(diagnostic));
-            report->markIncomplete("graph-precision", reg + ": unresolved call '" + issue.call + "'");
-        }
+        reportUnresolvedCaptures(cap);
 
         analyseStructure();
 
@@ -1492,13 +1567,13 @@ private:
                               {}, {}, Confidence::Unresolved);
             d.nextStep = "Declare the relationship (create_clock + set_clock_groups -asynchronous, or a common clock) with --sdc.";
             add(std::move(d));
-            report->markIncomplete("clock-relationships", "unknown relationship '" + m->domains[a].name + "' <-> '" + m->domains[b].name + "'");
+            incomplete("clock-relationships", "unknown relationship '" + m->domains[a].name + "' <-> '" + m->domains[b].name + "'");
         }
         if (unresolvedEnds) {
             add(mk("CST-004", Severity::Warning,
                    std::to_string(unresolvedEnds) + " register-to-register path(s) involve a register with an unidentified clock; crossing status is unresolved",
                    {}, {}, Confidence::Unresolved));
-            report->markIncomplete("clock-relationships", std::to_string(unresolvedEnds) + " path(s) with an unidentified clock");
+            incomplete("clock-relationships", std::to_string(unresolvedEnds) + " path(s) with an unidentified clock");
         }
     }
 };

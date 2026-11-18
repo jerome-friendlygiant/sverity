@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-E (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC11",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "default before conditional",
+    "rationale": "A default assigns the complete result even when the payload is disabled."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC11",
+      "sites": [],
+      "critical": false,
+      "note": "default before the if covers every path"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "good",
+      "class": "LC11",
+      "sites": [],
+      "critical": false,
+      "note": "The default assignment covers the disabled path."
+    }
+  ],
+  "rationale": "A default assigns the complete result even when the payload is disabled.",
+  "verdict": "good",
+  "class": "LC11",
+  "sites": [],
+  "critical": false
+}

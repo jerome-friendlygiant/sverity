@@ -1,0 +1,43 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "class": "LC09",
+  "batch": "p2-lint-heldout",
+  "verdict": "bad",
+  "critical": false,
+  "origin": "authored",
+  "defect": "declared half-period signal never read",
+  "sites": [
+    {
+      "line": 12,
+      "signal": "half_period"
+    }
+  ],
+  "sdc": [],
+  "rationale": "half_period is declared and assigned but never read; the sample tick recomputes the half period.",
+  "mutation": {
+    "operator": "unused-declaration",
+    "description": "Replaced the use of half_period by the inline expression."
+  },
+  "author": "claude-sonnet-5-5",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "bad",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": false,
+      "class": "LC09",
+      "sites": [
+        {
+          "line": 12,
+          "signal": "half_period"
+        }
+      ],
+      "note": "The computed half_period signal is never read."
+    }
+  ]
+}

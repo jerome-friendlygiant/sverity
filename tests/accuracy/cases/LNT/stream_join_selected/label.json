@@ -1,0 +1,54 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "class": "LC10",
+  "batch": "p2-lint-heldout",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "adapted",
+  "defect": "output valid depends on the ready it enables",
+  "sites": [
+    {
+      "line": 20,
+      "signal": "oup_valid_o"
+    },
+    {
+      "line": 22,
+      "signal": "inp_ready_o"
+    }
+  ],
+  "sdc": [],
+  "rationale": "oup_valid_o depends on inp_ready_o, which depends on oup_valid_o, so valid and ready form a combinational loop that can hold itself high.",
+  "mutation": {
+    "operator": "combinational-loop",
+    "description": "Added a term making the join valid depend on the input readies."
+  },
+  "author": "claude-sonnet-5-5",
+  "provenance": {
+    "repository": "common_cells",
+    "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+    "path": "src/cc_stream_join_dynamic.sv",
+    "licence": "SHL-0.51",
+    "adaptation": "Added a start input, a fire counter and the readies as part of the valid condition."
+  },
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "class": "LC10",
+      "sites": [
+        {
+          "line": 20,
+          "signal": "oup_valid_o"
+        }
+      ],
+      "note": "Valid depends combinationally on ready, which itself depends on valid."
+    }
+  ]
+}

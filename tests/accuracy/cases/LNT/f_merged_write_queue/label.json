@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-F (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC20",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "two request sources merged into one writer",
+    "rationale": "One clocked process arbitrates both request sources before writing the array."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC20",
+      "sites": [],
+      "critical": false,
+      "note": "One clocked process with if/else writes the memory at most once per cycle."
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "good",
+      "class": "LC20",
+      "sites": [],
+      "critical": false,
+      "note": "One clocked process writes the array and its two write branches are exclusive."
+    }
+  ],
+  "rationale": "One clocked process arbitrates both request sources before writing the array.",
+  "verdict": "good",
+  "class": "LC20",
+  "sites": [],
+  "critical": false
+}

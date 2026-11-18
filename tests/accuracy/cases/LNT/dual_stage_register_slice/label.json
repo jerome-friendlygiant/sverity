@@ -1,0 +1,43 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "class": "LC01",
+  "batch": "p2-lint-heldout",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "second register slice instance connects a port name that the module does not have",
+  "sites": [
+    {
+      "line": 56,
+      "signal": "dat_o"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The second slice instance connects a port named dat_o, but the module declares data_o, so the instance cannot elaborate.",
+  "mutation": {
+    "operator": "port-name-typo",
+    "description": "Mistyped the data output port name in one instance."
+  },
+  "author": "claude-sonnet-5-5",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "class": "LC01",
+      "sites": [
+        {
+          "line": 56,
+          "signal": "dat_o"
+        }
+      ],
+      "note": "The instantiated module has no port named dat_o."
+    }
+  ]
+}

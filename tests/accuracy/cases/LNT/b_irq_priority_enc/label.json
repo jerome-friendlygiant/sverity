@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-B (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC13",
+    "sites": [
+      {
+        "line": 16
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "casex with wildcard x items",
+    "rationale": "casex lets x bits in irq_in match items; the selector value x matches the first item."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC13",
+      "sites": [
+        {
+          "line": 16
+        }
+      ],
+      "critical": true,
+      "note": "casex with x-containing items makes X/Z bits of irq_in match as wildcards."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC13",
+      "sites": [
+        {
+          "line": 16
+        }
+      ],
+      "critical": true,
+      "note": "casex treats X/Z in irq_in as wildcards, so simulation with unknown inputs matches items that hardware would not; casez/priority logic is required."
+    }
+  ],
+  "rationale": "casex lets x bits in irq_in match items; the selector value x matches the first item.",
+  "verdict": "bad",
+  "class": "LC13",
+  "sites": [
+    {
+      "line": 16
+    }
+  ],
+  "critical": true
+}

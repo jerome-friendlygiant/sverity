@@ -1,6 +1,6 @@
 // sverity-args: --top top
 // expect: LNT-008 WARNING 9
-// expect: LNT-042 INFO 10
+// expect: LNT-042 WARNING 10
 // expect-count: LNT-008 WARNING 1
 module leaf(input logic a, output logic [1:0] o);
   assign o = {2{a}};

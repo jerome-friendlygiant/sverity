@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-E (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC14",
+    "sites": [
+      {
+        "line": 22
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "X assigned as inactive payload",
+    "rationale": "The inactive payload becomes X in simulation and a synthesis unspecified value."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC14",
+      "sites": [
+        {
+          "line": 22
+        }
+      ],
+      "critical": true,
+      "note": "X assigned in design logic"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC14",
+      "sites": [
+        {
+          "line": 22
+        }
+      ],
+      "critical": true,
+      "note": "Design logic assigns an X literal on the disabled path."
+    }
+  ],
+  "rationale": "The inactive payload becomes X in simulation and a synthesis unspecified value.",
+  "verdict": "bad",
+  "class": "LC14",
+  "sites": [
+    {
+      "line": 22
+    }
+  ],
+  "critical": true
+}

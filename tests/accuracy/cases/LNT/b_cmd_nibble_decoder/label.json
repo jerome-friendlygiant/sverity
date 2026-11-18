@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-B (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC14",
+    "sites": [
+      {
+        "line": 17
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "X assigned in design logic",
+    "rationale": "The default branch assigns 4'bxxxx to lane_en."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "bad",
+      "class": "LC14",
+      "sites": [
+        {
+          "line": 17
+        }
+      ],
+      "critical": true,
+      "note": "Default branch assigns 4'bxxxx to lane_en, which is registered into design state."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC14",
+      "sites": [
+        {
+          "line": 17
+        }
+      ],
+      "critical": true,
+      "note": "Default branch assigns 4'bxxxx in design logic; synthesis treats it as don't-care so hardware may differ from simulation."
+    }
+  ],
+  "rationale": "The default branch assigns 4'bxxxx to lane_en.",
+  "verdict": "bad",
+  "class": "LC14",
+  "sites": [
+    {
+      "line": 17
+    }
+  ],
+  "critical": true
+}

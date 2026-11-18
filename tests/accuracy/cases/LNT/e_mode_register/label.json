@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-E (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC13",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "complete enum state coverage",
+    "rationale": "Every encoding of the two-bit enum has a decoder item."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC13",
+      "sites": [],
+      "critical": false,
+      "note": "enum case complete in both blocks, all states reachable"
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "good",
+      "class": "LC13",
+      "sites": [],
+      "critical": false,
+      "note": "All four enum encodings are handled in both state and output cases."
+    }
+  ],
+  "rationale": "Every encoding of the two-bit enum has a decoder item.",
+  "verdict": "good",
+  "class": "LC13",
+  "sites": [],
+  "critical": false
+}

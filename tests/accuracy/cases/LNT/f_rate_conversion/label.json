@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-F (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC21",
+    "sites": [
+      {
+        "line": 20
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "constant zero divisor",
+    "rationale": "The configured rate divisor is zero, so no defined quotient can be produced."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC21",
+      "sites": [
+        {
+          "line": 20
+        }
+      ],
+      "critical": true,
+      "note": "Default RATE_SCALE is 0, so the function divides by a constant zero."
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC21",
+      "sites": [
+        {
+          "line": 20
+        }
+      ],
+      "critical": true,
+      "note": "RATE_SCALE is zero at the default parameter value, making division by zero unavoidable."
+    }
+  ],
+  "rationale": "The configured rate divisor is zero, so no defined quotient can be produced.",
+  "verdict": "bad",
+  "class": "LC21",
+  "sites": [
+    {
+      "line": 20
+    }
+  ],
+  "critical": true
+}

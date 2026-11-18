@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "bad",
+  "critical": true,
+  "origin": "authored",
+  "defect": "the unsupported-size default assigns X to the address increment",
+  "sites": [
+    {
+      "line": 28,
+      "signal": "incr"
+    }
+  ],
+  "sdc": [],
+  "rationale": "The default branch of the size decode drives incr with an unknown value, which propagates to next_addr_o for size 7; X is assigned in design logic.",
+  "author": "claude-sonnet-5-5",
+  "class": "LC14",
+  "batch": "p2-lint-heldout",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "bad",
+      "critical": true
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "bad",
+      "critical": true,
+      "class": "LC14",
+      "sites": [
+        {
+          "line": 28,
+          "signal": "incr"
+        }
+      ],
+      "note": "The default size assigns X into operational address logic."
+    }
+  ]
+}

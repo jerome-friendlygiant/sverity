@@ -224,6 +224,14 @@ void applyWaivers(Report& report, const WaiverSet& set, const std::string& today
         d.message = "Waiver '" + w.id + "' " + msg;
         d.confidence = Confidence::Unresolved;
         d.nextStep = "Fix, renew or remove the waiver; the waived finding (if any) stays open until then.";
+        if (std::string(state) == "stale") {
+            // Matching nothing is a fact, not an unknown, and changes no hardware: the waiver waives nothing, and any finding it
+            // meant to cover is open at its own severity. Housekeeping, so advisory; a waiver that is not applied for another
+            // reason (invalid, expired, overbroad) stays a WARNING because the author believes it is in force.
+            d.severity = Severity::Info;
+            d.confidence = Confidence::Established;
+            d.nextStep = "Remove the waiver or scope it to a finding that exists; it waives nothing in this run.";
+        }
         d.evidence.push_back({"waiver_scope", describe(w), {}});
         d.applyDefaultDisposition();
         extra.push_back(std::move(d));

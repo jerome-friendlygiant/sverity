@@ -1,0 +1,28 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "origin": "authored",
+  "sites": [],
+  "sdc": [],
+  "rationale": "Loops are bounded by the Lanes parameter and unroll, $clog2 is a constant system function, and nothing has delays, initial values or simulation-only constructs.",
+  "author": "claude-sonnet-5-5",
+  "class": "LC15",
+  "batch": "p2-lint-heldout",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "class": "LC11",
+      "sites": [],
+      "note": "Both functions assign every returned bit for the default configuration."
+    }
+  ]
+}

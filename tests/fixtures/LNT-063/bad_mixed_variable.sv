@@ -5,3 +5,5 @@ module top(input logic clk, a, output logic s);
   always @(posedge clk) s <= a;
   always @(posedge clk) s = ~a;
 endmodule
+// revert: s = ~a => s <= ~a
+// revert-expect-none: LNT-063

@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-E (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC14",
+    "sites": [
+      {
+        "line": 21
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "X used directly as condition",
+    "rationale": "The X condition selects a simulation branch while synthesis may treat it as a unspecified value."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC14",
+      "sites": [
+        {
+          "line": 21
+        }
+      ],
+      "critical": true,
+      "note": "X constant used as an if condition."
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC14",
+      "sites": [
+        {
+          "line": 21
+        }
+      ],
+      "critical": true,
+      "note": "An X literal controls a design-logic condition."
+    }
+  ],
+  "rationale": "The X condition selects a simulation branch while synthesis may treat it as a unspecified value.",
+  "verdict": "bad",
+  "class": "LC14",
+  "sites": [
+    {
+      "line": 21
+    }
+  ],
+  "critical": true
+}

@@ -8,6 +8,8 @@
 #include <vector>
 
 #include "slang/ast/Compilation.h"
+#include "slang/ast/symbols/CompilationUnitSymbols.h"
+#include "slang/ast/types/NetType.h"
 #include "slang/driver/Driver.h"
 #include "slang/parsing/Token.h"
 #include "slang/syntax/AllSyntax.h"
@@ -81,78 +83,49 @@ std::vector<const syn::SyntaxTree*> userTrees(const Design& design) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// LNT-075: explicit `default_nettype none` before each module/interface/program
+// LNT-075: `default_nettype none` in effect at each module/interface/program
 // ---------------------------------------------------------------------------------------------
 
-/// Gathers default_nettype directives and module-like declarations of one syntax tree. Directives are
-/// trivia attached to tokens; their own source location tells which file they were written in.
-struct NetTypeScan : syn::SyntaxVisitor<NetTypeScan> {
-    struct Directive {
-        uint32_t buf;
-        size_t offset;
-        bool none;
-    };
-    struct Decl {
-        uint32_t buf;
-        size_t offset;
-        slang::SourceLocation loc;
-        std::string kind;
-        std::string name;
-    };
-
-    std::vector<Directive> directives;
-    std::vector<Decl> decls;
-
-    void handle(const syn::ModuleDeclarationSyntax& n) {
-        if (n.kind != syn::SyntaxKind::PackageDeclaration && n.header) {
-            auto loc = n.getFirstToken().location();
-            const char* kind = n.kind == syn::SyntaxKind::InterfaceDeclaration ? "interface"
-                               : n.kind == syn::SyntaxKind::ProgramDeclaration ? "program"
-                                                                               : "module";
-            decls.push_back({loc.buffer().getId(), loc.offset(), loc, kind, std::string(n.header->name.valueText())});
-        }
-        visitDefault(n);
-    }
-
-    void visitToken(slang::parsing::Token tok) {
-        for (auto t : tok.trivia()) {
-            if (t.kind != slang::parsing::TriviaKind::Directive) continue;
-            const syn::SyntaxNode* s = t.syntax();
-            if (!s || s->kind != syn::SyntaxKind::DefaultNetTypeDirective) continue;
-            const auto& d = s->as<syn::DefaultNetTypeDirectiveSyntax>();
-            auto loc = d.directive.location();
-            directives.push_back({loc.buffer().getId(), loc.offset(), d.netType.rawText() == "none"});
-        }
-    }
-};
-
-class DefaultNetTypeRule final : public PartialRule {
+/// The default net type in effect at each module, interface and program is slang's own record (the
+/// preprocessor state when the declaration was parsed): it follows `include`d files, `resetall` and, with
+/// --single-unit, the order of files. Library units (-v/-y) are read the same way.
+class DefaultNetTypeRule final : public Rule {
 public:
-    DefaultNetTypeRule()
-        : PartialRule("LNT-075",
-                      "checks that each module, interface and program is preceded in its own source file by "
-                      "`default_nettype none`; a directive written in an `include`d file or given on the command line "
-                      "is not recognised, library units (-v/-y) are not checked, and the implicit-net policy (use of "
-                      "implicit nets inside the design) is not checked") {}
+    std::string_view id() const override { return "LNT-075"; }
     void run(RuleContext& ctx) override {
         if (!designReady(ctx)) return;
         Sink sink(ctx.design.driver->sourceManager);
-        for (const auto* t : userTrees(ctx.design)) {
-            NetTypeScan scan;
-            t->root().visit(scan);
-            for (const auto& m : scan.decls) {
-                sink.objects++;
-                const NetTypeScan::Directive* last = nullptr;
-                for (const auto& d : scan.directives)
-                    if (d.buf == m.buf && d.offset < m.offset && (!last || d.offset > last->offset)) last = &d;
-                if (last && last->none) continue;
-                std::string msg = last ? "default net type is not 'none' at " + m.kind + " '" + m.name + "'"
-                                       : "no `default_nettype none` directive precedes " + m.kind + " '" + m.name +
-                                             "' in its source file";
-                sink.add("LNT-075", std::move(msg), m.loc,
-                         "add `default_nettype none` before the first module in this file, so that every net is "
-                         "declared explicitly; restore the default with `default_nettype wire` after the file if needed");
-            }
+        std::vector<const slang::ast::DefinitionSymbol*> defs;
+        for (const auto* sym : ctx.design.compilation->getDefinitions()) {
+            if (sym->kind != slang::ast::SymbolKind::Definition) continue;
+            const auto& def = sym->as<slang::ast::DefinitionSymbol>();
+            if (!def.getSyntax() || def.getSyntax()->kind == syn::SyntaxKind::PackageDeclaration) continue;
+            defs.push_back(&def);
+        }
+        auto locOf = [](const slang::ast::DefinitionSymbol* d) {
+            return d->getSyntax()->as<syn::ModuleDeclarationSyntax>().getFirstToken().location();
+        };
+        std::sort(defs.begin(), defs.end(), [&](auto* x, auto* y) {
+            auto lx = locOf(x), ly = locOf(y);
+            return std::pair(lx.buffer().getId(), lx.offset()) < std::pair(ly.buffer().getId(), ly.offset());
+        });
+        slang::SourceLocation prev;
+        for (const auto* d : defs) {
+            auto loc = locOf(d);
+            if (loc == prev) continue;
+            prev = loc;
+            sink.objects++;
+            const auto& net = d->defaultNetType;
+            if (net.netKind == slang::ast::NetType::Unknown) continue;
+            const char* kind = d->definitionKind == slang::ast::DefinitionKind::Interface ? "interface"
+                               : d->definitionKind == slang::ast::DefinitionKind::Program ? "program"
+                                                                                          : "module";
+            std::string msg = "default net type is '" + std::string(net.name) + "', not 'none', at " + kind + " '" +
+                              std::string(d->name) + "'";
+            if (d->syntaxTree && d->syntaxTree->isLibraryUnit) msg += " (library unit)";
+            sink.add("LNT-075", std::move(msg), loc,
+                     "add `default_nettype none` before the first module in this file, so that every net is "
+                     "declared explicitly; restore the default with `default_nettype wire` after the file if needed");
         }
         flush(ctx, sink);
     }
@@ -223,12 +196,72 @@ public:
 };
 
 
+// ---------------------------------------------------------------------------------------------
+// LNT-086: positional port connection, positional parameter override and defparam
+// ---------------------------------------------------------------------------------------------
+
+/// Instantiations of modules, interfaces and programs (a user-defined primitive or a checker is not one: its ports are positional by
+/// definition) that connect a port, or override a parameter, by position, and every `defparam`.
+struct PositionalScan : syn::SyntaxVisitor<PositionalScan> {
+    PositionalScan(Sink& s, const std::unordered_set<std::string_view>& d) : sink(s), definitions(d) {}
+    Sink& sink;
+    const std::unordered_set<std::string_view>& definitions;
+
+    void handle(const syn::HierarchyInstantiationSyntax& n) {
+        if (definitions.count(n.type.valueText())) {
+            sink.objects++;
+            const std::string module(n.type.valueText());
+            if (n.parameters)
+                for (const auto* p : n.parameters->parameters)
+                    if (p->kind == syn::SyntaxKind::OrderedParamAssignment) {
+                        sink.add("LNT-086", "parameters of '" + module + "' are overridden by position", n.parameters->getFirstToken().location(),
+                                 "name each parameter (`#(.W(8))`): a positional list silently changes meaning when a parameter is added or reordered");
+                        break;
+                    }
+            for (const auto* inst : n.instances)
+                for (const auto* c : inst->connections)
+                    if (c->kind == syn::SyntaxKind::OrderedPortConnection) {
+                        const std::string name = inst->decl ? std::string(inst->decl->name.valueText()) : std::string();
+                        sink.add("LNT-086", "ports of instance '" + name + "' of '" + module + "' are connected by position", inst->getFirstToken().location(),
+                                 "connect each port by name (`.clk(clk)`): a positional list silently changes meaning when a port is added or reordered");
+                        break;
+                    }
+        }
+        visitDefault(n);
+    }
+    void handle(const syn::DefParamSyntax& n) {
+        sink.objects++;
+        sink.add("LNT-086", "defparam overrides a parameter from outside the instance", n.defparam.location(),
+                 "pass the value in the instantiation (`#(.P(v))`): defparam is deprecated and its effect depends on elaboration order");
+        visitDefault(n);
+    }
+};
+
+class PositionalConnectionRule final : public Rule {
+public:
+    std::string_view id() const override { return "LNT-086"; }
+    void run(RuleContext& ctx) override {
+        if (!designReady(ctx)) return;
+        Sink sink(ctx.design.driver->sourceManager);
+        std::unordered_set<std::string_view> definitions;
+        for (const auto* sym : ctx.design.compilation->getDefinitions())
+            if (sym->kind == slang::ast::SymbolKind::Definition) definitions.insert(sym->name);
+        for (const auto* t : userTrees(ctx.design)) {
+            PositionalScan scan(sink, definitions);
+            t->root().visit(scan);
+        }
+        flush(ctx, sink);
+    }
+};
+
+
 } // namespace
 
 std::vector<std::unique_ptr<Rule>> makeSyntaxLintRules() {
     std::vector<std::unique_ptr<Rule>> v;
     v.push_back(std::make_unique<DefaultNetTypeRule>());
     v.push_back(std::make_unique<AlwaysStyleRule>());
+    v.push_back(std::make_unique<PositionalConnectionRule>());
     return v;
 }
 

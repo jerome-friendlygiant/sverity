@@ -77,13 +77,13 @@ are explicit obligations/unknown markers, never "safe". Reset roots are traced t
 - **Unknown:** an Unknown relation is WARNING Unresolved; the register-driven form also marks clock-relationships INCOMPLETE.
 
 ### RDC-008
-- **Trigger:** a reset net R with no register behind it whose combinational fan-in walk reaches at least two reset-like leaves and no data leaf, with at least one non-exact combinational edge on the way. Reset-like leaves: asynchronous reset roots, top inputs whose name contains `rst` or `reset` (any case), and outputs of recognised reset synchronisers. Data leaves: other register outputs and other top inputs.
+- **Trigger:** a reset net R with no register behind it whose combinational fan-in walk reaches at least two reset-like leaves and no data leaf, with at least one non-exact combinational edge on the way. Reset-like leaves: asynchronous reset roots, top inputs the shared classifier takes as KNOWN resets (ANALYSIS.md: `rst_n`, `por_rst_n`, `rst_lc_n`), and outputs of recognised reset synchronisers. Data leaves: other register outputs and top inputs that are DATA. A top input of UNDECIDED identity (`rst_q`) is a third kind of leaf.
 - **Severity:** WARNING, Heuristic when the combination is classified: every direct combinational input of R is a true-polarity And or Or edge (no inversion, no other operator), all of one kind, over at least two distinct sources, and some user resets on R; WARNING, Unresolved otherwise.
-- **Unknown:** unclassified combinations (including nested or mixed expressions) are Unresolved; a top input not named like a reset is a data leaf, so such a net is RDC-009 instead.
+- **Unknown:** unclassified combinations (including nested or mixed expressions) are Unresolved; a top input that is DATA is a data leaf, so such a net is RDC-009 instead. With an UNDECIDED leaf and no data leaf, whether R combines resets or is gated is not decided: RDC-008 (when at least two sources) and RDC-009 are both WARNING, Unresolved, naming the leaf.
 
 ### RDC-009
 - **Trigger:** a logic-built reset net R with no register behind it whose combinational fan-in walk (as RDC-008) reaches at least one data leaf and at least one non-exact combinational edge.
-- **Severity:** WARNING, Heuristic.
+- **Severity:** WARNING, Heuristic; WARNING, Unresolved when the only candidates are UNDECIDED leaves (see RDC-008).
 - **Unknown:** glitch freedom is not decided from RTL; each data-leaf register whose assertion sources differ from those of the users, or whose clock is unidentified, also gets RDC-017 (WARNING, Heuristic).
 
 ### RDC-010

@@ -1,0 +1,55 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-D (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "bad",
+    "class": "LC03",
+    "sites": [
+      {
+        "line": 22
+      }
+    ],
+    "boundary": "bad",
+    "subtype": "unsigned mask changes arithmetic right shift",
+    "rationale": "The unsigned lane mask makes the masked signed error unsigned, so the arithmetic right shift fills with zeros when the retained sign bit is one."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "bad",
+      "class": "LC03",
+      "sites": [
+        {
+          "line": 22
+        }
+      ],
+      "critical": true,
+      "note": "Masking signed reverse_error with unsigned b makes the operand unsigned, so >>> becomes a logical shift instead of sign-preserving."
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "bad",
+      "class": "LC03",
+      "sites": [
+        {
+          "line": 22
+        }
+      ],
+      "critical": true,
+      "note": "Unsigned b makes the bitwise result unsigned, so the arithmetic right shift zero-fills."
+    }
+  ],
+  "rationale": "The unsigned lane mask makes the masked signed error unsigned, so the arithmetic right shift fills with zeros when the retained sign bit is one.",
+  "verdict": "bad",
+  "class": "LC03",
+  "sites": [
+    {
+      "line": 22
+    }
+  ],
+  "critical": true
+}

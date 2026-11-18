@@ -1,3 +1,5 @@
+// revert: endcase => default: y = 1'b0; endcase
+// revert-expect-none: LNT-081
 // sverity-args: --top top
 // expect: LNT-081 WARNING
 module top(input logic [1:0] s, output logic y);

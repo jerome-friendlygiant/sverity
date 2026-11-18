@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p4-lint-fresh",
+  "origin": "authored",
+  "author": "author-E (gpt-6.1-sol)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC12",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "ordered blocking combinational temporary",
+    "rationale": "The temporary is written before it is read and the output follows every input change."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC12",
+      "sites": [],
+      "critical": false,
+      "note": "Combinational struct members are written before being read with blocking assignments under full @* sensitivity."
+    },
+    {
+      "by": "reader-2 (gpt-6-sol, blind)",
+      "verdict": "good",
+      "class": "LC12",
+      "sites": [],
+      "critical": false,
+      "note": "The combinational block uses blocking assignments in dependency order and has complete sensitivity."
+    }
+  ],
+  "rationale": "The temporary is written before it is read and the output follows every input change.",
+  "verdict": "good",
+  "class": "LC12",
+  "sites": [],
+  "critical": false
+}

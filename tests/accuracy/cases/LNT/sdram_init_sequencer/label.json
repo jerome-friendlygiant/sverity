@@ -1,0 +1,28 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "verdict": "good",
+  "critical": false,
+  "origin": "authored",
+  "sites": [],
+  "sdc": [],
+  "rationale": "The unique case lists every enum state exactly once with a safe default; items do not overlap and every state is reachable and assigned.",
+  "author": "claude-sonnet-5-5",
+  "class": "LC13",
+  "batch": "p2-lint-heldout",
+  "labels": [
+    {
+      "by": "claude-sonnet-5-5 (author)",
+      "verdict": "good",
+      "critical": false
+    },
+    {
+      "by": "gpt-6.1-terra (blind second labeller, design only)",
+      "verdict": "good",
+      "critical": false,
+      "class": "LC13",
+      "sites": [],
+      "note": "The state machine assigns defaults and covers all named states with recovery for other encodings."
+    }
+  ]
+}

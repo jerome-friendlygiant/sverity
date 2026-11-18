@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-C (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC24",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "read and write exclusive in a cycle",
+    "rationale": "Read happens only in the else branch of the write, so no collision."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "good",
+      "class": "LC24",
+      "sites": [],
+      "critical": false,
+      "note": "Read register updates only on non-write cycles, so no read-during-write."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC24",
+      "sites": [],
+      "critical": false,
+      "note": "Read and write are exclusive in each cycle, so there is no read-during-write collision."
+    }
+  ],
+  "rationale": "Read happens only in the else branch of the write, so no collision.",
+  "verdict": "good",
+  "class": "LC24",
+  "sites": [],
+  "critical": false
+}

@@ -1,0 +1,39 @@
+{
+  "family": "LNT",
+  "top": "top",
+  "batch": "p3-lint-fresh",
+  "origin": "authored",
+  "author": "author-B (claude-sonnet-5-5)",
+  "sdc": [],
+  "intent": {
+    "verdict": "good",
+    "class": "LC14",
+    "sites": [],
+    "boundary": "safe-lookalike",
+    "subtype": "default branch assigns a known value",
+    "rationale": "Same decoder as a bad case but the default assigns 4'b0000."
+  },
+  "labels": [
+    {
+      "by": "reader-1 (claude-fable-5-2, blind)",
+      "verdict": "good",
+      "class": "LC14",
+      "sites": [],
+      "critical": false,
+      "note": "Default assigns a defined 4'b0000; no X or Z anywhere."
+    },
+    {
+      "by": "reader-2 (claude-opus-5-5, blind)",
+      "verdict": "good",
+      "class": "LC14",
+      "sites": [],
+      "critical": false,
+      "note": "Default assigns 0; no X or Z in logic."
+    }
+  ],
+  "rationale": "Same decoder as a bad case but the default assigns 4'b0000.",
+  "verdict": "good",
+  "class": "LC14",
+  "sites": [],
+  "critical": false
+}
