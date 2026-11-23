@@ -22,6 +22,9 @@ jobs:
       CCACHE_MAXSIZE: 500M
       CMAKE_CXX_COMPILER_LAUNCHER: ccache
       SVERITY_JOBS: 4
+      # The runner has 16 GB: four heavy C++ units need more than mem_guard's 4 GiB build default.
+      SVERITY_BUILD_MEM_MAX: 10G
+      SVERITY_SLICE_MEM_MAX: 13G
     steps:
       - uses: actions/checkout@v7
         with:
