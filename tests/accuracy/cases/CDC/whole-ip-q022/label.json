@@ -1,0 +1,111 @@
+{
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Gray pointer FIFO and cross-clock memory",
+  "rationale": "A 3-bit binary counter wbin crosses directly into clk_b data_o_r (line 9), with no synchroniser or encoding, under declared async clocks; carry transitions and metastability reach the output. CDC-017 (counter) is primary and CDC-004 also matches. This is not a complete FIFO. Raw rst_n release, recovery/removal and physical timing remain external obligations outside this label.",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 9,
+      "signal": "data_o_r"
+    },
+    {
+      "file": "design.sv",
+      "line": 6,
+      "signal": "wbin"
+    }
+  ],
+  "expected_rules": [
+    "CDC-017",
+    "CDC-004"
+  ],
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-6-whole-ip-fresh",
+  "author": "cdc-whole-ip-author (GPT-6 Luna)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "author_reading": {
+    "id": "Q022",
+    "workflow_class": "gray_pointer_fifo_memory",
+    "case_type": "bad",
+    "expected_rules": [
+      "CDC-017"
+    ],
+    "detection_gap": null,
+    "site": {
+      "signal": "data_o_r",
+      "file": "design.sv",
+      "line": 4
+    },
+    "rationale": "Binary pointer/counter crosses into the opposite clock domain as an unsynchronized multi-bit value; bit changes can be incoherent.",
+    "premises": {
+      "clocks": "clk_a and clk_b both have 10 ns primary clocks; clock relationships are undeclared for six unknown cases, while the Gray-pointer unknown declares asynchronous groups and lacks a datapath bound",
+      "reset": "common rst_n unless the defect specifically exercises reset roots",
+      "protocol": "event delivery required at the stated minimum assertion duration only where boundary_events.json is supplied",
+      "physical_evidence": "No library, metastability MTBF, placement or bus-skew claim; external implementation evidence remains required"
+    }
+  },
+  "settlement": {
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Gray pointer FIFO and cross-clock memory",
+    "rationale": "A 3-bit binary counter wbin crosses directly into clk_b data_o_r (line 9), with no synchroniser or encoding, under declared async clocks; carry transitions and metastability reach the output. CDC-017 (counter) is primary and CDC-004 also matches. This is not a complete FIFO. Raw rst_n release, recovery/removal and physical timing remain external obligations outside this label.",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 9,
+        "signal": "data_o_r"
+      },
+      {
+        "file": "design.sv",
+        "line": 6,
+        "signal": "wbin"
+      }
+    ],
+    "by": "cdc-whole-ip-settler (Claude Opus 5.5)",
+    "expected_rules": [
+      "CDC-017",
+      "CDC-004"
+    ]
+  },
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Gray pointer FIFO and cross-clock memory",
+      "rationale": "A changing binary counter crosses directly to the clk_b output register with no synchronization or coherent protocol. Carry transitions can produce mixed values and metastable capture.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 9,
+          "signal": "data_o_r"
+        }
+      ],
+      "by": "cdc-whole-ip-reader-a (GPT-6.1 Sol)",
+      "expected_rules": [
+        "CDC-017"
+      ]
+    },
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Gray pointer FIFO and cross-clock memory",
+      "rationale": "A binary incrementing three-bit counter crosses directly from clk_a into clk_b without synchronization or encoding. Carry transitions can produce incoherent sampled values.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 9,
+          "signal": "data_o_r"
+        }
+      ],
+      "by": "cdc-whole-ip-reader-b (GPT-6.1 Sol)",
+      "expected_rules": [
+        "CDC-017"
+      ]
+    }
+  ]
+}

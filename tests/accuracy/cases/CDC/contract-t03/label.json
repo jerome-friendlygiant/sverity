@@ -1,0 +1,154 @@
+{
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Multi-bit transfer and reconvergence",
+  "whole_ip_good_control": false,
+  "rationale": "src_cmd is a 2-bit atomic opcode whose two bits may change on one src_clk edge. Each bit gets its own two-stage synchroniser, so skew in metastability resolution can present an opcode that was never sent (01 to 10 can show as 00 or 11). There is no Gray or independent-field contract.",
+  "caveats": [
+    "CDC-009 is the only defect-specific detector. Its trigger is written for a crossing group. CDC-007 and CDC-029 explicitly cover primary inputs, but CDC-009's text does not, apart from CDC-029's note about inputs without set_input_delay. If the predicate excludes delay-bound primary inputs, this case is a real miss, not an exclusion.",
+    "CDC-029 INFO (structurally synchronised) is not detection.",
+    "Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+  ],
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 6,
+      "signal": "src_cmd"
+    },
+    {
+      "file": "design.sv",
+      "line": 6,
+      "signal": "s1"
+    },
+    {
+      "file": "design.sv",
+      "line": 6,
+      "signal": "dst_cmd"
+    }
+  ],
+  "expected_rules": [
+    "CDC-009"
+  ],
+  "family": "CDC",
+  "top": "top_cdc_rfc1_t03",
+  "origin": "authored",
+  "batch": "cdc-5-contract-fresh",
+  "author": "cdc-contract-author (GPT-6 Luna)",
+  "author_reading": {
+    "id": "CDC-RFC1-T03",
+    "kind": "bad",
+    "class": "Multi-bit transfer and reconvergence",
+    "title": "Independently synchronized command bits",
+    "case_files": [
+      "design.sv",
+      "clocks.sdc",
+      "contract.md"
+    ],
+    "boundary_event_config": null,
+    "site_signal": "dst_cmd",
+    "expected_rules": [
+      "CDC-009"
+    ],
+    "rationale": "The two command bits encode one atomic opcode and source may change both on one src_clk edge. No Gray or independently meaningful-bit contract.",
+    "limitations": [
+      "Structural attribution is a proposal for independent adjudication, not analyzer outcome.",
+      "No SVerity scoring performed.",
+      "Physical timing and metastability requirements remain external."
+    ],
+    "top": "top_cdc_rfc1_t03",
+    "profile": "asic",
+    "sdc": "clocks.sdc"
+  },
+  "sdc": [
+    "clocks.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Multi-bit transfer and reconvergence",
+      "fit": true,
+      "whole_ip_good_control": false,
+      "rationale": "An atomic opcode can change multiple bits; independent two-stage bit sampling can produce an opcode never sent.",
+      "caveats": [
+        "No Gray or independent-field exemption."
+      ],
+      "sites": [
+        {
+          "signal": "src_cmd",
+          "file": "design.sv",
+          "line": 6
+        },
+        {
+          "signal": "s2",
+          "file": "design.sv",
+          "line": 6
+        }
+      ],
+      "expected_rules": [
+        "CDC-009"
+      ],
+      "by": "cdc-contract-reader-a (GPT-6.1 Sol)"
+    },
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Multi-bit transfer and reconvergence",
+      "fit": "atomic bus incoherence",
+      "whole_ip_good_control": false,
+      "rationale": "Independent two-stage bit sampling cannot preserve an atomic opcode when multiple source bits change together.",
+      "caveats": "Raw rst_n release is not locally synchronized or bounded by a release contract; RDC-003 remains a whole-IP closure confounder. Output consumer timing is not specified. Physical closure is excluded.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 6,
+          "signal": "s1"
+        },
+        {
+          "file": "design.sv",
+          "line": 6,
+          "signal": "dst_cmd"
+        }
+      ],
+      "expected_rules": [
+        "CDC-009"
+      ],
+      "by": "cdc-contract-reader-b (GPT-6.1 Sol)"
+    }
+  ],
+  "settlement": {
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Multi-bit transfer and reconvergence",
+    "fit": true,
+    "whole_ip_good_control": false,
+    "rationale": "src_cmd is a 2-bit atomic opcode whose two bits may change on one src_clk edge. Each bit gets its own two-stage synchroniser, so skew in metastability resolution can present an opcode that was never sent (01 to 10 can show as 00 or 11). There is no Gray or independent-field contract.",
+    "caveats": [
+      "CDC-009 is the only defect-specific detector. Its trigger is written for a crossing group. CDC-007 and CDC-029 explicitly cover primary inputs, but CDC-009's text does not, apart from CDC-029's note about inputs without set_input_delay. If the predicate excludes delay-bound primary inputs, this case is a real miss, not an exclusion.",
+      "CDC-029 INFO (structurally synchronised) is not detection.",
+      "Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 6,
+        "signal": "src_cmd"
+      },
+      {
+        "file": "design.sv",
+        "line": 6,
+        "signal": "s1"
+      },
+      {
+        "file": "design.sv",
+        "line": 6,
+        "signal": "dst_cmd"
+      }
+    ],
+    "expected_rules": [
+      "CDC-009"
+    ],
+    "by": "cdc-contract-settler (Claude Opus 5.5)",
+    "reason": "src_cmd is a 2-bit atomic opcode whose two bits may change on one src_clk edge. Each bit gets its own two-stage synchroniser, so skew in metastability resolution can present an opcode that was never sent (01 to 10 can show as 00 or 11). There is no Gray or independent-field contract."
+  }
+}

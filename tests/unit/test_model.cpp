@@ -17,6 +17,8 @@ struct ConeFinderTestAccess {
     static const Cone& hub(ConeFinder& finder, NodeId id) { return finder.hubCone(id); }
     static size_t coneBytes(const ConeFinder& finder) { return finder.retainedConeBytes(); }
     static size_t hubBytes(const ConeFinder& finder) { return finder.retainedHubBytes(); }
+    static uint64_t coneCompactedBytes(const ConeFinder& finder) { return finder.coneCompactedBytes_; }
+    static void forceGenerationWrap(ConeFinder& finder) { finder.gen_ = finder.hubGen_ = UINT32_MAX; }
 };
 } // namespace sverity::model
 
@@ -319,6 +321,83 @@ TEST(model_cone_cache_budget_counts_uncertainty_and_keeps_uncached_content) {
     CHECK(ConeFinderTestAccess::coneBytes(cached) >= a->uncertainCalls.capacity() * sizeof(uint32_t));
 }
 
+// A view with nothing skipped is the register's cone; with everything skippable it keeps only the inputs and uncertainty, and
+// summarises the registers it left out. A subgraph reaching a listed register, an input or an uncertainty is never skipped.
+TEST(model_cone_views_match_full_cones_and_summarise_skipped_sources) {
+    auto l = load(R"(module top(input logic clk, clk2, input logic [3:0] a, input logic sel, output logic [3:0] q, r, s);
+      logic [3:0] p, t, u; logic w;
+      always_ff @(posedge clk) p <= a;
+      always_ff @(posedge clk2) t <= ~a;
+      always_ff @(posedge clk) u <= sel ? p : t;
+      always_ff @(posedge clk) q <= (p & t) | {4{w}};
+      always_ff @(posedge clk2) r <= p + t;
+      always_ff @(posedge clk) s <= u ^ p;
+    endmodule)");
+    const auto sameSources = [](const std::vector<ConeSrc>& x, const std::vector<ConeSrc>& y) {
+        if (x.size() != y.size()) return false;
+        for (size_t i = 0; i < x.size(); ++i) if (x[i].q != y[i].q || x[i].logic != y[i].logic) return false;
+        return true;
+    };
+    ConeFinder finder(*l->m), probe(*l->m);
+    const auto byDomain = finder.classify([&](uint32_t fi) { return l->m->flops[fi].domain; }, true);
+    for (const auto& d : l->m->flops) {
+        const auto full = probe.of(d);
+        const auto all = finder.view(d, byDomain, 1, [](uint32_t) { return false; });
+        CHECK(sameSources(all.flops, full->flops) && sameSources(all.inputs, full->inputs));
+        CHECK(all.bbLeaves == full->bbLeaves && all.unresolved == full->unresolved && all.undriven == full->undriven);
+        CHECK(all.uncertainCalls == full->uncertainCalls);
+        CHECK(all.skippedClasses.empty() && all.skippedA == kNoNode);
+        // Skip every register of the capture's own domain: what is left is exactly the other-domain sources.
+        const auto other = finder.view(d, byDomain, 2 + d.domain, [&](uint32_t set) {
+            const auto& classes = byDomain.classes(set);
+            return std::all_of(classes.begin(), classes.end(), [&](uint32_t c) { return c == d.domain; });
+        });
+        std::vector<ConeSrc> expected;
+        size_t ownDomain = 0;
+        for (const auto& s : full->flops) {
+            if (l->m->flopAt(s.q)->domain != d.domain) expected.push_back(s);
+            else ++ownDomain;
+        }
+        CHECK(sameSources(other.flops, expected));
+        CHECK(sameSources(other.inputs, full->inputs));   // inputs are always listed by a complete classification
+        CHECK(other.undriven == full->undriven);          // so is the undriven `w`
+        CHECK_EQ(other.skippedA != kNoNode, ownDomain != 0);
+        for (auto c : other.skippedClasses) CHECK_EQ(c, d.domain);
+    }
+    // The same answers again from a second classification (remembered answers are per classification and key).
+    const auto again = finder.classify([&](uint32_t) { return SourceClasses::kListed; }, false);
+    for (const auto& d : l->m->flops) {
+        const auto listed = finder.view(d, again, 2 + d.domain, [](uint32_t) { return true; });
+        CHECK(sameSources(listed.flops, probe.of(d)->flops));
+    }
+}
+
+TEST(model_retained_cones_compact_vector_capacity_without_changing_sources) {
+    auto l = load(R"(module top(input logic clk, input logic [128:0] data, output logic [128:0] q);
+      always_ff @(posedge clk) q <= data + 129'd1;
+    endmodule)");
+    ConeFinder cached(*l->m), uncached(*l->m, 0, 0);
+    bool sawSavings = false;
+    for (const auto& f : l->m->flops) {
+        const auto a = cached.of(f), b = uncached.of(f);
+        const auto same = [](const auto& x, const auto& y) {
+            if (x.size() != y.size()) return false;
+            for (size_t i = 0; i < x.size(); ++i)
+                if (x[i].q != y[i].q || x[i].logic != y[i].logic) return false;
+            return true;
+        };
+        CHECK(same(a->flops, b->flops));
+        CHECK(same(a->inputs, b->inputs));
+        CHECK(a->bbLeaves == b->bbLeaves && a->unresolved == b->unresolved && a->undriven == b->undriven);
+        CHECK(a->uncertainCalls == b->uncertainCalls);
+        const auto compact = [](const auto& v) { CHECK(v.capacity() == v.size()); };
+        compact(a->flops); compact(a->inputs); compact(a->bbLeaves);
+        compact(a->unresolved); compact(a->uncertainCalls); compact(a->undriven);
+    }
+    sawSavings = ConeFinderTestAccess::coneCompactedBytes(cached) > 0;
+    CHECK(sawSavings);
+}
+
 namespace {
 bool reaches(const Model& m, const std::string& from, const std::string& to) {
     for (const auto& e : m.edges)
@@ -444,6 +523,36 @@ TEST(model_reconvergent_hubs_normalize_uncertainty_without_losing_sources) {
     CHECK(sawUncertainty);
 }
 
+TEST(model_cold_hub_and_direct_path_share_one_logic_source_even_after_stamp_wrap) {
+    auto loaded = load("module top(input logic d, output logic q); assign q=d; endmodule");
+    Model graph;
+    graph.nodes = {loaded->m->nodes[nodeNamed(*loaded->m, ".d")], {},
+                   loaded->m->nodes[nodeNamed(*loaded->m, ".q")]};
+    graph.topInput = {true, false, false};
+    const auto addEdge = [&](NodeId from, NodeId to) {
+        Edge edge;
+        edge.from = from;
+        edge.to = to;
+        graph.edges.push_back(edge);
+    };
+    addEdge(0, 1);
+    addEdge(1, 2);
+    addEdge(0, 2);
+    graph.in.build(graph.nodes.size(), graph.edges.size(), [&](size_t i) { return graph.edges[i].to; });
+    for (size_t budget : {size_t{0}, size_t{1024}}) {
+        ConeFinder finder(graph, budget, budget);
+        for (int attempt = 0; attempt < 3; ++attempt) {
+            if (attempt == 1) ConeFinderTestAccess::forceGenerationWrap(finder);
+            const auto cone = finder.ofNodes({2});
+            CHECK_EQ(cone.inputs.size(), size_t{1});
+            if (!cone.inputs.empty()) {
+                CHECK_EQ(cone.inputs.front().q, NodeId{0});
+                CHECK(cone.inputs.front().logic);
+            }
+        }
+    }
+}
+
 TEST(repeated_edges_keep_what_is_common_whatever_their_order) {
     using namespace sverity::model;
     const auto edge = [](Branch branch, uint8_t inv, Op op, bool approximate, bool internalRead) {
@@ -468,4 +577,36 @@ TEST(repeated_edges_keep_what_is_common_whatever_their_order) {
     m.edges = {edge(Branch::Taken, 0, Op::And, true, false), edge(Branch::Taken, 0, Op::And, false, false)};
     m.compactEdges();
     CHECK_EQ(m.edges.size(), size_t{2});
+}
+
+TEST(straight_line_function_call_keeps_result_bits_apart) {
+    auto l = load(R"(module top(input logic [3:0] x, y, output logic [7:0] w);
+        typedef struct packed { logic [3:0] a; logic [3:0] b; } pair_t;
+        function automatic pair_t pack(input logic [3:0] l, input logic [3:0] r);
+          pair_t s;
+          logic unused;
+          unused = 1'b0;
+          unused ^= ^r;
+          s.a = l;
+          s.b = ~r;
+          return s;
+        endfunction
+        assign w = pack(x, y);
+      endmodule)");
+    auto& m = *l->m;
+    for (int bit = 0; bit < 4; bit++) {
+        const std::string b = std::to_string(bit);
+        const NodeId high = nodeNamed(m, "top.w[" + std::to_string(bit + 4) + "]"), low = nodeNamed(m, "top.w[" + b + "]");
+        CHECK(high != kNoNode && low != kNoNode);
+        // the high field is a plain copy of x, and reads nothing else
+        CHECK_EQ(m.in[high].size(), size_t{1});
+        const Edge* fromX = edgeBetween(m, nodeNamed(m, "top.x[" + b + "]"), high);
+        CHECK(fromX && fromX->exact && !fromX->approximate);
+        CHECK(!edgeBetween(m, nodeNamed(m, "top.y[" + b + "]"), high));
+        // the low field is the inverse of y, and reads nothing else
+        CHECK_EQ(m.in[low].size(), size_t{1});
+        const Edge* fromY = edgeBetween(m, nodeNamed(m, "top.y[" + b + "]"), low);
+        CHECK(fromY && fromY->flip && !fromY->approximate);
+        CHECK(!edgeBetween(m, nodeNamed(m, "top.x[" + b + "]"), low));
+    }
 }

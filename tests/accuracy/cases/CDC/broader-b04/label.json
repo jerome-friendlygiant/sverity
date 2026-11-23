@@ -1,0 +1,37 @@
+{
+  "verdict": "good",
+  "workflow_class": "Synchronizer structure",
+  "critical": false,
+  "sites": [],
+  "family": "CDC",
+  "top": "case_ss02",
+  "origin": "authored",
+  "batch": "cdc-2-fresh",
+  "author": "cdc-broader-author (GPT-6 Luna)",
+  "author_reading": {
+    "verdict": "good",
+    "workflow_class": "Synchronizer structure"
+  },
+  "rationale": "Two destination-clock stages with no early fan-out; flag uses only the second stage. Supplied pin timing also makes the input synchronous. Physical implementation quality is outside structural review.",
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "good",
+      "workflow_class": "Synchronizer structure",
+      "critical": false,
+      "sites": [],
+      "by": "cdc-broader-reader-a (GPT-6.1 Sol)",
+      "rationale": "Two destination-clock stages with no early fan-out; flag uses only the second stage. Supplied pin timing also makes the input synchronous. Physical implementation quality is outside structural review."
+    },
+    {
+      "verdict": "good",
+      "workflow_class": "Synchronizer structure",
+      "critical": false,
+      "sites": [],
+      "by": "cdc-broader-reader-b (GPT-6.1 Sol)",
+      "rationale": "The packed shift implements two successive clk registers with no early-stage fan-out. The input also has clk-relative timing; structural metastability placement remains an external implementation obligation."
+    }
+  ]
+}

@@ -1,0 +1,115 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "verdict": "unknown",
+  "critical": false,
+  "workflow_class": "Multi-bit transfer and reconvergence",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 37,
+      "signal": "status_o"
+    },
+    {
+      "file": "intent.sdc",
+      "line": 6,
+      "signal": "status_o"
+    }
+  ],
+  "expected_rules": [
+    "CST-012"
+  ],
+  "rationale": "Two distinct synchronized launch bits occupy separate bits of status_o under one dst_clk output contract: CST-012(c) WARNING Unresolved field-intent/coherence obligation. Class settled to Multi-bit transfer and reconvergence (Reader B, author): the open question is coherence at the consumer, the closure evidence of that class.",
+  "author_reading": {
+    "id": "rfc1-h38",
+    "intended_verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Multi-bit transfer and reconvergence",
+    "expected_rules": [
+      "CST-012"
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 37,
+        "signal": "status_o"
+      }
+    ],
+    "rationale": "Two independently synchronized single-source bits are packed into separate bits of one output word with one output delay: field intent and coherence are not stated."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "IP and external boundaries",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 37,
+          "signal": "status_o"
+        },
+        {
+          "file": "intent.sdc",
+          "line": 6,
+          "signal": "status_o"
+        }
+      ],
+      "rationale": "status_o packs separate sources behind independent synchronizers. The output delay states the capture clock, but the consumer's expectations for field independence or whole-word coherence are unspecified.",
+      "expected_rules": [
+        "CST-012"
+      ]
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Multi-bit transfer and reconvergence",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 37,
+          "signal": "status_o"
+        },
+        {
+          "file": "intent.sdc",
+          "line": 6,
+          "signal": "status_o"
+        }
+      ],
+      "rationale": "Two distinct source bits a_src_q and b_src_q (src_clk) are independently synchronized into dst_clk via u_sync_a (a_s) and u_sync_b (b_s) and packed onto a single 2-bit top-level output port status_o = {b_s, a_s} (design.sv:37) under set_output_delay -clock dst_clk (intent.sdc:6), leaving multi-bit word coherence vs. independent-field consumer intent unresolved (CST-012 WARNING Unresolved).",
+      "expected_rules": [
+        "CST-012"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "cdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Multi-bit transfer and reconvergence",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 37,
+        "signal": "status_o"
+      },
+      {
+        "file": "intent.sdc",
+        "line": 6,
+        "signal": "status_o"
+      }
+    ],
+    "expected_rules": [
+      "CST-012"
+    ],
+    "rationale": "Two distinct synchronized launch bits occupy separate bits of status_o under one dst_clk output contract: CST-012(c) WARNING Unresolved field-intent/coherence obligation. Class settled to Multi-bit transfer and reconvergence (Reader B, author): the open question is coherence at the consumer, the closure evidence of that class."
+  }
+}

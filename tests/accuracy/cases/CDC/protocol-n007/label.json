@@ -1,0 +1,91 @@
+{
+  "verdict": "bad",
+  "workflow_class": "Multi-bit transfer and reconvergence",
+  "critical": true,
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 4,
+      "signal": "gray"
+    },
+    {
+      "file": "design.sv",
+      "line": 5,
+      "signal": "g1"
+    }
+  ],
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-3-protocol-fresh",
+  "author": "cdc-protocol-author (GPT-6 Luna)",
+  "author_reading": {
+    "workflow_class": "Multi-bit transfer and reconvergence",
+    "verdict": "unknown",
+    "label_scope": "Unknown / obligation",
+    "rationale": "Gray-coded counter changes one bit per source increment, but source/destination rate relationship and physical inter-bit skew are not established. RTL elaboration does not prove safe sampling."
+  },
+  "rationale": "gray is combinational XOR logic driven by a binary counter, not a registered Gray launch. Binary carry transitions can switch several source flops with skew and produce transient encodings at g1; g2 cannot repair a falsely sampled value. Stable consecutive Gray values differing by one bit does not remove this structural launch hazard. Zero-delay simulations cannot disprove it. Rate, physical bit-skew and reset startup remain additional obligations. No FIFO memory, pointer use, full or empty logic is present.",
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "bad",
+      "workflow_class": "Gray pointer FIFO and cross-clock memory",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "gray"
+        },
+        {
+          "file": "design.sv",
+          "line": 5,
+          "signal": "g1"
+        }
+      ],
+      "by": "cdc-protocol-reader-a (GPT-6.1 Sol)",
+      "rationale": "Gray is combinationally decoded from a binary register. Multi-bit binary transitions can glitch the XOR network, so the first destination stage can sample a non-Gray intermediate value. Two capture stages do not repair it. Registering the Gray launch is needed for structural single-transition behavior; physical bit skew and reset startup also remain externally unclosed. No FIFO memory behavior is present to assess."
+    },
+    {
+      "verdict": "bad",
+      "workflow_class": "Gray pointer FIFO and cross-clock memory",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "gray"
+        },
+        {
+          "file": "design.sv",
+          "line": 5,
+          "signal": "g1"
+        }
+      ],
+      "by": "cdc-protocol-reader-b (GPT-6.1 Sol)",
+      "rationale": "Stable binary states increment by one and their Gray encodings differ by one bit, but gray is combinational logic driven by a binary register. At binary transitions such as 7 to 8, register-output skew can generate intermediate Gray values and multiple glitches at the asynchronous first stage. There is no registered Gray launch or supplied timing contract excluding this hazard. Two capture stages do not repair a falsely sampled encoding. No FIFO memory, full or empty behavior is present to judge; physical bit-skew and reset closure are additional obligations."
+    }
+  ],
+  "settlement": {
+    "verdict": "bad",
+    "workflow_class": "Multi-bit transfer and reconvergence",
+    "critical": true,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 4,
+        "signal": "gray"
+      },
+      {
+        "file": "design.sv",
+        "line": 5,
+        "signal": "g1"
+      }
+    ],
+    "by": "cdc-protocol-settler (GPT-6.1 Sol)",
+    "reason": "gray is combinational XOR logic driven by a binary counter, not a registered Gray launch. Binary carry transitions can switch several source flops with skew and produce transient encodings at g1; g2 cannot repair a falsely sampled value. Stable consecutive Gray values differing by one bit does not remove this structural launch hazard. Zero-delay simulations cannot disprove it. Rate, physical bit-skew and reset startup remain additional obligations. No FIFO memory, pointer use, full or empty logic is present."
+  }
+}

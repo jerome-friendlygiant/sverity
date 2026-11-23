@@ -160,6 +160,13 @@ struct Flow::Impl : AbstractFlowAnalysis<Impl, State> {
                     out.symbols.insert(&s);
                 }
                 void handle(const HierarchicalValueExpression&) { out.unknown = true; }
+                void handle(const DisableStatement&) { out.unknown = true; }
+                void handle(const DisableForkStatement&) { out.unknown = true; }
+                void handle(const NewClassExpression&) { out.unknown = true; }
+                void handle(const ConcurrentAssertionStatement& s) {
+                    if (s.assertionKind == AssertionKind::Expect) out.unknown = true;
+                    visitDefault(s);
+                }
                 // A declaration initializer, a block local's or a loop variable's, is a read the visitor does not reach by itself.
                 void handle(const VariableDeclStatement& declaration) {
                     if (const auto* init = declaration.symbol.getInitializer()) init->visit(*this);
@@ -170,7 +177,10 @@ struct Flow::Impl : AbstractFlowAnalysis<Impl, State> {
                     visitDefault(loop);
                 }
                 void handle(const CallExpression& call) {
-                    if (!call.isSystemCall()) {
+                    if (call.isSystemCall()) {
+                        const auto& name = std::get<CallExpression::SystemCallInfo>(call.subroutine).subroutine->name;
+                        if (name == "$finish" || name == "$stop" || name == "$fatal" || name == "$exit") out.unknown = true;
+                    } else {
                         const auto* callee = call.thisClass() ? nullptr : std::get_if<const SubroutineSymbol*>(&call.subroutine);
                         if (!callee || !*callee) out.unknown = true;
                         else {
@@ -509,7 +519,10 @@ struct Flow::Impl : AbstractFlowAnalysis<Impl, State> {
     }
 
     void handle(const CallExpression& c) {
-        if (!c.isSystemCall()) {
+        if (c.isSystemCall()) {
+            const auto& name = std::get<CallExpression::SystemCallInfo>(c.subroutine).subroutine->name;
+            if (name == "$finish" || name == "$stop" || name == "$fatal" || name == "$exit") markOpaque();
+        } else {
             const State& here = getState();
             auto [it, fresh] = callStates.try_emplace(&c, here);
             if (!fresh) joinState(it->second, here);
@@ -519,6 +532,11 @@ struct Flow::Impl : AbstractFlowAnalysis<Impl, State> {
             else markExposed(touch->symbols);
         }
         this->visitExpr(c);
+    }
+
+    void handle(const NewClassExpression& e) {
+        markExposed();
+        this->visitExpr(e);
     }
 
     // ---- `for` loops: slang unrolls a loop only when its counter is declared by the header (or an automatic variable) and its bounds
@@ -698,6 +716,9 @@ struct Flow::Impl : AbstractFlowAnalysis<Impl, State> {
         if (auto* g = guardMap.of(&s)) curGuards = g;
         if constexpr (IsAnyOf<T, TimedStatement, WaitStatement, WaitOrderStatement, WaitForkStatement>) {
             if (&s != rootStmt) markOpaque();
+        }
+        if constexpr (std::is_same_v<T, ConcurrentAssertionStatement>) {
+            if (s.assertionKind == AssertionKind::Expect) markOpaque();
         }
         // The unroll budget is per procedure: the outermost loop gets what the earlier ones left, and its use is the most steps slang
         // counted while walking it (nested loops included, as slang weighs them).

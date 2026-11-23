@@ -17,6 +17,10 @@
 namespace sverity {
 
 struct Config {
+    struct BoundaryEventContract {
+        std::string port, launchClock, protocol, durationUnit, delivery;
+        double duration = 0;
+    };
     std::set<std::string> goals;           // selected goal names; empty means all families
     std::string deck;                      // published deck this run reports coverage for; empty = every catalog rule
     bool goalBroadened = false;             // explicit enable restored a rule outside the goal
@@ -29,6 +33,7 @@ struct Config {
     std::map<std::string, std::string> ruleOptions;
     std::map<std::string, Severity> severityOverrides; // expanded exact rule IDs
     Timings* timings = nullptr;            // optional measurements; never affects results
+    std::vector<BoundaryEventContract> boundaryEvents;
     std::string option(const std::string& key, const std::string& def) const {
         auto it = ruleOptions.find(key);
         return it == ruleOptions.end() ? def : it->second;

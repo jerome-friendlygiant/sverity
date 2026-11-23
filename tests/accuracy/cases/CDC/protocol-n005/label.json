@@ -1,0 +1,71 @@
+{
+  "verdict": "unknown",
+  "workflow_class": "Multi-bit transfer and reconvergence",
+  "critical": false,
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 3,
+      "signal": "s1"
+    }
+  ],
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-3-protocol-fresh",
+  "author": "cdc-protocol-author (GPT-6 Luna)",
+  "author_reading": {
+    "workflow_class": "Multi-bit transfer and reconvergence",
+    "verdict": "unknown",
+    "label_scope": "Unknown",
+    "rationale": "Bus capture is visible, but source encoding, stability, and consumer coherence intent are deliberately absent. The intended relationship among bits cannot be inferred."
+  },
+  "rationale": "The explicit absence of source hold, encoding and transaction contracts leaves word coherence undecidable. Each bit has two destination stages, but neither correlated-word intent nor independent-bit intent is specified. This is the same structural uncertainty as N001; absence of a contract is not proof of a required functional violation. Physical synchronizer implementation and asynchronous reset release/recovery remain external obligations; neither SDC nor sampled digital simulation closes them.",
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "unknown",
+      "workflow_class": "Multi-bit transfer and reconvergence",
+      "critical": false,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 3,
+          "signal": "s1"
+        }
+      ],
+      "by": "cdc-protocol-reader-a (GPT-6.1 Sol)",
+      "rationale": "Two-stage bit synchronization is present but the explicit absence of hold, encoding and transaction contracts leaves word coherence unproven. Neither a coherent-word requirement nor independent-bit semantics can be inferred from a vector port. SDC supplies only launch/capture domains and ordinary I/O timing, not coherence."
+    },
+    {
+      "verdict": "unknown",
+      "workflow_class": "Multi-bit transfer and reconvergence",
+      "critical": false,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 3,
+          "signal": "d"
+        }
+      ],
+      "by": "cdc-protocol-reader-b (GPT-6.1 Sol)",
+      "rationale": "The explicit absence of a hold, encoding or transaction contract leaves bus coherence unproven. SDC proves asynchronous launch intent, not functional relationships between bits. Two destination stages do not establish coherent words, but no specified consumer requirement proves an actual forbidden word. This is the same structural uncertainty as N001, with the absence of a contract stated explicitly."
+    }
+  ],
+  "settlement": {
+    "verdict": "unknown",
+    "workflow_class": "Multi-bit transfer and reconvergence",
+    "critical": false,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 3,
+        "signal": "s1"
+      }
+    ],
+    "by": "cdc-protocol-settler (GPT-6.1 Sol)",
+    "reason": "The explicit absence of source hold, encoding and transaction contracts leaves word coherence undecidable. Each bit has two destination stages, but neither correlated-word intent nor independent-bit intent is specified. This is the same structural uncertainty as N001; absence of a contract is not proof of a required functional violation. Physical synchronizer implementation and asynchronous reset release/recovery remain external obligations; neither SDC nor sampled digital simulation closes them."
+  }
+}

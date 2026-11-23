@@ -1,0 +1,37 @@
+{
+  "verdict": "good",
+  "workflow_class": "Clock intent and inventory",
+  "critical": false,
+  "sites": [],
+  "family": "CDC",
+  "top": "case_ci02",
+  "origin": "authored",
+  "batch": "cdc-2-fresh",
+  "author": "cdc-broader-author (GPT-6 Luna)",
+  "author_reading": {
+    "verdict": "good",
+    "workflow_class": "Clock intent and inventory"
+  },
+  "rationale": "div is a clock enable counter, not a generated clock. All state uses clk; d and reset are timed to clk.",
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "good",
+      "workflow_class": "Clock intent and inventory",
+      "critical": false,
+      "sites": [],
+      "by": "cdc-broader-reader-a (GPT-6.1 Sol)",
+      "rationale": "div is a clock enable counter, not a generated clock. All state uses clk; d and reset are timed to clk."
+    },
+    {
+      "verdict": "good",
+      "workflow_class": "Clock intent and inventory",
+      "critical": false,
+      "sites": [],
+      "by": "cdc-broader-reader-b (GPT-6.1 Sol)",
+      "rationale": "div is a synchronous enable counter, not a generated clock. All state uses the declared clk and d has clk-relative input timing."
+    }
+  ]
+}

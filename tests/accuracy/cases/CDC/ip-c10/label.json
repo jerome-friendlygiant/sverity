@@ -1,0 +1,132 @@
+{
+  "verdict": "bad",
+  "workflow_class": "Clock and reset interaction",
+  "critical": true,
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 3,
+      "signal": "en"
+    },
+    {
+      "file": "design.sv",
+      "line": 3,
+      "signal": "gclk"
+    },
+    {
+      "file": "design.sv",
+      "line": 4,
+      "signal": "gclk"
+    },
+    {
+      "file": "design.sv",
+      "line": 4,
+      "signal": "q"
+    }
+  ],
+  "rationale": "Unrestricted enable feeds a combinational AND clock gate. An enable rise while clk is high creates an extra clock edge and a fall truncates the high pulse.",
+  "caveats": "Reproducible waveform: clk rises at 5 ns and falls at 10 ns; en rises at 7 ns, creating gclk posedge at 7 ns, or falls at 8 ns, truncating the pulse. No simulation is needed to derive AND truth table. d launch timing is an additional unknown, not required for this definite gate hazard.",
+  "whole_ip_good_control": false,
+  "family": "CDC",
+  "top": "c10",
+  "origin": "authored",
+  "batch": "cdc-4-ip-fresh",
+  "author": "cdc-ip-author (GPT-6 Luna)",
+  "author_reading": {
+    "proposed_outcome": "Bad clock control",
+    "site_or_premise": "combinational `clk & en -> gclk`",
+    "evidence_and_limits": "`en` is unconstrained and can change while clock is high. No integrated clock gate or safe enable timing premise."
+  },
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "bad",
+      "workflow_class": "Clock and reset interaction",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 3,
+          "signal": "gclk"
+        },
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "q"
+        }
+      ],
+      "by": "cdc-ip-reader-a (GPT-6.1 Sol)",
+      "rationale": "An enable transition while clk is high can generate a new rising edge or truncate a pulse on gclk. Ordinary combinational AND gating with unrestricted enable phase does not provide glitch-free clock control.",
+      "caveats": "The d launch/capture timing contract is also absent, but the clock-control defect holds independently of d. Use a reviewed integrated gate or enforce a glitch-free enable protocol and describe the derived clock.",
+      "fit": true,
+      "whole_ip_good_control": false
+    },
+    {
+      "verdict": "bad",
+      "workflow_class": "Clock and reset interaction",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 3,
+          "signal": "en"
+        },
+        {
+          "file": "design.sv",
+          "line": 3,
+          "signal": "gclk"
+        },
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "gclk"
+        },
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "q"
+        }
+      ],
+      "by": "cdc-ip-reader-b (GPT-6.1 Sol)",
+      "rationale": "Contract permits en to change with clk high. A rising en then produces a spurious gclk rising edge, and a falling en truncates its high pulse. The plain AND gate has no low-phase storage or ICG protection.",
+      "caveats": "Timing/source contract for d is also absent, so no independent clean judgment of that boundary is possible. The enable hazard is already established without it; no generated-clock declaration repairs the physical gate.",
+      "fit": true,
+      "whole_ip_good_control": false
+    }
+  ],
+  "settlement": {
+    "verdict": "bad",
+    "workflow_class": "Clock and reset interaction",
+    "critical": true,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 3,
+        "signal": "en"
+      },
+      {
+        "file": "design.sv",
+        "line": 3,
+        "signal": "gclk"
+      },
+      {
+        "file": "design.sv",
+        "line": 4,
+        "signal": "gclk"
+      },
+      {
+        "file": "design.sv",
+        "line": 4,
+        "signal": "q"
+      }
+    ],
+    "by": "cdc-ip-settler (GPT-6.1 Sol)",
+    "rationale": "Unrestricted enable feeds a combinational AND clock gate. An enable rise while clk is high creates an extra clock edge and a fall truncates the high pulse.",
+    "caveats": "Reproducible waveform: clk rises at 5 ns and falls at 10 ns; en rises at 7 ns, creating gclk posedge at 7 ns, or falls at 8 ns, truncating the pulse. No simulation is needed to derive AND truth table. d launch timing is an additional unknown, not required for this definite gate hazard.",
+    "fit": true,
+    "whole_ip_good_control": false,
+    "reason": "Unrestricted enable feeds a combinational AND clock gate. An enable rise while clk is high creates an extra clock edge and a fall truncates the high pulse."
+  }
+}

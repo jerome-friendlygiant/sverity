@@ -1,0 +1,6 @@
+{
+  "comment": "Reviewed library cell for OpenTitan top_earlgrey at 92f3d03b0dcf6d5c1933a65d1497747f67d19f4c. The generic prim_clock_gating (hw/ip/prim_generic/rtl/prim_clock_gating.sv) captures en_i | test_en_i in a latch open while clk_i is low and drives clk_o = en_latch & clk_i: a latched clock gate of clk_i. test_en_i is the scan enable, which this top ties to the constant scan-mode-off value.",
+  "cells": [
+    {"name": "prim_clock_gating", "kind": "clock_gate", "clock": "clk_i", "enable": "en_i", "output": "clk_o", "enable_latched": true}
+  ]
+}

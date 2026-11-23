@@ -1,0 +1,280 @@
+{
+ "batch": "cdc-7-rfc1-fresh",
+ "cases": {
+  "CDC/rfc1-h01": {
+   "contract.md": "12c65939d40b392ad9a9187494aac64cff240455faefbd43f186e67b002760ea",
+   "design.sv": "44a1dd5dbe474440517bbc1eee8e65e30a95d0dc5658311a7bb0e2a4433db160",
+   "intent.sdc": "f452ecffe3ee0c878385e9a18b9eee705c1751f80eb3e2e630572f10611fbf74",
+   "label.json": "fb24f101701435d2ec5569568cbe033026749c567d287f235444a2aa38c5327c"
+  },
+  "CDC/rfc1-h02": {
+   "contract.md": "68f467a785100ce7bb6b0fdb88ab2beeeb9913c9460a219ebb3d307fc41a17bb",
+   "design.sv": "b6bac08e2f295aa1f907b49759a0f6ab082a39172eb1db8ccf71cfc659df6d29",
+   "intent.sdc": "5b09e8e5851de6a651495384a117d63a861824a7b7abd29d0160f9ba3e1f8f50",
+   "label.json": "edc36e072d3e64e5a4bd222ec39b77ecef3dfe90a7dd37e995915027cb3be7ec"
+  },
+  "CDC/rfc1-h03": {
+   "contract.md": "ac72827362ddb4c07c5d96701242f40bae9033575cf9a61e68fcd277763b9d4f",
+   "design.sv": "7127964414722e6cbc5c17e0de577f8ccb0919522d684265f295528d1586036f",
+   "intent.sdc": "1d51d1fab04ae7234dd101da2151b86f78622a6b54af5111d8499eba3c7bc248",
+   "label.json": "eca85c489506cb4dedc02125eb692619652d20d19d6b237c86ec2dfe9af6277e"
+  },
+  "CDC/rfc1-h04": {
+   "contract.md": "724c9645a672bd61555ad97b8a3e1b8320f99922a7e3a7546e4221e3afebec78",
+   "design.sv": "a4402cdec58f5684d2710574bff8930d89d4f5347140d36a42a0ec695261db62",
+   "intent.sdc": "279cee807149114cba24b16d78a7c6104b0e77e750676b345b27c82f1ed6e768",
+   "label.json": "6ad0c932d3bdeeafcdd723ff57ac51d1270b5e051ea4601b3144161560e7401e"
+  },
+  "CDC/rfc1-h05": {
+   "contract.md": "749dbdb9b08d27f94c1b38c9097752b6cfe0a952466f84c9307fdff85770aa71",
+   "design.sv": "8d1ab4a0602323bf1fe95090b918d32b1f849948f467366f9714b91e02aafe51",
+   "intent.sdc": "4d3d273050cfc20094e938534776be865c9055708012346a4ad1aec201c7122b",
+   "label.json": "dfc2f618a967c86578438ef98541735539d400f4aae6ee9916836665467e0851"
+  },
+  "CDC/rfc1-h06": {
+   "contract.md": "f30b289fc4bac794d8fb79a8d3ebde3b52a9901248b8c3f8c9a04137f4e4673a",
+   "design.sv": "22085f6242daf51ee57dbe3a31b611b8c64d5dcea71de1ae25440f8ce2de6e36",
+   "intent.sdc": "12a100514191fe20d17151cffb46758fa923674d3b10cfcafd17d95a12bfa710",
+   "label.json": "c457213b2977a3a6a4a81c87cf8914fcf3f2662ded63f699a78abcd0282280e5"
+  },
+  "CDC/rfc1-h07": {
+   "contract.md": "e4cda3b628fb9e91379e8f547a40a9ccd6db907dd91d8264893f79cc3512f504",
+   "design.sv": "056cbc03a7be2bcadc06b3cf6bdda01c25d279d8c432c928841621c9bd0b3bf1",
+   "intent.sdc": "892ec62750de8ac596c28170301b52c484cf7cde2a90a2570b533dde09dd3509",
+   "label.json": "8b65e2fcc81a2b29626d83134262984cc2b4b8070b9d7e6e051ca901b450c87d"
+  },
+  "CDC/rfc1-h08": {
+   "contract.md": "e10a8a9bd6644d68a98aca35b3b9b23c07ce5136dde43c6d15e8b3496b9e2cef",
+   "design.sv": "6adb5b3e8c74b67c0dec85ba126c5676d741578f007b14fc9ff17cde854df900",
+   "intent.sdc": "8c4e2bafddbb2d772f7b53a7ecf9122f661f794be4ed5af99ab06b48a596f05d",
+   "label.json": "2f5ce632e93a54f3aec9c2057bf7c148d1efd9fdbbfeb94a0c9eab2c9cb012cd"
+  },
+  "CDC/rfc1-h09": {
+   "contract.md": "b012c06954a79819a29726bf70107f9337147083887fd079181e84c79852adbf",
+   "design.sv": "f71e6d18da7a38c2a9b8abbeceaf90e0e276ee712df9200cea361dd901919343",
+   "intent.sdc": "d6d2ed9cb02bca1974c1b2e7bf55c7b94961dca8e179a8f6449bbf3717d7f057",
+   "label.json": "1b35dd8454d9c623614d308c448c6acf78df7c06af571276a2bf2a54c5d4f1e7"
+  },
+  "CDC/rfc1-h10": {
+   "contract.md": "2d41f9f900881cd00efd34ed57c58a9ee43be9511362caf44033872bff84b5d8",
+   "design.sv": "d79a28657bc873bdd686cfcf01368475e61c26a6d045431c19693271ac30cfdc",
+   "events.json": "bd29934ae2393eaed99ab3426e396bbb4740940dcd691c4f2c54a7103968867c",
+   "intent.sdc": "105723e9654be6f5be58d2220d016e8928288cb02ce554eb92874bba2f35f0b8",
+   "label.json": "7d987aeecda4717ac692627d758d4f2131b1ece45979a84c9a937a42d32409a4"
+  },
+  "CDC/rfc1-h11": {
+   "contract.md": "a011d867da0afc7072ceedb38dc7c9a42719ca785bc91672c7c75e18efda18c0",
+   "design.sv": "3884e2affcfcf04287871353edb6ad0d476255b8d023e3278b10ff23f349c9ce",
+   "intent.sdc": "d2f014a43142795919cdb7ec55476e734828e5e9da4b8d3011232fa9b9f92fd0",
+   "label.json": "5d02c9607bcfe24560e4e2ac688a9bfc9189c8e38c96ccda40014a6448ac7130"
+  },
+  "CDC/rfc1-h12": {
+   "contract.md": "567b9431a6a7f9239138913b4ef461c4b6e6cc550c07f931152dd6156ede19a4",
+   "design.sv": "ea3516a7c5002847f3ee89441410f9dd9eb230322503fef06d6bbf6a630748e2",
+   "intent.sdc": "149eee5fe99b2e230dd4fc08d66c74ab12a469f4b09a59bc070601557bd52c5c",
+   "label.json": "8fd1d985cff208e3d36767a6abf9b0693bc3ea382546cedf1c4673bc632bd10b"
+  },
+  "CDC/rfc1-h13": {
+   "contract.md": "99b371f14c396a6f873a2e01697645f43c4fcfa197d320976a93c045642256a2",
+   "design.sv": "514bbcc2ef9b3c8d65e625a9b5193c483b349f5f4f9cd7681108c7cef3f53102",
+   "intent.sdc": "14ede5dcea36227c3e0c0833e556ef8505da6bb741556abe0ff91a839bc34929",
+   "label.json": "1e4f25dc1075f8e33c75fd3ce9062d77cbed3c922cb5ea796cee2588f55da154"
+  },
+  "CDC/rfc1-h14": {
+   "contract.md": "50a1d0b43227d0efb8efd091567382ee03852a0ab509676aa36db464688d1106",
+   "design.sv": "0501d7eece465c7e4bae68e536ab006d8d354dfd63eb969fe93900a8d00ba54a",
+   "intent.sdc": "bd90bada0744be983fd2fbcc71eb4875a66ba535898278f568e6398cc2a8a2c9",
+   "label.json": "24a9103d435068cc1391c8b893e838cfa7be0cee1f98e85648d2d98926de5366"
+  },
+  "CDC/rfc1-h15": {
+   "contract.md": "f21da3f1d55a30b77d93b21661e053dc6e9ef0ee2b8ba8d0c0a32fcc36e87dfb",
+   "design.sv": "98129bfa40448de774d5330f35800fb0cf5e223641b2af8d2ec45dc190fa0ecc",
+   "intent.sdc": "8e1942baf91ad1e58a01f678a4954db935a9d074a7ac4c7b2a9410408f6ae905",
+   "label.json": "426ff1c344dda238cd3a1ed37b9f658161b56dbfcbfeb4d8c413da193bd49f74"
+  },
+  "CDC/rfc1-h16": {
+   "contract.md": "81e1ce64757ccb1f5697b4b7b6c4821eb01177e190522134900a5e60d161385d",
+   "design.sv": "99c5e8050745e0d10419be6bcea03d56a9880426d726cec900777474ad73a1f7",
+   "intent.sdc": "d892abdcd9df9d83f9118aae2994485fbd8a911f43784c6773861a1532b1f26e",
+   "label.json": "a0e92e7c7cb708a2ef4a86937e9f45058a0c42ffb0d49185d8b63c3cd0de0313"
+  },
+  "CDC/rfc1-h17": {
+   "contract.md": "38eb3ab198a31f9e27c22b180ffbf5e46fe1a1bb794379fd0da9dc1b8c1368dd",
+   "design.sv": "b3f471fab96e422b7905f7e8d7c36d1677b6afbe87048728d3355ae73881e747",
+   "intent.sdc": "217d478fc12d14b8484c9f77969b542c0e14b64882e9879d0804746a7148af89",
+   "label.json": "a472f624ca2eebe21ec9ba644cdc3882e2f2481cc22989980234594b28ff706f"
+  },
+  "CDC/rfc1-h18": {
+   "contract.md": "747b8fde6fa3f2167ee1c851be35c32bff5e3c512f54b0d260d2b30d738d42f9",
+   "design.sv": "b9175e313bbd91d48e05d0017a074255471c8784726be7f7369a75d512588bc5",
+   "intent.sdc": "c6b25df7ef0b89ee2d28b403885628658f86921a3c341147cd3c714195efb128",
+   "label.json": "d763d397e99d09729a938ad6ae217bd22ae4fa67b39a8e32442117f16d79f89a"
+  },
+  "CDC/rfc1-h19": {
+   "contract.md": "acdd45e69b0a5dd2a9669f35cb2631a8752f6f01067dee91ca943e2dc556b9b9",
+   "design.sv": "67aa3bcb1e523f7a3629c948bc00778c8ad72fa4cf19a7631129cf11ed766027",
+   "intent.sdc": "e57c1e9cab3d21f0562e6afbbf0338e92f196be1377f3359da788e330cab4a9a",
+   "label.json": "860e95c411ec58ec7e2b50fdd889af16c56f4efbb69357c7af231d23b0a14069"
+  },
+  "CDC/rfc1-h20": {
+   "contract.md": "57fd3f1d36cfaf8923f0012dcb0e69ea0ba671da7b1755439bdc2a967a6113cd",
+   "design.sv": "3685578fe44860ca75db746c6c4b9070e422b0c30240bde3a7f1884a3ea6d423",
+   "intent.sdc": "59e7a0c24f34c387a3fad5fb31dc9da9428977778d59713777b85468e0d2064d",
+   "label.json": "1cbc6fa05a787a18cfa737642c5982d2e5b20bd3ec1f68534390b6a8845e13d2"
+  },
+  "CDC/rfc1-h21": {
+   "contract.md": "9f84dee61c15b7339b39c6054f001beff6f91ccae5d4619e801f1639b23079d6",
+   "design.sv": "f45a9e1951c3670c5217e4938dabf8ac2405a4c273cb65b2f3bbd7016dcd2fdc",
+   "intent.sdc": "2d58b61bcd68d29422379741611b3e7a986a8a2a1197e519c441136418f2d124",
+   "label.json": "d6fb20c4bf68312b738f025f6fa1392845cea266b35e52347829689ef6cb0214"
+  },
+  "CDC/rfc1-h22": {
+   "contract.md": "9770fe352983796108038404292bb25ed742c9cb714277a036f150092ce51a17",
+   "design.sv": "6b230138fbe1091599768694bee886a7d453a3e4ef7ab6f4338ec0f95b53d7c4",
+   "intent.sdc": "4c2b573b003e5d471dbac2abd8df988c281670488f5e742e76994d60e8194417",
+   "label.json": "d2112eb7d2990e9e04a3d336315e8708a2c2c225596edd74751f13f99c4e951c"
+  },
+  "CDC/rfc1-h23": {
+   "contract.md": "d3c6a578ab1ee620c819e1fc853b8232085e64762e3ef81ba5dea6b1a677af34",
+   "design.sv": "6fc0d858d1f1804aa727a685f7b4bf13468d354faa736e3444c9a8a09ffafef5",
+   "intent.sdc": "e9c63c017e1dc83f87a07b100757dbaa0ab8c5fd0e546e4777520f2897106c7b",
+   "label.json": "e17166e0cb1162bc0da7685928f0fc7ecedb523bbb2b1fea99711297b8ed4b98"
+  },
+  "CDC/rfc1-h24": {
+   "contract.md": "aa2fb58ae55c7aad3c6de7731eee312f047463bd16657386d74402afc43e4157",
+   "design.sv": "05685057072c30dffedca9d037edabc997f0078a664261aef2dce55812af5a7c",
+   "intent.sdc": "3fd31332e8e92ae1132d5aa95b3eb0aa8879fff65126c573671ec64e609f9f58",
+   "label.json": "7aa7a033c304c14915a02804f82b0945a48f52a4cd72ff6dd8f2516c9eff909e"
+  },
+  "CDC/rfc1-h25": {
+   "contract.md": "bba1d1c83ae5b42c115904e4544e2bd19154d5ec12aaaf2992ed1ef826b7a2e6",
+   "design.sv": "57d7dac93fe7199aa16e600bae4ff9013cad936298cbe3cb071a6c0f7a6dd345",
+   "intent.sdc": "2c9a43a208659cb6e47898f7300c0b743a3c179450395074bf07b875e9fb6faa",
+   "label.json": "f625741108b2025b479c07cf164d36e20208d7e279d312eb8c6c7563b41129a4"
+  },
+  "CDC/rfc1-h26": {
+   "contract.md": "f180af2cbf25364945ff503ad2d00e046bc17f607f0152a224da4b8a016ccf9d",
+   "design.sv": "c7bafb314023a1910d05b072906be60f2f853cee06840a92ba59ca1e6b904799",
+   "intent.sdc": "9b711f9e3acd8d601e15e193292819e3521455a2e0b7850cf7faacef2cf78302",
+   "label.json": "7d0d0026198128bd5256afdf8045eadc81d03b7ea0f86aff7e55f24b422d7816"
+  },
+  "CDC/rfc1-h27": {
+   "contract.md": "7eda637b738a04a9ee544401dda6e78f502f46b3f0e4922ecfd65a53a819d8fb",
+   "design.sv": "b93c04dfca25b60f186a8491855dca4f75acda65b606354943f565641378f0c7",
+   "events.json": "575089a7c278a9e2015e19ba37b75da6c16d52acebe976995e2766a3c3cb3ae4",
+   "intent.sdc": "e46c4797e2e6d976e06ce65f2ec257f147255051da5d20df6fd0b9ba3c207de0",
+   "label.json": "8493c95637ab742b4779825dc1370a421e560f1cb834cbe1d930146fe89cf4e2"
+  },
+  "CDC/rfc1-h28": {
+   "contract.md": "c04305284b277a798a0cf4088a443eda6874cd0bf9549cfbe44ac82269e503bf",
+   "design.sv": "f8bc3d054241b9e40a3a64e7821129d3f5cb7277bcac40e0da113dcce86ac434",
+   "events.json": "6a3afd1245cfe000fa8c2c7596981ccd5f52b5a9df33960063e556615d603727",
+   "intent.sdc": "60d3e3bcc42d0fdad3e7a71b1c643bb5fd745ef92ab4a8221febe8f3c83b707a",
+   "label.json": "6d8453ed6550b8418d9fee4dce97275e6b49c7f02698a3efa990140906ee42d8"
+  },
+  "CDC/rfc1-h29": {
+   "contract.md": "8959919982b8842645e9fe61d530dc42b1c41023ef1900f5dafe8d3d6d2ed683",
+   "design.sv": "1e3b5c02fd83558229a781ba2c2755e6e14626be92efbfa139d448e65e781eb0",
+   "intent.sdc": "8c28d2daf14a0d26942677123a662322eac9c966e08c00c1f195a4beac2b71ee",
+   "label.json": "5249b44a6751f246bec0dd2abbf43d6f126791a4eca2d76af2efb1a3b650e957"
+  },
+  "CDC/rfc1-h30": {
+   "contract.md": "34db75fec771a1d97bd3b21f25abc2b122435444b80109366c223457da576734",
+   "design.sv": "13e08192528980cedc0250bb506927c9511e8f504978e699270763ebc1f4b4f7",
+   "intent.sdc": "6d6eb92154fe4c4f7245a93bf491d3ea6120cad85d0ab95b19a01f50d7aff6a1",
+   "label.json": "0ae2c5e9ce7ea1a85d8f929480ec348c5a4bbfa06a23c605ba4244fa1cccd4b1"
+  },
+  "CDC/rfc1-h31": {
+   "contract.md": "84321b9ded3c63cdaf0021af282dce09acee12c8099d9e70b838aad3b4bd0f1f",
+   "design.sv": "8dfd5b9898598402db9736cd952a4c3b2c8740099525597adcde4f3172579b2e",
+   "intent.sdc": "cab7ac657ea7a1054632f4ee3a7bfb4ef389c7164e1ebd06fc75ae63b090eb25",
+   "label.json": "0a64494d62b2bfb4474e62a861fee984bf96f2900ebf49e31e9a21389243829a"
+  },
+  "CDC/rfc1-h32": {
+   "contract.md": "ff77123bf126cacbbd8b17a22266e00da4bf39e344ddf799227afd04a9251ea9",
+   "design.sv": "525332aaee4227058060d3e9cedb4273f335f179ced11f84d0cc3a09f1984cd0",
+   "intent.sdc": "07fd22f2b23a001ddb14c4e4a90d63585b85ba73a79e40ddedcd6bfe9c6bf15e",
+   "label.json": "f583a983fcc711dcc32836094c242f810ffb7ec865d4f768ecdf92bdd43fbc87"
+  },
+  "CDC/rfc1-h33": {
+   "contract.md": "025c6111d3b7d3eb7a652496984d476f1b6988508985f544c7f5ea2657d85b90",
+   "design.sv": "11bb2660473cfdf41b07acaadbdd4a43f465e9aa34c72306e02f19c437560a68",
+   "intent.sdc": "f07b6cb77c765d3350c5633710912f3c20fbb65bdccc885dcf177147c0ef886a",
+   "label.json": "a95e17d31c525eed3c308f767c674183dab5fff3412babdf876d1dbd862c419a"
+  },
+  "CDC/rfc1-h34": {
+   "contract.md": "cb24113b53fd2aebe96d1487ac562d0c960e51f37febf1a75c789db26488d65a",
+   "design.sv": "cf1e53cdcc47bf8ce4504ada6ad0cbe5d3f39d013adcf1f6bb0564be212ec462",
+   "intent.sdc": "e9c63c017e1dc83f87a07b100757dbaa0ab8c5fd0e546e4777520f2897106c7b",
+   "label.json": "7c629e350e2133e8a343b64819372c61aeadb76f6cf43b5b27495644bdf0a80b"
+  },
+  "CDC/rfc1-h35": {
+   "contract.md": "a87b96b7c8db149c3d8752a087063cd65c923fc568114cae6a0fdbb6198c0865",
+   "design.sv": "4c611b1b6d062177b8d8c0b9c8d8d2dc1b6a3f2d39013910a881ca4b4053309d",
+   "intent.sdc": "50329a7e5f87eab57d384acbf130acef775d9757b1b8f7bcc9023b2ab7e42764",
+   "label.json": "970320a30cb572741f102a14d7213e2acb7b4a5e83176f64026232c8c57538ae"
+  },
+  "CDC/rfc1-h36": {
+   "contract.md": "bd194972c27a7a755ec10bdd72d4c1fc2b3a660eb3d020fd93e2ce884f394b9b",
+   "design.sv": "cba1a7e6d182e18f0abcda4a2c93843a5022c0c0be71ff4bd5313bc8932299a4",
+   "intent.sdc": "84ce72f2a0911a6e29f8c3e38e475b0be0e67df4c19b3fa0e399fab93a0ca7f8",
+   "label.json": "0ff8cae1528ebbc42dc928dddc26e9e89767d815322f8ec104e0e0161a9ff089"
+  },
+  "CDC/rfc1-h37": {
+   "contract.md": "179846be6a521e106710f07c8de8db1bf73eb4b2e099c0993e31d708ab965e60",
+   "design.sv": "74165d2df7b2afef0759b25226c87dabb493945dd229c2c89ce6e1b3fc3c0278",
+   "intent.sdc": "0e38ab3c9bfee2a05cc538674f0de34f6644f56b49f08ad8eb330892cc9fca1d",
+   "label.json": "1ac42be6bf0d5487a138619ecb908f5462e5faf70625e5e0680313902ce29034"
+  },
+  "CDC/rfc1-h38": {
+   "contract.md": "97d529921abf5ac0a24baeb6a1a39cc4c389c282cb15492ad2528c0abe0a9d86",
+   "design.sv": "a4fc42a334fb6324e4ea010ddfa3840089d2b5bcf75f70b539b7017434f5af5f",
+   "intent.sdc": "ba1b81a707c4d95ade1f5a8bd0880d04bb86df23542813c96d310b81f141574f",
+   "label.json": "44015a54347a7bc8913cd99f55c3d9f5a47f1dce73a4d74a5d05796347a4024b"
+  },
+  "CDC/rfc1-h39": {
+   "contract.md": "570c8c626be19f395cd6ec9c41ebd098950f1ecad95fdeaecdc76dbdf7a15ce5",
+   "design.sv": "bdb6cd5b1a639edb60248a5ef7cc5f7b95ca0e0222ffbcd8764bec007522fb2b",
+   "intent.sdc": "a31369dcc6a28705a034d7e329e9a3d9db24149be7a866c98e9794c7e106b18f",
+   "label.json": "18dd1ad021cb28b3a28319efeefabaede15ce65436ded8d7184268dc16e49970"
+  },
+  "CDC/rfc1-h40": {
+   "contract.md": "e9b68dd8a316419a46012a792c661e99fb8cdbfd895d0268b35aada193bef5e9",
+   "design.sv": "285ee13f994d6a13c1a954ea717c5d92efb69c65d2fb85616669ab1d67766e0c",
+   "intent.sdc": "4459a4f1e6125c654e6387f1317115df21ddefc139415e46cc58d91ceb6430ce",
+   "label.json": "86970337f8a78f599f15e895512ae3871305dca974ee4624ec56335dc2856c46"
+  },
+  "CDC/rfc1-h41": {
+   "contract.md": "1801ea468631da5caa8978f116af610cc98890772d9e17e648a619a63a023c4f",
+   "design.sv": "501a199b1609c15c7b0029902f1c4aec4cbeed77569f63c0d263db85e42d1f97",
+   "events.json": "fadd39464ef679b19d924f7258eee321c3e6b84d65805f3374f9081e1fdab4ab",
+   "intent.sdc": "31ff19f36b60feee83c99916b6b3f3ac0f5b1209a6cbc0ec9b8b237a3d8991b9",
+   "label.json": "1f86d694f44eeda64ec486edda4d7495f3280565b0f6877960a7e3d695800fc3"
+  },
+  "CDC/rfc1-h42": {
+   "contract.md": "99e2378beab5c98ceb9d4c50d5ec5d84aa430f03a76fc5e5088687b866e8dbdc",
+   "design.sv": "7cb1e220b90e02d594faf7e0126b8b4439704c2c720192701a1c1b74c0fbd0fa",
+   "intent.sdc": "9e6756a9a0bdc3d50be7507f6d19933a6a4fcbef7b2164fa7c888c1c47a246f4",
+   "label.json": "fd34af55a245f60e2e9825147c3f4d946dd49ce0cac08d9a79a05022a69c488c"
+  },
+  "CDC/rfc1-h43": {
+   "contract.md": "5d887b140d7c164d3a088f215a6b05f54bf01f16dcc43196c23ad1b5308e9a73",
+   "design.sv": "1e91ea0629b96f46fa854f3097d879a2dcd85e9fb6371fb29595a1302688ac38",
+   "intent.sdc": "cd45fc95cde735419ec470f6c6ded4c14c2dee5505929778ef1bfa7a9ff65adb",
+   "label.json": "f713a124e73d220db96a75ed94442dfd5959c44e79e7cd988117e6099d048e55"
+  },
+  "CDC/rfc1-h44": {
+   "contract.md": "9e7c71ce3bdc532225ba365ecf30b49f3de028934acad06ea6474002527a627d",
+   "design.sv": "fa1cc115ad5391c0bd0f81c11125febb347f28d4064e945d13890e93f23101de",
+   "intent.sdc": "96d3a21cde8421db3d57794348c0c4c8a84645d07dbac49af08d5c3313c90d99",
+   "label.json": "587bd5665b37fba41324af6a74249678770fcf31fe6314f5850adfb5dccaa2b1"
+  },
+  "CDC/rfc1-h45": {
+   "contract.md": "8c60e3603cf79f91bbccfd8baa0b6b2c7542f21a2a3802e2cef8b278694601fa",
+   "design.sv": "f6a2f0cba3c1c78216ee664ee550b7f379460e407bed39246e2ed5014d227a72",
+   "intent.sdc": "b24f5bf6195438dc3df09ec1d1c92850a7a1f100d4ec1ba5f7f5175f1419b71d",
+   "label.json": "3f4c870cafafc7f8257f7de37ac9ccf111bc4101a8a23324cd6c73b62b424c0c"
+  }
+ },
+ "schema": "sverity-accuracy-freeze/1"
+}

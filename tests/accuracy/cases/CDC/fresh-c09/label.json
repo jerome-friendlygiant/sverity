@@ -1,0 +1,54 @@
+{
+  "verdict": "good",
+  "workflow_class": "Gray pointer FIFO and cross-clock memory",
+  "critical": false,
+  "sites": [],
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-1-fresh",
+  "author": "cdc-author-replacement (GPT-6 Luna)",
+  "author_reading": {
+    "verdict": "good",
+    "workflow_class": "Gray pointer FIFO and cross-clock memory",
+    "critical": false,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 3,
+        "signal": "gray0_a"
+      }
+    ],
+    "rationale": "Two Gray-coded counters are registered in clk_a and each crosses through its own two-stage clk_b chain; there is no reverse pointer or implied FIFO behavior. Both local synchronous resets are assumed asserted through startup, released synchronously to their own stable clocks, and not applied independently during an active transfer."
+  },
+  "rationale": "Each unit-step registered Gray sequence crosses through two direct clk_b stages. Both reset ports have local clock contracts; the supplied startup/no-active-independent-reset assumption is required. The outputs do not reconverge and no equality consumer is specified. Good is structural only: physical bit skew, MTBF and implementation require external closure; this does not establish a FIFO proof.",
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "good",
+      "workflow_class": "Gray pointer FIFO and cross-clock memory",
+      "critical": false,
+      "sites": [],
+      "by": "cdc-replacement-reader-a (GPT-6.1 Sol)",
+      "rationale": "Each registered Gray counter advances by one and passes through its own two-stage clk_b chain, with destination reset launched on clk_b. The outputs are separate: no RTL consumer compares or reconverges them, so equal source counters do not by themselves establish a violated downstream correlation requirement. Physical skew, metastability implementation, and coordinated reset/startup remain closure obligations rather than demonstrated structural defects. This is a structural good verdict, not a complete FIFO or physical proof."
+    },
+    {
+      "verdict": "good",
+      "workflow_class": "Gray pointer FIFO and cross-clock memory",
+      "critical": false,
+      "sites": [],
+      "by": "cdc-replacement-reader-b (GPT-6.1 Sol)",
+      "rationale": "Both registered counters produce unit-step Gray sequences and cross through separate two-stage clk_b chains. Resets are constrained to their respective receiving clocks. The outputs never reconverge in this RTL, so their mutual sample equality is not a required property. Correlation requirements imposed by an external consumer would require an additional contract; none is expressed here. Physical skew and synchronizer implementation remain external review obligations."
+    }
+  ],
+  "settlement": {
+    "verdict": "good",
+    "workflow_class": "Gray pointer FIFO and cross-clock memory",
+    "critical": false,
+    "sites": [],
+    "by": "cdc-settler-replacement (GPT-6.1 Sol)",
+    "reason": "Each unit-step registered Gray sequence crosses through two direct clk_b stages. Both reset ports have local clock contracts; the supplied startup/no-active-independent-reset assumption is required. The outputs do not reconverge and no equality consumer is specified. Good is structural only: physical bit skew, MTBF and implementation require external closure; this does not establish a FIFO proof."
+  }
+}

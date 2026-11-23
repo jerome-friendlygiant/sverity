@@ -1,0 +1,54 @@
+{
+  "verdict": "good",
+  "workflow_class": "Clock intent and inventory",
+  "critical": false,
+  "sites": [],
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-1-fresh",
+  "author": "cdc-author-replacement (GPT-6 Luna)",
+  "author_reading": {
+    "verdict": "good",
+    "workflow_class": "Clock intent and inventory",
+    "critical": false,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 3,
+        "signal": "out_b"
+      }
+    ],
+    "rationale": "Both primary clock roots are constrained and explicitly asynchronous; the domains have no crossing."
+  },
+  "rationale": "Both roots and their asynchronous relationship are declared; each input and output has its matching local boundary clock. The independent register paths contain no crossing.",
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "good",
+      "workflow_class": "Clock intent and inventory",
+      "critical": false,
+      "sites": [],
+      "by": "cdc-replacement-reader-a (GPT-6.1 Sol)",
+      "rationale": "Both clock roots and their asynchronous relationship are explicit. Each input, register and output stays in its own declared domain. There is no interdomain data or control path. No orthogonal unresolved intent changes this structural inventory verdict."
+    },
+    {
+      "verdict": "good",
+      "workflow_class": "Clock intent and inventory",
+      "critical": false,
+      "sites": [],
+      "by": "cdc-replacement-reader-b (GPT-6.1 Sol)",
+      "rationale": "Both roots and their asynchronous relationship are declared. Each input and output has its matching local clock contract; the two independent register paths do not cross domains."
+    }
+  ],
+  "settlement": {
+    "verdict": "good",
+    "workflow_class": "Clock intent and inventory",
+    "critical": false,
+    "sites": [],
+    "by": "cdc-settler-replacement (GPT-6.1 Sol)",
+    "reason": "Both roots and their asynchronous relationship are declared; each input and output has its matching local boundary clock. The independent register paths contain no crossing."
+  }
+}

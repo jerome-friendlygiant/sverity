@@ -1,0 +1,24 @@
+[
+  {
+    "case": "CDC-RFC1-T01",
+    "verdict": "bad",
+    "reason": "EXCLUDED (invalid RTL). Line 3 `input logic output logic dst_flag` is not a legal ANSI port declaration; Icarus rejects it (design.sv:3 syntax error, errors in port declarations). The intended design, a raw asynchronous src_flag captured by one dst_clk register, would be bad and is critical. The supplied bytes do not elaborate, so the case cannot be scored, and a repaired file would be a different input.",
+    "caveats": [
+      "Repair the port declaration and fix the SDC, which puts a src_clk input delay on the intended output dst_flag. Then return the case to blind review before any freeze.",
+      "After repair, the plausible detector is CDC-029(a): an asynchronous input-delay contract plus an unsynchronised precise capture gives ERROR Established. CDC-003 covers flop-to-flop crossings only and does not cover a primary input.",
+      "Do not count an elaboration failure as CDC detection or as a miss.",
+      "Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+    ]
+  },
+  {
+    "case": "CDC-RFC1-T23",
+    "verdict": "bad",
+    "reason": "EXCLUDED from structural accuracy scoring. This is not a clean control. The structural CDC is sound: registered one-step Gray pointers, two-stage synchronisers in both directions, asynchronous reset on all pointer registers, and set_max_delay -datapath_only bounds at or below each source period. The read pointer, however, advances on rd_en with no !empty guard, and the contract does not restrict rd_en to !empty. A read after reset with nothing written moves rbin past the write pointer, deasserts empty and fabricates occupancy. That is a genuine FIFO underflow defect. It belongs to full/empty and read-control correctness, which CDC_WORKFLOW lists as closure evidence for the Gray FIFO class ('verify ... full and empty behavior'), not as a structural detection item. CDC-034's text names it as unproved FIFO correctness disclosed by the CDC-024 obligation, and contract.md itself leaves 'full FIFO protocol correctness' as an obligation. The defect is therefore an explicit separate functional obligation outside the structural CDC, RDC and CST predicates. It is not scored as a miss and must not be scored as a good control.",
+    "caveats": [
+      "The bench's Gray assertion failure is a simulator artifact. Icarus evaluates inline $onehot(dut.wgray ^ old_gray) as 0, while a typed 3-bit delta shows old 000, new 001, delta 001, and $onehot(delta)=1 (parent T23-probe). The write-side Gray transition is correct. The bench never exercises reads, so it misses the underflow.",
+      "If the maintainer decides FIFO full/empty control is in scope for 1.0 detection, change this to fit=true, expected_rules=[] and detection_gap 'No published predicate checks a FIFO pointer increment enable against the empty (or full) flag; CDC-024 and RDC-023 are generic obligations and cannot credit detection.'",
+      "Expected analyzer findings are the CDC-024 and RDC-023 FIFO-pair obligations and CDC-034 INFO. CDC-018 gives INFO only if the `get_registers` object query is supported. That support is not shown in the published SDC subset table, so CST-009/CST-018 and an Unresolved CDC-018 are possible. None of these findings is detection of the underflow.",
+      "Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+    ]
+  }
+]

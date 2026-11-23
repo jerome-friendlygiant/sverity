@@ -1,0 +1,112 @@
+{
+  "verdict": "unknown",
+  "critical": false,
+  "workflow_class": "Multi-bit transfer and reconvergence",
+  "rationale": "Two separately named scalar sources (a_src, b_src) each have a clean 2-stage chain; a2 and b2 are only packed into separate bits of data_o_r (line 9), with no combinational merge. CDC-010(a) (register cone with two recognised-synchroniser outputs, WARNING Heuristic) and CST-012 packed-word field intent (WARNING Unresolved) disclose it. Whether the two bits are correlated (one word) or independent flags is not stated, so the author's 'bad' is not established; both readers chose unknown. Contrast with Q011, a single multi-bit register: here the separate scalars make independence plausible. Raw rst_n release, recovery/removal and physical timing remain external obligations outside this label.",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 9,
+      "signal": "data_o_r"
+    },
+    {
+      "file": "design.sv",
+      "line": 3,
+      "signal": "data_o"
+    }
+  ],
+  "expected_rules": [
+    "CDC-010",
+    "CST-012"
+  ],
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-6-whole-ip-fresh",
+  "author": "cdc-whole-ip-author (GPT-6 Luna)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "author_reading": {
+    "id": "Q012",
+    "workflow_class": "multibit_transfer_reconvergence",
+    "case_type": "bad",
+    "expected_rules": [
+      "CDC-010"
+    ],
+    "detection_gap": null,
+    "site": {
+      "signal": "data_o_r",
+      "file": "design.sv",
+      "line": 4
+    },
+    "rationale": "Two independently synchronized source bits reconverge in a same-domain consumer expression; correlation is not preserved.",
+    "premises": {
+      "clocks": "clk_a and clk_b both have 10 ns primary clocks; clock relationships are undeclared for six unknown cases, while the Gray-pointer unknown declares asynchronous groups and lacks a datapath bound",
+      "reset": "common rst_n unless the defect specifically exercises reset roots",
+      "protocol": "event delivery required at the stated minimum assertion duration only where boundary_events.json is supplied",
+      "physical_evidence": "No library, metastability MTBF, placement or bus-skew claim; external implementation evidence remains required"
+    }
+  },
+  "settlement": {
+    "verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Multi-bit transfer and reconvergence",
+    "rationale": "Two separately named scalar sources (a_src, b_src) each have a clean 2-stage chain; a2 and b2 are only packed into separate bits of data_o_r (line 9), with no combinational merge. CDC-010(a) (register cone with two recognised-synchroniser outputs, WARNING Heuristic) and CST-012 packed-word field intent (WARNING Unresolved) disclose it. Whether the two bits are correlated (one word) or independent flags is not stated, so the author's 'bad' is not established; both readers chose unknown. Contrast with Q011, a single multi-bit register: here the separate scalars make independence plausible. Raw rst_n release, recovery/removal and physical timing remain external obligations outside this label.",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 9,
+        "signal": "data_o_r"
+      },
+      {
+        "file": "design.sv",
+        "line": 3,
+        "signal": "data_o"
+      }
+    ],
+    "by": "cdc-whole-ip-settler (Claude Opus 5.5)",
+    "expected_rules": [
+      "CDC-010",
+      "CST-012"
+    ]
+  },
+  "labels": [
+    {
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Multi-bit transfer and reconvergence",
+      "rationale": "a_src and b_src each have clean two-stage synchronizers. The consumer merely packs a2 and b2 into distinct bits, with no combining logic or stated correlation requirement. Need independent-field versus atomic-word intent; packing is not proof of bad reconvergence.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 9,
+          "signal": "data_o_r"
+        }
+      ],
+      "by": "cdc-whole-ip-reader-a (GPT-6.1 Sol)",
+      "expected_rules": [
+        "CST-012"
+      ]
+    },
+    {
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Multi-bit transfer and reconvergence",
+      "rationale": "Two scalar two-stage synchronizers are packed into separate output bits. Packing alone does not establish combinational reconvergence or a functional coherence requirement. There is no independent-field/correlation contract, so atomic word safety is unresolved; a correlated transition could be observed inconsistently.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 9,
+          "signal": "data_o_r"
+        }
+      ],
+      "by": "cdc-whole-ip-reader-b (GPT-6.1 Sol)",
+      "expected_rules": [
+        "CST-012",
+        "CDC-010"
+      ]
+    }
+  ]
+}

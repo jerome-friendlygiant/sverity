@@ -1,0 +1,117 @@
+{
+  "verdict": "bad",
+  "workflow_class": "Gray pointer FIFO and cross-clock memory",
+  "critical": true,
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 4,
+      "signal": "wr_bin"
+    },
+    {
+      "file": "design.sv",
+      "line": 4,
+      "signal": "p1"
+    },
+    {
+      "file": "design.sv",
+      "line": 4,
+      "signal": "wr_seen"
+    }
+  ],
+  "rationale": "Binary increment can change multiple bits, for example 0111 to 1000. Per-bit two-stage sampling can propagate an incoherent pointer into the explicitly stated read-side full/empty decisions.",
+  "caveats": "This is a definite pointer-transfer defect, not a complete FIFO implementation. Reset, memory collisions, full/empty and wrap correctness remain unqualified; they neither repair nor negate the known crossing defect.",
+  "whole_ip_good_control": false,
+  "family": "CDC",
+  "top": "c08",
+  "origin": "authored",
+  "batch": "cdc-4-ip-fresh",
+  "author": "cdc-ip-author (GPT-6 Luna)",
+  "author_reading": {
+    "proposed_outcome": "Bad FIFO pointer crossing structure",
+    "site_or_premise": "`wr_bin -> p1 -> wr_seen`",
+    "evidence_and_limits": "Binary pointer can change multiple bits; destination uses it for comparison. FIFO reset/memory behavior is intentionally unknown and must remain an additional unresolved scope."
+  },
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "bad",
+      "workflow_class": "Gray pointer FIFO and cross-clock memory",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "p1"
+        },
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "wr_seen"
+        }
+      ],
+      "by": "cdc-ip-reader-a (GPT-6.1 Sol)",
+      "rationale": "A binary pointer increment can toggle several bits, e.g. 0111 to 1000. Two stages independently capture those bits and cannot restore coherence. Read-side pointer decisions can therefore use a value that never existed.",
+      "caveats": "No full FIFO is present. Missing reset, memory and collision semantics independently block whole-FIFO acceptance but do not erase this definite pointer-transfer defect. No physical-skew or rate contract makes arbitrary binary transitions single-bit.",
+      "fit": true,
+      "whole_ip_good_control": false
+    },
+    {
+      "verdict": "bad",
+      "workflow_class": "Gray pointer FIFO and cross-clock memory",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "wr_bin"
+        },
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "p1"
+        },
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "wr_seen"
+        }
+      ],
+      "by": "cdc-ip-reader-b (GPT-6.1 Sol)",
+      "rationale": "A binary pointer increment can change several bits (0111 to 1000). Independently sampled first-stage bits can form a different pointer; the second stage preserves the incoherent value. Contract explicitly sends this value to full/empty logic, so two stages do not make this safe.",
+      "caveats": "FIFO reset, memory and collision behavior are genuinely unspecified. They block whole-FIFO acceptance but do not erase the known binary pointer defect. Sampling topology duplicates C09 except attributes; the source encoding premise is decisive.",
+      "fit": true,
+      "whole_ip_good_control": false
+    }
+  ],
+  "settlement": {
+    "verdict": "bad",
+    "workflow_class": "Gray pointer FIFO and cross-clock memory",
+    "critical": true,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 4,
+        "signal": "wr_bin"
+      },
+      {
+        "file": "design.sv",
+        "line": 4,
+        "signal": "p1"
+      },
+      {
+        "file": "design.sv",
+        "line": 4,
+        "signal": "wr_seen"
+      }
+    ],
+    "by": "cdc-ip-settler (GPT-6.1 Sol)",
+    "rationale": "Binary increment can change multiple bits, for example 0111 to 1000. Per-bit two-stage sampling can propagate an incoherent pointer into the explicitly stated read-side full/empty decisions.",
+    "caveats": "This is a definite pointer-transfer defect, not a complete FIFO implementation. Reset, memory collisions, full/empty and wrap correctness remain unqualified; they neither repair nor negate the known crossing defect.",
+    "fit": true,
+    "whole_ip_good_control": false,
+    "reason": "Binary increment can change multiple bits, for example 0111 to 1000. Per-bit two-stage sampling can propagate an incoherent pointer into the explicitly stated read-side full/empty decisions."
+  }
+}

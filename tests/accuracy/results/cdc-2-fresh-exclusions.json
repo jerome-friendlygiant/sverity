@@ -1,0 +1,58 @@
+[
+  {
+    "case": "B03",
+    "reason": "Missing asynchronous multi-bit transfer premise; cannot qualify unsafe asynchronous capture."
+  },
+  {
+    "case": "B05",
+    "reason": "No asynchronous correlated source or legal-state contract; cannot qualify asynchronous reconvergence."
+  },
+  {
+    "case": "B06",
+    "reason": "Clock-switch glitch defect is confounded by independent data-domain mismatch; split the two seeds."
+  },
+  {
+    "case": "B09",
+    "reason": "Missing asynchronous launch premise for a short-synchronizer seed."
+  },
+  {
+    "case": "B11",
+    "reason": "No asynchronous event source or complete event/reset contract; not a definitive good or bad CDC event-protocol control."
+  },
+  {
+    "case": "B13",
+    "reason": "No asynchronous event source or complete event/reset contract; not a definitive good or bad CDC event-protocol control."
+  },
+  {
+    "case": "B15",
+    "reason": "Missing asynchronous source premise; does not exercise synchronizer metastability containment."
+  },
+  {
+    "case": "B17",
+    "reason": "Opaque memory semantics prevent deciding whether the reverse address crossings are defects; multiple missing pointer/memory premises confound a single clean control."
+  },
+  {
+    "case": "B19",
+    "reason": "Missing asynchronous pointer/FIFO premise."
+  },
+  {
+    "case": "B21",
+    "reason": "Missing asynchronous Gray-source premise; cannot count as safe asynchronous Gray transfer."
+  },
+  {
+    "case": "B22",
+    "reason": "Missing asynchronous payload/request premise for an unqualified CDC capture seed."
+  },
+  {
+    "case": "B25",
+    "reason": "Missing payload/valid transaction contract and asynchronous launch premise; synchronous pin timing alone does not prove bundled-data correctness."
+  },
+  {
+    "case": "B26",
+    "reason": "Missing asynchronous reset-release premise; cannot serve as an unsafe asynchronous reset seed."
+  },
+  {
+    "case": "B27",
+    "reason": "Missing sender/protocol model and asynchronous premise; unused captured payload confounds functional payload qualification."
+  }
+]

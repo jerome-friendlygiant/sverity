@@ -1,0 +1,58 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": true,
+  "verdict": "good",
+  "critical": false,
+  "workflow_class": "Qualified payload and event protocols",
+  "sites": [],
+  "rationale": "sticky_q <= sticky_q | fault_in_i is an exact same-direction q | independent_expression update with no reset, so the CDC-013 monotonic-level exemption applies and CDC-014 does not treat it as a toggle. The rest matches h23. Reader A's no-reset note is real but outside --deck cdc (RDC-025 excluded); adding a reset would remove the exemption. Class settled to Qualified payload and event protocols (Reader A) because the discriminating risk is the CDC-013/CDC-014 event-rate predicate, as in h10/h41.",
+  "author_reading": {
+    "id": "rfc1-h24",
+    "intended_verdict": "good",
+    "critical": false,
+    "workflow_class": "Synchronizer structure",
+    "expected_rules": [],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 28,
+        "signal": "sticky_q"
+      }
+    ],
+    "rationale": "Monotonic sticky flag (only q | input updates, never cleared) feeds a clean two-stage synchronizer; a monotonic rise-only level cannot lose an event."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Qualified payload and event protocols",
+      "sites": [],
+      "rationale": "The source has one direct rise-only sticky update, establishing the CDC-013 monotonic exemption. Two stages contain the crossing, and the output register and its synchronous reset share dst_clk.",
+      "suspected_flaw": "The prose implies a known power-cycle state for sticky_q, but the RTL has no reset or initializer to establish it."
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Synchronizer structure",
+      "sites": [],
+      "rationale": "Source register sticky_q (src_clk, 20.0 ns) has a single rise-only monotonic update (sticky_q <= sticky_q | fault_in_i at design.sv:28) with no clear or reset, exempting it from CDC-013 and CDC-014, and crosses into dst_clk (8.0 ns) via a clean 2-stage synchronizer u_sync with complete boundary constraints."
+    }
+  ],
+  "settlement": {
+    "by": "cdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "good",
+    "critical": false,
+    "workflow_class": "Qualified payload and event protocols",
+    "sites": [],
+    "rationale": "sticky_q <= sticky_q | fault_in_i is an exact same-direction q | independent_expression update with no reset, so the CDC-013 monotonic-level exemption applies and CDC-014 does not treat it as a toggle. The rest matches h23. Reader A's no-reset note is real but outside --deck cdc (RDC-025 excluded); adding a reset would remove the exemption. Class settled to Qualified payload and event protocols (Reader A) because the discriminating risk is the CDC-013/CDC-014 event-rate predicate, as in h10/h41."
+  }
+}

@@ -1,0 +1,144 @@
+{
+  "verdict": "unknown",
+  "critical": true,
+  "workflow_class": "Qualified payload and event protocols",
+  "whole_ip_good_control": false,
+  "rationale": "dst_data captures the src_clk-bound input src_data under c2, the qualifier synchronised from the src_clk register load. That qualifies the capture structurally, but no contract gives how long the payload is held, how far apart loads are, or any acknowledgment. Payload stability around capture cannot be decided.",
+  "caveats": [
+    "CDC-039 is a primary input under a recognised same-launch qualifier and keeps the source-stability obligation (WARNING Heuristic). It is allowed to disclose an unknown.",
+    "CDC-013(a) will probably fire on load to c1 (10 ns to 14 ns, a direct copy that is not monotonic). That is the related unspecified load rate, not the labelled payload-stability site, so it is not added, to avoid widening.",
+    "Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+  ],
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 7,
+      "signal": "src_data"
+    },
+    {
+      "file": "design.sv",
+      "line": 7,
+      "signal": "dst_data"
+    }
+  ],
+  "expected_rules": [
+    "CDC-039"
+  ],
+  "family": "CDC",
+  "top": "top_cdc_rfc1_t29",
+  "origin": "authored",
+  "batch": "cdc-5-contract-fresh",
+  "author": "cdc-contract-author (GPT-6 Luna)",
+  "author_reading": {
+    "id": "CDC-RFC1-T29",
+    "kind": "unknown",
+    "class": "Multi-bit transfer and reconvergence",
+    "title": "Data bus payload stability unspecified",
+    "case_files": [
+      "design.sv",
+      "clocks.sdc",
+      "contract.md"
+    ],
+    "boundary_event_config": null,
+    "site_signal": "src_data",
+    "expected_rules": [
+      "CDC-039"
+    ],
+    "rationale": "An upstream wrapper is expected to hold src_data, but no duration/ack contract is supplied. Disclosure required; safety cannot be decided from this RTL.",
+    "limitations": [
+      "Structural attribution is a proposal for independent adjudication, not analyzer outcome.",
+      "No SVerity scoring performed.",
+      "Physical timing and metastability requirements remain external."
+    ],
+    "top": "top_cdc_rfc1_t29",
+    "profile": "asic",
+    "sdc": "clocks.sdc"
+  },
+  "sdc": [
+    "clocks.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Qualified payload and event protocols",
+      "fit": true,
+      "whole_ip_good_control": false,
+      "rationale": "Synchronized load qualifies capture but source-data hold duration and acknowledgment behavior are absent.",
+      "caveats": [
+        "Input launch matches qualifier launch; that establishes provenance, not payload stability. load rate and reset release also need review."
+      ],
+      "sites": [
+        {
+          "signal": "src_data",
+          "file": "design.sv",
+          "line": 7
+        },
+        {
+          "signal": "dst_data",
+          "file": "design.sv",
+          "line": 7
+        },
+        {
+          "signal": "c2",
+          "file": "design.sv",
+          "line": 7
+        }
+      ],
+      "expected_rules": [
+        "CDC-039"
+      ],
+      "by": "cdc-contract-reader-a (GPT-6.1 Sol)"
+    },
+    {
+      "verdict": "unknown",
+      "critical": true,
+      "workflow_class": "Qualified payload and event protocols",
+      "fit": "qualified payload stability disclosure",
+      "whole_ip_good_control": false,
+      "rationale": "Destination uses synchronized c2 but upstream payload hold duration and acknowledgment are absent. Qualification is structural; whether payload stays coherent around repeated capture is undecidable.",
+      "caveats": "No established bad trace under a fully specified environment, and no safety proof. Generic protocol recognition cannot close stability. Raw rst_n release is not locally synchronized or bounded by a release contract; RDC-003 remains a whole-IP closure confounder. Output consumer timing is not specified. Physical closure is excluded.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 7,
+          "signal": "dst_data"
+        }
+      ],
+      "expected_rules": [
+        "CDC-039"
+      ],
+      "by": "cdc-contract-reader-b (GPT-6.1 Sol)"
+    }
+  ],
+  "settlement": {
+    "verdict": "unknown",
+    "critical": true,
+    "workflow_class": "Qualified payload and event protocols",
+    "fit": true,
+    "whole_ip_good_control": false,
+    "rationale": "dst_data captures the src_clk-bound input src_data under c2, the qualifier synchronised from the src_clk register load. That qualifies the capture structurally, but no contract gives how long the payload is held, how far apart loads are, or any acknowledgment. Payload stability around capture cannot be decided.",
+    "caveats": [
+      "CDC-039 is a primary input under a recognised same-launch qualifier and keeps the source-stability obligation (WARNING Heuristic). It is allowed to disclose an unknown.",
+      "CDC-013(a) will probably fire on load to c1 (10 ns to 14 ns, a direct copy that is not monotonic). That is the related unspecified load rate, not the labelled payload-stability site, so it is not added, to avoid widening.",
+      "Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 7,
+        "signal": "src_data"
+      },
+      {
+        "file": "design.sv",
+        "line": 7,
+        "signal": "dst_data"
+      }
+    ],
+    "expected_rules": [
+      "CDC-039"
+    ],
+    "by": "cdc-contract-settler (Claude Opus 5.5)",
+    "reason": "dst_data captures the src_clk-bound input src_data under c2, the qualifier synchronised from the src_clk register load. That qualifies the capture structurally, but no contract gives how long the payload is held, how far apart loads are, or any acknowledgment. Payload stability around capture cannot be decided."
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "verdict": "bad",
+  "workflow_class": "Clock and reset interaction",
+  "critical": true,
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 4,
+      "signal": "clk_g"
+    }
+  ],
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-1-fresh",
+  "author": "cdc-author-replacement (GPT-6 Luna)",
+  "author_reading": {
+    "verdict": "bad",
+    "workflow_class": "Clock and reset interaction",
+    "critical": true,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 4,
+        "signal": "clk_g"
+      }
+    ],
+    "rationale": "A clk_a register drives a combinational clk_b gate; the enable has no low-phase latch."
+  },
+  "rationale": "gate_en is launched by clk_a and directly ANDs asynchronous clk_b. It can change while clk_b is high, creating an extra or truncated clock pulse. No glitch-free gate or safe enable synchronization exists. Missing generated-clock intent is an additional inventory obligation; it does not weaken the concrete gate defect.",
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "bad",
+      "workflow_class": "Clock and reset interaction",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "clk_g"
+        }
+      ],
+      "by": "cdc-replacement-reader-a (GPT-6.1 Sol)",
+      "rationale": "gate_en is launched by clk_a and directly ANDs asynchronous clk_b. It can change while clk_b is high, creating an extra or truncated clock pulse. No glitch-free gate or safe enable synchronization exists. Missing generated-clock intent is an additional inventory obligation; it does not weaken the concrete gate defect."
+    },
+    {
+      "verdict": "bad",
+      "workflow_class": "Clock and reset interaction",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "clk_g"
+        }
+      ],
+      "by": "cdc-replacement-reader-b (GPT-6.1 Sol)",
+      "rationale": "The clk_a register directly controls an AND gate on asynchronous clk_b. Enable transitions while clk_b is high can generate runt or extra clock edges; no low-phase latch or glitch-free gate is present."
+    }
+  ]
+}

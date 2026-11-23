@@ -1,0 +1,8 @@
+create_clock -name clk_a -period 10 [get_ports clk_a]
+create_clock -name clk_b -period 10 [get_ports clk_b]
+set_input_delay -clock clk_a -max 1 [get_ports data_i]
+set_input_delay -clock clk_a -min 0 [get_ports data_i]
+set_output_delay -clock clk_b -max 1 [get_ports data_o]
+set_output_delay -clock clk_b -min 0 [get_ports data_o]
+set_output_delay -clock clk_b -max 1 [get_ports event_o]
+set_output_delay -clock clk_b -min 0 [get_ports event_o]

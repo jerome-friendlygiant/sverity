@@ -1,0 +1,132 @@
+{
+  "verdict": "good",
+  "workflow_class": "Synchronizer structure",
+  "critical": false,
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 5,
+      "signal": "async_req"
+    },
+    {
+      "file": "design.sv",
+      "line": 5,
+      "signal": "sync1"
+    },
+    {
+      "file": "design.sv",
+      "line": 5,
+      "signal": "sync2"
+    },
+    {
+      "file": "design.sv",
+      "line": 6,
+      "signal": "req_q"
+    }
+  ],
+  "rationale": "The complete module contains a two-stage same-clock unbranched synchronizer and exposes only stage two. The held-level and startup-ignore contract supplies the required logical use premises.",
+  "caveats": "Good and whole-IP control mean structural/protocol qualification within the supplied module and contract, not physical signoff. Placement, interstage timing, MTBF and eventual external acknowledgment remain implementation/integration obligations. Two edges is nominal latency, not a bound on analog metastability.",
+  "whole_ip_good_control": true,
+  "family": "CDC",
+  "top": "c03",
+  "origin": "authored",
+  "batch": "cdc-4-ip-fresh",
+  "author": "cdc-ip-author (GPT-6 Luna)",
+  "author_reading": {
+    "proposed_outcome": "Safe structural two-stage single-bit synchronizer control",
+    "site_or_premise": "`async_req -> sync1 -> sync2 -> req_q`",
+    "evidence_and_limits": "No reset; stated output ignore interval avoids startup use. Verify first stage has no other fanout and physical placement/attributes, MTBF and interstage timing."
+  },
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "good",
+      "workflow_class": "Synchronizer structure",
+      "critical": false,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 5,
+          "signal": "sync1"
+        },
+        {
+          "file": "design.sv",
+          "line": 5,
+          "signal": "sync2"
+        }
+      ],
+      "by": "cdc-ip-reader-a (GPT-6.1 Sol)",
+      "rationale": "Two same-clock, unbranched stages isolate the asynchronous request; only the second stage is exposed. The contract excludes early consumption and masks startup for two destination edges.",
+      "caveats": "Structural CDC good control only. ASYNC_REG is intent, not proof of placement, settling time or MTBF. Sustained-level contract must hold at integration; asynchronous observation/acknowledgment behavior beyond this module is outside scope.",
+      "fit": true,
+      "whole_ip_good_control": true
+    },
+    {
+      "verdict": "good",
+      "workflow_class": "Synchronizer structure",
+      "critical": false,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 5,
+          "signal": "async_req"
+        },
+        {
+          "file": "design.sv",
+          "line": 5,
+          "signal": "sync1"
+        },
+        {
+          "file": "design.sv",
+          "line": 5,
+          "signal": "sync2"
+        },
+        {
+          "file": "design.sv",
+          "line": 6,
+          "signal": "req_q"
+        }
+      ],
+      "by": "cdc-ip-reader-b (GPT-6.1 Sol)",
+      "rationale": "Two destination flops in series, no intervening logic, and sync1 has no early consumer. The contract holds the level until external acknowledgment and ignores startup output for two destination edges. Only sync2 is exported; examining the entire module finds no other crossing.",
+      "caveats": "Good is a structural/protocol judgment under the stated startup and held-level contract. Placement, MTBF and physical metastability resolution remain implementation obligations; an ideal two-edge statement is not a physical worst-case latency guarantee.",
+      "fit": true,
+      "whole_ip_good_control": true
+    }
+  ],
+  "settlement": {
+    "verdict": "good",
+    "workflow_class": "Synchronizer structure",
+    "critical": false,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 5,
+        "signal": "async_req"
+      },
+      {
+        "file": "design.sv",
+        "line": 5,
+        "signal": "sync1"
+      },
+      {
+        "file": "design.sv",
+        "line": 5,
+        "signal": "sync2"
+      },
+      {
+        "file": "design.sv",
+        "line": 6,
+        "signal": "req_q"
+      }
+    ],
+    "by": "cdc-ip-settler (GPT-6.1 Sol)",
+    "rationale": "The complete module contains a two-stage same-clock unbranched synchronizer and exposes only stage two. The held-level and startup-ignore contract supplies the required logical use premises.",
+    "caveats": "Good and whole-IP control mean structural/protocol qualification within the supplied module and contract, not physical signoff. Placement, interstage timing, MTBF and eventual external acknowledgment remain implementation/integration obligations. Two edges is nominal latency, not a bound on analog metastability.",
+    "fit": true,
+    "whole_ip_good_control": true,
+    "reason": "The complete module contains a two-stage same-clock unbranched synchronizer and exposes only stage two. The held-level and startup-ignore contract supplies the required logical use premises."
+  }
+}

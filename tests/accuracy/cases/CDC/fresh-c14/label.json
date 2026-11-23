@@ -1,0 +1,78 @@
+{
+  "verdict": "bad",
+  "workflow_class": "Qualified payload and event protocols",
+  "critical": true,
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 4,
+      "signal": "event_b"
+    }
+  ],
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-1-fresh",
+  "author": "cdc-author-replacement (GPT-6 Luna)",
+  "author_reading": {
+    "verdict": "bad",
+    "workflow_class": "Qualified payload and event protocols",
+    "critical": true,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 4,
+        "signal": "event_b"
+      }
+    ],
+    "rationale": "The clk_a phase register generates a one-cycle pulse every two source cycles, and clk_b captures it directly with no synchronizer. Reset is synchronous to each domain."
+  },
+  "rationale": "pulse_a is high for one source cycle every two cycles and directly captured in asynchronous clk_b with no metastability containment. Its 10 ns high interval can fall between 13 ns destination edges, losing an event. Domain-local reset contracts do not repair this capture.",
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "bad",
+      "workflow_class": "Qualified payload and event protocols",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "event_b"
+        }
+      ],
+      "by": "cdc-replacement-reader-a (GPT-6.1 Sol)",
+      "rationale": "pulse_a toggles every source cycle in steady operation and is directly sampled by a single asynchronous destination register. A high pulse lasts 10 time units while clk_b has period 13, so events can be missed even without metastability. There is no event synchronization, stretching or acknowledgement. Resets have local declared domains; unspecified startup does not remove the steady-state defect."
+    },
+    {
+      "verdict": "bad",
+      "workflow_class": "Qualified payload and event protocols",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "event_b"
+        }
+      ],
+      "by": "cdc-replacement-reader-b (GPT-6.1 Sol)",
+      "rationale": "A one-clk_a-cycle high interval is directly sampled by a single clk_b register. The 10-unit source pulse can fall entirely between 13-unit destination edges, so events may be lost; the single capture also exposes metastability. Local reset contracts do not fix either defect. UNFIT if intended to isolate only one of event loss and short synchronization."
+    }
+  ],
+  "settlement": {
+    "verdict": "bad",
+    "workflow_class": "Qualified payload and event protocols",
+    "critical": true,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 4,
+        "signal": "event_b"
+      }
+    ],
+    "by": "cdc-settler-replacement (GPT-6.1 Sol)",
+    "reason": "pulse_a is high for one source cycle every two cycles and directly captured in asynchronous clk_b with no metastability containment. Its 10 ns high interval can fall between 13 ns destination edges, losing an event. Domain-local reset contracts do not repair this capture."
+  }
+}

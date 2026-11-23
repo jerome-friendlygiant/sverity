@@ -1,0 +1,61 @@
+{
+ "batch": "cdc-3-protocol-fresh",
+ "cases": {
+  "CDC/protocol-n001": {
+   "constraints.sdc": "d7cd9e84096d9812a7628546c3344eb3f832154a31e41fcbf994d20b1714e407",
+   "design.sv": "bc3c53b288f9d2aaded6cc3c354c158483c19ceb7e0c4a7e32a66720caa7f2b6",
+   "label.json": "5679cc27b2487f3d4f8b187b52f0acf5721a1e48e01e0fb2ee97413c643a2003"
+  },
+  "CDC/protocol-n002": {
+   "constraints.sdc": "e43dbcf5539f0f500c22cdacb51b7a6e528a3f1d64d52c6aea18af170195ab2b",
+   "design.sv": "cddd5d8f13ad20b3dddc1e3c80eecdf3b0baed6510e5afe6017c2e27c8a4c4f9",
+   "label.json": "2c6c74785d649ea5d6349ab359812b85716318d25962a6a2bcde51c712f3663f"
+  },
+  "CDC/protocol-n003": {
+   "constraints.sdc": "993d53097bc216cb641f971beb8c40444c24b606b5e1cce1b0fe650ec8ae9285",
+   "design.sv": "3481281b6b14b170436f396c50f978d4c359b8c2639ab1996e3134cee4127492",
+   "label.json": "fe67fa36b29851a015cc1dfff47f57baee8627859a1af998f8c55a9133099f5a"
+  },
+  "CDC/protocol-n005": {
+   "constraints.sdc": "d7cd9e84096d9812a7628546c3344eb3f832154a31e41fcbf994d20b1714e407",
+   "design.sv": "5124ec3bd968d4c7a83a01dadb4a461d92ea26ee5ed390d2e5e94da3b3e856c5",
+   "label.json": "b361349091e70205fd644d65fb9d0660887146bedf387a0f90d0ede4bcf82f7d"
+  },
+  "CDC/protocol-n006": {
+   "constraints.sdc": "00a6ee1ed7350cbfa7ddcae249bf25de03e6c60155fb21a7bd78b6037f4e4a59",
+   "design.sv": "f0334926fb3cfb6a8f62613fb0fabe71252d2f05f99e67eb2e16f8475aec9aaf",
+   "label.json": "ec01679a103e2007c9521713ac70b7a69895feb3931ab7a20f41a5fc5ebac4f9"
+  },
+  "CDC/protocol-n007": {
+   "constraints.sdc": "998fd361a380082e4d7e7fe7639d3a539d36d60de67412d67a9093c53eda656c",
+   "design.sv": "c20464e45bc134d10ad30ba713e495dc69eea3bf673cd53dc0cc6b3a4c7f35f6",
+   "label.json": "ecad12e128f3fcdb69d9f8028243df101f89c73ee3ddf73243002329e8d2d415"
+  },
+  "CDC/protocol-n009": {
+   "constraints.sdc": "ae2d24a8194d8a4aa914718cb4e124a43d3d440f07ed240b10bfcc9c1effdaee",
+   "design.sv": "5c93e3049080db9baa0bf4b06d4bd06d3081cedcc65b4101d05fc65b7694cc7a",
+   "label.json": "e1d8ad810a9cfafd34c09df31bbd5d6e22ee06ddfb789144ba2f27c57ad1d118"
+  },
+  "CDC/protocol-n011": {
+   "constraints.sdc": "be1bf15a4d13539c695d32264b2be8884edb5a210441e07e25a6ef16c48a4b79",
+   "design.sv": "d9c4e9d086a8b4aca12c0e1525139999d5cd41d2ca62d946de720272b2f9f23b",
+   "label.json": "41c633306bcf98f81e2e76473b12bc12f08e51ab164e508977681f81f92be702"
+  },
+  "CDC/protocol-n012": {
+   "constraints.sdc": "5b51b8c31bae6a85a082b3a8274b0abf0fbab36897f6a599a7d2292f745a1948",
+   "design.sv": "2117e080bdb96a3c28f3a9ab7693b50cf7277d79aca80208ad841ced86640b60",
+   "label.json": "bb08a2a137544f85df60e646b6ea81135d0cb26122a1c4ddb59bcc64ca7f2bdc"
+  },
+  "CDC/protocol-n013": {
+   "constraints.sdc": "a084ef80a071a0c2a9d97d89cbcee3eeb72277049c1b72f19e7b4bea36cb956d",
+   "design.sv": "9b007a3fa883a432d971ceacf26f14a63bcb3f287834179796f3fe7745adc47d",
+   "label.json": "83cf3055c7b84a72186367bb98f5227b97dadf833f34450ba7cdba615315cf2b"
+  },
+  "CDC/protocol-n014": {
+   "constraints.sdc": "377faaa17f588a39edfb78f653f407ff796aa26f334b278789bcc58d94ed26c0",
+   "design.sv": "a60bfda04b8c71281e8f486fba27219448d4d679f932d263a3ee0b6def1a29dd",
+   "label.json": "3640863e67b59f06dc2ea2b053dbfa2b4eba150cd18fdda30f82f67c1540d824"
+  }
+ },
+ "schema": "sverity-accuracy-freeze/1"
+}

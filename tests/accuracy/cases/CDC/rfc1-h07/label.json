@@ -1,0 +1,78 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Multi-bit transfer and reconvergence",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 12,
+      "signal": "rx_q"
+    }
+  ],
+  "expected_rules": [
+    "CDC-004"
+  ],
+  "rationale": "8-bit tx_q (src_clk) is captured directly by rx_q (dst_clk), asynchronous: CDC-004 ERROR Established.",
+  "author_reading": {
+    "id": "rfc1-h07",
+    "intended_verdict": "bad",
+    "critical": true,
+    "workflow_class": "Multi-bit transfer and reconvergence",
+    "expected_rules": [
+      "CDC-004"
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 12,
+        "signal": "rx_q"
+      }
+    ],
+    "rationale": "Unsynchronized, unqualified 8-bit word captured directly in the destination domain."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Multi-bit transfer and reconvergence",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 12,
+          "signal": "rx_q"
+        }
+      ],
+      "rationale": "rx_q directly samples all eight bits of tx_q across declared-asynchronous clocks, with no coherence mechanism.",
+      "expected_rules": [
+        "CDC-004"
+      ]
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Multi-bit transfer and reconvergence",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 12,
+          "signal": "rx_q"
+        }
+      ],
+      "rationale": "The 8-bit register tx_q[7:0] launched on posedge src_clk (design.sv:11) is captured directly by rx_q[7:0] on posedge dst_clk (design.sv:12) across asynchronous clock domains without synchronization or a synchronized payload qualifier (CDC-004 ERROR Established).",
+      "expected_rules": [
+        "CDC-004"
+      ]
+    }
+  ]
+}

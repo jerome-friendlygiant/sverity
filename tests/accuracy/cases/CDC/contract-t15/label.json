@@ -1,0 +1,144 @@
+{
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "IP and external boundaries",
+  "whole_ip_good_control": false,
+  "rationale": "config.json declares a required one-source-cycle (10 ns) event on event_in, launched on src_clk. The destination samples every 14 ns, so a permitted assertion can fall entirely between dst_clk edges and be missed. The sticky event_seen cannot recover an event that was never sampled.",
+  "caveats": [
+    "CDC-013(c) applies: a required assertion shorter than one sampling interval gives WARNING Established. The contract path, a full synchroniser and the observable consumer are all present.",
+    "The sticky event_seen also cannot meet 'exactly once' for repeated events, but the sampling loss alone is enough."
+  ],
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 6,
+      "signal": "event_in"
+    },
+    {
+      "file": "design.sv",
+      "line": 6,
+      "signal": "e1"
+    }
+  ],
+  "expected_rules": [
+    "CDC-013"
+  ],
+  "family": "CDC",
+  "top": "top_cdc_rfc1_t15",
+  "origin": "authored",
+  "batch": "cdc-5-contract-fresh",
+  "author": "cdc-contract-author (GPT-6 Luna)",
+  "author_reading": {
+    "id": "CDC-RFC1-T15",
+    "kind": "bad",
+    "class": "IP and external boundaries",
+    "title": "Short required primary event can be missed",
+    "case_files": [
+      "design.sv",
+      "clocks.sdc",
+      "contract.md",
+      "config.json"
+    ],
+    "boundary_event_config": "config.json",
+    "site_signal": "event_in",
+    "expected_rules": [
+      "CDC-013"
+    ],
+    "rationale": "One-cycle asynchronous event is required to be delivered exactly once; there is no source handshake or stretch guarantee.",
+    "limitations": [
+      "Structural attribution is a proposal for independent adjudication, not analyzer outcome.",
+      "No SVerity scoring performed.",
+      "Physical timing and metastability requirements remain external."
+    ],
+    "top": "top_cdc_rfc1_t15",
+    "profile": "asic",
+    "sdc": "clocks.sdc"
+  },
+  "sdc": [
+    "clocks.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Qualified payload and event protocols",
+      "fit": true,
+      "whole_ip_good_control": false,
+      "rationale": "Required 10 ns assertion is shorter than the 14 ns sampler interval and may be entirely missed.",
+      "caveats": [
+        "Sticky event_seen also cannot count distinct deliveries; sampling loss alone suffices. config.json supplies required source_cycles contract."
+      ],
+      "sites": [
+        {
+          "signal": "event_in",
+          "file": "design.sv",
+          "line": 6
+        },
+        {
+          "signal": "e1",
+          "file": "design.sv",
+          "line": 6
+        }
+      ],
+      "expected_rules": [
+        "CDC-013"
+      ],
+      "by": "cdc-contract-reader-a (GPT-6.1 Sol)"
+    },
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Qualified payload and event protocols",
+      "fit": "required short event loss",
+      "whole_ip_good_control": false,
+      "rationale": "Required 10 ns event can fit entirely between 14 ns destination edges. Sticky evidence cannot recover an event never sampled.",
+      "caveats": "Sticky event_seen also cannot count repeated events; config establishes sampling-loss defect independently. Raw rst_n release is not locally synchronized or bounded by a release contract; RDC-003 remains a whole-IP closure confounder. Output consumer timing is not specified. Physical closure is excluded.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 6,
+          "signal": "e1"
+        },
+        {
+          "file": "design.sv",
+          "line": 6,
+          "signal": "event_seen"
+        }
+      ],
+      "expected_rules": [
+        "CDC-013"
+      ],
+      "by": "cdc-contract-reader-b (GPT-6.1 Sol)"
+    }
+  ],
+  "settlement": {
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "IP and external boundaries",
+    "fit": true,
+    "whole_ip_good_control": false,
+    "rationale": "config.json declares a required one-source-cycle (10 ns) event on event_in, launched on src_clk. The destination samples every 14 ns, so a permitted assertion can fall entirely between dst_clk edges and be missed. The sticky event_seen cannot recover an event that was never sampled.",
+    "caveats": [
+      "CDC-013(c) applies: a required assertion shorter than one sampling interval gives WARNING Established. The contract path, a full synchroniser and the observable consumer are all present.",
+      "The sticky event_seen also cannot meet 'exactly once' for repeated events, but the sampling loss alone is enough."
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 6,
+        "signal": "event_in"
+      },
+      {
+        "file": "design.sv",
+        "line": 6,
+        "signal": "e1"
+      }
+    ],
+    "expected_rules": [
+      "CDC-013"
+    ],
+    "by": "cdc-contract-settler (Claude Opus 5.5)",
+    "reason": "config.json declares a required one-source-cycle (10 ns) event on event_in, launched on src_clk. The destination samples every 14 ns, so a permitted assertion can fall entirely between dst_clk edges and be missed. The sticky event_seen cannot recover an event that was never sampled."
+  },
+  "boundary_event_config": "config.json"
+}

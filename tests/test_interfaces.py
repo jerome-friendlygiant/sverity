@@ -90,6 +90,17 @@ with tempfile.TemporaryDirectory(prefix='sverity-interfaces-', dir=os.environ.ge
         return next(x for x in json.loads(out.read_text())['diagnostics'] if x['rule_id'] == 'CDC-003')['fingerprint']
     assert crossing_fingerprint('b') != crossing_fingerprint('c')
 
+    fixture = Path('tests/fixtures/CDC-047')
+    subprocess.run([binary, '--goal', 'cdc', '--top', 'top', '--json', str(report),
+                    '--sdc', str(fixture / 'primary_input_additive.sdc'),
+                    str(fixture / 'bad_primary_input_additive_async.sv')],
+                   cwd=root, capture_output=True)
+    input_crossing = next(d['crossing'] for d in json.loads(report.read_text())['diagnostics']
+                          if d['rule_id'] == 'CDC-029' and d['crossing']['launch']['signal'] == 'top.d')
+    assert input_crossing['relationship'] == 'ASYNC'
+    assert input_crossing['launch']['sdc_clock'] == 'clka'
+    assert input_crossing['capture']['sdc_clock'] == 'clkb'
+
 # Exercise the actual human stream's TTY, independently of the machine stdout.
 def terminal(machine, tty_stderr, color, no_color):
     master, slave = pty.openpty()

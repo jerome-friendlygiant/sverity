@@ -1,0 +1,111 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "boundary_event_config": "events.json",
+  "whole_ip_good_control": false,
+  "verdict": "unknown",
+  "critical": false,
+  "workflow_class": "Qualified payload and event protocols",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 6,
+      "signal": "req_pulse_i"
+    },
+    {
+      "file": "design.sv",
+      "line": 14,
+      "signal": "p1_q"
+    }
+  ],
+  "expected_rules": [
+    "CDC-013"
+  ],
+  "rationale": "events.json requires a 12 ns event on a 10 ns unreset sampler. It spans one interval but falls below the 1.5-period margin of 15 ns: CDC-013(c) WARNING Unresolved.",
+  "author_reading": {
+    "id": "rfc1-h41",
+    "intended_verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Qualified payload and event protocols",
+    "expected_rules": [
+      "CDC-013"
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 14,
+        "signal": "req_pulse_i"
+      }
+    ],
+    "rationale": "Required boundary event of 12 ns spans one 10 ns sampling interval but is below the 1.5-period (15 ns) review margin on a non-resettable sampler: delivery is neither proven nor refuted."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Qualified payload and event protocols",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 6,
+          "signal": "req_pulse_i"
+        }
+      ],
+      "rationale": "The required 12 ns assertion exceeds the 10 ns ideal interval but falls below the 15 ns review margin. The exact reset-free sampler therefore retains a delivery obligation.",
+      "expected_rules": [
+        "CDC-013"
+      ]
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Qualified payload and event protocols",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 6,
+          "signal": "req_pulse_i"
+        },
+        {
+          "file": "design.sv",
+          "line": 14,
+          "signal": "p1_q"
+        }
+      ],
+      "rationale": "Per events.json, primary input req_pulse_i (design.sv:6, launched on src_clk) has protocol 'event', delivery 'required', and a minimum assertion duration of 12 ns when sampled by dst_clk (period 10.0 ns at p1_q, design.sv:14). Because 12 ns spans one ideal 10.0 ns period but falls below the 1.5x review margin (15.0 ns), sampling safety under jitter/setup-hold uncertainty remains unresolved (CDC-013 WARNING Unresolved).",
+      "expected_rules": [
+        "CDC-013"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "cdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Qualified payload and event protocols",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 6,
+        "signal": "req_pulse_i"
+      },
+      {
+        "file": "design.sv",
+        "line": 14,
+        "signal": "p1_q"
+      }
+    ],
+    "expected_rules": [
+      "CDC-013"
+    ],
+    "rationale": "events.json requires a 12 ns event on a 10 ns unreset sampler. It spans one interval but falls below the 1.5-period margin of 15 ns: CDC-013(c) WARNING Unresolved."
+  }
+}

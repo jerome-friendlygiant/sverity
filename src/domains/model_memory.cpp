@@ -44,22 +44,40 @@ std::vector<std::pair<std::string, uint64_t>> modelMemory(const Model& m) {
     uint64_t sites = m.conditionSites.capacity() * sizeof(ConditionSite);
     for (const auto& c : m.conditionSites) sites += heap(c.loc) + flat(c.reads) + heap(c.call);
     add("condition_sites", sites);
-    uint64_t guards = table(m.guards), qguards = table(m.qualifierGuards), bools = table(m.booleanDrivers);
+    uint64_t guards = table(m.guards), qguards = table(m.qualifierGuards), cguards = table(m.combQualifierDrivers), bools = table(m.booleanDrivers);
     for (const auto& [n, lists] : m.guards) { guards += flat(lists); for (const auto& l : lists) guards += flat(l); }
+    std::unordered_set<const std::vector<NodeId>*> countedDependencies;
+    std::unordered_set<const std::vector<GuardCondition>*> countedGuards;
     for (const auto& [n, lists] : m.qualifierGuards) {
         qguards += flat(lists);
-        for (const auto& l : lists) { qguards += flat(l); for (const auto& g : l) qguards += flat(g.dependencies); }   // predicate trees are shared and not counted
+        for (const auto& write : lists) {
+            if (countedGuards.insert(write.guards.get()).second) {
+                qguards += sizeof(*write.guards) + flat(*write.guards);
+                for (const auto& g : *write.guards) qguards += flat(g.dependencies);
+            }
+            for (const auto& deps : {write.dataDependencies.get(), write.controlDependencies.get()})
+                if (deps && countedDependencies.insert(deps).second) qguards += sizeof(*deps) + flat(*deps);
+        }   // predicate trees are shared and not counted
+    }
+    for (const auto& [n, summary] : m.combQualifierDrivers) {
+        cguards += flat(summary.arms);
+        for (const auto& arm : summary.arms) {
+            cguards += flat(arm.guards);
+            for (const auto& deps : {arm.dataDependencies.get(), arm.controlDependencies.get()})
+                if (deps && countedDependencies.insert(deps).second) cguards += sizeof(*deps) + flat(*deps);
+            for (const auto& g : arm.guards) cguards += flat(g.dependencies);
+        }
     }
     for (const auto& [n, v] : m.booleanDrivers) bools += flat(v);
     add("guards", guards);
-    add("qualifier_guards_shared_predicates_excluded", qguards);
+    add("qualifier_guards_shared_predicates_excluded", qguards + cguards);
     add("boolean_drivers_shared_values_excluded", bools);
-    uint64_t consts = table(m.constDrivers) + table(m.uncertainCallDrivers) + table(m.modeConstants);
+    uint64_t consts = table(m.constDrivers) + table(m.uncertainCallDrivers) + table(m.modeConstants) + table(m.stuckFlopValues);
     for (const auto& [n, v] : m.constDrivers) consts += flat(v);
     for (const auto& [n, v] : m.uncertainCallDrivers) consts += flat(v);
     add("const_and_call_drivers", consts);
     add("node_flag_vectors", m.blackBoxDriven.capacity() + m.topInput.capacity() + m.unresolvedDriven.capacity() + m.topOutput.capacity());
-    add("node_sets", table(m.selfComb) + table(m.selfCombProven) + table(m.selfCombApproximate) + table(m.selfExact) + table(m.multiSequential) +
+    add("node_sets", table(m.selfComb) + table(m.selfCombProven) + table(m.selfCombApproximate) + table(m.combSelfRewritten) + table(m.selfExact) + table(m.multiSequential) +
                          table(m.selfLogic) + table(m.loopVariables) + table(m.procedureTemps));
     uint64_t fallbacks = m.fallbacks.capacity() * sizeof(Fallback) + m.callUncertainties.capacity() * sizeof(CallUncertainty);
     for (const auto& f : m.fallbacks) fallbacks += heap(f.category) + heap(f.detail) + heap(f.loc);

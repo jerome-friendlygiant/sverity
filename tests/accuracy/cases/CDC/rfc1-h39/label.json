@@ -1,0 +1,110 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "verdict": "unknown",
+  "critical": false,
+  "workflow_class": "Multi-bit transfer and reconvergence",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 37,
+      "signal": "comb_o"
+    },
+    {
+      "file": "intent.sdc",
+      "line": 6,
+      "signal": "comb_o"
+    }
+  ],
+  "expected_rules": [
+    "CDC-010"
+  ],
+  "rationale": "comb_o = a_s ^ b_s combines two distinct recognized synchronizer outputs related Same to the dst_clk output contract: CDC-010(b) WARNING Unresolved, because source correlation and consumer glitch tolerance are not inferred.",
+  "author_reading": {
+    "id": "rfc1-h39",
+    "intended_verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Multi-bit transfer and reconvergence",
+    "expected_rules": [
+      "CDC-010"
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 37,
+        "signal": "comb_o"
+      }
+    ],
+    "rationale": "A scalar output is a combinational function of two independently synchronized bits under an output delay: output-bit reconvergence with unknown consumer tolerance."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Multi-bit transfer and reconvergence",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 37,
+          "signal": "comb_o"
+        },
+        {
+          "file": "intent.sdc",
+          "line": 6,
+          "signal": "comb_o"
+        }
+      ],
+      "rationale": "The XOR combines two distinct synchronized launch bits into one output bit with a matching dst_clk observation contract. Source correlation and consumer tolerance for intermediate values are unspecified.",
+      "expected_rules": [
+        "CDC-010"
+      ]
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Multi-bit transfer and reconvergence",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 37,
+          "signal": "comb_o"
+        }
+      ],
+      "rationale": "Two distinct source bits a_src_q and b_src_q (src_clk) are independently synchronized into dst_clk (a_s and b_s) and combined through combinational XOR logic directly onto top-level output comb_o = a_s ^ b_s (design.sv:37) under set_output_delay -clock dst_clk, triggering output-bit reconvergence because source correlation and external consumer glitch tolerance are unknown (CDC-010 WARNING Unresolved).",
+      "expected_rules": [
+        "CDC-010"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "cdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Multi-bit transfer and reconvergence",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 37,
+        "signal": "comb_o"
+      },
+      {
+        "file": "intent.sdc",
+        "line": 6,
+        "signal": "comb_o"
+      }
+    ],
+    "expected_rules": [
+      "CDC-010"
+    ],
+    "rationale": "comb_o = a_s ^ b_s combines two distinct recognized synchronizer outputs related Same to the dst_clk output contract: CDC-010(b) WARNING Unresolved, because source correlation and consumer glitch tolerance are not inferred."
+  }
+}

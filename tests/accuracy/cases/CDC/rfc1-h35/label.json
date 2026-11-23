@@ -1,0 +1,191 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "verdict": "unknown",
+  "critical": false,
+  "workflow_class": "Clock intent and inventory",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 10,
+      "signal": "s1_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 10,
+      "signal": "u_sync.s1_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 28,
+      "signal": "src_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 30,
+      "signal": "u_sync"
+    },
+    {
+      "file": "intent.sdc",
+      "line": 2,
+      "signal": "clk_a"
+    },
+    {
+      "file": "intent.sdc",
+      "line": 3,
+      "signal": "clk_b"
+    }
+  ],
+  "expected_rules": [
+    "CST-004"
+  ],
+  "rationale": "No set_clock_groups relates clk_a and clk_b, so the clean depth-2 crossing has an Unknown relationship: CST-004 WARNING Unresolved. CDC-003 is not expected because its trigger requires a destination that starts no depth >= 2 chain; Reader B's CDC-003 addition rejected.",
+  "author_reading": {
+    "id": "rfc1-h35",
+    "intended_verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Clock intent and inventory",
+    "expected_rules": [
+      "CST-004"
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 30,
+        "signal": "u_sync"
+      },
+      {
+        "file": "intent.sdc",
+        "line": 3,
+        "signal": "clk_b"
+      }
+    ],
+    "rationale": "Both clocks are declared but no clock group or other relationship is given, so the crossing relationship is Unknown even though the synchronizer is clean."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Clock intent and inventory",
+      "sites": [
+        {
+          "file": "intent.sdc",
+          "line": 2,
+          "signal": "clk_a"
+        },
+        {
+          "file": "intent.sdc",
+          "line": 3,
+          "signal": "clk_b"
+        },
+        {
+          "file": "design.sv",
+          "line": 28,
+          "signal": "src_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 10,
+          "signal": "s1_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 30,
+          "signal": "u_sync"
+        }
+      ],
+      "rationale": "The prose describes separate oscillators, but SDC only creates the two clocks and supplies port delays. The recognized synchronizer cannot supply the missing clock-group relationship.",
+      "expected_rules": [
+        "CST-004"
+      ]
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Clock intent and inventory",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 10,
+          "signal": "u_sync.s1_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 10,
+          "signal": "s1_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 28,
+          "signal": "src_q"
+        },
+        {
+          "file": "intent.sdc",
+          "line": 2,
+          "signal": "clk_a"
+        },
+        {
+          "file": "intent.sdc",
+          "line": 3,
+          "signal": "clk_b"
+        }
+      ],
+      "rationale": "intent.sdc declares clk_a and clk_b with create_clock but omits any set_clock_groups declaration relating them, leaving their clock relationship Unknown on the crossing from src_q (clk_a) to u_sync.s1_q (clk_b) (CST-004 and CDC-003 WARNING Unresolved, clock-relationships INCOMPLETE).",
+      "expected_rules": [
+        "CDC-003",
+        "CST-004"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "cdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Clock intent and inventory",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 10,
+        "signal": "s1_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 10,
+        "signal": "u_sync.s1_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 28,
+        "signal": "src_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 30,
+        "signal": "u_sync"
+      },
+      {
+        "file": "intent.sdc",
+        "line": 2,
+        "signal": "clk_a"
+      },
+      {
+        "file": "intent.sdc",
+        "line": 3,
+        "signal": "clk_b"
+      }
+    ],
+    "expected_rules": [
+      "CST-004"
+    ],
+    "rationale": "No set_clock_groups relates clk_a and clk_b, so the clean depth-2 crossing has an Unknown relationship: CST-004 WARNING Unresolved. CDC-003 is not expected because its trigger requires a destination that starts no depth >= 2 chain; Reader B's CDC-003 addition rejected."
+  }
+}

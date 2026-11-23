@@ -1,0 +1,57 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": true,
+  "verdict": "good",
+  "critical": false,
+  "workflow_class": "Clock and reset interaction",
+  "sites": [],
+  "rationale": "data_q uses a registered same-domain enable and a contracted synchronous reset on clk_a. There is no gated clock (CDC-020/CDC-045) and no crossing (CDC-028). Class settled to Clock and reset interaction (Reader B, author): the case is a synchronous clock-enable and reset lookalike for clock-control hazards.",
+  "author_reading": {
+    "id": "rfc1-h31",
+    "intended_verdict": "good",
+    "critical": false,
+    "workflow_class": "Clock and reset interaction",
+    "expected_rules": [],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 20,
+        "signal": "data_q"
+      }
+    ],
+    "rationale": "Pure synchronous clock-enable pipeline in one clock domain with synchronous reset and no clock gating or muxing."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Qualified payload and event protocols",
+      "sites": [],
+      "rationale": "The enable and payload are registered in the consumer domain. Reset is synchronous, and the conditional data capture does not gate the clock."
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Clock and reset interaction",
+      "sites": [],
+      "rationale": "All registers (pipe_en_q, stage_in_q, data_q) use posedge clk_a directly with a synchronous clock enable (pipe_en_q) and synchronous reset (sync_rst_ni), and all ports are constrained to clk_a."
+    }
+  ],
+  "settlement": {
+    "by": "cdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "good",
+    "critical": false,
+    "workflow_class": "Clock and reset interaction",
+    "sites": [],
+    "rationale": "data_q uses a registered same-domain enable and a contracted synchronous reset on clk_a. There is no gated clock (CDC-020/CDC-045) and no crossing (CDC-028). Class settled to Clock and reset interaction (Reader B, author): the case is a synchronous clock-enable and reset lookalike for clock-control hazards."
+  }
+}

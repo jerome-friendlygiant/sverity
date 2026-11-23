@@ -1,0 +1,91 @@
+{
+  "verdict": "unknown",
+  "critical": false,
+  "workflow_class": "Qualified payload and event protocols",
+  "rationale": "The author's seeded defect (one-stage synchroniser, CDC-005) is absent: stage_one -> data_o_r[0] is a clean depth-2 clk_b chain (line 9), with constant padding only and no early tap. CDC-005 cannot trigger, since it needs depth >= 2 and below min_stages=2. Both readers labelled this case good. I settle on unknown instead. src_a[0] follows data_i[0] every clk_a cycle (input delay on clk_a), at the same period as clk_b, so source levels can be skipped. The RTL gives no hold or stability guarantee, and no statement that sample loss is tolerable. CDC-013(a) (source period < 1.5x destination) discloses exactly this rate obligation (WARNING). Labelling the case good would claim a safety that the evidence does not establish. Raw rst_n release, recovery/removal and physical timing remain external obligations outside this label.",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 9,
+      "signal": "stage_one"
+    },
+    {
+      "file": "design.sv",
+      "line": 6,
+      "signal": "src_a"
+    }
+  ],
+  "expected_rules": [
+    "CDC-013"
+  ],
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-6-whole-ip-fresh",
+  "author": "cdc-whole-ip-author (GPT-6 Luna)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "author_reading": {
+    "id": "Q006",
+    "workflow_class": "synchronizer_structure",
+    "case_type": "bad",
+    "expected_rules": [
+      "CDC-005"
+    ],
+    "detection_gap": null,
+    "site": {
+      "signal": "stage_one",
+      "file": "design.sv",
+      "line": 4
+    },
+    "rationale": "One destination sampling stage only; the inter-domain single-bit path has a short synchronizer.",
+    "premises": {
+      "clocks": "clk_a and clk_b both have 10 ns primary clocks; clock relationships are undeclared for six unknown cases, while the Gray-pointer unknown declares asynchronous groups and lacks a datapath bound",
+      "reset": "common rst_n unless the defect specifically exercises reset roots",
+      "protocol": "event delivery required at the stated minimum assertion duration only where boundary_events.json is supplied",
+      "physical_evidence": "No library, metastability MTBF, placement or bus-skew claim; external implementation evidence remains required"
+    }
+  },
+  "settlement": {
+    "verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Qualified payload and event protocols",
+    "rationale": "The author's seeded defect (one-stage synchroniser, CDC-005) is absent: stage_one -> data_o_r[0] is a clean depth-2 clk_b chain (line 9), with constant padding only and no early tap. CDC-005 cannot trigger, since it needs depth >= 2 and below min_stages=2. Both readers labelled this case good. I settle on unknown instead. src_a[0] follows data_i[0] every clk_a cycle (input delay on clk_a), at the same period as clk_b, so source levels can be skipped. The RTL gives no hold or stability guarantee, and no statement that sample loss is tolerable. CDC-013(a) (source period < 1.5x destination) discloses exactly this rate obligation (WARNING). Labelling the case good would claim a safety that the evidence does not establish. Raw rst_n release, recovery/removal and physical timing remain external obligations outside this label.",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 9,
+        "signal": "stage_one"
+      },
+      {
+        "file": "design.sv",
+        "line": 6,
+        "signal": "src_a"
+      }
+    ],
+    "by": "cdc-whole-ip-settler (Claude Opus 5.5)",
+    "expected_rules": [
+      "CDC-013"
+    ]
+  },
+  "labels": [
+    {
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Synchronizer structure",
+      "rationale": "stage_one followed by data_o_r[0] is a two-register exact clk_b chain from src_a[0]. Constant padding does not remove its second stage, and there is no early tap. It is structurally valid level synchronization.",
+      "sites": [],
+      "by": "cdc-whole-ip-reader-a (GPT-6.1 Sol)"
+    },
+    {
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Synchronizer structure",
+      "rationale": "stage_one followed by data_o_r[0] is a full two-stage same-clock same-reset scalar synchronizer. The first stage has only that single next-stage consumer; its name does not make this a one-stage crossing. No event-delivery requirement is provided.",
+      "sites": [],
+      "by": "cdc-whole-ip-reader-b (GPT-6.1 Sol)"
+    }
+  ]
+}

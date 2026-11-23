@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Pinned public RTL gate and network-free failure checks; development only."""
 import argparse
+import importlib.util
 import json
 import subprocess
 import sys
@@ -10,6 +11,9 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
+_MG_SPEC = importlib.util.spec_from_file_location('mem_guard', ROOT / 'tools/dev/mem_guard.py')
+mem_guard = importlib.util.module_from_spec(_MG_SPEC)
+_MG_SPEC.loader.exec_module(mem_guard)
 
 
 def validate(name, report, spec):
@@ -49,10 +53,24 @@ def validate(name, report, spec):
     return not errors
 
 
-def run_report(binary, cwd, args, output):
+def run_report(binary, cwd, args, output, profile='public', label=''):
     output.unlink(missing_ok=True)
-    process = subprocess.run([str(binary), '--no-color', '--json', str(output)] + args, cwd=cwd,
-                             stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+    tag = label or output.stem
+    cmd, unit = mem_guard.build_command(
+        [str(binary), '--no-color', '--json', str(output)] + args,
+        profile=profile, label=tag, exec_mode=True,
+    )
+    try:
+        process = subprocess.run(cmd, cwd=cwd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                                 text=True, timeout=300)
+    except subprocess.TimeoutExpired:
+        mem_guard.stop_unit(unit)
+        print(f'FAIL {output.stem}: TIMEOUT (300s)')
+        return None, 124
+    oom, detail = mem_guard.inspect_oom(unit, process.stderr, process.returncode, profile=profile, label=tag)
+    if oom:
+        print(f'FAIL {output.stem}: MEMORY LIMIT EXCEEDED ({detail})')
+        return None, 137
     try:
         return json.loads(output.read_text()), process.returncode
     except (OSError, json.JSONDecodeError) as exc:
@@ -62,25 +80,34 @@ def run_report(binary, cwd, args, output):
         return None, process.returncode
 
 
-def goals_match_full_run(binary, cwd, args, name, scratch):
-    """A goal only selects rules: what it keeps must equal the same rules in a full run (CST-019 discloses the scope)."""
-    def selected(extra):
-        report, _ = run_report(binary, cwd, extra + args, scratch / (name + '-goal.json'))
-        return report
-    full = selected([])
-    if full is None: return False
+def check_report_replay(binary, cwd, args, name, scratch, original, original_exit):
+    """Check deterministic full reports and the diagnostics retained by each goal."""
+    output = scratch / (name + '.json')
+    original_bytes = output.read_bytes()
+    full, full_exit = run_report(binary, cwd, args, output, profile='public', label=f'{name}-replay')
+    if full is None:
+        return False, full_exit
+    ok = full_exit == original_exit and output.read_bytes() == original_bytes
+    if not ok:
+        print(f'FAIL {name}: identical invocations produced different JSON reports or exit codes')
+        output.with_name(name + '-first.json').write_bytes(original_bytes)
+
+    def selected(extra, tag):
+        return run_report(binary, cwd, extra + args, scratch / (name + '-goal.json'),
+                          profile='public', label=f'{name}-{tag}')
+
     identity = lambda d: (d.get('rule_id'), d.get('fingerprint'), d.get('severity'), d.get('message'))
-    ok = True
     for goal in ('lint', 'cdc', 'rdc'):
-        scoped = selected(['--goal', goal])
-        if scoped is None: return False
+        scoped, scoped_rc = selected(['--goal', goal], goal)
+        if scoped is None:
+            return False, scoped_rc
         kept = {r['rule_id'] for r in scoped['coverage']['rules'] if r['state'] != 'DISABLED'} - {'CST-019'}
-        want = sorted(identity(d) for d in full['diagnostics'] if d.get('rule_id') in kept)
+        want = sorted(identity(d) for d in original['diagnostics'] if d.get('rule_id') in kept)
         got = sorted(identity(d) for d in scoped['diagnostics'] if d.get('rule_id') in kept)
         if want != got:
             ok = False
             print(f'FAIL {name}: --goal {goal} differs from a full run: {sorted(set(want) ^ set(got))[:3]}')
-    return ok
+    return ok, 0
 
 
 def self_check(binary):
@@ -97,7 +124,10 @@ def self_check(binary):
             ('missing-required', 'clean.sv', {'min_register_bits': 1, 'required_findings': [
                 {'rule_id': 'CDC-039', 'severity': 'WARNING', 'confidence': 'unresolved', 'proof_state': 'NOT_ATTEMPTED'}]}, [])]:
             print(f'SELF-CHECK {name}: expected failure')
-            report, rc = run_report(binary, d, ['--top', 'top'] + extra + [source], d / (name + '.json'))
+            report, rc = run_report(binary, d, ['--top', 'top'] + extra + [source], d / (name + '.json'),
+                                    profile='public', label=f'self-{name}')
+            if rc == 137:
+                return False
             if report is None:
                 # A missing report is itself a rejected execution, but only the
                 # elaboration case is allowed to fail at this earlier boundary.
@@ -143,11 +173,16 @@ def main():
         checked[name] = path
         return path
     ok = True
+    oom_exit = False
     if opt.group in ('all', 'robustness'):
         for project in manifest['projects']:
             path = checkout(project['name']); start = time.monotonic()
-            report, rc = run_report(binary, path, ['--exit-policy', 'violations'] + project['args'], scratch / (project['name'] + '.json'))
+            report, rc = run_report(binary, path, ['--exit-policy', 'violations'] + project['args'],
+                                    scratch / (project['name'] + '.json'),
+                                    profile='robustness', label=project['name'])
             elapsed = time.monotonic() - start; expect = project['expect']
+            if rc == 137:
+                oom_exit = True
             passed = report is not None and report.get('summary', {}).get('execution_status') == expect['execution_status'] and elapsed <= expect['max_seconds'] and report.get('coverage', {}).get('design_objects', {}).get('register_bits', 0) >= expect['min_register_bits']
             print(f'{"OK  " if passed else "FAIL"} {project["name"]}: robustness {elapsed:.1f}s')
             ok = passed and ok
@@ -157,13 +192,22 @@ def main():
             cwd = checkout(spec['repository']) / spec['workdir']
             args = ['--top', spec['name'], '--root', '.', '--sdc', str(HERE / spec['sdc'])]
             args += [arg.format(**paths) for arg in spec['args']] + spec['sources']
-            report, rc = run_report(binary, cwd, args, scratch / (spec['name'] + '.json'))
+            report, rc = run_report(binary, cwd, args, scratch / (spec['name'] + '.json'),
+                                    profile='public', label=spec['name'])
+            if rc == 137:
+                oom_exit = True
             passed = report is not None and validate(spec['name'], report, spec)
-            passed = goals_match_full_run(binary, cwd, args, spec['name'], scratch) and passed
+            if report is not None:
+                replay_ok, replay_rc = check_report_replay(binary, cwd, args, spec['name'], scratch, report, rc)
+                if replay_rc == 137:
+                    oom_exit = True
+                passed = replay_ok and passed
             if rc < 0 or rc & (8 | 64):
                 print(f'FAIL {spec["name"]}: analyzer execution failed with exit {rc}')
                 passed = False
             ok = passed and ok
+    if oom_exit:
+        return 137
     return 0 if ok else 1
 
 

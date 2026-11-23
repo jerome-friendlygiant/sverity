@@ -1,0 +1,54 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": true,
+  "verdict": "good",
+  "critical": false,
+  "workflow_class": "Clock intent and inventory",
+  "sites": [],
+  "rationale": "clk_fast/clk_slow are declared -physically_exclusive and the contract says only one runs. hand_q->cap_q is a single-flop Exclusive crossing: CDC-003/CDC-028 INFO; CDC-037(a) needs a depth >= 2 chain and does not trigger; CDC-013 is exempt for Exclusive. slow_rst_ni is synchronous and contracted; outputs are Same.",
+  "author_reading": {
+    "id": "rfc1-h22",
+    "intended_verdict": "good",
+    "critical": false,
+    "workflow_class": "Clock intent and inventory",
+    "expected_rules": [],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 16,
+        "signal": "cap_q"
+      },
+      {
+        "file": "intent.sdc",
+        "line": 4,
+        "signal": "clk_fast/clk_slow"
+      }
+    ],
+    "rationale": "clk_fast and clk_slow are declared physically exclusive; a single-register handoff between mutually exclusive clocks never runs concurrently, so a depth-1 handoff is the intended structure."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Clock intent and inventory",
+      "sites": [],
+      "rationale": "The board contract and SDC agree on physical exclusivity. The single-stage capture does not form a contradictory synchronizer, and its synchronous reset and output are timed to clk_slow."
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Clock intent and inventory",
+      "sites": [],
+      "rationale": "clk_fast and clk_slow are declared physically exclusive in intent.sdc:4, and the single-stage capture from hand_q (clk_fast) to cap_q (clk_slow) has no redundant synchronizer (so CDC-037 does not fire and CDC-003 emits only INFO with the exclusive-clock trust model). All ports including synchronous reset slow_rst_ni carry valid input/output delay contracts."
+    }
+  ]
+}

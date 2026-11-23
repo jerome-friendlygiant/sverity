@@ -12,6 +12,7 @@
 #include <cstdlib>
 #include <cstdio>
 #include <initializer_list>
+#include <map>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -26,9 +27,15 @@ namespace sverity::sdc {
 void Constraints::merge(Constraints&& o) {
     auto mv = [](auto& dst, auto& src) { for (auto& x : src) dst.push_back(std::move(x)); };
     mv(sourcedFiles, o.sourcedFiles);
+    const size_t baseInputDelays = inputDelays.size();
     mv(clocks, o.clocks); mv(clockGroups, o.clockGroups); mv(exceptions, o.exceptions); mv(inputDelays, o.inputDelays);
+    for (auto& ev : o.rejectedInputDelayEvents) {
+        ev.afterInputDelayIndex += baseInputDelays;
+        rejectedInputDelayEvents.push_back(std::move(ev));
+    }
     mv(outputDelays, o.outputDelays); mv(caseAnalyses, o.caseAnalyses);
     mv(unsupported, o.unsupported); mv(problems, o.problems);
+    unreadableFiles |= o.unreadableFiles;
 }
 
 namespace {
@@ -176,9 +183,16 @@ struct Ctx {
     SourceLocation base;
     size_t iterations = 0;
     std::vector<std::filesystem::path> sourceStack;
+    double timeUnitNs = 1.0;
+    bool timeUnitExplicit = false;
 };
 
 void addProblem(Ctx& ctx, std::string msg) { ctx.out.problems.push_back({std::move(msg), ctx.cur}); }
+
+void tagProblems(Ctx& ctx, size_t first, std::string_view command) {
+    for (size_t i = first; i < ctx.out.problems.size(); ++i)
+        if (ctx.out.problems[i].command.empty()) ctx.out.problems[i].command = command;
+}
 
 // Keeps messages readable when they quote user text that may be very long.
 std::string shortText(std::string_view s) {
@@ -309,6 +323,8 @@ std::vector<Cmd> Scanner::parseScript(bool inBracket) {
         }
         cmd.valid = ctx_.out.problems.size() == problems;
         cmd.end = we.end;
+        if (!inBracket && !cmd.valid && !cmd.words.empty())
+            tagProblems(ctx_, problems, cmd.words.front().value);
         if (!cmd.words.empty()) cmds.push_back(std::move(cmd));
         if (we.stop == Stop::CloseBracket) {
             closed_ = true;
@@ -623,7 +639,8 @@ void expandGetCommand(Ctx& ctx, const Arg& bracket, std::vector<ObjectRef>& out,
         return;
     }
     if (cmdName == "all_clocks") {
-        out.push_back(ObjectRef{cmdName, ""});
+        if (bracket.sub.size() != 1) addProblem(ctx, "all_clocks: options and arguments are unsupported");
+        else out.push_back(ObjectRef{cmdName, ""});
         return;
     }
     if (!isObjectCommand(cmdName)) {
@@ -632,13 +649,21 @@ void expandGetCommand(Ctx& ctx, const Arg& bracket, std::vector<ObjectRef>& out,
         return;
     }
     const size_t before = out.size();
+    bool regexp = false;
+    bool unsupportedOption = false;
     for (size_t i = 1; i < bracket.sub.size(); ++i) {
-        if (isOptionWord(bracket.sub[i])) continue;  // e.g. -hierarchical; its value is then a pattern
+        if (!isOptionWord(bracket.sub[i])) continue;
+        if (bracket.sub[i].value == "-regexp") regexp = true;
+        else if (bracket.sub[i].value != "-quiet") unsupportedOption = true;
+    }
+    for (size_t i = 1; i < bracket.sub.size(); ++i) {
+        if (isOptionWord(bracket.sub[i])) continue;
         std::vector<ObjectRef> names;
         expandObjects(ctx, bracket.sub[i], names, depth + 1);
         for (const ObjectRef& r : names) {
             if (isAllInputs(r.kind)) addProblem(ctx, "all_inputs: nested object collections are unsupported");
-            else out.push_back(ObjectRef{cmdName, r.pattern});
+            else out.push_back(ObjectRef{cmdName, r.pattern, regexp || r.regexp,
+                                         unsupportedOption || r.unsupportedOption || (!r.kind.empty() && r.kind != cmdName)});
         }
     }
     if (out.size() == before) addProblem(ctx, "'" + cmdName + "' needs an object name");
@@ -780,7 +805,8 @@ void doCreateClock(Ctx& ctx, const Cmd& cmd) {
     if (const Arg* per = p.last("-period")) {
         double v = 0;
         if (parseDouble(per->value, v) && v > 0) {
-            c.periodNs = v;
+            c.periodNs = v * ctx.timeUnitNs;
+            c.periodTimeUnitKnown = ctx.timeUnitExplicit;
         } else {
             addProblem(ctx, "create_clock: invalid -period '" + shortText(per->value) + "' (expected a positive number)");
         }
@@ -925,6 +951,13 @@ PathException makePath(Ctx& ctx, const Cmd& cmd, PathException::Kind kind, const
     PathException e;
     e.kind = kind;
     e.loc = cmd.loc;
+    e.datapathOnly = std::find(p.flags.begin(), p.flags.end(), "-datapath_only") != p.flags.end();
+    e.resetPath = std::find(p.flags.begin(), p.flags.end(), "-reset_path") != p.flags.end();
+    e.hold = std::find(p.flags.begin(), p.flags.end(), "-hold") != p.flags.end();
+    e.edgeQualified = std::find(p.flags.begin(), p.flags.end(), "-rise") != p.flags.end() ||
+                      std::find(p.flags.begin(), p.flags.end(), "-fall") != p.flags.end() ||
+                      p.last("-rise_from") || p.last("-fall_from") || p.last("-rise_to") || p.last("-fall_to") ||
+                      p.last("-rise_through") || p.last("-fall_through");
     expandOptions(ctx, p, {"-from", "-rise_from", "-fall_from"}, e.from);
     expandOptions(ctx, p, {"-to", "-rise_to", "-fall_to"}, e.to);
     expandOptions(ctx, p, {"-through", "-rise_through", "-fall_through"}, e.through);
@@ -971,9 +1004,24 @@ void doDelay(Ctx& ctx, const Cmd& cmd, PathException::Kind kind) {
         double d = 0;
         if (!parseDouble(v->value, d)) {
             addProblem(ctx, std::string(name) + ": invalid delay value '" + shortText(v->value) + "'");
+        } else {
+            e.valueNs = d * ctx.timeUnitNs;
+            e.valueTimeUnitKnown = ctx.timeUnitExplicit;
         }
     }
     ctx.out.exceptions.push_back(std::move(e));
+}
+
+void doSetUnits(Ctx& ctx, const Cmd& cmd) {
+    const Parsed p = parseOptions(ctx, cmd, "set_units", {{"-time", true}});
+    const Arg* unit = p.last("-time");
+    if (!unit) { addProblem(ctx, "set_units: expected -time with a supported unit"); return; }
+    static const std::map<std::string, double> scale{{"s", 1.0e9}, {"ms", 1.0e6}, {"us", 1.0e3},
+                                                     {"ns", 1.0}, {"ps", 1.0e-3}, {"fs", 1.0e-6}};
+    auto it = scale.find(unit->value);
+    if (it == scale.end()) { addProblem(ctx, "set_units: unsupported time unit '" + shortText(unit->value) + "'"); return; }
+    ctx.timeUnitNs = it->second;
+    ctx.timeUnitExplicit = true;
 }
 
 void doInputDelay(Ctx& ctx, const Cmd& cmd) {
@@ -983,10 +1031,14 @@ void doInputDelay(Ctx& ctx, const Cmd& cmd) {
                                    {"-rise", false}, {"-fall", false}});
     InputDelay d;
     d.loc = cmd.loc;
+    d.addDelay = std::find(p.flags.begin(), p.flags.end(), "-add_delay") != p.flags.end();
+    d.min = std::find(p.flags.begin(), p.flags.end(), "-min") != p.flags.end();
+    d.max = std::find(p.flags.begin(), p.flags.end(), "-max") != p.flags.end();
     if (const Arg* c = p.last("-clock")) {
         std::vector<ObjectRef> refs;
         expandObjects(ctx, *c, refs, 0);
-        if (refs.size() != 1 || refs.front().pattern.empty()) addProblem(ctx, "set_input_delay: -clock needs one clock");
+        if (refs.size() != 1 || refs.front().pattern.empty() || refs.front().regexp || refs.front().unsupportedOption)
+            addProblem(ctx, "set_input_delay: -clock needs one clock");
         else d.clock = refs.front().pattern;
     } else addProblem(ctx, "set_input_delay: missing -clock");
     if (p.positional.size() < 2) { addProblem(ctx, "set_input_delay: expected a delay value and a port list"); return; }
@@ -1011,7 +1063,7 @@ void doOutputDelay(Ctx& ctx, const Cmd& cmd) {
     if (const Arg* c = p.last("-clock")) {
         std::vector<ObjectRef> refs;
         expandObjects(ctx, *c, refs, 0);
-        if (refs.size() != 1 || refs.front().pattern.empty() ||
+        if (refs.size() != 1 || refs.front().pattern.empty() || refs.front().regexp || refs.front().unsupportedOption ||
             (!refs.front().kind.empty() && refs.front().kind != "get_clocks"))
             addProblem(ctx, "set_output_delay: -clock needs one clock name");
         else d.clock = refs.front().pattern;
@@ -1054,6 +1106,7 @@ void handle(Ctx& ctx, const Cmd& cmd) {
     const Arg& head = cmd.words.front();
     const std::string name = head.kind == ArgKind::Bracket ? "[" + head.value + "]" : head.value;
     if (name == "create_clock") doCreateClock(ctx, cmd);
+    else if (name == "set_units") doSetUnits(ctx, cmd);
     else if (name == "create_generated_clock") doCreateGeneratedClock(ctx, cmd);
     else if (name == "set_clock_groups") doSetClockGroups(ctx, cmd);
     else if (name == "set_false_path") doFalsePath(ctx, cmd);
@@ -1179,19 +1232,45 @@ bool substitute(Ctx& ctx, Arg& a, int depth = 0) {
     return true;
 }
 
+bool mayAffectInputDelay(std::string_view name) {
+    if (const auto sep = name.rfind("::"); sep != std::string_view::npos)
+        name.remove_prefix(sep + 2);
+    return name == "set_input_delay" || name == "remove_input_delay" || name == "reset_design" ||
+           name == "source" || name == "read_sdc" || name == "eval" || name == "uplevel" ||
+           name == "if" || name == "foreach" || name == "for" || name == "while" ||
+           name == "switch" || name == "namespace" || name == "apply" || name == "catch" ||
+           name == "try";
+}
+
+void recordRejectedInputDelay(Ctx& ctx, SourceLocation loc, std::string command) {
+    ctx.out.rejectedInputDelayEvents.push_back({ctx.out.inputDelays.size(), std::move(loc), std::move(command)});
+}
+
 void dispatch(Ctx& ctx, const Cmd& original, int depth = 0) {
     ctx.cur = original.loc;
-    if (!original.valid) { ctx.variables.clear(); return; }
-    if (depth > kMaxDepth) { addProblem(ctx, "script nested too deeply"); return; }
+    if (!original.valid) {
+        ctx.variables.clear();
+        recordRejectedInputDelay(ctx, original.loc, original.words.empty() ? std::string{} : original.words.front().value);
+        return;
+    }
+    if (depth > kMaxDepth) {
+        addProblem(ctx, "script nested too deeply");
+        recordRejectedInputDelay(ctx, original.loc, original.words.empty() ? std::string{} : original.words.front().value);
+        return;
+    }
     Cmd cmd = original;
     const size_t problems = ctx.out.problems.size();
     const size_t unsupported = ctx.out.unsupported.size();
     const size_t clocks = ctx.out.clocks.size(), groups = ctx.out.clockGroups.size();
     const size_t exceptions = ctx.out.exceptions.size(), delays = ctx.out.inputDelays.size();
+    const size_t rejectedEvents = ctx.out.rejectedInputDelayEvents.size();
     const size_t outputs = ctx.out.outputDelays.size(), cases = ctx.out.caseAnalyses.size();
     for (auto& a : cmd.words) if (!substitute(ctx, a)) {
+        const std::string& head = cmd.words.front().value;
+        tagProblems(ctx, problems, head);
         // Continuing after an unevaluated script must not reuse stale variable values.
         ctx.variables.clear();
+        if (mayAffectInputDelay(head)) recordRejectedInputDelay(ctx, original.loc, head);
         return;
     }
     const auto& w = cmd.words;
@@ -1345,18 +1424,29 @@ void dispatch(Ctx& ctx, const Cmd& original, int depth = 0) {
             }
         }
     } else handle(ctx, cmd);
+    tagProblems(ctx, problems, name);
     if (ctx.out.problems.size() != problems || ctx.out.unsupported.size() != unsupported) {
         // A sourced script has the same per-command rejection as inline text.
         // Diagnostics in a child must not roll back its valid neighbours.
         if (name == "source") {
-            if (!sourceEvaluated) ctx.variables.clear();
+            if (!sourceEvaluated) {
+                ctx.variables.clear();
+                recordRejectedInputDelay(ctx, cmd.loc, name);
+            }
             return;
         }
         if (name == "set" || name == "foreach" || name == "if" || ctx.out.unsupported.size() != unsupported)
             ctx.variables.clear();
+        if ((name == "if" || name == "foreach") &&
+            std::none_of(ctx.out.problems.begin() + static_cast<std::ptrdiff_t>(problems), ctx.out.problems.end(),
+                         [&](const ParseProblem& p) { return p.command == name; })) {
+            ctx.out.problems.push_back({name + ": rolled back due to an error in its body", cmd.loc, name});
+        }
         ctx.out.clocks.resize(clocks); ctx.out.clockGroups.resize(groups);
         ctx.out.exceptions.resize(exceptions); ctx.out.inputDelays.resize(delays);
+        ctx.out.rejectedInputDelayEvents.resize(rejectedEvents);
         ctx.out.outputDelays.resize(outputs); ctx.out.caseAnalyses.resize(cases);
+        if (mayAffectInputDelay(name)) recordRejectedInputDelay(ctx, cmd.loc, name);
     }
 }
 

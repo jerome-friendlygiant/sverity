@@ -1,5 +1,6 @@
 #include "sverity/timings.h"
 
+#include <algorithm>
 #include <sys/resource.h>
 
 #include <fstream>
@@ -17,6 +18,19 @@ void Timings::record(std::string phase, Clock::time_point start) {
 
 void Timings::count(std::string name, uint64_t value) {
     counts_.emplace_back(std::move(name), value);
+    flush();
+}
+
+void Timings::checkpoint(const std::vector<std::pair<std::string, uint64_t>>& values) {
+    const auto update = [&](const std::string& name, uint64_t value) {
+        auto found = std::find_if(counts_.begin(), counts_.end(), [&](const auto& item) { return item.first == name; });
+        if (found == counts_.end()) counts_.emplace_back(name, value);
+        else found->second = value;
+    };
+    for (const auto& [name, value] : values) update(name, value);
+    rusage usage{};
+    getrusage(RUSAGE_SELF, &usage);
+    update("rss_kb_checkpoint", static_cast<uint64_t>(usage.ru_maxrss));
     flush();
 }
 

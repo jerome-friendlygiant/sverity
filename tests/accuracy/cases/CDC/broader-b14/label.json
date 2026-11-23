@@ -1,0 +1,37 @@
+{
+  "verdict": "good",
+  "workflow_class": "IP and external boundaries",
+  "critical": false,
+  "sites": [],
+  "family": "CDC",
+  "top": "case_ib01",
+  "origin": "authored",
+  "batch": "cdc-2-fresh",
+  "author": "cdc-broader-author (GPT-6 Luna)",
+  "author_reading": {
+    "verdict": "good",
+    "workflow_class": "IP and external boundaries"
+  },
+  "rationale": "irq_pin and reset are timed to clk; a,b,irq form a single-clock pipeline with no early-stage consumer. No unmodeled capture boundary is visible.",
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "good",
+      "workflow_class": "IP and external boundaries",
+      "critical": false,
+      "sites": [],
+      "by": "cdc-broader-reader-a (GPT-6.1 Sol)",
+      "rationale": "irq_pin and reset are timed to clk; a,b,irq form a single-clock pipeline with no early-stage consumer. No unmodeled capture boundary is visible."
+    },
+    {
+      "verdict": "good",
+      "workflow_class": "IP and external boundaries",
+      "critical": false,
+      "sites": [],
+      "by": "cdc-broader-reader-b (GPT-6.1 Sol)",
+      "rationale": "irq_pin has a clk-relative input timing contract and reaches irq through three clk registers. No opaque boundary or missing launch relationship remains for structural CDC."
+    }
+  ]
+}

@@ -1,0 +1,144 @@
+{
+  "verdict": "unknown",
+  "critical": true,
+  "workflow_class": "Clock intent and inventory",
+  "whole_ip_good_control": false,
+  "rationale": "q is clocked by div through an exact alias, local_clk. The SDC declares div as a 20 ns clock and puts it in no group with src_clk. sampled captures q directly in src_clk with no relationship established. The capture is safe if the clocks are synchronous and unsafe if they are asynchronous, and the inputs do not say which.",
+  "caveats": [
+    "CST-004 (unknown pair or crossing) and CDC-003 (WARNING Unresolved for an Unknown relation) are the required disclosures. Do not infer frequency locking from the 20/10 ns periods.",
+    "local_clk is an exact alias of the top-level input div, not a generated clock. CDC-002 and CDC-030 should not fire and are not credited.",
+    "Raw rst_n release on both domains is unestablished, as the contract states."
+  ],
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 6,
+      "signal": "q"
+    },
+    {
+      "file": "design.sv",
+      "line": 7,
+      "signal": "sampled"
+    }
+  ],
+  "expected_rules": [
+    "CDC-003",
+    "CST-004"
+  ],
+  "family": "CDC",
+  "top": "top_cdc_rfc1_t28",
+  "origin": "authored",
+  "batch": "cdc-5-contract-fresh",
+  "author": "cdc-contract-author (GPT-6 Luna)",
+  "author_reading": {
+    "id": "CDC-RFC1-T28",
+    "kind": "unknown",
+    "class": "Clock intent and inventory",
+    "title": "No modeled relationship for derived local clock",
+    "case_files": [
+      "design.sv",
+      "clocks.sdc",
+      "contract.md"
+    ],
+    "boundary_event_config": null,
+    "site_signal": "sampled",
+    "expected_rules": [
+      "CDC-003",
+      "CST-004"
+    ],
+    "rationale": "div is a separately clocked input with a declared 20 ns clock, while src_clk is 10 ns. No group or generated-clock relation relates them; sampled captures q across an unknown relation. The label requires disclosure, not a safety conclusion.",
+    "limitations": [
+      "Structural attribution is a proposal for independent adjudication, not analyzer outcome.",
+      "No SVerity scoring performed.",
+      "Physical timing and metastability requirements remain external."
+    ],
+    "top": "top_cdc_rfc1_t28",
+    "profile": "asic",
+    "sdc": "clocks.sdc"
+  },
+  "sdc": [
+    "clocks.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Clock intent and inventory",
+      "fit": true,
+      "whole_ip_good_control": false,
+      "rationale": "div and src_clk are both declared but no relationship is supplied; direct capture cannot be judged synchronous or asynchronous.",
+      "caveats": [
+        "Do not infer frequency locking from numeric periods; local_clk is an exact alias, not an unconstrained generated root."
+      ],
+      "sites": [
+        {
+          "signal": "q",
+          "file": "design.sv",
+          "line": 6
+        },
+        {
+          "signal": "sampled",
+          "file": "design.sv",
+          "line": 7
+        }
+      ],
+      "expected_rules": [
+        "CDC-003",
+        "CST-004"
+      ],
+      "by": "cdc-contract-reader-a (GPT-6.1 Sol)"
+    },
+    {
+      "verdict": "unknown",
+      "critical": true,
+      "workflow_class": "Clock intent and inventory",
+      "fit": "unknown clock relationship disclosure",
+      "whole_ip_good_control": false,
+      "rationale": "Direct div-domain q capture into src_clk lacks an established relationship. A 20 ns period alone does not prove synchronous phase or safe capture.",
+      "caveats": "local_clk is an exact alias of declared input div, not a generated divider; CDC-002/030 would not describe this uncertainty. Raw rst_n release is not locally synchronized or bounded by a release contract; RDC-003 remains a whole-IP closure confounder. Output consumer timing is not specified. Physical closure is excluded.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 7,
+          "signal": "sampled"
+        }
+      ],
+      "expected_rules": [
+        "CDC-003",
+        "CST-004"
+      ],
+      "by": "cdc-contract-reader-b (GPT-6.1 Sol)"
+    }
+  ],
+  "settlement": {
+    "verdict": "unknown",
+    "critical": true,
+    "workflow_class": "Clock intent and inventory",
+    "fit": true,
+    "whole_ip_good_control": false,
+    "rationale": "q is clocked by div through an exact alias, local_clk. The SDC declares div as a 20 ns clock and puts it in no group with src_clk. sampled captures q directly in src_clk with no relationship established. The capture is safe if the clocks are synchronous and unsafe if they are asynchronous, and the inputs do not say which.",
+    "caveats": [
+      "CST-004 (unknown pair or crossing) and CDC-003 (WARNING Unresolved for an Unknown relation) are the required disclosures. Do not infer frequency locking from the 20/10 ns periods.",
+      "local_clk is an exact alias of the top-level input div, not a generated clock. CDC-002 and CDC-030 should not fire and are not credited.",
+      "Raw rst_n release on both domains is unestablished, as the contract states."
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 6,
+        "signal": "q"
+      },
+      {
+        "file": "design.sv",
+        "line": 7,
+        "signal": "sampled"
+      }
+    ],
+    "expected_rules": [
+      "CDC-003",
+      "CST-004"
+    ],
+    "by": "cdc-contract-settler (Claude Opus 5.5)",
+    "reason": "q is clocked by div through an exact alias, local_clk. The SDC declares div as a 20 ns clock and puts it in no group with src_clk. sampled captures q directly in src_clk with no relationship established. The capture is safe if the clocks are synchronous and unsafe if they are asynchronous, and the inputs do not say which."
+  }
+}

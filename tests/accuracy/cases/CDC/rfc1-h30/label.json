@@ -1,0 +1,49 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": true,
+  "verdict": "good",
+  "critical": false,
+  "workflow_class": "Gray pointer FIFO and cross-clock memory",
+  "sites": [],
+  "rationale": "The memory is written and read in clk_a only, so CDC-035 (relation not Same) does not trigger. All requests are registered in clk_a, the reset is synchronous and contracted, and the output is Same.",
+  "author_reading": {
+    "id": "rfc1-h30",
+    "intended_verdict": "good",
+    "critical": false,
+    "workflow_class": "Gray pointer FIFO and cross-clock memory",
+    "expected_rules": [],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 30,
+        "signal": "mem"
+      }
+    ],
+    "rationale": "Single-clock (clk_a) 1R1W synchronous memory in its own module, written and read only on posedge clk_a with a reset read register and complete I/O delays: no cross-clock memory."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Gray pointer FIFO and cross-clock memory",
+      "sites": [],
+      "rationale": "The request pipeline, memory writer, and registered reader share one clock. Their reset and data timing follow the same clock, so there is no cross-clock memory transfer."
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Gray pointer FIFO and cross-clock memory",
+      "sites": [],
+      "rationale": "The request stage u_req and unpacked 16x8 memory u_ram (sram_1r1w) are both clocked by the same clock clk_a with synchronous reset rst_ni and complete boundary constraints, so no cross-clock memory crossing exists."
+    }
+  ]
+}

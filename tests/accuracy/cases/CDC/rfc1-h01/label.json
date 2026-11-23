@@ -1,0 +1,99 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Clock intent and inventory",
+  "sites": [
+    {
+      "file": "intent.sdc",
+      "line": 3,
+      "signal": "clk_div4"
+    },
+    {
+      "file": "design.sv",
+      "line": 9,
+      "signal": "div2_clk_q"
+    }
+  ],
+  "expected_rules": [
+    "CST-013"
+  ],
+  "rationale": "div2_clk_q is a single q<=~q toggle on clk_sys (divide-by-2), but intent.sdc:3 declares clk_div4 on it with -divide_by 4 from clk_sys: CST-013 ERROR Established factor mismatch. CDC-002/CDC-030 co-fire as disclosure, not the seeded defect. Reader A's no-reset note does not affect the label: CST-013 traces the toggle structure and no --deck cdc rule triggers on the unreset divider (RDC-025 is outside the deck).",
+  "author_reading": {
+    "id": "rfc1-h01",
+    "intended_verdict": "bad",
+    "critical": true,
+    "workflow_class": "Clock intent and inventory",
+    "expected_rules": [
+      "CST-013"
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 9,
+        "signal": "div2_clk_q"
+      },
+      {
+        "file": "intent.sdc",
+        "line": 3,
+        "signal": "clk_div4"
+      }
+    ],
+    "rationale": "RTL divider is a single toggle flop (divide by 2) but the SDC declares a divide-by-4 generated clock on it: proven divide-factor mismatch."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Clock intent and inventory",
+      "sites": [
+        {
+          "file": "intent.sdc",
+          "line": 3,
+          "signal": "clk_div4"
+        },
+        {
+          "file": "design.sv",
+          "line": 9,
+          "signal": "div2_clk_q"
+        }
+      ],
+      "rationale": "The sole clk_sys edge update inverts div2_clk_q, giving divide-by-two once initialized. The generated-clock declaration binds the same register with divide-by-four.",
+      "expected_rules": [
+        "CST-013"
+      ],
+      "suspected_flaw": "The divider has no reset or initializer, so it stays X from default four-state startup."
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Clock intent and inventory",
+      "sites": [
+        {
+          "file": "intent.sdc",
+          "line": 3,
+          "signal": "clk_div4"
+        },
+        {
+          "file": "design.sv",
+          "line": 9,
+          "signal": "div2_clk_q"
+        }
+      ],
+      "rationale": "In design.sv:9, div2_clk_q is a single toggle flip-flop (div2_clk_q <= ~div2_clk_q) clocked by clk_sys, implementing a divide-by-2 clock. However, intent.sdc:3 declares create_generated_clock clk_div4 on div2_clk_q with -divide_by 4 from clk_sys, which provably contradicts the RTL divide-by-2 derivation (CST-013 ERROR Established).",
+      "expected_rules": [
+        "CST-013"
+      ]
+    }
+  ]
+}

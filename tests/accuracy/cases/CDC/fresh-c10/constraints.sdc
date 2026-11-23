@@ -1,0 +1,7 @@
+create_clock -name clk_a -period 10.0 [get_ports {clk_a}]
+create_clock -name clk_b -period 13.0 [get_ports {clk_b}]
+set_clock_groups -asynchronous -group [get_clocks {clk_a}] -group [get_clocks {clk_b}]
+set_input_delay -clock clk_a -max 1.0 [get_ports {data_a}]
+set_input_delay -clock clk_a -min 0.0 [get_ports {data_a}]
+set_output_delay -clock clk_b -max 1.0 [get_ports {data_b}]
+set_output_delay -clock clk_b -min 0.0 [get_ports {data_b}]

@@ -1,0 +1,97 @@
+{
+  "verdict": "bad",
+  "workflow_class": "Clock and reset interaction",
+  "critical": true,
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 3,
+      "signal": "arst_n"
+    },
+    {
+      "file": "design.sv",
+      "line": 3,
+      "signal": "q"
+    }
+  ],
+  "rationale": "Raw asynchronous reset release is explicitly permitted arbitrarily close to clk and q is immediately consumed. No recovery/removal margin or release containment is provided, establishing a reset-release metastability hazard.",
+  "caveats": "Fit under the requested combined CDC+RDC goals; this is specifically RDC/reset-release scope, not an asynchronous data-transfer proof. Ideal RTL simulation cannot establish analog recovery/removal behavior. d launch domain is separately unspecified; even choosing synchronous d leaves the reset hazard. Do not change the bad label if a CDC-only analysis cannot check RDC.",
+  "whole_ip_good_control": false,
+  "family": "CDC",
+  "top": "c11",
+  "origin": "authored",
+  "batch": "cdc-4-ip-fresh",
+  "author": "cdc-ip-author (GPT-6 Luna)",
+  "author_reading": {
+    "proposed_outcome": "Reset-release hazard / bad raw asynchronous release use",
+    "site_or_premise": "`arst_n` async reset of `q`, deassertion arbitrary",
+    "evidence_and_limits": "Clean distinction from synchronized-release control: input explicitly permits deassert near clock edge and consumer immediately uses state. Physical recovery/removal still requires library/STA review."
+  },
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "bad",
+      "workflow_class": "Clock and reset interaction",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 3,
+          "signal": "q"
+        }
+      ],
+      "by": "cdc-ip-reader-a (GPT-6.1 Sol)",
+      "rationale": "Raw asynchronous reset can deassert arbitrarily close to the active edge of the state flop. Immediate use without a recovery/removal guarantee or synchronized release exposes reset-release metastability.",
+      "caveats": "d has no stated launch contract, an incidental boundary unknown that must be closed for whole-IP acceptance. It is unnecessary to establish the reset defect; choosing synchronous d still leaves the defect.",
+      "fit": true,
+      "whole_ip_good_control": false
+    },
+    {
+      "verdict": "bad",
+      "workflow_class": "Clock and reset interaction",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 3,
+          "signal": "arst_n"
+        },
+        {
+          "file": "design.sv",
+          "line": 3,
+          "signal": "q"
+        }
+      ],
+      "by": "cdc-ip-reader-b (GPT-6.1 Sol)",
+      "rationale": "Contract explicitly permits reset release arbitrarily close to a clk edge and requires immediate q use. Raw asynchronous release at line 3 can violate recovery/removal and make q metastable; neither a release synchronizer nor external margin is provided.",
+      "caveats": "The timing domain of d is not specified. This is an additional boundary unknown, not evidence for a second confirmed defect. Reset risk does not require multiple downstream flops to exist.",
+      "fit": true,
+      "whole_ip_good_control": false
+    }
+  ],
+  "settlement": {
+    "verdict": "bad",
+    "workflow_class": "Clock and reset interaction",
+    "critical": true,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 3,
+        "signal": "arst_n"
+      },
+      {
+        "file": "design.sv",
+        "line": 3,
+        "signal": "q"
+      }
+    ],
+    "by": "cdc-ip-settler (GPT-6.1 Sol)",
+    "rationale": "Raw asynchronous reset release is explicitly permitted arbitrarily close to clk and q is immediately consumed. No recovery/removal margin or release containment is provided, establishing a reset-release metastability hazard.",
+    "caveats": "Fit under the requested combined CDC+RDC goals; this is specifically RDC/reset-release scope, not an asynchronous data-transfer proof. Ideal RTL simulation cannot establish analog recovery/removal behavior. d launch domain is separately unspecified; even choosing synchronous d leaves the reset hazard. Do not change the bad label if a CDC-only analysis cannot check RDC.",
+    "fit": true,
+    "whole_ip_good_control": false,
+    "reason": "Raw asynchronous reset release is explicitly permitted arbitrarily close to clk and q is immediately consumed. No recovery/removal margin or release containment is provided, establishing a reset-release metastability hazard."
+  }
+}

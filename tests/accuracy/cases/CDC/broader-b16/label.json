@@ -1,0 +1,37 @@
+{
+  "verdict": "good",
+  "workflow_class": "Clock and reset interaction",
+  "critical": false,
+  "sites": [],
+  "family": "CDC",
+  "top": "case_cr02",
+  "origin": "authored",
+  "batch": "cdc-2-fresh",
+  "author": "cdc-broader-author (GPT-6 Luna)",
+  "author_reading": {
+    "verdict": "good",
+    "workflow_class": "Clock and reset interaction"
+  },
+  "rationale": "a launches on src_clk and b/q provide two destination-clock stages without intermediate fan-out. Each reset has a timing contract to its own clock. Independent reset values can change the transferred level but no payload/event protocol requiring reset epoch alignment is specified.",
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "good",
+      "workflow_class": "Clock and reset interaction",
+      "critical": false,
+      "sites": [],
+      "by": "cdc-broader-reader-a (GPT-6.1 Sol)",
+      "rationale": "a launches on src_clk and b/q provide two destination-clock stages without intermediate fan-out. Each reset has a timing contract to its own clock. Independent reset values can change the transferred level but no payload/event protocol requiring reset epoch alignment is specified."
+    },
+    {
+      "verdict": "good",
+      "workflow_class": "Clock and reset interaction",
+      "critical": false,
+      "sites": [],
+      "by": "cdc-broader-reader-b (GPT-6.1 Sol)",
+      "rationale": "a launches on src_clk; b and q form a two-stage dst_clk synchronizer with a consistent destination reset. Each reset is timed to its own clock by the supplied contract. Separate source/destination resets alone do not establish a malformed level synchronizer; no event or retained-state protocol is claimed."
+    }
+  ]
+}

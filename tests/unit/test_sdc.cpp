@@ -334,7 +334,7 @@ TEST(sdc_object_forms) {
     if (c.exceptions.size() != 2) return;
     std::vector<R> all = {R{"all_clocks", ""}};
     CHECK_EQ(c.exceptions[0].from, all);
-    std::vector<R> of = {R{"get_clocks", "u/CK"}};
+    std::vector<R> of = {R{"get_clocks", "u/CK", false, true}};
     CHECK_EQ(c.exceptions[0].to, of);
     std::vector<R> thr = {R{"get_nets", "n1"}, R{"get_nets", "n2"}};
     CHECK_EQ(c.exceptions[1].through, thr);

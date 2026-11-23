@@ -1,0 +1,6 @@
+create_clock -name dst_clk -period 10 [get_ports dst_clk]
+set_input_delay -min 1 -clock dst_clk [get_ports {data[0]}]
+set_input_delay -max 1 -clock dst_clk [get_ports {data[0]}]
+set_input_delay -min 1 -clock dst_clk [get_ports {data[1]}]
+set_input_delay -max 1 -clock dst_clk [get_ports {data[1]}]
+set_output_delay -max 1 -clock dst_clk [get_ports result]

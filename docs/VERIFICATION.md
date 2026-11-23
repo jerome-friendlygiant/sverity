@@ -7,7 +7,7 @@ and runs the pinned public-RTL gate, stopping at the first failure.
 |---|---|
 | `tests/unit/` and Python tests registered in CTest | Analysis invariants, exit and report contracts, and migration and evidence tooling. |
 | `tests/fixtures/` | Each rule's expected findings, safe lookalikes, boundaries, unknown cases and mutations. Conformance checks the shapes required by the catalog claim. |
-| `tests/public_projects/` | The executable runs on pinned public RTL and satisfies each design's report and resource expectations. |
+| `tests/public_projects/` | The executable runs on pinned public RTL and satisfies each design's report and resource expectations. Each known-good CDC design checks byte-for-byte JSON and exit-code reproducibility and compares goal-scoped diagnostics with the full run. |
 | `tests/accuracy/` | Labelled cases measure missed defects, noise and disclosure. CTest validates labels and tests scorer behavior. Score batches explicitly with `tools/dev/accuracy.py`. |
 
 ## Before changing a rule
@@ -30,4 +30,5 @@ and runs the pinned public-RTL gate, stopping at the first failure.
 - **Adoption.** An adopter trial measures team review effort on its own IP. The
   1.0 lint scope defers this trial and human label review.
 
-For the concrete lint steps and evidence, see the [lint workflow](rules/LINT_WORKFLOW.md#verification).
+See the [lint workflow](rules/LINT_WORKFLOW.md#verification) and
+[CDC workflow](rules/CDC_WORKFLOW.md#verification) for family-specific steps.

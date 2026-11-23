@@ -1,0 +1,155 @@
+{
+  "verdict": "good",
+  "critical": false,
+  "workflow_class": "Qualified payload and event protocols",
+  "whole_ip_good_control": false,
+  "rationale": "This is a correct four-phase handshake. req and ack each cross through two stages. The source latches the payload only when !src_req && !a2 and holds it until the synchronised ack, then drops req. The destination captures exactly once (r2 && !ack_dst) and drops ack only after r2 falls. The next transaction waits for a2 to go low. Nominal sequencing gives single delivery of a coherent payload. The parent intake bench ran to $finish with no assertion errors.",
+  "caveats": [
+    "A single-transaction bench does not prove repeated transactions, liveness or reset sequencing.",
+    "Both domains release from raw rst_n. Simultaneous asynchronous assertion with independent release looks benign: a request issued before the destination leaves reset is held until r1 samples it. RDC-023 (handshake reset-release order) and RDC-003 still apply as obligations.",
+    "Expected non-defect findings are CDC-015 INFO, a CDC-024 WARNING obligation, a CDC-039 WARNING obligation and RDC-023. The case is a good control that requires review, not a clean one. No whole-IP clean premise. Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+  ],
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 16,
+      "signal": "dst_payload"
+    },
+    {
+      "file": "design.sv",
+      "line": 10,
+      "signal": "src_req"
+    },
+    {
+      "file": "design.sv",
+      "line": 16,
+      "signal": "ack_dst"
+    }
+  ],
+  "family": "CDC",
+  "top": "top_cdc_rfc1_t18",
+  "origin": "authored",
+  "batch": "cdc-5-contract-fresh",
+  "author": "cdc-contract-author (GPT-6 Luna)",
+  "author_reading": {
+    "id": "CDC-RFC1-T18",
+    "kind": "good",
+    "class": "Multi-bit transfer and reconvergence",
+    "title": "Stable bundled payload under request handshake",
+    "case_files": [
+      "design.sv",
+      "clocks.sdc",
+      "contract.md",
+      "bench.sv"
+    ],
+    "boundary_event_config": null,
+    "site_signal": "dst_payload",
+    "expected_rules": [
+      "CDC-015",
+      "CDC-024",
+      "CDC-039"
+    ],
+    "rationale": "Source asserts send to latch payload into a source-domain holding register, holds request and data until synchronized acknowledgment, then drops request. Destination captures once while request is synchronized high and returns acknowledgment; source waits for acknowledgment low before retriggering. Independent bench checks a single delivered transaction and coherent payload.",
+    "limitations": [
+      "Structural attribution is a proposal for independent adjudication, not analyzer outcome.",
+      "No SVerity scoring performed.",
+      "Physical timing and metastability requirements remain external."
+    ],
+    "top": "top_cdc_rfc1_t18",
+    "profile": "asic",
+    "sdc": "clocks.sdc"
+  },
+  "sdc": [
+    "clocks.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Qualified payload and event protocols",
+      "fit": true,
+      "whole_ip_good_control": false,
+      "rationale": "Nominal four-phase handshake retains payload until synchronized acknowledgment and prevents repeated destination loads. Reset release ordering across domains is not established.",
+      "caveats": [
+        "Single-transaction bench is consistent with nominal operation but cannot establish reset safety or repeated transactions; not a whole-IP good control."
+      ],
+      "sites": [
+        {
+          "signal": "src_req",
+          "file": "design.sv",
+          "line": 10
+        },
+        {
+          "signal": "dst_payload",
+          "file": "design.sv",
+          "line": 16
+        },
+        {
+          "signal": "ack_dst",
+          "file": "design.sv",
+          "line": 16
+        }
+      ],
+      "expected_rules": [
+        "CDC-024",
+        "CDC-039",
+        "RDC-023"
+      ],
+      "by": "cdc-contract-reader-a (GPT-6.1 Sol)"
+    },
+    {
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Qualified payload and event protocols",
+      "fit": "functional handshake control, not clean whole-IP",
+      "whole_ip_good_control": false,
+      "rationale": "Request and ack each cross two stages. Source retains payload until synchronized ack, destination captures once while ack is low, and return-to-zero prevents overlap.",
+      "caveats": "Bench was read, not executed; one transaction is not full verification. RDC-023 reset-order and CDC-024/039 protocol obligations remain. Raw rst_n release is not locally synchronized or bounded by a release contract; RDC-003 remains a whole-IP closure confounder. Output consumer timing is not specified. Physical closure is excluded.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 16,
+          "signal": "dst_payload"
+        },
+        {
+          "file": "design.sv",
+          "line": 19,
+          "signal": "src_ack"
+        }
+      ],
+      "by": "cdc-contract-reader-b (GPT-6.1 Sol)"
+    }
+  ],
+  "settlement": {
+    "verdict": "good",
+    "critical": false,
+    "workflow_class": "Qualified payload and event protocols",
+    "fit": true,
+    "whole_ip_good_control": false,
+    "rationale": "This is a correct four-phase handshake. req and ack each cross through two stages. The source latches the payload only when !src_req && !a2 and holds it until the synchronised ack, then drops req. The destination captures exactly once (r2 && !ack_dst) and drops ack only after r2 falls. The next transaction waits for a2 to go low. Nominal sequencing gives single delivery of a coherent payload. The parent intake bench ran to $finish with no assertion errors.",
+    "caveats": [
+      "A single-transaction bench does not prove repeated transactions, liveness or reset sequencing.",
+      "Both domains release from raw rst_n. Simultaneous asynchronous assertion with independent release looks benign: a request issued before the destination leaves reset is held until r1 samples it. RDC-023 (handshake reset-release order) and RDC-003 still apply as obligations.",
+      "Expected non-defect findings are CDC-015 INFO, a CDC-024 WARNING obligation, a CDC-039 WARNING obligation and RDC-023. The case is a good control that requires review, not a clean one. No whole-IP clean premise. Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 16,
+        "signal": "dst_payload"
+      },
+      {
+        "file": "design.sv",
+        "line": 10,
+        "signal": "src_req"
+      },
+      {
+        "file": "design.sv",
+        "line": 16,
+        "signal": "ack_dst"
+      }
+    ],
+    "by": "cdc-contract-settler (Claude Opus 5.5)",
+    "reason": "This is a correct four-phase handshake. req and ack each cross through two stages. The source latches the payload only when !src_req && !a2 and holds it until the synchronised ack, then drops req. The destination captures exactly once (r2 && !ack_dst) and drops ack only after r2 falls. The next transaction waits for a2 to go low. Nominal sequencing gives single delivery of a coherent payload. The parent intake bench ran to $finish with no assertion errors."
+  }
+}

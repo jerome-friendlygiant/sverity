@@ -27,3 +27,24 @@ TEST(cdc017_opaque_function_is_unresolved_with_obligation) {
         CHECK(incomplete);
     }
 }
+
+TEST(cdc017_split_register_partial_sync_gray_is_error) {
+    const std::string root = SVERITY_SOURCE_DIR;
+    AnalyzerOptions opts;
+    opts.config.profile = "asic";
+    opts.config.goals = {"cdc"};
+    opts.config.deck = "cdc";
+    opts.frontend.slangArgs = {"--top", "top", root + "/tests/fixtures/CDC-017/bad_gray_split_register_partial_sync.sv"};
+    opts.sdcFiles = {root + "/tests/fixtures/_common/async.sdc"};
+    auto report = analyze(opts);
+    bool seen = false;
+    for (const auto& d : report.diagnostics()) {
+        if (d.ruleId != "CDC-017") continue;
+        seen = true;
+        CHECK_EQ(d.severity, Severity::Error);
+        CHECK_EQ(d.confidence, Confidence::Established);
+        CHECK(std::find(d.signals.begin(), d.signals.end(), "top.gray") != d.signals.end());
+        CHECK(std::find(d.signals.begin(), d.signals.end(), "top.s2") != d.signals.end());
+    }
+    CHECK(seen);
+}

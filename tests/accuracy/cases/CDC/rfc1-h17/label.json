@@ -1,0 +1,116 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "verdict": "bad",
+  "critical": false,
+  "workflow_class": "Clock and reset interaction",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 12,
+      "signal": "en_b_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 14,
+      "signal": "gclk_b"
+    }
+  ],
+  "expected_rules": [
+    "CDC-045"
+  ],
+  "rationale": "gclk_b = clk_b & en_b_q with a posedge-clk_b enable flop and no low-phase latch, so the enable can change while clk_b is high: CDC-045(a) WARNING Heuristic. CDC-020 is exempt (Same domain). Reader A's missing gated-clock declaration note does not change the label.",
+  "author_reading": {
+    "id": "rfc1-h17",
+    "intended_verdict": "bad",
+    "critical": false,
+    "workflow_class": "Clock and reset interaction",
+    "expected_rules": [
+      "CDC-045"
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 14,
+        "signal": "gclk_b"
+      }
+    ],
+    "rationale": "clk_b is gated by an AND with a posedge-launched enable register and no low-phase enable latch."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": false,
+      "workflow_class": "Clock and reset interaction",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 14,
+          "signal": "gclk_b"
+        },
+        {
+          "file": "design.sv",
+          "line": 14,
+          "signal": "en_b_q"
+        }
+      ],
+      "rationale": "The same-domain enable flop updates after a rising clock edge during the gate's sensitive high phase. The raw AND can truncate a high pulse or delay its rising edge.",
+      "expected_rules": [
+        "CDC-045"
+      ],
+      "suspected_flaw": "The gated clock has no matching declaration or reviewed relation to clk_b."
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "bad",
+      "critical": false,
+      "workflow_class": "Clock and reset interaction",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 14,
+          "signal": "gclk_b"
+        },
+        {
+          "file": "design.sv",
+          "line": 12,
+          "signal": "en_b_q"
+        }
+      ],
+      "rationale": "Clock gclk_b is gated combinationally by assign gclk_b = clk_b & en_b_q (design.sv:14) where enable en_b_q is a posedge clk_b flip-flop (design.sv:12) without a transparent-low enable latch, allowing transitions on en_b_q while clk_b is high to glitch gclk_b (CDC-045 WARNING Heuristic).",
+      "expected_rules": [
+        "CDC-045"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "cdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "bad",
+    "critical": false,
+    "workflow_class": "Clock and reset interaction",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 12,
+        "signal": "en_b_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 14,
+        "signal": "gclk_b"
+      }
+    ],
+    "expected_rules": [
+      "CDC-045"
+    ],
+    "rationale": "gclk_b = clk_b & en_b_q with a posedge-clk_b enable flop and no low-phase latch, so the enable can change while clk_b is high: CDC-045(a) WARNING Heuristic. CDC-020 is exempt (Same domain). Reader A's missing gated-clock declaration note does not change the label."
+  }
+}

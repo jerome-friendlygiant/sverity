@@ -1,0 +1,131 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Synchronizer structure",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 14,
+      "signal": "s1_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 15,
+      "signal": "s2_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 16,
+      "signal": "out_q"
+    }
+  ],
+  "expected_rules": [
+    "CDC-026"
+  ],
+  "rationale": "Stage 1 is posedge clk_b and stage 2 negedge clk_b inside the required depth: CDC-026 ERROR (stage edge mismatch, Async). CDC-043(a) will also report the opposite-edge s1_q->s2_q and s2_q->out_q paths, but its predicate fires identically on a benign intra-domain negedge pipeline, so it does not establish the seeded synchronizer defect and is not an expected rule (Reader A's CDC-043 addition rejected).",
+  "author_reading": {
+    "id": "rfc1-h06",
+    "intended_verdict": "bad",
+    "critical": true,
+    "workflow_class": "Synchronizer structure",
+    "expected_rules": [
+      "CDC-026"
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 15,
+        "signal": "s2_q"
+      }
+    ],
+    "rationale": "Synchronizer stage 1 samples on posedge clk_b and stage 2 on negedge clk_b: stage clock-edge mismatch."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Synchronizer structure",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 14,
+          "signal": "s1_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 15,
+          "signal": "s2_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 16,
+          "signal": "out_q"
+        }
+      ],
+      "rationale": "The asynchronous crossing lands on a rising clk_b edge, then feeds a falling-edge stage. That stage feeds a rising-edge output register. The opposite-edge second stage breaks required chain matching.",
+      "expected_rules": [
+        "CDC-026",
+        "CDC-043"
+      ]
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Synchronizer structure",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 15,
+          "signal": "s2_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 14,
+          "signal": "s1_q"
+        }
+      ],
+      "rationale": "In the 2-stage synchronizer from src_q (clk_a) into clk_b, stage 1 s1_q samples on posedge clk_b (design.sv:14) whereas stage 2 s2_q samples on negedge clk_b (design.sv:15), creating a required-stage clock-edge mismatch that cuts metastability settling time to a half cycle (CDC-026 ERROR Established).",
+      "expected_rules": [
+        "CDC-026"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "cdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Synchronizer structure",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 14,
+        "signal": "s1_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 15,
+        "signal": "s2_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 16,
+        "signal": "out_q"
+      }
+    ],
+    "expected_rules": [
+      "CDC-026"
+    ],
+    "rationale": "Stage 1 is posedge clk_b and stage 2 negedge clk_b inside the required depth: CDC-026 ERROR (stage edge mismatch, Async). CDC-043(a) will also report the opposite-edge s1_q->s2_q and s2_q->out_q paths, but its predicate fires identically on a benign intra-domain negedge pipeline, so it does not establish the seeded synchronizer defect and is not an expected rule (Reader A's CDC-043 addition rejected)."
+  }
+}

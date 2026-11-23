@@ -1,0 +1,115 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Synchronizer structure",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 17,
+      "signal": "s1_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 18,
+      "signal": "s2_q"
+    }
+  ],
+  "expected_rules": [
+    "CDC-006"
+  ],
+  "rationale": "s2_q samples s1_q & en_dst_i, so logic sits between stages 1 and 2 of an asynchronous clk_a-to-clk_b chain: CDC-006 ERROR. Readers differed only in site order.",
+  "author_reading": {
+    "id": "rfc1-h04",
+    "intended_verdict": "bad",
+    "critical": true,
+    "workflow_class": "Synchronizer structure",
+    "expected_rules": [
+      "CDC-006"
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 18,
+        "signal": "s2_q"
+      }
+    ],
+    "rationale": "Logic (AND with a destination-domain enable) sits between synchronizer stage 1 and stage 2."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Synchronizer structure",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 17,
+          "signal": "s1_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 18,
+          "signal": "s2_q"
+        }
+      ],
+      "rationale": "s2_q samples s1_q through an AND gate. en_dst_i is timed to clk_b, but the first-stage metastability path passes through logic before the next flop.",
+      "expected_rules": [
+        "CDC-006"
+      ]
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Synchronizer structure",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 18,
+          "signal": "s2_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 17,
+          "signal": "s1_q"
+        }
+      ],
+      "rationale": "The asynchronous crossing from src_q (clk_a) into clk_b enters first stage s1_q (design.sv:17), but the path into second stage s2_q passes through combinational AND logic with en_dst_i (s2_q <= s1_q & en_dst_i at design.sv:18), violating inter-stage synchronizer integrity (CDC-006 ERROR Established).",
+      "expected_rules": [
+        "CDC-006"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "cdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Synchronizer structure",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 17,
+        "signal": "s1_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 18,
+        "signal": "s2_q"
+      }
+    ],
+    "expected_rules": [
+      "CDC-006"
+    ],
+    "rationale": "s2_q samples s1_q & en_dst_i, so logic sits between stages 1 and 2 of an asynchronous clk_a-to-clk_b chain: CDC-006 ERROR. Readers differed only in site order."
+  }
+}

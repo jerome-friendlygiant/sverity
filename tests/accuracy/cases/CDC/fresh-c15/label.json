@@ -1,0 +1,83 @@
+{
+  "verdict": "bad",
+  "workflow_class": "Qualified payload and event protocols",
+  "critical": true,
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 2,
+      "signal": "payload_b"
+    }
+  ],
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-1-fresh",
+  "author": "cdc-author-replacement (GPT-6 Luna)",
+  "author_reading": {
+    "verdict": "bad",
+    "workflow_class": "Qualified payload and event protocols",
+    "critical": true,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 2,
+        "signal": "payload_b"
+      }
+    ],
+    "rationale": "Unsynchronized valid_a directly qualifies an unsynchronized four-bit payload capture in clk_b."
+  },
+  "rationale": "clk_a-related valid_a directly controls capture of clk_a-related payload_a in asynchronous clk_b. Neither qualifier synchronization nor payload holding/acknowledgment is provided. Capture can metastabilize and the word can be incoherent.",
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "bad",
+      "workflow_class": "Qualified payload and event protocols",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 2,
+          "signal": "valid_a"
+        },
+        {
+          "file": "design.sv",
+          "line": 2,
+          "signal": "payload_a"
+        }
+      ],
+      "by": "cdc-replacement-reader-a (GPT-6.1 Sol)",
+      "rationale": "Both qualifier valid_a and payload_a are explicitly clk_a-domain inputs used directly at clk_b capture. The qualifier is unsynchronized and no payload hold/acknowledgement protocol proves stability at capture. Consequently qualification can metastabilize and the captured word can be incoherent. No unknown boundary domain obscures the defect."
+    },
+    {
+      "verdict": "bad",
+      "workflow_class": "Qualified payload and event protocols",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 2,
+          "signal": "payload_b"
+        }
+      ],
+      "by": "cdc-replacement-reader-b (GPT-6.1 Sol)",
+      "rationale": "Both valid_a and arbitrary payload_a originate in clk_a but directly control clk_b capture. The valid signal has no synchronizer and no protocol establishes payload stability around capture. An asynchronous valid is not a safe qualifier."
+    }
+  ],
+  "settlement": {
+    "verdict": "bad",
+    "workflow_class": "Qualified payload and event protocols",
+    "critical": true,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 2,
+        "signal": "payload_b"
+      }
+    ],
+    "by": "cdc-settler-replacement (GPT-6.1 Sol)",
+    "reason": "clk_a-related valid_a directly controls capture of clk_a-related payload_a in asynchronous clk_b. Neither qualifier synchronization nor payload holding/acknowledgment is provided. Capture can metastabilize and the word can be incoherent."
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "verdict": "bad",
+  "workflow_class": "Gray pointer FIFO and cross-clock memory",
+  "critical": true,
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 4,
+      "signal": "wseen"
+    }
+  ],
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-1-fresh",
+  "author": "cdc-author-replacement (GPT-6 Luna)",
+  "author_reading": {
+    "verdict": "bad",
+    "workflow_class": "Gray pointer FIFO and cross-clock memory",
+    "critical": true,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 4,
+        "signal": "wseen"
+      }
+    ],
+    "rationale": "A registered Gray pointer is sampled directly as a three-bit bus in clk_b with no synchronizer stages; the source and destination use separately timed synchronous reset inputs."
+  },
+  "rationale": "Registered Gray data is captured in only one clk_b stage, whose state is directly exposed. Gray encoding does not contain metastability. The separate clk_a-related rst_b_n reset crossing does not remove this designated short-chain defect.",
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "bad",
+      "workflow_class": "Gray pointer FIFO and cross-clock memory",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "wseen"
+        }
+      ],
+      "by": "cdc-replacement-reader-a (GPT-6.1 Sol)",
+      "rationale": "Registered Gray coding does not replace metastability containment: wgray has only one clk_b capture stage and that stage is directly exposed as wseen. Additionally rst_b_n is explicitly clk_a-launched and directly controls clk_b capture. Reset coordination and bit-skew proof are absent, but neither removes the short-chain defect. Unfit for an isolated single-defect Gray test because reset adds a separate concrete crossing."
+    },
+    {
+      "verdict": "bad",
+      "workflow_class": "Gray pointer FIFO and cross-clock memory",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "wseen"
+        }
+      ],
+      "by": "cdc-replacement-reader-b (GPT-6.1 Sol)",
+      "rationale": "The registered Gray counter has only one destination capture stage, exposed directly as wseen. Gray coding does not contain metastability without a destination synchronization chain. Independently, rst_b_n is constrained to clk_a and used as a synchronous clk_b reset; that additional defect does not change the Gray-chain verdict. UNFIT for isolation of a single defect."
+    }
+  ],
+  "settlement": {
+    "verdict": "bad",
+    "workflow_class": "Gray pointer FIFO and cross-clock memory",
+    "critical": true,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 4,
+        "signal": "wseen"
+      }
+    ],
+    "by": "cdc-settler-replacement (GPT-6.1 Sol)",
+    "reason": "Registered Gray data is captured in only one clk_b stage, whose state is directly exposed. Gray encoding does not contain metastability. The separate clk_a-related rst_b_n reset crossing does not remove this designated short-chain defect."
+  }
+}

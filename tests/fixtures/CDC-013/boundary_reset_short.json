@@ -1,0 +1,9 @@
+{
+  "boundary_events": [{
+    "port": "event_i",
+    "launch_clock": "src_clk",
+    "protocol": "event",
+    "duration": {"value": 10, "unit": "ns"},
+    "delivery": "required"
+  }]
+}

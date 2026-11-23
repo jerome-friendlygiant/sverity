@@ -1,0 +1,127 @@
+{
+  "verdict": "good",
+  "critical": false,
+  "workflow_class": "Qualified payload and event protocols",
+  "whole_ip_good_control": false,
+  "rationale": "config.json declares the 10 ns event best_effort, and the contract treats it as lossy telemetry. Missing a short event is permitted, and two-stage containment is present.",
+  "caveats": [
+    "Expect CDC-013(c) INFO Heuristic, since the event is best effort. This case must not be relabelled as reliable delivery.",
+    "No whole-IP clean premise. Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+  ],
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 6,
+      "signal": "event_in"
+    },
+    {
+      "file": "design.sv",
+      "line": 6,
+      "signal": "event_seen"
+    }
+  ],
+  "family": "CDC",
+  "top": "top_cdc_rfc1_t21",
+  "origin": "authored",
+  "batch": "cdc-5-contract-fresh",
+  "author": "cdc-contract-author (GPT-6 Luna)",
+  "author_reading": {
+    "id": "CDC-RFC1-T21",
+    "kind": "good",
+    "class": "Qualified payload and event protocols",
+    "title": "Best-effort short event is explicitly lossy",
+    "case_files": [
+      "design.sv",
+      "clocks.sdc",
+      "contract.md",
+      "config.json"
+    ],
+    "boundary_event_config": "config.json",
+    "site_signal": "event_in",
+    "expected_rules": [
+      "CDC-013"
+    ],
+    "rationale": "Short event may be missed; system treats this as telemetry only and has no delivery guarantee.",
+    "limitations": [
+      "Structural attribution is a proposal for independent adjudication, not analyzer outcome.",
+      "No SVerity scoring performed.",
+      "Physical timing and metastability requirements remain external."
+    ],
+    "top": "top_cdc_rfc1_t21",
+    "profile": "asic",
+    "sdc": "clocks.sdc"
+  },
+  "sdc": [
+    "clocks.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Qualified payload and event protocols",
+      "fit": true,
+      "whole_ip_good_control": false,
+      "rationale": "Short assertions may be missed under the explicit best-effort telemetry contract; two-stage containment is present.",
+      "caveats": [
+        "No guaranteed event delivery or counting claim. Raw reset release unresolved."
+      ],
+      "sites": [
+        {
+          "signal": "event_in",
+          "file": "design.sv",
+          "line": 6
+        },
+        {
+          "signal": "event_seen",
+          "file": "design.sv",
+          "line": 6
+        }
+      ],
+      "by": "cdc-contract-reader-a (GPT-6.1 Sol)"
+    },
+    {
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Qualified payload and event protocols",
+      "fit": "best-effort telemetry control",
+      "whole_ip_good_control": false,
+      "rationale": "A short assertion can be missed, but the explicit best-effort telemetry contract permits that loss.",
+      "caveats": "Cannot be relabeled as reliable delivery. Raw rst_n release is not locally synchronized or bounded by a release contract; RDC-003 remains a whole-IP closure confounder. Output consumer timing is not specified. Physical closure is excluded.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 6,
+          "signal": "event_seen"
+        }
+      ],
+      "by": "cdc-contract-reader-b (GPT-6.1 Sol)"
+    }
+  ],
+  "settlement": {
+    "verdict": "good",
+    "critical": false,
+    "workflow_class": "Qualified payload and event protocols",
+    "fit": true,
+    "whole_ip_good_control": false,
+    "rationale": "config.json declares the 10 ns event best_effort, and the contract treats it as lossy telemetry. Missing a short event is permitted, and two-stage containment is present.",
+    "caveats": [
+      "Expect CDC-013(c) INFO Heuristic, since the event is best effort. This case must not be relabelled as reliable delivery.",
+      "No whole-IP clean premise. Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 6,
+        "signal": "event_in"
+      },
+      {
+        "file": "design.sv",
+        "line": 6,
+        "signal": "event_seen"
+      }
+    ],
+    "by": "cdc-contract-settler (Claude Opus 5.5)",
+    "reason": "config.json declares the 10 ns event best_effort, and the contract treats it as lossy telemetry. Missing a short event is permitted, and two-stage containment is present."
+  },
+  "boundary_event_config": "config.json"
+}

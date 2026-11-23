@@ -83,6 +83,11 @@ target_compile_definitions(sverity_lib PUBLIC SVERITY_VERSION="${PROJECT_VERSION
 add_executable(sverity tools/sverity/main.cpp)
 target_link_libraries(sverity PRIVATE sverity_lib)
 
+# Capacity aid: inventory the clock roots in a model without running the rule deck.
+add_executable(sverity-clock-inventory tools/dev/clock_inventory.cpp)
+target_include_directories(sverity-clock-inventory PRIVATE src)
+target_link_libraries(sverity-clock-inventory PRIVATE sverity_lib)
+
 # ---- tests ------------------------------------------------------------------
 if(SVERITY_BUILD_TESTS)
   enable_testing()

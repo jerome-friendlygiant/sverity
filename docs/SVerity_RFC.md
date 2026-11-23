@@ -270,6 +270,10 @@ macro recognition, (c) reset and initialisation semantics, (d) timing-constraint
 unsupported primitive is *unresolved*, not assumed safe. No blanket statements like "FPGAs do not need RDC" or "2FF is
 universally safe".
 
+**Pre-freeze CDC 1.0 scope revision:** The initial structural CDC 1.0 workflow (`--profile asic --goal cdc --deck cdc --exit-policy strict`)
+targets per-IP synthesizable ASIC SystemVerilog with reviewed `--library` models. FPGA profile bundles and `CDC-012`
+technology-specific primitive/attribute qualification are deferred as preview outside `--deck cdc`.
+
 ## 6. Development stages (ordering, not deferral)
 
 | Stage | Deliverable | Gate |
@@ -307,7 +311,7 @@ frozen rule `validated`, or a transparent scope revision *before* freezing.
 
 - **Build:** C++20 + slang; offline reproducible build from pinned sources; no Python or other tools at runtime.
 - **Interfaces:** deterministic CLI/API, JSON and SARIF; stable rule IDs and finding identity; every finding visible; ASIC and FPGA profiles; explicit clock, reset and black-box contracts.
-- **Frozen deck:** a published list of the rules 1.0 stands behind, covering lint, CDC, RDC and the constraint checks they need. A rule leaves the deck only for a written reason, decided before the freeze. Rules outside it stay available and are labelled preview.
+- **Frozen deck:** a published list of the rules 1.0 stands behind, covering lint, CDC, RDC and the constraint checks they need. Workflow decks (`--deck lint`, `--deck cdc`) allow each family to freeze and qualify its own published membership independently of the broader cumulative `core`/`domain`/`1.0` levels; `--deck cdc` freezes 60 rules (38 CDC, 15 CST, 7 directly coupled RDC) for structural ASIC CDC 1.0, deferring the remaining 18 active RDC rules to Phase 4 RDC and `CDC-012` / 9 non-essential CST rules with written pre-freeze exclusions in the [CDC workflow](rules/CDC_WORKFLOW.md#scope-and-gate). A rule leaves a deck only for a written reason, decided before the freeze. Rules outside it stay available and are labelled preview.
 - **Validated rules:** every deck rule is `validated`, with a written trigger, exceptions and severity policy, good, bad, boundary, unknown and mutation tests, and a passed independent adversarial review; no undocumented disabled or TODO rules. A separate AI reviewer counts as independent, and the release says so: it is not a human signoff.
 - **Honest coverage:** full clock, reset, constraint and graph coverage accounting; no silent "unknown is safe"; proof obligations stay explicit. A run reports `COMPLETE` for the deck when all its rules ran and nothing limited them. Strict exit 0 is then possible on a design with nothing to review, and only then.
 - **Evidence:** curated public-project and mutation suites; the known-good corpus gate passing; false-positive and false-negative investigations written down.

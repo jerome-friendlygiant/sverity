@@ -1,0 +1,78 @@
+{
+  "verdict": "bad",
+  "workflow_class": "Synchronizer structure",
+  "critical": false,
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 4,
+      "signal": "s2"
+    }
+  ],
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-1-fresh",
+  "author": "cdc-author-replacement (GPT-6 Luna)",
+  "author_reading": {
+    "verdict": "bad",
+    "workflow_class": "Synchronizer structure",
+    "critical": true,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 4,
+        "signal": "s2"
+      }
+    ],
+    "rationale": "Logic inversion is embedded between destination stages rather than a direct stage-to-stage register connection. The input is timed to clk_a; both clocks are declared asynchronous."
+  },
+  "rationale": "s2 samples ~s1 rather than a direct register connection. This is stage logic explicitly included in the workflow structural defect class and requires disposition of metastability resolution margin. Inversion alone does not prove event loss or inevitable functional failure, so this is not labelled critical. No reviewed implementation exception is supplied.",
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "bad",
+      "workflow_class": "Synchronizer structure",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "s2"
+        }
+      ],
+      "by": "cdc-replacement-reader-a (GPT-6.1 Sol)",
+      "rationale": "The destination stages have combinational inversion between s1 and s2, rather than a direct synchronizer-stage connection. Stage logic is explicitly in the workflow structural defect scope and consumes metastability resolution margin. No reviewed implementation or timing evidence justifies the modified chain. If this inverter is intentionally accepted by a library/physical methodology, that contract is missing; functional inversion alone is not evidence of a missing data event."
+    },
+    {
+      "verdict": "bad",
+      "workflow_class": "Synchronizer structure",
+      "critical": false,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "s2"
+        }
+      ],
+      "by": "cdc-replacement-reader-b (GPT-6.1 Sol)",
+      "rationale": "An inverter lies between the first and second destination stages (s2 <= ~s1), so this is not a direct stage-to-stage synchronizer under the workflow stage-logic criterion. A specially timed implementation could preserve adequate resolution time, but no such implementation evidence is supplied. Flag the structural stage-logic obligation; unlike a direct single-stage escape, this is not designated critical here. UNFIT as a claim of inevitable functional failure: inversion alone does not prove such failure."
+    }
+  ],
+  "settlement": {
+    "verdict": "bad",
+    "workflow_class": "Synchronizer structure",
+    "critical": false,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 4,
+        "signal": "s2"
+      }
+    ],
+    "by": "cdc-settler-replacement (GPT-6.1 Sol)",
+    "reason": "s2 samples ~s1 rather than a direct register connection. This is stage logic explicitly included in the workflow structural defect class and requires disposition of metastability resolution margin. Inversion alone does not prove event loss or inevitable functional failure, so this is not labelled critical. No reviewed implementation exception is supplied."
+  }
+}

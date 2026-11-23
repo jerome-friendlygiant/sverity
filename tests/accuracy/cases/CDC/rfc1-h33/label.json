@@ -1,0 +1,49 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": true,
+  "verdict": "good",
+  "critical": false,
+  "workflow_class": "IP and external boundaries",
+  "sites": [],
+  "rationale": "Single clk_io wrapper with registered inputs and outputs; every port is contracted to clk_io and the reset is synchronous and contracted. No crossing or boundary obligation.",
+  "author_reading": {
+    "id": "rfc1-h33",
+    "intended_verdict": "good",
+    "critical": false,
+    "workflow_class": "IP and external boundaries",
+    "expected_rules": [],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 28,
+        "signal": "sum_q"
+      }
+    ],
+    "rationale": "Fully registered single-clock (clk_io) boundary with synchronous reset, every input and output constrained."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "IP and external boundaries",
+      "sites": [],
+      "rationale": "The arithmetic body is modeled directly in RTL. Input registers, adder result, and valid output use clk_io with matching boundary timing."
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "IP and external boundaries",
+      "sites": [],
+      "rationale": "Single-clock registered adder macro with all input registers (a_q, b_q, v_q) and synchronously reset output registers (sum_q, valid_q) clocked by clk_io and all boundary ports covered by set_input_delay and set_output_delay on clk_io."
+    }
+  ]
+}

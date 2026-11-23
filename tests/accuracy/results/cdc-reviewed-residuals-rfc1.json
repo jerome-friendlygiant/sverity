@@ -1,0 +1,634 @@
+{
+  "aggregate": {
+    "deck": {
+      "ERROR": 0,
+      "FATAL": 0,
+      "WARNING": 46,
+      "established": 4,
+      "generic_obligation": 12,
+      "heuristic": 3,
+      "informational": 0,
+      "non_info": 46,
+      "not_analysed": 0,
+      "resolved": 0,
+      "unresolved": 27,
+      "waived": 0
+    },
+    "deck_by_rule": {
+      "CDC-008": 1,
+      "CDC-010": 4,
+      "CDC-013": 3,
+      "CDC-018": 4,
+      "CDC-024": 7,
+      "CDC-034": 1,
+      "CDC-035": 1,
+      "CDC-039": 5,
+      "CST-010": 2,
+      "CST-012": 1,
+      "RDC-003": 10,
+      "RDC-023": 7
+    },
+    "deck_rates": {
+      "false_positive_upper_bound_per_kloc": 2.4187975120939873,
+      "non_info_per_kloc": 15.894955079474775,
+      "not_analysed_per_kloc": 0.0,
+      "obligation_per_kloc": 13.476157567380787
+    },
+    "preview": {
+      "ERROR": 0,
+      "FATAL": 0,
+      "WARNING": 17,
+      "established": 17,
+      "generic_obligation": 0,
+      "heuristic": 0,
+      "informational": 0,
+      "non_info": 17,
+      "not_analysed": 0,
+      "resolved": 0,
+      "unresolved": 0,
+      "waived": 0
+    },
+    "preview_by_rule": {
+      "CDC-012": 3,
+      "LNT-010": 4,
+      "SLANG-incomplete-return": 1,
+      "SLANG-int-bool-conv": 1,
+      "SLANG-unnamed-generate": 8
+    }
+  },
+  "analysed_physical_lines": 2894,
+  "binary_sha256": "a5c7d14b52ae6150ce93d25b441202a39724cf574a69ad89470bf6073848fa6d",
+  "budgets": {
+    "ERROR == 0": {
+      "machine_checked": true,
+      "pass_": true,
+      "value": 0
+    },
+    "FATAL == 0": {
+      "machine_checked": true,
+      "pass_": true,
+      "value": 0
+    },
+    "confirmed false positives <= 1/kLOC": {
+      "limit": 1.0,
+      "machine_checked": false,
+      "note": "value is the unreviewed upper bound (established + heuristic); confirmation needs review",
+      "pass_": false,
+      "value": 2.4187975120939873
+    },
+    "not analysed <= 2/kLOC": {
+      "limit": 2.0,
+      "machine_checked": true,
+      "pass_": true,
+      "value": 0.0
+    },
+    "obligations <= 15/kLOC": {
+      "limit": 15.0,
+      "machine_checked": true,
+      "note": "unresolved + generic_obligation findings",
+      "pass_": true,
+      "value": 13.476157567380787
+    }
+  },
+  "budgets_all_pass_if_upper_bound_confirmed": false,
+  "budgets_machine_checked_pass": true,
+  "catalog_sha256": "cc33d476e5e4d5ffd43be800b2e1aeeb12ca94def4c43c497010f5549764519c",
+  "confirmed_fp_review": {
+    "all_five_budgets_pass": true,
+    "budget_limit_per_kloc": 1.0,
+    "confirmed_false_positives": 1,
+    "confirmed_fp_budget_pass": true,
+    "confirmed_fp_per_kloc": 0.3455425017277125,
+    "items": [
+      {
+        "confidence": "established",
+        "design": "axis_async_fifo",
+        "disposition": "real_review_item",
+        "location": "axis_async_fifo.v:365",
+        "reason": "Faster-to-slower (7 ns -> 10 ns) reset-sync crossing pulse-width/hold obligation.",
+        "rule_id": "CDC-013",
+        "signals": [
+          "axis_async_fifo.s_rst_sync1_reg",
+          "axis_async_fifo.s_rst_sync2_reg"
+        ]
+      },
+      {
+        "confidence": "established",
+        "design": "axis_async_fifo",
+        "disposition": "real_review_item",
+        "location": "axis_async_fifo.v:378",
+        "reason": "Source period 10 ns is less than the 1.5x (10.5 ns) margin for 7 ns destination capture (pulse-width/hold obligation).",
+        "rule_id": "CDC-013",
+        "signals": [
+          "axis_async_fifo.m_rst_sync1_reg",
+          "axis_async_fifo.m_rst_sync2_reg"
+        ]
+      },
+      {
+        "confidence": "established",
+        "design": "axis_async_fifo",
+        "disposition": "real_review_item",
+        "location": "axis_async_fifo.v:621",
+        "reason": "Unacknowledged toggle event-rate/hold obligation (10 ns source -> 7 ns destination without back-pressure).",
+        "rule_id": "CDC-013",
+        "signals": [
+          "axis_async_fifo.overflow_sync1_reg",
+          "axis_async_fifo.overflow_sync2_reg"
+        ]
+      },
+      {
+        "confidence": "heuristic",
+        "design": "axis_async_fifo",
+        "disposition": "real_review_item",
+        "location": "axis_async_fifo.v:384",
+        "reason": "Structural reconvergence in s_clk write block combining rd_ptr_gray_reg[0] and s_rst_sync1_reg from m_clk.",
+        "rule_id": "CDC-010",
+        "signals": [
+          "axis_async_fifo.drop_frame_reg",
+          "axis_async_fifo.mem",
+          "axis_async_fifo.overflow_reg",
+          "axis_async_fifo.s_frame_reg",
+          "axis_async_fifo.wr_ptr_commit_reg",
+          "axis_async_fifo.wr_ptr_gray_reg",
+          "axis_async_fifo.wr_ptr_reg",
+          "axis_async_fifo.wr_ptr_temp"
+        ]
+      },
+      {
+        "confidence": "heuristic",
+        "design": "axis_async_fifo",
+        "disposition": "real_review_item",
+        "location": "axis_async_fifo.v:648",
+        "reason": "Structural reconvergence in m_clk read block combining wr_ptr_gray_reg[0] and m_rst_sync1_reg from s_clk.",
+        "rule_id": "CDC-010",
+        "signals": [
+          "axis_async_fifo.m_axis_tvalid_pipe_reg",
+          "axis_async_fifo.rd_ptr_gray_reg",
+          "axis_async_fifo.rd_ptr_reg",
+          "axis_async_fifo.rd_ptr_temp"
+        ]
+      },
+      {
+        "confidence": "heuristic",
+        "design": "axis_async_fifo",
+        "disposition": "real_review_item",
+        "location": "axis_async_fifo.v:570",
+        "reason": "Accurate structural RTL fact: Gray pointers use synchronous reset rather than asynchronous reset.",
+        "rule_id": "CDC-034",
+        "signals": [
+          "axis_async_fifo.rd_ptr_gray_reg",
+          "axis_async_fifo.wr_ptr_gray_reg"
+        ]
+      },
+      {
+        "confidence": "established",
+        "design": "cc_cdc_fifo_gray",
+        "disposition": "confirmed_false_positive",
+        "location": "",
+        "reason": "FIFO read-mux payload is protected by Gray-FIFO stability protocol; only confirmed false positive across all five IPs.",
+        "rule_id": "CDC-008",
+        "signals": [
+          "cc_cdc_fifo_gray.i_src.i_src_data.data_q",
+          "cc_cdc_fifo_gray.i_dst.i_dst_data.i_spill_register.spill_register_flushable_i.gen_spill_reg.a_data_q"
+        ]
+      }
+    ],
+    "real_review_items": 6,
+    "unreviewed_upper_bound_count": 7,
+    "unreviewed_upper_bound_per_kloc": 2.4187975120939873
+  },
+  "deck_rule_count": 60,
+  "designs": {
+    "axis_async_fifo": {
+      "analysed_physical_lines": 911,
+      "analysis_coverage": "INCOMPLETE",
+      "commit": "48ff7a7e2ef782cf778d47910cf85835c64b1bce",
+      "deck": {
+        "ERROR": 0,
+        "FATAL": 0,
+        "WARNING": 18,
+        "established": 3,
+        "generic_obligation": 2,
+        "heuristic": 3,
+        "informational": 0,
+        "non_info": 18,
+        "not_analysed": 0,
+        "resolved": 0,
+        "unresolved": 10,
+        "waived": 0
+      },
+      "deck_by_rule": {
+        "CDC-010": 3,
+        "CDC-013": 3,
+        "CDC-018": 2,
+        "CDC-024": 2,
+        "CDC-034": 1,
+        "CDC-035": 1,
+        "CST-010": 2,
+        "RDC-003": 2,
+        "RDC-023": 2
+      },
+      "deck_rates": {
+        "false_positive_upper_bound_per_kloc": 6.586169045005488,
+        "non_info_per_kloc": 19.758507135016465,
+        "not_analysed_per_kloc": 0.0,
+        "obligation_per_kloc": 13.172338090010976
+      },
+      "execution_status": "SUCCESS",
+      "exit_code": 6,
+      "preview": {
+        "ERROR": 0,
+        "FATAL": 0,
+        "WARNING": 9,
+        "established": 9,
+        "generic_obligation": 0,
+        "heuristic": 0,
+        "informational": 0,
+        "non_info": 9,
+        "not_analysed": 0,
+        "resolved": 0,
+        "unresolved": 0,
+        "waived": 0
+      },
+      "preview_by_rule": {
+        "SLANG-incomplete-return": 1,
+        "SLANG-int-bool-conv": 1,
+        "SLANG-unnamed-generate": 7
+      },
+      "report_sha256": "45de40b5a64eca479ffc64ceaf8bedaaff3fe785fbbb8c8bc777726e89f0614b",
+      "review_status": "REVIEW_REQUIRED",
+      "sdc": "tests/public_projects/reviewed_sdc/axis_async_fifo.sdc",
+      "sdc_sha256": "5b52070c4c7ef6b85cad8fe8ce5f108dd35f8a4d0bd371c9d3cb588094f0ca10"
+    },
+    "cc_cdc_2phase": {
+      "analysed_physical_lines": 246,
+      "analysis_coverage": "INCOMPLETE",
+      "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+      "deck": {
+        "ERROR": 0,
+        "FATAL": 0,
+        "WARNING": 5,
+        "established": 0,
+        "generic_obligation": 2,
+        "heuristic": 0,
+        "informational": 0,
+        "non_info": 5,
+        "not_analysed": 0,
+        "resolved": 0,
+        "unresolved": 3,
+        "waived": 0
+      },
+      "deck_by_rule": {
+        "CDC-024": 1,
+        "CDC-039": 1,
+        "RDC-003": 2,
+        "RDC-023": 1
+      },
+      "deck_rates": {
+        "false_positive_upper_bound_per_kloc": 0.0,
+        "non_info_per_kloc": 20.32520325203252,
+        "not_analysed_per_kloc": 0.0,
+        "obligation_per_kloc": 20.32520325203252
+      },
+      "execution_status": "SUCCESS",
+      "exit_code": 6,
+      "preview": {
+        "ERROR": 0,
+        "FATAL": 0,
+        "WARNING": 1,
+        "established": 1,
+        "generic_obligation": 0,
+        "heuristic": 0,
+        "informational": 0,
+        "non_info": 1,
+        "not_analysed": 0,
+        "resolved": 0,
+        "unresolved": 0,
+        "waived": 0
+      },
+      "preview_by_rule": {
+        "CDC-012": 1
+      },
+      "report_sha256": "e653968361a486d26b6aa044173d5b07ce84e54d421797ba5c491149d82f66a0",
+      "review_status": "REVIEW_REQUIRED",
+      "sdc": "tests/public_projects/reviewed_sdc/cc_cdc_2phase.sdc",
+      "sdc_sha256": "1a6d988d568605bb2c289158a7a70b50f1d54579655ff463043af185394dbb8a"
+    },
+    "cc_cdc_4phase": {
+      "analysed_physical_lines": 511,
+      "analysis_coverage": "INCOMPLETE",
+      "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+      "deck": {
+        "ERROR": 0,
+        "FATAL": 0,
+        "WARNING": 5,
+        "established": 0,
+        "generic_obligation": 2,
+        "heuristic": 0,
+        "informational": 0,
+        "non_info": 5,
+        "not_analysed": 0,
+        "resolved": 0,
+        "unresolved": 3,
+        "waived": 0
+      },
+      "deck_by_rule": {
+        "CDC-024": 1,
+        "CDC-039": 1,
+        "RDC-003": 2,
+        "RDC-023": 1
+      },
+      "deck_rates": {
+        "false_positive_upper_bound_per_kloc": 0.0,
+        "non_info_per_kloc": 9.784735812133071,
+        "not_analysed_per_kloc": 0.0,
+        "obligation_per_kloc": 9.784735812133071
+      },
+      "execution_status": "SUCCESS",
+      "exit_code": 6,
+      "preview": {
+        "ERROR": 0,
+        "FATAL": 0,
+        "WARNING": 0,
+        "established": 0,
+        "generic_obligation": 0,
+        "heuristic": 0,
+        "informational": 0,
+        "non_info": 0,
+        "not_analysed": 0,
+        "resolved": 0,
+        "unresolved": 0,
+        "waived": 0
+      },
+      "preview_by_rule": {},
+      "report_sha256": "8ed6c1dcf595818d40a0e0e96e57d971577e3b5580754091c44fcc938f1123da",
+      "review_status": "REVIEW_REQUIRED",
+      "sdc": "tests/public_projects/reviewed_sdc/cc_cdc_4phase.sdc",
+      "sdc_sha256": "33a432339724c3b279583d0bf9e17be798958c8b7ee8c42d9e2fea61f2610872"
+    },
+    "cc_cdc_fifo_2phase": {
+      "analysed_physical_lines": 558,
+      "analysis_coverage": "INCOMPLETE",
+      "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+      "deck": {
+        "ERROR": 0,
+        "FATAL": 0,
+        "WARNING": 9,
+        "established": 0,
+        "generic_obligation": 4,
+        "heuristic": 0,
+        "informational": 0,
+        "non_info": 9,
+        "not_analysed": 0,
+        "resolved": 0,
+        "unresolved": 5,
+        "waived": 0
+      },
+      "deck_by_rule": {
+        "CDC-024": 2,
+        "CDC-039": 2,
+        "CST-012": 1,
+        "RDC-003": 2,
+        "RDC-023": 2
+      },
+      "deck_rates": {
+        "false_positive_upper_bound_per_kloc": 0.0,
+        "non_info_per_kloc": 16.129032258064516,
+        "not_analysed_per_kloc": 0.0,
+        "obligation_per_kloc": 16.129032258064516
+      },
+      "execution_status": "SUCCESS",
+      "exit_code": 6,
+      "preview": {
+        "ERROR": 0,
+        "FATAL": 0,
+        "WARNING": 6,
+        "established": 6,
+        "generic_obligation": 0,
+        "heuristic": 0,
+        "informational": 0,
+        "non_info": 6,
+        "not_analysed": 0,
+        "resolved": 0,
+        "unresolved": 0,
+        "waived": 0
+      },
+      "preview_by_rule": {
+        "CDC-012": 2,
+        "LNT-010": 4
+      },
+      "report_sha256": "c3eda6af5fee2983c2e022cd795e0df9fcf5c623a2b178564b0576f8363751b5",
+      "review_status": "REVIEW_REQUIRED",
+      "sdc": "tests/public_projects/reviewed_sdc/cc_cdc_fifo_2phase.sdc",
+      "sdc_sha256": "b8fd27272994a1880080dc6c6dda23c77b7308714b8f8bed12ab6e466c1507af"
+    },
+    "cc_cdc_fifo_gray": {
+      "analysed_physical_lines": 668,
+      "analysis_coverage": "INCOMPLETE",
+      "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+      "deck": {
+        "ERROR": 0,
+        "FATAL": 0,
+        "WARNING": 9,
+        "established": 1,
+        "generic_obligation": 2,
+        "heuristic": 0,
+        "informational": 0,
+        "non_info": 9,
+        "not_analysed": 0,
+        "resolved": 0,
+        "unresolved": 6,
+        "waived": 0
+      },
+      "deck_by_rule": {
+        "CDC-008": 1,
+        "CDC-010": 1,
+        "CDC-018": 2,
+        "CDC-024": 1,
+        "CDC-039": 1,
+        "RDC-003": 2,
+        "RDC-023": 1
+      },
+      "deck_rates": {
+        "false_positive_upper_bound_per_kloc": 1.497005988023952,
+        "non_info_per_kloc": 13.473053892215567,
+        "not_analysed_per_kloc": 0.0,
+        "obligation_per_kloc": 11.976047904191615
+      },
+      "execution_status": "SUCCESS",
+      "exit_code": 6,
+      "preview": {
+        "ERROR": 0,
+        "FATAL": 0,
+        "WARNING": 1,
+        "established": 1,
+        "generic_obligation": 0,
+        "heuristic": 0,
+        "informational": 0,
+        "non_info": 1,
+        "not_analysed": 0,
+        "resolved": 0,
+        "unresolved": 0,
+        "waived": 0
+      },
+      "preview_by_rule": {
+        "SLANG-unnamed-generate": 1
+      },
+      "report_sha256": "144c01b28e53aa325af04ee3cbf679910c97cf484040251d60f3c0a376410f52",
+      "review_status": "REVIEW_REQUIRED",
+      "sdc": "tests/public_projects/reviewed_sdc/cc_cdc_fifo_gray.sdc",
+      "sdc_sha256": "8297b532772f19fc7c27391c29cb13b888897ff2047b9959073ae7e62077355e"
+    }
+  },
+  "false_error_probes": {
+    "binary": "review-m4g/sverity",
+    "binary_sha256": "a5c7d14b52ae6150ce93d25b441202a39724cf574a69ad89470bf6073848fa6d",
+    "flags": [
+      "--profile",
+      "asic",
+      "--goal",
+      "cdc",
+      "--deck",
+      "cdc",
+      "--exit-policy",
+      "strict"
+    ],
+    "probes": [
+      {
+        "analysis_coverage": "INCOMPLETE",
+        "cdc017_findings": [],
+        "deck_severity_counts": {
+          "ERROR": 0,
+          "FATAL": 0,
+          "INFO": 45,
+          "WARNING": 30
+        },
+        "disposition": "0 FATAL, 0 ERROR, 0 CDC-017 across 30 deck and 9 preview warnings (exit 6).",
+        "error_or_fatal_findings": [],
+        "execution_status": "SUCCESS",
+        "exit_code": 6,
+        "preview_severity_counts": {
+          "ERROR": 0,
+          "FATAL": 0,
+          "INFO": 4,
+          "WARNING": 9
+        },
+        "probe": "Probe A: axis_async_fifo -G FRAME_FIFO=1",
+        "report_sha256": "4a340bbee90999ab03326c6d8db22128f7b85ae2d29ad382aba0a557812231ec"
+      },
+      {
+        "analysis_coverage": "INCOMPLETE",
+        "cdc017_findings": [],
+        "deck_severity_counts": {
+          "ERROR": 1,
+          "FATAL": 0,
+          "INFO": 15,
+          "WARNING": 8
+        },
+        "disposition": "Retains intentional CST-012 ERROR unresolved on dst_data_o per docs/rules/CST.md#CST-012 (combinational read-mux from async src_clk_i fifo_data_q; per-bit output data-arm qualification is outside 1.0 scope). Reviewed contract tests/public_projects/reviewed_sdc/cc_cdc_fifo_2phase.sdc omits dst_data_o so CST-012 WARNING unresolved preserves the open boundary obligation with 0 ERRORs.",
+        "error_or_fatal_findings": [
+          {
+            "confidence": "unresolved",
+            "message": "top-level output 'cc_cdc_fifo_2phase.dst_data_o' with set_output_delay -clock dst_clk_i: launch domain is declared asynchronous to external capture (boundary crossing); mixed launch domains",
+            "rule_id": "CST-012",
+            "severity": "ERROR",
+            "signals": [
+              "cc_cdc_fifo_2phase.dst_data_o"
+            ]
+          }
+        ],
+        "execution_status": "SUCCESS",
+        "exit_code": 5,
+        "preview_severity_counts": {
+          "ERROR": 0,
+          "FATAL": 0,
+          "INFO": 1,
+          "WARNING": 6
+        },
+        "probe": "Probe B: cc_cdc_fifo_2phase dst_data_o set_output_delay",
+        "report_sha256": "17410e52ef56ad0842c4041c2323973bf1f5ae3203ab9b7703297d235e6e4081"
+      },
+      {
+        "analysis_coverage": "INCOMPLETE",
+        "cdc017_findings": [],
+        "deck_severity_counts": {
+          "ERROR": 0,
+          "FATAL": 0,
+          "INFO": 43,
+          "WARNING": 18
+        },
+        "disposition": "Equivalent under default FRAME_FIFO=0; 0 FATAL, 0 ERROR, 0 CDC-017 and 27 non-INFO warnings (18 deck + 9 preview), identical to unmutated baseline.",
+        "error_or_fatal_findings": [],
+        "execution_status": "SUCCESS",
+        "exit_code": 6,
+        "preview_severity_counts": {
+          "ERROR": 0,
+          "FATAL": 0,
+          "INFO": 4,
+          "WARNING": 9
+        },
+        "probe": "Probe C: axis_async_fifo.v line 426 equivalent mutant (FRAME_FIFO=0)",
+        "report_sha256": "c894c8cb094ac2a4389aee64e6bfa396628c4d61f0f17a2e57edc7b7697f8bc7"
+      }
+    ],
+    "tool_commit": "65b12db131b04d5ce499e720cc4690d24844d5fc"
+  },
+  "flags": [
+    "--profile",
+    "asic",
+    "--goal",
+    "cdc",
+    "--deck",
+    "cdc"
+  ],
+  "kloc": 2.894,
+  "manifest_sha256": "50e277723e994ad6ff83eaf30c5d82d9ad1063c4bb392d2522cac9b7d0776ffd",
+  "obligation_breakdown": {
+    "by_rule": {
+      "CDC-010": {
+        "classification": "unresolved",
+        "count": 2
+      },
+      "CDC-018": {
+        "classification": "unresolved",
+        "count": 4
+      },
+      "CDC-024": {
+        "classification": "generic_obligation",
+        "count": 7
+      },
+      "CDC-035": {
+        "classification": "unresolved",
+        "count": 1
+      },
+      "CDC-039": {
+        "classification": "generic_obligation",
+        "count": 5
+      },
+      "CST-010": {
+        "classification": "unresolved",
+        "count": 2
+      },
+      "CST-012": {
+        "classification": "unresolved",
+        "count": 1
+      },
+      "RDC-003": {
+        "classification": "unresolved",
+        "count": 10
+      },
+      "RDC-023": {
+        "classification": "unresolved",
+        "count": 7
+      }
+    },
+    "generic_obligation": 12,
+    "per_kloc": 13.476157567380787,
+    "total": 39,
+    "unresolved": 27
+  },
+  "schema": "sverity-cdc-reviewed-residuals/1",
+  "tool": "tools/dev/cdc_reviewed_residuals.py",
+  "tool_commit": "65b12db131b04d5ce499e720cc4690d24844d5fc",
+  "tool_sha256": "a6efb0a884c10d0f0290165b7849239536d5ce71273cea102cc0ee25e631cd42"
+}

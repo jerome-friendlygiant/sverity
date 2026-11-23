@@ -22,6 +22,10 @@ struct AnalyzerOptions {
 /// Never throws for design problems: failures are FATAL diagnostics + execution_status ERROR.
 Report analyze(const AnalyzerOptions& opts);
 
+/// Reads `--library` cell descriptions into the design (before its model is built). A file or entry that cannot be used is a
+/// CST-018 ERROR in `report`, and its cells stay ordinary modules.
+void loadLibraryFiles(const std::vector<std::string>& files, Design& design, Report& report);
+
 std::string slangVersionString();
 std::string currentDateIso();
 

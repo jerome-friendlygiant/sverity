@@ -1,0 +1,83 @@
+{
+  "verdict": "unknown",
+  "workflow_class": "Multi-bit transfer and reconvergence",
+  "critical": false,
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 4,
+      "signal": "data_b"
+    }
+  ],
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-1-fresh",
+  "author": "cdc-author-replacement (GPT-6 Luna)",
+  "author_reading": {
+    "verdict": "unknown",
+    "workflow_class": "Multi-bit transfer and reconvergence",
+    "critical": false,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 4,
+        "signal": "data_b"
+      }
+    ],
+    "rationale": "The payload is directly sampled, but the SDC does not establish clk_b or its relation to clk_a; transfer safety cannot be classified."
+  },
+  "rationale": "The registered payload is directly captured on clk_b, but clk_b and its relationship to clk_a are unspecified. This could be a timed related-clock path or an unsafe asynchronous bus; neither coherence nor failure can be concluded. Disclose unresolved capture-domain intent.",
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "unknown",
+      "workflow_class": "Clock intent and inventory",
+      "critical": false,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "clk_b"
+        }
+      ],
+      "by": "cdc-replacement-reader-a (GPT-6.1 Sol)",
+      "rationale": "clk_b is an undeclared capture clock. The word transfer has no coherence protocol, but its safety depends on the missing relationship to clk_a; it could be a timing-related clock or asynchronous. Output delay on clk_a does not define that relationship. Missing clock intent must be disclosed; it is insufficient to prove this is an asynchronous bad transfer."
+    },
+    {
+      "verdict": "unknown",
+      "workflow_class": "Clock intent and inventory",
+      "critical": false,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "clk_b"
+        },
+        {
+          "file": "constraints.sdc",
+          "line": 1,
+          "signal": "clk_a"
+        }
+      ],
+      "by": "cdc-replacement-reader-b (GPT-6.1 Sol)",
+      "rationale": "The destination clock has no declaration or relationship to clk_a. Direct bus capture would be unsafe if asynchronous, but the provided files cannot establish that relationship. Missing clock intent is the decisive disclosure; do not infer asynchronous clocks from distinct port names."
+    }
+  ],
+  "settlement": {
+    "verdict": "unknown",
+    "workflow_class": "Multi-bit transfer and reconvergence",
+    "critical": false,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 4,
+        "signal": "data_b"
+      }
+    ],
+    "by": "cdc-settler-replacement (GPT-6.1 Sol)",
+    "reason": "The registered payload is directly captured on clk_b, but clk_b and its relationship to clk_a are unspecified. This could be a timed related-clock path or an unsafe asynchronous bus; neither coherence nor failure can be concluded. Disclose unresolved capture-domain intent."
+  }
+}

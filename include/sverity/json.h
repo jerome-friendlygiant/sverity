@@ -3,6 +3,7 @@
 #pragma once
 #include <cstdint>
 #include <initializer_list>
+#include <iosfwd>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -61,9 +62,11 @@ public:
 
     /// indent < 0 -> compact. Output is deterministic.
     std::string dump(int indent = 2) const;
+    /// The same text as dump, written to `out` in pieces: a large report is never held as one string. False on a write error.
+    bool write(std::ostream& out, int indent = 2, int depth = 0) const;
 
 private:
-    void dumpTo(std::string& out, int indent, int depth) const;
+    void dumpTo(std::string& out, int indent, int depth, std::ostream* sink = nullptr) const;
     std::variant<std::monostate, bool, int64_t, double, std::string, Array, Object> v_;
 };
 

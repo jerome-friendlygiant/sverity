@@ -1,0 +1,116 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Gray pointer FIFO and cross-clock memory",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 13,
+      "signal": "cnt_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 16,
+      "signal": "s1_q"
+    }
+  ],
+  "expected_rules": [
+    "CDC-017"
+  ],
+  "rationale": "cnt_q is a live binary counter (cnt_q + 1) whose 4 bits are individually synchronized into clk_b: CDC-017 ERROR Heuristic (Async). Reader A's no-reset note does not affect the structural label; no --deck cdc rule depends on the counter's startup value here.",
+  "author_reading": {
+    "id": "rfc1-h13",
+    "intended_verdict": "bad",
+    "critical": true,
+    "workflow_class": "Gray pointer FIFO and cross-clock memory",
+    "expected_rules": [
+      "CDC-017"
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 13,
+        "signal": "cnt_q"
+      }
+    ],
+    "rationale": "A live 4-bit binary counter is synchronized bit by bit across an async boundary: multiple bits change per increment."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Gray pointer FIFO and cross-clock memory",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 13,
+          "signal": "cnt_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 16,
+          "signal": "s1_q"
+        }
+      ],
+      "rationale": "The live plus-one binary update can change several bits at once. Per-bit two-stage synchronization can deliver a mixed count to snap_q.",
+      "expected_rules": [
+        "CDC-017"
+      ],
+      "suspected_flaw": "cnt_q has no reset or initializer, so the standalone four-state model remains X from default startup."
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Gray pointer FIFO and cross-clock memory",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 16,
+          "signal": "s1_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 13,
+          "signal": "cnt_q"
+        }
+      ],
+      "rationale": "cnt_q[3:0] is a live 4-bit binary counter in clk_a (if (tick_i) cnt_q <= cnt_q + 4'd1 at design.sv:13) whose raw binary bits are synchronized directly into asynchronous domain clk_b via s1_q -> s2_q (design.sv:16-17) without Gray encoding, allowing multi-bit transitions to be sampled incoherently (CDC-017 ERROR Heuristic).",
+      "expected_rules": [
+        "CDC-017"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "cdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Gray pointer FIFO and cross-clock memory",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 13,
+        "signal": "cnt_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 16,
+        "signal": "s1_q"
+      }
+    ],
+    "expected_rules": [
+      "CDC-017"
+    ],
+    "rationale": "cnt_q is a live binary counter (cnt_q + 1) whose 4 bits are individually synchronized into clk_b: CDC-017 ERROR Heuristic (Async). Reader A's no-reset note does not affect the structural label; no --deck cdc rule depends on the counter's startup value here."
+  }
+}

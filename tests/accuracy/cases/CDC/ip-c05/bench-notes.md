@@ -1,0 +1,3 @@
+# Independent protocol check
+
+`bench.sv` is not part of the scoring input. It runs two transactions with 8 ns and 10 ns clocks, asynchronously asserts reset at startup, releases reset at 70 ns, then waits for three source edges before traffic. It checks the received payload for each observed `valid_d` and uses `valid_d` as `accept_d`. The fixed schedule is only a small deterministic exercise; it is not exhaustive over phase, event rates, reset release, metastability, synthesis, or physical bundled-data timing. A real implementation still needs a reviewed max-delay/skew constraint from `hold_s` to the destination capture and physical CDC/metastability evidence.

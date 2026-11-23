@@ -1,0 +1,145 @@
+{
+  "verdict": "good",
+  "critical": false,
+  "workflow_class": "Synchronizer structure",
+  "whole_ip_good_control": false,
+  "rationale": "Only the completed two-stage synchroniser feeds the following pipeline stages p and dst_flag. Under the asic profile, having no attributes on any stage is exempt from CDC-012. The contract accepts the latency.",
+  "caveats": [
+    "The case must run under the asic or generic profile. Under fpga, CDC-012 would fire.",
+    "No whole-IP clean premise. Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+  ],
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 6,
+      "signal": "s1"
+    },
+    {
+      "file": "design.sv",
+      "line": 6,
+      "signal": "s2"
+    },
+    {
+      "file": "design.sv",
+      "line": 6,
+      "signal": "dst_flag"
+    }
+  ],
+  "family": "CDC",
+  "top": "top_cdc_rfc1_t17",
+  "origin": "authored",
+  "batch": "cdc-5-contract-fresh",
+  "author": "cdc-contract-author (GPT-6 Luna)",
+  "author_reading": {
+    "id": "CDC-RFC1-T17",
+    "kind": "good",
+    "class": "Synchronizer structure",
+    "title": "Recognized synchronizer with downstream pipeline",
+    "case_files": [
+      "design.sv",
+      "clocks.sdc",
+      "contract.md"
+    ],
+    "boundary_event_config": null,
+    "site_signal": "s1",
+    "expected_rules": [
+      "CDC-012"
+    ],
+    "rationale": "Only the final synchronizer stage and later pipeline stages feed logic; no ASIC attribute contract is required. Latency is acceptable.",
+    "limitations": [
+      "Structural attribution is a proposal for independent adjudication, not analyzer outcome.",
+      "No SVerity scoring performed.",
+      "Physical timing and metastability requirements remain external."
+    ],
+    "top": "top_cdc_rfc1_t17",
+    "profile": "asic",
+    "sdc": "clocks.sdc"
+  },
+  "sdc": [
+    "clocks.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Synchronizer structure",
+      "fit": true,
+      "whole_ip_good_control": false,
+      "rationale": "Only the completed synchronizer and subsequent pipeline stages feed functional output.",
+      "caveats": [
+        "Contract permits latency. Raw reset release and output consumer timing remain external."
+      ],
+      "sites": [
+        {
+          "signal": "s1",
+          "file": "design.sv",
+          "line": 6
+        },
+        {
+          "signal": "s2",
+          "file": "design.sv",
+          "line": 6
+        },
+        {
+          "signal": "dst_flag",
+          "file": "design.sv",
+          "line": 6
+        }
+      ],
+      "by": "cdc-contract-reader-a (GPT-6.1 Sol)"
+    },
+    {
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Synchronizer structure",
+      "fit": "local synchronizer follower control",
+      "whole_ip_good_control": false,
+      "rationale": "Only full-depth synchronized state feeds subsequent pipeline stages. Missing attributes are exempt in ASIC/generic profile.",
+      "caveats": "Profile must remain ASIC/generic. Stable-level intent is less explicit than T16, but latency is accepted and no every-transition guarantee is given. Raw rst_n release is not locally synchronized or bounded by a release contract; RDC-003 remains a whole-IP closure confounder. Output consumer timing is not specified. Physical closure is excluded.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 6,
+          "signal": "s1"
+        },
+        {
+          "file": "design.sv",
+          "line": 6,
+          "signal": "dst_flag"
+        }
+      ],
+      "by": "cdc-contract-reader-b (GPT-6.1 Sol)"
+    }
+  ],
+  "settlement": {
+    "verdict": "good",
+    "critical": false,
+    "workflow_class": "Synchronizer structure",
+    "fit": true,
+    "whole_ip_good_control": false,
+    "rationale": "Only the completed two-stage synchroniser feeds the following pipeline stages p and dst_flag. Under the asic profile, having no attributes on any stage is exempt from CDC-012. The contract accepts the latency.",
+    "caveats": [
+      "The case must run under the asic or generic profile. Under fpga, CDC-012 would fire.",
+      "No whole-IP clean premise. Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 6,
+        "signal": "s1"
+      },
+      {
+        "file": "design.sv",
+        "line": 6,
+        "signal": "s2"
+      },
+      {
+        "file": "design.sv",
+        "line": 6,
+        "signal": "dst_flag"
+      }
+    ],
+    "by": "cdc-contract-settler (Claude Opus 5.5)",
+    "reason": "Only the completed two-stage synchroniser feeds the following pipeline stages p and dst_flag. Under the asic profile, having no attributes on any stage is exempt from CDC-012. The contract accepts the latency."
+  }
+}

@@ -1,0 +1,115 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "IP and external boundaries",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 5,
+      "signal": "d_i"
+    },
+    {
+      "file": "design.sv",
+      "line": 13,
+      "signal": "dst_q"
+    }
+  ],
+  "expected_rules": [
+    "CDC-029"
+  ],
+  "rationale": "d_i is contracted to src_clk (asynchronous to dst_clk) and captured directly by dst_q with a precise input-to-D path: CDC-029 ERROR Established.",
+  "author_reading": {
+    "id": "rfc1-h19",
+    "intended_verdict": "bad",
+    "critical": true,
+    "workflow_class": "IP and external boundaries",
+    "expected_rules": [
+      "CDC-029"
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 13,
+        "signal": "d_i"
+      }
+    ],
+    "rationale": "Primary input d_i is launched by src_clk (set_input_delay) and captured directly by a single dst_clk flop: asynchronous input with no synchronizer."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "IP and external boundaries",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 5,
+          "signal": "d_i"
+        },
+        {
+          "file": "design.sv",
+          "line": 13,
+          "signal": "dst_q"
+        }
+      ],
+      "rationale": "SDC binds d_i to src_clk. dst_q directly samples it in a declared-asynchronous domain with no containment chain.",
+      "expected_rules": [
+        "CDC-029"
+      ]
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "IP and external boundaries",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 13,
+          "signal": "dst_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 5,
+          "signal": "d_i"
+        }
+      ],
+      "rationale": "Top-level input d_i is constrained to launch on src_clk (intent.sdc:5), which is declared asynchronous to dst_clk (intent.sdc:4), yet dst_q captures d_i directly on posedge dst_clk (design.sv:13) in a single stage without a synchronizer or qualifier (CDC-029 ERROR Established).",
+      "expected_rules": [
+        "CDC-029"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "cdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "IP and external boundaries",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 5,
+        "signal": "d_i"
+      },
+      {
+        "file": "design.sv",
+        "line": 13,
+        "signal": "dst_q"
+      }
+    ],
+    "expected_rules": [
+      "CDC-029"
+    ],
+    "rationale": "d_i is contracted to src_clk (asynchronous to dst_clk) and captured directly by dst_q with a precise input-to-D path: CDC-029 ERROR Established."
+  }
+}

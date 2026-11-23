@@ -1,0 +1,49 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": true,
+  "verdict": "good",
+  "critical": false,
+  "workflow_class": "Synchronizer structure",
+  "sites": [],
+  "rationale": "src_q (20 ns) reaches a depth-2 sync2 in dst_clk (8 ns); the ratio meets the 1.5x margin and src_q is a direct copy, so CDC-013 is INFO. Synchronous reset and all ports are contracted; CST-012 is Same. No WARNING obligations.",
+  "author_reading": {
+    "id": "rfc1-h23",
+    "intended_verdict": "good",
+    "critical": false,
+    "workflow_class": "Synchronizer structure",
+    "expected_rules": [],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 30,
+        "signal": "u_sync"
+      }
+    ],
+    "rationale": "Slow-to-fast (20 ns -> 8 ns) directly registered status bit through a clean hierarchical two-stage synchronizer; stage registers have no logic, no reset and no early taps."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Synchronizer structure",
+      "sites": [],
+      "rationale": "The hierarchical synchronizer has two exact stages and no early tap. The 20 ns source period exceeds the 12 ns review margin. The output and synchronous reset are timed to dst_clk."
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Synchronizer structure",
+      "sites": [],
+      "rationale": "Single-bit slow-to-fast crossing from src_q (src_clk, 20.0 ns) into dst_clk (8.0 ns, ratio 2.5 >= 1.5x) passes through clean 2-stage synchronizer u_sync (s1_q -> s2_q) before feeding synchronously reset output register out_q, with complete input/output delay constraints and no pulse-width or toggle warnings."
+    }
+  ]
+}

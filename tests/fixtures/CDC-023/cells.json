@@ -1,0 +1,4 @@
+{"cells": [{"name": "BLACKBOX", "kind": "blackbox", "ports": [
+  {"name": "d", "dir": "in", "role": "data_in"},
+  {"name": "q", "dir": "out", "role": "data_out"}
+]}]}

@@ -1,0 +1,146 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "verdict": "bad",
+  "critical": false,
+  "workflow_class": "Qualified payload and event protocols",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 19,
+      "signal": "req_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 24,
+      "signal": "a1_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 29,
+      "signal": "r1_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 33,
+      "signal": "ack_q"
+    }
+  ],
+  "expected_rules": [
+    "CDC-015"
+  ],
+  "rationale": "req_q depends on synchronized a2_q, but ack_q is driven only by dst_ready_i and never by r2_q, so only one direction depends on the opposite synchronizer: CDC-015 WARNING Heuristic. Reader A's note is right that CDC-013 stays active (no unique reciprocal pair, both source periods below 1.5x); those are additional findings on a bad case and do not change the label.",
+  "author_reading": {
+    "id": "rfc1-h12",
+    "intended_verdict": "bad",
+    "critical": false,
+    "workflow_class": "Qualified payload and event protocols",
+    "expected_rules": [
+      "CDC-015"
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 33,
+        "signal": "ack_q"
+      }
+    ],
+    "rationale": "Request crosses to dst, but the acknowledge register follows only local dst_ready_i and ignores the synchronized request: one-way dependency on the reciprocal synchronizer."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": false,
+      "workflow_class": "Qualified payload and event protocols",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 20,
+          "signal": "req_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 33,
+          "signal": "ack_q"
+        }
+      ],
+      "rationale": "The request can clear based on the returned acknowledge, but ack_q depends only on dst_ready_i. An already-high ready bit can clear a request without receiver observation. Only the request leg depends on the opposite synchronizer.",
+      "expected_rules": [
+        "CDC-015"
+      ],
+      "suspected_flaw": "The malformed pair leaves CDC-013 active. Both source periods are below the respective 1.5-period review margins."
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "bad",
+      "critical": false,
+      "workflow_class": "Qualified payload and event protocols",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 33,
+          "signal": "ack_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 19,
+          "signal": "req_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 24,
+          "signal": "a1_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 29,
+          "signal": "r1_q"
+        }
+      ],
+      "rationale": "req_q (clk_a) is cleared by the synchronized acknowledge a2_q (design.sv:20), and req_q is synchronized into clk_b via r1_q -> r2_q (design.sv:29-30), but the return acknowledge register ack_q (design.sv:33) is driven solely by dst_ready_i with no dependency on r2_q, forming a one-way structural handshake mismatch (CDC-015 WARNING Heuristic).",
+      "expected_rules": [
+        "CDC-015"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "cdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "bad",
+    "critical": false,
+    "workflow_class": "Qualified payload and event protocols",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 19,
+        "signal": "req_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 24,
+        "signal": "a1_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 29,
+        "signal": "r1_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 33,
+        "signal": "ack_q"
+      }
+    ],
+    "expected_rules": [
+      "CDC-015"
+    ],
+    "rationale": "req_q depends on synchronized a2_q, but ack_q is driven only by dst_ready_i and never by r2_q, so only one direction depends on the opposite synchronizer: CDC-015 WARNING Heuristic. Reader A's note is right that CDC-013 stays active (no unique reciprocal pair, both source periods below 1.5x); those are additional findings on a bad case and do not change the label."
+  }
+}

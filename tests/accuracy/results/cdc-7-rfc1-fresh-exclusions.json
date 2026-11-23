@@ -1,0 +1,10 @@
+{
+  "batch": "cdc-7-rfc1-fresh",
+  "excluded_by": "cdc-rfc1-settler (Claude Opus 5.5)",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "readers": [
+    "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+    "cdc-rfc1-reader-b (Gemini 4 Argon)"
+  ],
+  "excluded": []
+}

@@ -1,0 +1,97 @@
+{
+  "verdict": "bad",
+  "workflow_class": "Multi-bit transfer and reconvergence",
+  "critical": true,
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 3,
+      "signal": "data_s[7:0]"
+    },
+    {
+      "file": "design.sv",
+      "line": 3,
+      "signal": "data_d[7:0]"
+    }
+  ],
+  "rationale": "A freely changing source-registered binary command is captured directly in an independent domain and consumed jointly without stability or protocol. Multi-bit transitions can produce incoherent commands, in addition to uncontained metastability.",
+  "caveats": "The boundary source register is established by the contract rather than local RTL. Example transition 7f to 80 changes every bit; no particular mixed result needs to be guaranteed to establish the risk.",
+  "whole_ip_good_control": false,
+  "family": "CDC",
+  "top": "c04",
+  "origin": "authored",
+  "batch": "cdc-4-ip-fresh",
+  "author": "cdc-ip-author (GPT-6 Luna)",
+  "author_reading": {
+    "proposed_outcome": "Bad incoherent multi-bit transfer",
+    "site_or_premise": "`data_s[7:0] -> data_d[7:0]`",
+    "evidence_and_limits": "Async source/destination, changing data, jointly consumed binary command; no stability or protocol."
+  },
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "bad",
+      "workflow_class": "Multi-bit transfer and reconvergence",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 3,
+          "signal": "data_d"
+        }
+      ],
+      "by": "cdc-ip-reader-a (GPT-6.1 Sol)",
+      "rationale": "An eight-bit binary command may change every source edge and is captured directly in an unrelated clock domain. Multiple bits may settle differently, yielding a command never launched, and each bit also lacks metastability containment.",
+      "caveats": "The source register is represented by the explicit boundary contract rather than local RTL. The coherence failure is independently established without any reset assumptions.",
+      "fit": true,
+      "whole_ip_good_control": false
+    },
+    {
+      "verdict": "bad",
+      "workflow_class": "Multi-bit transfer and reconvergence",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 3,
+          "signal": "data_s"
+        },
+        {
+          "file": "design.sv",
+          "line": 3,
+          "signal": "data_d"
+        }
+      ],
+      "by": "cdc-ip-reader-b (GPT-6.1 Sol)",
+      "rationale": "Contract line 7 specifies a freely changing source-registered binary command consumed as a whole. All eight asynchronous bits are captured directly at line 3, without coherence qualification or even individual metastability filtering. For example 0x7f to 0x80 permits mixed command bits.",
+      "caveats": "Independent source/destination clocks are explicit in SDC. No missing protocol assumption is needed to establish the defect.",
+      "fit": true,
+      "whole_ip_good_control": false
+    }
+  ],
+  "settlement": {
+    "verdict": "bad",
+    "workflow_class": "Multi-bit transfer and reconvergence",
+    "critical": true,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 3,
+        "signal": "data_s[7:0]"
+      },
+      {
+        "file": "design.sv",
+        "line": 3,
+        "signal": "data_d[7:0]"
+      }
+    ],
+    "by": "cdc-ip-settler (GPT-6.1 Sol)",
+    "rationale": "A freely changing source-registered binary command is captured directly in an independent domain and consumed jointly without stability or protocol. Multi-bit transitions can produce incoherent commands, in addition to uncontained metastability.",
+    "caveats": "The boundary source register is established by the contract rather than local RTL. Example transition 7f to 80 changes every bit; no particular mixed result needs to be guaranteed to establish the risk.",
+    "fit": true,
+    "whole_ip_good_control": false,
+    "reason": "A freely changing source-registered binary command is captured directly in an independent domain and consumed jointly without stability or protocol. Multi-bit transitions can produce incoherent commands, in addition to uncontained metastability."
+  }
+}

@@ -1,0 +1,156 @@
+{
+  "verdict": "unknown",
+  "critical": false,
+  "workflow_class": "Multi-bit transfer and reconvergence",
+  "whole_ip_good_control": false,
+  "rationale": "Re-graded from the proposed bad label, against the author and both readers. decision = a2 & ~b2 reconverges two independently synchronised inputs, but under the stated mutual-exclusion contract the function has no hazard. Every legal source transition ((0,1)<->(1,0), or a single bit to or from (0,0)) can pass only through (0,0) or (1,1), and both give decision=0. That is the value on one side of each transition. decision=1 needs a2=1, and a=1 means the source was in state (1,0) at that sampling instant. So the output can never show a source state that did not occur. The only effect is the per-bit one-cycle latency skew that any two-flop synchroniser already has. The contract says decision 'depends on relative arrival' but states no cycle-accurate correlation requirement that this skew violates. The safety therefore depends on consumer timing tolerance that the inputs leave unstated, so the case calls for disclosure, not a defect claim.",
+  "caveats": [
+    "CDC-010(a) WARNING Heuristic is the expected disclosure: a register cone with two recognised synchroniser outputs.",
+    "To keep a bad reconvergence case, a reauthored function needs a real hazard. Examples: decision = a2 | b2, where (1,0)->(0,1) glitches through (0,0) to a false 0, or an encoded state whose intermediate decodes to another legal value.",
+    "Maintainer confirmation is needed because this overrides the proposed label and both readers.",
+    "Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+  ],
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 8,
+      "signal": "decision"
+    },
+    {
+      "file": "design.sv",
+      "line": 7,
+      "signal": "a2"
+    },
+    {
+      "file": "design.sv",
+      "line": 7,
+      "signal": "b2"
+    }
+  ],
+  "expected_rules": [
+    "CDC-010"
+  ],
+  "family": "CDC",
+  "top": "top_cdc_rfc1_t04",
+  "origin": "authored",
+  "batch": "cdc-5-contract-fresh",
+  "author": "cdc-contract-author (GPT-6 Luna)",
+  "author_reading": {
+    "id": "CDC-RFC1-T04",
+    "kind": "bad",
+    "class": "Multi-bit transfer and reconvergence",
+    "title": "Two synchronized flags reconverge as one decision",
+    "case_files": [
+      "design.sv",
+      "clocks.sdc",
+      "contract.md"
+    ],
+    "boundary_event_config": null,
+    "site_signal": "decision",
+    "expected_rules": [
+      "CDC-010"
+    ],
+    "rationale": "src_a and src_b are mutually exclusive indications from the same source transaction. Destination decision depends on their relative arrival, which is not preserved by independent synchronizers.",
+    "limitations": [
+      "Structural attribution is a proposal for independent adjudication, not analyzer outcome.",
+      "No SVerity scoring performed.",
+      "Physical timing and metastability requirements remain external."
+    ],
+    "top": "top_cdc_rfc1_t04",
+    "profile": "asic",
+    "sdc": "clocks.sdc"
+  },
+  "sdc": [
+    "clocks.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Multi-bit transfer and reconvergence",
+      "fit": true,
+      "whole_ip_good_control": false,
+      "rationale": "Correlated mutually exclusive indications reconverge after independent synchronization; relative arrival can change decision.",
+      "caveats": [
+        "A permitted source transition between indications can transiently produce the wrong decision."
+      ],
+      "sites": [
+        {
+          "signal": "decision",
+          "file": "design.sv",
+          "line": 8
+        },
+        {
+          "signal": "a2",
+          "file": "design.sv",
+          "line": 7
+        },
+        {
+          "signal": "b2",
+          "file": "design.sv",
+          "line": 7
+        }
+      ],
+      "expected_rules": [
+        "CDC-010"
+      ],
+      "by": "cdc-contract-reader-a (GPT-6.1 Sol)"
+    },
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Multi-bit transfer and reconvergence",
+      "fit": "correlated control reconvergence",
+      "whole_ip_good_control": false,
+      "rationale": "Independent synchronizer arrival latency can violate the stated mutually exclusive source transaction interpretation at decision=a2 & ~b2.",
+      "caveats": "Raw rst_n release is not locally synchronized or bounded by a release contract; RDC-003 remains a whole-IP closure confounder. Output consumer timing is not specified. Physical closure is excluded.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 8,
+          "signal": "decision"
+        }
+      ],
+      "expected_rules": [
+        "CDC-010"
+      ],
+      "by": "cdc-contract-reader-b (GPT-6.1 Sol)"
+    }
+  ],
+  "settlement": {
+    "verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Multi-bit transfer and reconvergence",
+    "fit": true,
+    "whole_ip_good_control": false,
+    "rationale": "Re-graded from the proposed bad label, against the author and both readers. decision = a2 & ~b2 reconverges two independently synchronised inputs, but under the stated mutual-exclusion contract the function has no hazard. Every legal source transition ((0,1)<->(1,0), or a single bit to or from (0,0)) can pass only through (0,0) or (1,1), and both give decision=0. That is the value on one side of each transition. decision=1 needs a2=1, and a=1 means the source was in state (1,0) at that sampling instant. So the output can never show a source state that did not occur. The only effect is the per-bit one-cycle latency skew that any two-flop synchroniser already has. The contract says decision 'depends on relative arrival' but states no cycle-accurate correlation requirement that this skew violates. The safety therefore depends on consumer timing tolerance that the inputs leave unstated, so the case calls for disclosure, not a defect claim.",
+    "caveats": [
+      "CDC-010(a) WARNING Heuristic is the expected disclosure: a register cone with two recognised synchroniser outputs.",
+      "To keep a bad reconvergence case, a reauthored function needs a real hazard. Examples: decision = a2 | b2, where (1,0)->(0,1) glitches through (0,0) to a false 0, or an encoded state whose intermediate decodes to another legal value.",
+      "Maintainer confirmation is needed because this overrides the proposed label and both readers.",
+      "Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 8,
+        "signal": "decision"
+      },
+      {
+        "file": "design.sv",
+        "line": 7,
+        "signal": "a2"
+      },
+      {
+        "file": "design.sv",
+        "line": 7,
+        "signal": "b2"
+      }
+    ],
+    "expected_rules": [
+      "CDC-010"
+    ],
+    "by": "cdc-contract-settler (Claude Opus 5.5)",
+    "reason": "Re-graded from the proposed bad label, against the author and both readers. decision = a2 & ~b2 reconverges two independently synchronised inputs, but under the stated mutual-exclusion contract the function has no hazard. Every legal source transition ((0,1)<->(1,0), or a single bit to or from (0,0)) can pass only through (0,0) or (1,1), and both give decision=0. That is the value on one side of each transition. decision=1 needs a2=1, and a=1 means the source was in state (1,0) at that sampling instant. So the output can never show a source state that did not occur. The only effect is the per-bit one-cycle latency skew that any two-flop synchroniser already has. The contract says decision 'depends on relative arrival' but states no cycle-accurate correlation requirement that this skew violates. The safety therefore depends on consumer timing tolerance that the inputs leave unstated, so the case calls for disclosure, not a defect claim."
+  }
+}

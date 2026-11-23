@@ -1,0 +1,106 @@
+{
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Clock and reset interaction",
+  "rationale": "Raw combinational mux of clk_a/clk_b selected by unconstrained primary input mode_i (line 4) clocks sink; no glitch-free structure, so a select change can create a runt/extra edge. Class follows the workflow table (clock muxes are Clock and reset interaction), not clock_intent_inventory as the author stated. CDC-019(a) and CDC-031 (primary-input select) both diagnose the mux. CDC-002 is dropped: it fires for any logic-generated root, including safe ones, and so does not diagnose this defect. Spec caps both pinned rules at WARNING Unresolved, so the best spec-conformant outcome is an unresolved-bad tally, not Established detection. Caveat: sink reaches no output and synthesis may remove it, so the hazard exists in the RTL clock structure but not as an observable port failure. Raw rst_n release, recovery/removal and physical timing remain external obligations outside this label.",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 4,
+      "signal": "switched_clk"
+    }
+  ],
+  "expected_rules": [
+    "CDC-019",
+    "CDC-031"
+  ],
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-6-whole-ip-fresh",
+  "author": "cdc-whole-ip-author (GPT-6 Luna)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "author_reading": {
+    "id": "Q001",
+    "workflow_class": "clock_intent_inventory",
+    "case_type": "bad",
+    "expected_rules": [
+      "CDC-019",
+      "CDC-002"
+    ],
+    "detection_gap": null,
+    "site": {
+      "signal": "switched_clk",
+      "file": "design.sv",
+      "line": 4
+    },
+    "rationale": "Clock mux combines two clock leaves without a recognized glitch-free primitive; structural clock-control defect.",
+    "premises": {
+      "clocks": "clk_a and clk_b both have 10 ns primary clocks; clock relationships are undeclared for six unknown cases, while the Gray-pointer unknown declares asynchronous groups and lacks a datapath bound",
+      "reset": "common rst_n unless the defect specifically exercises reset roots",
+      "protocol": "event delivery required at the stated minimum assertion duration only where boundary_events.json is supplied",
+      "physical_evidence": "No library, metastability MTBF, placement or bus-skew claim; external implementation evidence remains required"
+    }
+  },
+  "settlement": {
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Clock and reset interaction",
+    "rationale": "Raw combinational mux of clk_a/clk_b selected by unconstrained primary input mode_i (line 4) clocks sink; no glitch-free structure, so a select change can create a runt/extra edge. Class follows the workflow table (clock muxes are Clock and reset interaction), not clock_intent_inventory as the author stated. CDC-019(a) and CDC-031 (primary-input select) both diagnose the mux. CDC-002 is dropped: it fires for any logic-generated root, including safe ones, and so does not diagnose this defect. Spec caps both pinned rules at WARNING Unresolved, so the best spec-conformant outcome is an unresolved-bad tally, not Established detection. Caveat: sink reaches no output and synthesis may remove it, so the hazard exists in the RTL clock structure but not as an observable port failure. Raw rst_n release, recovery/removal and physical timing remain external obligations outside this label.",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 4,
+        "signal": "switched_clk"
+      }
+    ],
+    "by": "cdc-whole-ip-settler (Claude Opus 5.5)",
+    "expected_rules": [
+      "CDC-019",
+      "CDC-031"
+    ]
+  },
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Clock and reset interaction",
+      "rationale": "An unconstrained mode_i directly switches unrelated clock levels. Changing select while levels differ creates an extra edge or truncates a pulse; no glitch-free switching structure exists.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "switched_clk"
+        }
+      ],
+      "by": "cdc-whole-ip-reader-a (GPT-6.1 Sol)",
+      "expected_rules": [
+        "CDC-019",
+        "CDC-031",
+        "CDC-002"
+      ]
+    },
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Clock and reset interaction",
+      "rationale": "A raw mux switches asynchronous clocks using unconstrained mode_i. Changing select while the leaves differ can generate an extra/runt edge at sink. No glitch-free switching structure or mode constraint exists.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "switched_clk"
+        }
+      ],
+      "by": "cdc-whole-ip-reader-b (GPT-6.1 Sol)",
+      "expected_rules": [
+        "CDC-019",
+        "CDC-031",
+        "CDC-002"
+      ]
+    }
+  ]
+}

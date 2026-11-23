@@ -1,0 +1,14 @@
+{
+  "boundary_events": [
+    {
+      "port": "event_in",
+      "launch_clock": "src_clk",
+      "protocol": "event",
+      "duration": {
+        "value": 1,
+        "unit": "source_cycles"
+      },
+      "delivery": "best_effort"
+    }
+  ]
+}

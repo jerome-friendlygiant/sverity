@@ -1,0 +1,151 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Multi-bit transfer and reconvergence",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 13,
+      "signal": "ctrl_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 15,
+      "signal": "s1_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 17,
+      "signal": "s3_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 19,
+      "signal": "ctrl_o"
+    }
+  ],
+  "expected_rules": [
+    "CDC-032"
+  ],
+  "rationale": "ctrl_q[3:0] is synchronized with depth 3 on bits 3:2 (s3_q) and depth 2 on bits 1:0, then reassembled in ctrl_o: CDC-032(a) ERROR (different chain depths, Async). CDC-009 is outside the CDC.md primary-finding order and may co-fire, but it fires identically on an equal-depth bundle, so it does not establish the seeded depth-skew defect; Reader B's CDC-009 addition rejected.",
+  "author_reading": {
+    "id": "rfc1-h09",
+    "intended_verdict": "bad",
+    "critical": true,
+    "workflow_class": "Multi-bit transfer and reconvergence",
+    "expected_rules": [
+      "CDC-032"
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 17,
+        "signal": "s3_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 19,
+        "signal": "ctrl_o"
+      }
+    ],
+    "rationale": "A coherent 4-bit control bundle is synchronized with depth 2 on bits [1:0] and depth 3 on bits [3:2]: unequal chain depths."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Multi-bit transfer and reconvergence",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 13,
+          "signal": "ctrl_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 15,
+          "signal": "s1_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 17,
+          "signal": "s3_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 19,
+          "signal": "ctrl_o"
+        }
+      ],
+      "rationale": "The four bits are launched as one word across asynchronous clocks. ctrl_o takes the upper bits after three destination cycles and the lower bits after two.",
+      "expected_rules": [
+        "CDC-032"
+      ]
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Multi-bit transfer and reconvergence",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 15,
+          "signal": "s1_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 17,
+          "signal": "s3_q"
+        }
+      ],
+      "rationale": "The 4-bit control bundle ctrl_q[3:0] (src_clk) is synchronized bit-by-bit into dst_clk without a Gray or handshake protocol (CDC-009), and its bits have mismatched synchronizer depths: bits [1:0] use 2 stages (s1_q[1:0] -> s2_q[1:0]) while bits [3:2] use 3 stages (s1_q[3:2] -> s2_q[3:2] -> s3_q[3:2] at design.sv:17), guaranteeing cycle-skewed bundle capture (CDC-032 ERROR Established).",
+      "expected_rules": [
+        "CDC-009",
+        "CDC-032"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "cdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Multi-bit transfer and reconvergence",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 13,
+        "signal": "ctrl_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 15,
+        "signal": "s1_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 17,
+        "signal": "s3_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 19,
+        "signal": "ctrl_o"
+      }
+    ],
+    "expected_rules": [
+      "CDC-032"
+    ],
+    "rationale": "ctrl_q[3:0] is synchronized with depth 3 on bits 3:2 (s3_q) and depth 2 on bits 1:0, then reassembled in ctrl_o: CDC-032(a) ERROR (different chain depths, Async). CDC-009 is outside the CDC.md primary-finding order and may co-fire, but it fires identically on an equal-depth bundle, so it does not establish the seeded depth-skew defect; Reader B's CDC-009 addition rejected."
+  }
+}

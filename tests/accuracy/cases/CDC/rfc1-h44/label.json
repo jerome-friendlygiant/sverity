@@ -1,0 +1,121 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "verdict": "unknown",
+  "critical": false,
+  "workflow_class": "Clock and reset interaction",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 5,
+      "signal": "sel_i"
+    },
+    {
+      "file": "design.sv",
+      "line": 12,
+      "signal": "clk_mux"
+    }
+  ],
+  "expected_rules": [
+    "CDC-019",
+    "CDC-031"
+  ],
+  "rationale": "clk_mux = sel_i ? clk_b : clk_a is a combinational clock mux of two clock leaves (CDC-019 WARNING Unresolved) with a primary-input select (CDC-031 WARNING Unresolved). Reader A's note on the missing clk_b-mode boundary timing is a further undischarged assumption, consistent with unknown.",
+  "author_reading": {
+    "id": "rfc1-h44",
+    "intended_verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Clock and reset interaction",
+    "expected_rules": [
+      "CDC-019",
+      "CDC-031"
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 12,
+        "signal": "clk_mux"
+      }
+    ],
+    "rationale": "Raw combinational 2:1 clock mux driven by a primary-input select feeds a register clock; no glitch-free mux structure is recognized and select synchronism is undecidable."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Clock and reset interaction",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 12,
+          "signal": "clk_mux"
+        },
+        {
+          "file": "design.sv",
+          "line": 12,
+          "signal": "sel_i"
+        }
+      ],
+      "rationale": "A board select switches a combinational mux between asynchronous clock inputs. An input delay to clk_a provides neither safe switching relative to clk_b nor a glitch-free mode contract.",
+      "expected_rules": [
+        "CDC-019",
+        "CDC-031"
+      ],
+      "suspected_flaw": "Only clk_a is named in data and output timing. Switching restrictions and clk_b-mode boundary timing are unspecified."
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Clock and reset interaction",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 12,
+          "signal": "clk_mux"
+        },
+        {
+          "file": "design.sv",
+          "line": 5,
+          "signal": "sel_i"
+        }
+      ],
+      "rationale": "Net clk_mux switches combinationally between asynchronous clocks clk_a and clk_b via assign clk_mux = sel_i ? clk_b : clk_a (design.sv:12) under primary-input select sel_i, which is neither a recognized glitch-free clock mux cell (CDC-019 WARNING Unresolved) nor controlled by a select synchronous to both switched clocks (CDC-031 WARNING Unresolved).",
+      "expected_rules": [
+        "CDC-019",
+        "CDC-031"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "cdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Clock and reset interaction",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 5,
+        "signal": "sel_i"
+      },
+      {
+        "file": "design.sv",
+        "line": 12,
+        "signal": "clk_mux"
+      }
+    ],
+    "expected_rules": [
+      "CDC-019",
+      "CDC-031"
+    ],
+    "rationale": "clk_mux = sel_i ? clk_b : clk_a is a combinational clock mux of two clock leaves (CDC-019 WARNING Unresolved) with a primary-input select (CDC-031 WARNING Unresolved). Reader A's note on the missing clk_b-mode boundary timing is a further undischarged assumption, consistent with unknown."
+  }
+}

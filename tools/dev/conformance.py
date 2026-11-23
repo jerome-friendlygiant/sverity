@@ -31,6 +31,7 @@ def load_decks(root):
     for position, name in enumerate(DECKS):
         decks[name] = [rule["id"] for rule in catalog if rule.get("deck") in DECKS[: position + 1]]
     decks["lint"] = [rule["id"] for rule in catalog if rule.get("classes")]
+    decks["cdc"] = [rule["id"] for rule in catalog if rule.get("cdc_deck")]
     return decks
 
 

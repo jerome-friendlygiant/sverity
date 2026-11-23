@@ -1,0 +1,117 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Clock and reset interaction",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 13,
+      "signal": "en_a_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 15,
+      "signal": "gclk_b"
+    }
+  ],
+  "expected_rules": [
+    "CDC-020"
+  ],
+  "rationale": "gclk_b = clk_b & en_a_q with en_a_q launched in asynchronous clk_a: CDC-020 ERROR Established. CDC-045(a) also warns on the latch-less gate, but h17 shows it fires for a same-domain enable, so it does not establish the seeded cross-domain enable defect; Reader A's CDC-045 addition rejected. Reader A's gclk_b-constraint note leaves the label unchanged.",
+  "author_reading": {
+    "id": "rfc1-h16",
+    "intended_verdict": "bad",
+    "critical": true,
+    "workflow_class": "Clock and reset interaction",
+    "expected_rules": [
+      "CDC-020"
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 15,
+        "signal": "gclk_b"
+      }
+    ],
+    "rationale": "clk_b is gated directly by en_a_q, a register launched in asynchronous clk_a."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Clock and reset interaction",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 15,
+          "signal": "gclk_b"
+        },
+        {
+          "file": "design.sv",
+          "line": 15,
+          "signal": "en_a_q"
+        }
+      ],
+      "rationale": "An asynchronous clk_a flop drives a raw AND gate on clk_b. A high-phase enable transition can add an edge or shorten a pulse. The gate has no low-phase latch.",
+      "expected_rules": [
+        "CDC-020",
+        "CDC-045"
+      ],
+      "suspected_flaw": "The SDC times data and output to clk_b without a reviewed relationship for gclk_b."
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Clock and reset interaction",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 15,
+          "signal": "gclk_b"
+        },
+        {
+          "file": "design.sv",
+          "line": 13,
+          "signal": "en_a_q"
+        }
+      ],
+      "rationale": "Clock gclk_b is formed by combinational AND gating of clk_b with en_a_q (assign gclk_b = clk_b & en_a_q at design.sv:15), where en_a_q is launched by asynchronous clock clk_a (design.sv:13), causing asynchronous clock-gate glitches and metastability on gclk_b (CDC-020 ERROR Established).",
+      "expected_rules": [
+        "CDC-020"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "cdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Clock and reset interaction",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 13,
+        "signal": "en_a_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 15,
+        "signal": "gclk_b"
+      }
+    ],
+    "expected_rules": [
+      "CDC-020"
+    ],
+    "rationale": "gclk_b = clk_b & en_a_q with en_a_q launched in asynchronous clk_a: CDC-020 ERROR Established. CDC-045(a) also warns on the latch-less gate, but h17 shows it fires for a same-domain enable, so it does not establish the seeded cross-domain enable defect; Reader A's CDC-045 addition rejected. Reader A's gclk_b-constraint note leaves the label unchanged."
+  }
+}

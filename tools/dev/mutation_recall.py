@@ -25,6 +25,7 @@ import bisect
 import collections
 import dataclasses
 import hashlib
+import importlib.util
 import json
 import math
 import pathlib
@@ -38,6 +39,9 @@ import types
 
 SCHEMA = "sverity-mutation-recall/1"
 HERE = pathlib.Path(__file__).resolve().parent
+_MG_SPEC = importlib.util.spec_from_file_location("mem_guard", HERE / "mem_guard.py")
+mem_guard = importlib.util.module_from_spec(_MG_SPEC)
+_MG_SPEC.loader.exec_module(mem_guard)
 IPS = ["uart", "csrng", "rv_timer", "spi_host", "i2c", "aes", "hmac", "kmac", "otbn", "entropy_src"]
 SOLO = {"LC17"}          # classes whose mutants each get a run of their own
 CRITICAL = {f"LC{n:02d}" for n in (1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 20, 21, 24, 25)}
@@ -1276,15 +1280,22 @@ def wait_for_memory(minimum, minutes):
 def run_sverity(binary, top, design_f, config, waivers, root, report, args, tag, extra=()):
     command = [str(binary), "--single-unit", "--goal", "lint", "--top", top, "-f", str(design_f), "--config", str(config),
                "--waivers", str(waivers), "--root", str(root), "--json", str(report), "--max-console", "1", *extra]
-    if args.memory_gb and shutil.which("systemd-run"):
-        unit = f"mutation-recall-{tag}-{int(time.time())}"
-        command = ["systemd-run", "--user", "--wait", "--collect", "--same-dir", "-E", "PATH", "-E", "HOME", "-p", f"MemoryMax={args.memory_gb}G",
-                   "-p", "MemorySwapMax=0", "-p", "RuntimeMaxSec=900", f"--unit={unit}", "-q"] + command
-    elif args.memory_gb:
-        command = ["bash", "-c", f"ulimit -v {int(args.memory_gb * 1024 * 1024)}; exec \"$@\"", "bash"] + command
+    unit = None
+    mem_max = f"{max(1, int(round(args.memory_gb * 1024)))}M" if args.memory_gb else None
+    if args.memory_gb:
+        command, unit = mem_guard.build_command(
+            ["timeout", "--kill-after=5s", "900", *command],
+            profile="capacity", label=f"mut-{tag}", mem_max=mem_max, exec_mode=True,
+        )
     pathlib.Path(report).unlink(missing_ok=True)
     wait_for_memory(args.min_available_gb, args.wait_minutes)
     done = subprocess.run(command, capture_output=True, text=True)
+    if unit and done.returncode:
+        oom, detail = mem_guard.inspect_oom(unit, done.stderr, done.returncode,
+                                            profile="capacity", label=f"mut-{tag}", mem_max=mem_max)
+        if oom:
+            stderr = done.stderr if mem_guard.MEM_LIMIT_MARKER in (done.stderr or "") else f"{done.stderr}\n{detail}".strip()
+            return None, subprocess.CompletedProcess(done.args, 137, done.stdout, stderr)
     if not pathlib.Path(report).exists():
         return None, done
     return json.loads(pathlib.Path(report).read_text()), done

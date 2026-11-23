@@ -1,0 +1,149 @@
+{
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Qualified payload and event protocols",
+  "whole_ip_good_control": false,
+  "rationale": "The raw asynchronous src_req is the load enable of dst_payload, so it bypasses r1 and r2. A src_req edge near dst_clk makes the enable mux of each payload bit metastable. Some bits can load and others hold, and the output registers can go metastable. The contract requires capture to be qualified by the destination-synchronised request.",
+  "caveats": [
+    "CDC-029 classifies an asynchronous input sampled as a control as an unsafe control capture: ERROR Established. CDC-028 (clock-enable based unsafe crossing) describes the same defect if it covers primary-input enables.",
+    "Because the source holds the payload while req is high, the value usually settles after one more load before dst_req. The defect is metastability and partial loading on a top-level output register, not a lasting wrong value.",
+    "The missing acknowledgment leaves the external hold contract open-ended. CDC-039 is not credit.",
+    "Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+  ],
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 8,
+      "signal": "src_req"
+    },
+    {
+      "file": "design.sv",
+      "line": 8,
+      "signal": "dst_payload"
+    }
+  ],
+  "expected_rules": [
+    "CDC-028",
+    "CDC-029"
+  ],
+  "family": "CDC",
+  "top": "top_cdc_rfc1_t06",
+  "origin": "authored",
+  "batch": "cdc-5-contract-fresh",
+  "author": "cdc-contract-author (GPT-6 Luna)",
+  "author_reading": {
+    "id": "CDC-RFC1-T06",
+    "kind": "bad",
+    "class": "Qualified payload and event protocols",
+    "title": "Destination loads on raw request",
+    "case_files": [
+      "design.sv",
+      "clocks.sdc",
+      "contract.md"
+    ],
+    "boundary_event_config": null,
+    "site_signal": "dst_payload",
+    "expected_rules": [
+      "CDC-028",
+      "CDC-039"
+    ],
+    "rationale": "Source holds payload stable from request assertion through synchronized acknowledgment (which this IP omits). Capture must be qualified by destination-domain synchronized request, not raw src_req.",
+    "limitations": [
+      "Structural attribution is a proposal for independent adjudication, not analyzer outcome.",
+      "No SVerity scoring performed.",
+      "Physical timing and metastability requirements remain external."
+    ],
+    "top": "top_cdc_rfc1_t06",
+    "profile": "asic",
+    "sdc": "clocks.sdc"
+  },
+  "sdc": [
+    "clocks.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Qualified payload and event protocols",
+      "fit": true,
+      "whole_ip_good_control": false,
+      "rationale": "Raw asynchronous request directly controls payload capture, bypassing r2.",
+      "caveats": [
+        "No acknowledgment output exists despite the source stability contract; CDC-029 can identify unsafe control sampling independently."
+      ],
+      "sites": [
+        {
+          "signal": "src_req",
+          "file": "design.sv",
+          "line": 8
+        },
+        {
+          "signal": "dst_payload",
+          "file": "design.sv",
+          "line": 8
+        }
+      ],
+      "expected_rules": [
+        "CDC-029"
+      ],
+      "by": "cdc-contract-reader-a (GPT-6.1 Sol)"
+    },
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Qualified payload and event protocols",
+      "fit": "raw asynchronous capture enable",
+      "whole_ip_good_control": false,
+      "rationale": "Raw asynchronous src_req controls payload capture instead of r2. A stable payload cannot contain metastability in the raw capture control.",
+      "caveats": "Missing ack also leaves the stated external hold-through-ack contract incomplete. Register crossing CDC-028 is nearby intent; primary input unsafe capture is explicitly covered by CDC-029. Raw rst_n release is not locally synchronized or bounded by a release contract; RDC-003 remains a whole-IP closure confounder. Output consumer timing is not specified. Physical closure is excluded.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 8,
+          "signal": "dst_payload"
+        },
+        {
+          "file": "design.sv",
+          "line": 8,
+          "signal": "src_req"
+        }
+      ],
+      "expected_rules": [
+        "CDC-029"
+      ],
+      "by": "cdc-contract-reader-b (GPT-6.1 Sol)"
+    }
+  ],
+  "settlement": {
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Qualified payload and event protocols",
+    "fit": true,
+    "whole_ip_good_control": false,
+    "rationale": "The raw asynchronous src_req is the load enable of dst_payload, so it bypasses r1 and r2. A src_req edge near dst_clk makes the enable mux of each payload bit metastable. Some bits can load and others hold, and the output registers can go metastable. The contract requires capture to be qualified by the destination-synchronised request.",
+    "caveats": [
+      "CDC-029 classifies an asynchronous input sampled as a control as an unsafe control capture: ERROR Established. CDC-028 (clock-enable based unsafe crossing) describes the same defect if it covers primary-input enables.",
+      "Because the source holds the payload while req is high, the value usually settles after one more load before dst_req. The defect is metastability and partial loading on a top-level output register, not a lasting wrong value.",
+      "The missing acknowledgment leaves the external hold contract open-ended. CDC-039 is not credit.",
+      "Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 8,
+        "signal": "src_req"
+      },
+      {
+        "file": "design.sv",
+        "line": 8,
+        "signal": "dst_payload"
+      }
+    ],
+    "expected_rules": [
+      "CDC-028",
+      "CDC-029"
+    ],
+    "by": "cdc-contract-settler (Claude Opus 5.5)",
+    "reason": "The raw asynchronous src_req is the load enable of dst_payload, so it bypasses r1 and r2. A src_req edge near dst_clk makes the enable mux of each payload bit metastable. Some bits can load and others hold, and the output registers can go metastable. The contract requires capture to be qualified by the destination-synchronised request."
+  }
+}

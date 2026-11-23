@@ -2,6 +2,7 @@
 
 #include "sverity/catalog.h"
 
+#include <algorithm>
 #include <cstdio>
 
 namespace sverity {
@@ -106,8 +107,13 @@ std::string findingIdentity(const Diagnostic& d) {
     part(std::to_string(d.signals.size()));
     for (const auto& signal : d.signals) part(signal);
     part(d.groupingUnit); part(std::to_string(d.groupingProcedureOrdinal));
-    part(std::to_string(d.evidence.size()));
+    const auto identityEvidenceCount = std::count_if(d.evidence.begin(), d.evidence.end(), [](const Evidence& e) { return e.kind != "downstream_tap" && e.kind != "capture_stage" && e.kind != "site_signal"; });
+    part(std::to_string(identityEvidenceCount));
     for (const auto& e : d.evidence) {
+        // CDC-007 tap witnesses and input-chain stage labels improve review context, but are not part of
+        // the accepted defect scope. Their names and locations may change
+        // independently while the underlying crossing and waiver stay put.
+        if (e.kind == "downstream_tap" || e.kind == "capture_stage" || e.kind == "site_signal") continue;
         part(e.kind); part(e.location.file);
         part(std::to_string(e.location.line)); part(std::to_string(e.location.column));
     }
@@ -134,8 +140,12 @@ std::string baselineKey(const Diagnostic& d) {
     part(std::to_string(d.signals.size()));
     for (const auto& signal : d.signals) part(signal);
     part(d.groupingUnit); part(std::to_string(d.groupingProcedureOrdinal));
-    part(std::to_string(d.evidence.size()));
-    for (const auto& e : d.evidence) { part(e.kind); part(e.location.file); }
+    const auto identityEvidenceCount = std::count_if(d.evidence.begin(), d.evidence.end(), [](const Evidence& e) { return e.kind != "downstream_tap" && e.kind != "capture_stage" && e.kind != "site_signal"; });
+    part(std::to_string(identityEvidenceCount));
+    for (const auto& e : d.evidence) {
+        if (e.kind == "downstream_tap" || e.kind == "capture_stage" || e.kind == "site_signal") continue;
+        part(e.kind); part(e.location.file);
+    }
     uint64_t h = 1469598103934665603ull;
     for (unsigned char c : key) { h ^= c; h *= 1099511628211ull; }
     char buf[24];

@@ -10,13 +10,19 @@ on). CST-019, RDC-012 and RDC-013 are stated for every run and do not count. A b
 an unresolved WARNING) or missed; a good case is clean, noise, unresolved or a false error; an unknown case is
 disclosed or silent (a CST unknown may also be disclosed by CDC/RDC: "elsewhere"). A lint label may name its defect
 class (`class`, docs/rules/LINT_WORKFLOW.md): a bad case is then detected only by a rule whose catalog `classes` hold
-it, and a case of a critical class is critical. A critical bad case found only by a NOT_ANALYSED gap (it does not block the
+it, and a case of a critical class is critical. Located downstream-tap evidence can name a CDC site without making
+that name a signal waiver handle. A critical bad case found only by a NOT_ANALYSED gap (it does not block the
 merge) counts as not caught; an OBLIGATION, the declared undecidable question, counts as found. --batch scores one batch only. --check also fails when a budget is
 exceeded or cannot be measured. --check fails on a critical case
 that is missed or silent, invalid/unsettled labels, an empty suite or unexpected execution failures.
+
+New CDC workflow labels may freeze `expected_rules` for bad and unknown cases. Such findings
+must match both an expected rule and a final site signal. Protocol obligations do not detect
+a bad case by themselves. Labels without `expected_rules` retain legacy scoring.
 """
 import argparse
 import hashlib
+import importlib.util
 import json
 import math
 import datetime
@@ -32,8 +38,19 @@ FAMILIES = ("LNT", "CDC", "RDC", "CST")
 VERDICTS = ("bad", "good", "unknown")
 # Stated whatever the design does: rule coverage, unsupported power intent, reset timing that RTL can never show.
 RUN_LEVEL = {"CST-019", "RDC-012", "RDC-013"}
+CDC_PROTOCOL_OBLIGATIONS = {"CDC-024", "CDC-039"}
 SLACK = 1                 # a procedure header and its assignment can both be reported
 REPO = pathlib.Path(__file__).resolve().parents[2]
+
+
+def _load_mem_guard():
+    spec = importlib.util.spec_from_file_location("mem_guard", pathlib.Path(__file__).resolve().with_name("mem_guard.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+mem_guard = _load_mem_guard()
 
 
 def defect_classes():
@@ -45,10 +62,40 @@ def defect_classes():
 
 
 CLASS_CRITICAL, RULE_CLASSES = defect_classes()
+CDC_WORKFLOW_CLASSES = {
+    match.group(1)
+    for match in re.finditer(r"^\| ([^|]+?) \|", (REPO / "docs/rules/CDC_WORKFLOW.md").read_text()
+                            .split("## Defect classes and closure", 1)[1].split("##", 1)[0], re.M)
+    if match.group(1) != "Class"
+}
 
 
 def sha256(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def case_relative_path(value):
+    if not isinstance(value, str) or not value:
+        return False
+    path = pathlib.PurePosixPath(value)
+    return bool(path.parts) and not path.is_absolute() and ".." not in path.parts and path.as_posix() == value
+
+
+def check_boundary_event_config(case_dir, name):
+    path = case_dir / name
+    if path.resolve() != case_dir.resolve() / name or not path.is_file():
+        raise ValueError("boundary_event_config must be a regular file in the case without symlinks")
+
+    def unique_object(pairs):
+        obj = dict(pairs)
+        if len(obj) != len(pairs):
+            raise ValueError("boundary_event_config contains duplicate JSON keys")
+        return obj
+
+    config = json.loads(path.read_text(), object_pairs_hook=unique_object)
+    if (not isinstance(config, dict) or set(config) != {"boundary_events"}
+            or not isinstance(config["boundary_events"], list) or not config["boundary_events"]):
+        raise ValueError("boundary_event_config must contain only a nonempty boundary_events array")
 
 
 def selected_inputs(suite, label_paths, batch):
@@ -77,6 +124,8 @@ def selected_inputs(suite, label_paths, batch):
         for name in label.get("sdc", []):
             if not isinstance(name, str) or name not in files:
                 raise ValueError(f"{directory.name}: missing or unsafe SDC input")
+        if "boundary_event_config" in label and label["boundary_event_config"] not in files:
+            raise ValueError(f"{directory.name}: missing or unsafe boundary event config")
         cases[directory.relative_to(suite / "cases").as_posix()] = files
     if not cases:
         raise ValueError("batch contains no cases")
@@ -106,27 +155,52 @@ def git_provenance():
         return {"head": None, "dirty": None, "dirty_sha256": None}
 
 
+def analyzer_cli_flags(args):
+    flags = []
+    if getattr(args, "profile", None):
+        flags += ["--profile", args.profile]
+    for goal in getattr(args, "goal", None) or ():
+        flags += ["--goal", goal]
+    if getattr(args, "deck", None):
+        flags += ["--deck", args.deck]
+    return flags
+
+
 def measurement_provenance(args, inputs, version):
     def hash_or_none(path):
         try:
             return sha256(path) if path else None
         except OSError:
             return None
+    cases = inputs.get("cases", {}) if inputs else {}
+    cdc_only = bool(cases) and all(name.startswith("CDC/") for name in cases)
+    workflow_name = "CDC_WORKFLOW.md" if cdc_only else "LINT_WORKFLOW.md"
+    cli_flags = analyzer_cli_flags(args)
+    profile_meta = {
+        "batch": args.batch, "check": args.check, "budgets": bool(args.budgets),
+        "frozen": bool(args.verify_freeze), "first_score": args.first_score,
+        "strict_fresh_labels": getattr(args, "strict_fresh_labels", False),
+        "analyzer_arguments": [*cli_flags, "--top", "<top>", "--root", "<case>", "--json", "<report>",
+                               "--max-console", "1", "[--config <declared boundary event config>]",
+                               "--sdc", "<each declared SDC>", "<design.sv>"],
+        "timeout_seconds": 300,
+    }
+    if getattr(args, "profile", None):
+        profile_meta["analyzer_profile"] = args.profile
+    if getattr(args, "goal", None):
+        profile_meta["analyzer_goals"] = list(args.goal)
+    if getattr(args, "deck", None):
+        profile_meta["analyzer_deck"] = args.deck
     return {
         "schema": "sverity-accuracy-provenance/1",
         "binary_sha256": hash_or_none(args.binary), "binary_version": version,
         "source": git_provenance(), "selected_inputs": inputs,
         "scorer_sha256": hash_or_none(pathlib.Path(__file__)),
         "catalog_sha256": hash_or_none(REPO / "docs/rules/catalog.json"),
-        "workflow_sha256": hash_or_none(REPO / "docs/rules/LINT_WORKFLOW.md"),
+        "workflow_sha256": hash_or_none(REPO / "docs/rules" / workflow_name),
         "budgets_sha256": hash_or_none(args.budgets),
         "freeze_sha256": hash_or_none(args.verify_freeze),
-        "profile": {"batch": args.batch, "check": args.check, "budgets": bool(args.budgets),
-                    "frozen": bool(args.verify_freeze), "first_score": args.first_score,
-                    "strict_fresh_labels": getattr(args, "strict_fresh_labels", False),
-                    "analyzer_arguments": ["--top", "<top>", "--root", "<case>", "--json", "<report>",
-                                           "--max-console", "1", "--sdc", "<each declared SDC>", "<design.sv>"],
-                    "timeout_seconds": 300},
+        "profile": profile_meta,
         "context": {"utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                     "platform": platform.system(), "machine": platform.machine(),
                     "python": platform.python_version()},
@@ -136,6 +210,12 @@ def measurement_provenance(args, inputs, version):
 def leaf(name):
     """`top.u.sync_q[3]` -> `sync_q`."""
     return re.sub(r"\[.*?\]", "", name).split(".")[-1]
+
+
+def valid_cdc_rules(rules, *, allow_empty=False):
+    return isinstance(rules, list) and (bool(rules) or allow_empty) and all(
+        isinstance(rule, str) and rule in RULE_CLASSES and rule not in RUN_LEVEL
+        and rule.startswith(("CDC-", "CST-", "RDC-")) for rule in rules)
 
 
 def label_problems(case, label):
@@ -158,6 +238,10 @@ def label_problems(case, label):
         problem("invalid lint defect class")
     if "class" in label and label.get("family") != "LNT":
         problem("defect classes are lint classes")
+    def valid_workflow_class(value):
+        return label.get("family") == "CDC" and isinstance(value, str) and value in CDC_WORKFLOW_CLASSES
+    if "workflow_class" in label and not valid_workflow_class(label["workflow_class"]):
+        problem("invalid CDC workflow class")
     for key in ("critical",):
         if key in label and type(label[key]) is not bool:
             problem(f"{key} must be boolean")
@@ -192,6 +276,26 @@ def label_problems(case, label):
         sites(label["sites"], "sites")
     if label.get("verdict") in ("bad", "unknown") and not label.get("sites"):
         problem("a bad or unknown case needs sites")
+    if "expected_rules" in label:
+        if label.get("family") != "CDC" or label.get("verdict") not in ("bad", "unknown"):
+            problem("expected_rules applies only to bad or unknown CDC workflow cases")
+        rules = label["expected_rules"]
+        gap_reason = label.get("detection_gap")
+        declared_gap = (label.get("verdict") == "bad" and rules == []
+                        and isinstance(gap_reason, str) and bool(gap_reason.strip()))
+        if not valid_cdc_rules(rules, allow_empty=declared_gap):
+            problem("expected_rules must list known, site-specific CDC, RDC or CST rules")
+        elif rules and label.get("verdict") == "bad" and all(rule in CDC_PROTOCOL_OBLIGATIONS for rule in rules):
+            problem("a bad CDC case needs an expected rule that can detect the defect")
+        target_sites = label.get("sites")
+        if (not isinstance(target_sites, list) or not target_sites or any(
+                not isinstance(site, dict) or not site.get("signal") for site in target_sites)):
+            problem("expected_rules requires a signal on every final site")
+    if "detection_gap" in label and (
+            label.get("family") != "CDC" or label.get("verdict") != "bad"
+            or label.get("expected_rules") != [] or not isinstance(label["detection_gap"], str)
+            or not label["detection_gap"].strip()):
+        problem("detection_gap requires a bad CDC case, empty expected_rules, and a nonempty reason")
     entries = label.get("labels", [])
     if not isinstance(entries, list):
         problem("labels must be a list")
@@ -208,12 +312,21 @@ def label_problems(case, label):
                 sites(entry["sites"], "labeller sites")
             if "class" in entry and (not isinstance(entry["class"], str) or entry["class"] not in CLASS_CRITICAL):
                 problem("invalid labeller class")
+            if "workflow_class" in entry and not valid_workflow_class(entry["workflow_class"]):
+                problem("invalid labeller CDC workflow class")
             if "critical" in entry and type(entry["critical"]) is not bool:
                 problem("labeller critical must be boolean")
+            if "expected_rules" in entry and (label.get("family") != "CDC"
+                    or entry.get("verdict") not in ("bad", "unknown") or not valid_cdc_rules(
+                        entry["expected_rules"], allow_empty=True)):
+                problem("labeller expected_rules requires a bad or unknown CDC reading and site-specific rules")
     if "sdc" in label and (not isinstance(label["sdc"], list) or any(
             not isinstance(x, str) or not x or pathlib.PurePosixPath(x).is_absolute()
             or ".." in pathlib.PurePosixPath(x).parts for x in label["sdc"])):
         problem("sdc must be a list of relative paths within the case")
+    if "boundary_event_config" in label and (
+            label.get("family") != "CDC" or not case_relative_path(label["boundary_event_config"])):
+        problem("boundary_event_config must be a relative path within a CDC case")
     adjudication = label.get("adjudication")
     if "adjudication" in label:
         if not isinstance(adjudication, dict) or any(
@@ -346,8 +459,10 @@ def strict_label_problems(case, label):
     errors = []
     def error(message):
         errors.append(f"{case}: strict fresh: {message}")
-    if label.get("family") != "LNT" or "class" not in label or "critical" not in label:
-        error("LNT class and critical are required")
+    class_field = {"LNT": "class", "CDC": "workflow_class"}.get(label.get("family"))
+    if not class_field or class_field not in label or "critical" not in label:
+        error("a LNT class or CDC workflow_class and critical are required")
+        return errors
     readings = label.get("labels", [])
     if len(readings) != 2:
         error("exactly two initial readings are required")
@@ -356,13 +471,32 @@ def strict_label_problems(case, label):
     ids = [r.get("by", "").strip() for r in readings]
     if not all(ids) or len({author, *ids}) != 3:
         error("author and two reader role IDs must be distinct")
-    keys = ("verdict", "class", "sites", "critical")
-    target = {k: label.get(k) for k in keys}
-    if any(any(k not in r for k in keys) for r in readings):
-        error("each reading requires verdict, class, sites and critical")
-        return errors
-    opinions = [{k: r[k] for k in keys} for r in readings]
+    keys = ("verdict", class_field, "sites", "critical")
     settlement = label.get("settlement")
+    if ("expected_rules" in label or any("expected_rules" in r for r in readings)
+            or isinstance(settlement, dict) and "expected_rules" in settlement):
+        if label.get("verdict") != "good" and not valid_cdc_rules(
+                label.get("expected_rules"), allow_empty=bool(label.get("detection_gap"))):
+            error("the final label must retain valid expected_rules when the readings declare them")
+            return errors
+        keys += ("expected_rules",)
+    if any(any(k not in r and not (k == "expected_rules" and r.get("verdict") == "good")
+               for k in keys) for r in readings):
+        error("each reading requires " + ", ".join(keys))
+        return errors
+    if "expected_rules" in keys and any(r.get("verdict") != "good" and not valid_cdc_rules(
+            r["expected_rules"], allow_empty=True) for r in readings):
+        error("each reading requires valid expected_rules")
+        return errors
+
+    def opinion(reading):
+        result = {k: reading.get(k) for k in keys}
+        if "expected_rules" in result and valid_cdc_rules(result["expected_rules"], allow_empty=True):
+            result["expected_rules"] = sorted(set(result["expected_rules"]))
+        return result
+
+    target = opinion(label)
+    opinions = [opinion(r) for r in readings]
     if "settlement" in label:
         if not isinstance(settlement, dict):
             error("settlement must be an object")
@@ -377,7 +511,7 @@ def strict_label_problems(case, label):
         return errors
     if (not isinstance(settlement, dict) or not isinstance(settlement.get("by"), str)
             or not settlement["by"].strip() or settlement["by"].strip() in {author, *ids}
-            or any(k not in settlement or settlement[k] != target[k] for k in keys)):
+            or opinion(settlement) != target):
         error("disagreement requires an independent third settlement matching the final label")
     return errors
 
@@ -427,6 +561,15 @@ def validate_diagnostic(diagnostic):
     signals = diagnostic.get("signals", [])
     if not isinstance(signals, list) or any(not isinstance(name, str) for name in signals):
         raise ValueError("diagnostic signals must be a list of strings")
+    crossing = diagnostic.get("crossing")
+    if crossing is not None:
+        if not isinstance(crossing, dict):
+            raise ValueError("diagnostic crossing must be an object")
+        for role in ("launch", "capture"):
+            endpoint = crossing.get(role)
+            if endpoint is not None and (not isinstance(endpoint, dict)
+                    or not isinstance(endpoint.get("signal", ""), str)):
+                raise ValueError(f"crossing {role} must be an object with an optional signal string")
     evidence = diagnostic.get("evidence", [])
     if not isinstance(evidence, list) or any(not isinstance(item, dict) for item in evidence):
         raise ValueError("diagnostic evidence must be a list of objects")
@@ -442,21 +585,29 @@ def validate_diagnostic(diagnostic):
                 raise ValueError(f"diagnostic location {key} must be a nonnegative integer")
 
 
-def run(binary, case_dir, label):
+def run(binary, case_dir, label, cli_flags=()):
     result = {"execution": "NOT RUN", "exit": None, "coverage": None,
               "timeout": False, "reason": None, "diagnostics": []}
     with tempfile.TemporaryDirectory() as scratch:
         report = pathlib.Path(scratch) / "report.json"
-        args = [str(binary), "--top", label["top"], "--root", str(case_dir), "--json", str(report), "--max-console", "1"]
+        args = [str(binary), *cli_flags, "--top", label["top"], "--root", str(case_dir), "--json", str(report), "--max-console", "1"]
+        if "boundary_event_config" in label:
+            args += ["--config", str(case_dir / label["boundary_event_config"])]
         for sdc in label.get("sdc", []):
             args += ["--sdc", str(case_dir / sdc)]
         args.append(str(case_dir / "design.sv"))
+        guarded_args, unit = mem_guard.build_command(args, profile="accuracy", label=case_dir.name, exec_mode=True)
         try:
-            done = subprocess.run(args, capture_output=True, text=True, timeout=300)
+            done = subprocess.run(guarded_args, capture_output=True, text=True, timeout=300)
         except subprocess.TimeoutExpired:
+            mem_guard.stop_unit(unit)
             return {**result, "execution": "TIMEOUT", "timeout": True, "reason": "command timed out"}
         except OSError as error:
             return {**result, "execution": "LAUNCH ERROR", "reason": str(error)}
+        oom, detail = mem_guard.inspect_oom(unit, done.stderr, done.returncode,
+                                            profile="accuracy", label=case_dir.name)
+        if oom:
+            return {**result, "exit": 137, "execution": "MEMORY LIMIT", "reason": detail}
         result["exit"] = done.returncode
         if done.returncode < 0:
             return {**result, "execution": "CRASH", "reason": f"terminated by signal {-done.returncode}"}
@@ -517,7 +668,8 @@ def clock_objects(case_dir, label):
 
 
 def at_site(diagnostic, sites, spans, aliases):
-    places = [diagnostic.get("location", {})] + [e.get("location", {}) for e in diagnostic.get("evidence", [])]
+    evidence = diagnostic.get("evidence", [])
+    places = [diagnostic.get("location", {})] + [e.get("location", {}) for e in evidence]
     names = {leaf(s) for s in diagnostic.get("signals", [])}
     if not diagnostic.get("location"):   # an unlocated finding names what it is about in its message
         names |= {leaf(w) for w in re.findall(r"[A-Za-z_][\w.$\[\]]*", diagnostic.get("message", ""))}
@@ -532,8 +684,16 @@ def at_site(diagnostic, sites, spans, aliases):
             # A finding located at a procedure's header covers the procedure (the RFC locates CDC-003 and others there).
             if wanted == "design.sv" and any(first == line and first <= site["line"] <= last for first, last in spans.get(wanted, [])):
                 return True
-        if "signal" in site and ({site["signal"]} | aliases.get(site["signal"], set())) & names:
-            return True
+        if "signal" in site:
+            wanted_names = {site["signal"]} | aliases.get(site["signal"], set())
+            if wanted_names & names:
+                return True
+            for item in evidence:
+                if item.get("kind") != "downstream_tap" or not isinstance(item.get("text"), str):
+                    continue
+                location = item.get("location") or {}
+                if pathlib.PurePath(location.get("file", "")).name == wanted and leaf(item["text"]) in wanted_names:
+                    return True
     return False
 
 
@@ -547,9 +707,55 @@ def sites_of(label):
     return sites
 
 
+def cdc_signal_match(name, signal):
+    def split_index(value):
+        match = re.fullmatch(r"(.*?)(\[-?\d+\])?", value)
+        return match.groups() if match else (value, None)
+
+    base, bit = split_index(name)
+    wanted, wanted_bit = split_index(signal)
+    return ((base == wanted or base.endswith("." + wanted))
+            and (bit is None or wanted_bit is None or bit == wanted_bit))
+
+
+def cdc_defect_match(diagnostic, label):
+    """Require a frozen rule and signal; a nearby line alone is insufficient."""
+    if diagnostic["rule_id"] not in label["expected_rules"]:
+        return False
+    names = list(diagnostic.get("signals", []))
+    crossing = diagnostic.get("crossing") or {}
+    for role in ("launch", "capture"):
+        signal = (crossing.get(role) or {}).get("signal")
+        if signal:
+            names.append(signal)
+    for site in label["sites"]:
+        signal = site["signal"]
+        if any(cdc_signal_match(name, signal) for name in names):
+            return True
+        for witness in diagnostic.get("evidence", []):
+            location = witness.get("location") or {}
+            file = pathlib.PurePath(location.get("file", ""))
+            wanted_file = site.get("file", "design.sv")
+            # The CLI roots site_signal locations at the case directory.
+            kind = witness.get("kind")
+            if ((kind == "site_signal" and location.get("line", 0) > 0 and file == pathlib.PurePath(wanted_file))
+                    or (kind == "downstream_tap" and file.name == wanted_file)):
+                name = witness.get("text", "")
+                if isinstance(name, str) and cdc_signal_match(name, signal):
+                    return True
+    return False
+
+
+def cdc_nongating(diagnostic):
+    return (diagnostic.get("disposition") in ("NOT_ANALYSED", "OBLIGATION", "WAIVED", "RESOLVED")
+            or diagnostic["rule_id"] in CDC_PROTOCOL_OBLIGATIONS)
+
+
 def score(label, result, spans, aliases):
     family = label["family"]
-    label = {**label, "sites": sites_of(label)}
+    defect_match = "expected_rules" in label
+    if not defect_match:
+        label = {**label, "sites": sites_of(label)}
     raised = [d for d in result["diagnostics"]
               if d["rule_id"] not in RUN_LEVEL and d["severity"] in ("WARNING", "ERROR", "FATAL")]
     mine = [d for d in raised if d["rule_id"].startswith(family + "-")]
@@ -559,7 +765,15 @@ def score(label, result, spans, aliases):
     elsewhere = [d for d in raised if d not in mine and family == "CST" and d["rule_id"][:3] in ("CDC", "RDC")
                  and at_site(d, label.get("sites", []), spans, aliases)]
     verdict = label["verdict"]
-    if verdict == "bad":
+    if defect_match:
+        hits = [d for d in raised if cdc_defect_match(d, label)]
+        if verdict == "bad":
+            detected = any(not unresolved(d) and not cdc_nongating(d) for d in hits)
+            outcome = "detected" if detected else "unresolved" if hits else "missed"
+        else:
+            hits = [d for d in hits if d.get("disposition") not in ("RESOLVED", "WAIVED")]
+            outcome = "disclosed" if hits else "silent"
+    elif verdict == "bad":
         hits = [d for d in mine if at_site(d, label["sites"], spans, aliases)
                 and ("class" not in label or label["class"] in RULE_CLASSES.get(d["rule_id"], ()))]
         outcome = "detected" if any(not unresolved(d) for d in hits) else "unresolved" if hits else "missed"
@@ -573,7 +787,9 @@ def score(label, result, spans, aliases):
         outcome = "disclosed" if hits else "elsewhere" if elsewhere else "silent"
     # A not-analysed gap does not block the merge, so a critical bad case it alone points at is not caught. A declared
     # obligation is the exception: the question is undecidable by lint and the finding names it.
-    gap_only = verdict == "bad" and outcome == "unresolved" and all(d.get("disposition") == "NOT_ANALYSED" for d in hits)
+    gap_only = verdict == "bad" and bool(hits) and (
+        all(cdc_nongating(d) for d in hits) if defect_match
+        else outcome == "unresolved" and all(d.get("disposition") == "NOT_ANALYSED" for d in hits))
     return {
         "outcome": outcome,
         "rules": sorted({d["rule_id"] for d in (hits or (elsewhere if outcome == "elsewhere" else []))}),
@@ -697,6 +913,11 @@ def load_cases(suite, batch, strict):
                     (path.parent / sdc).read_text()
                 except (OSError, UnicodeError) as error:
                     found.append(f"{name}: cannot read SDC {sdc}: {error}")
+            if "boundary_event_config" in label:
+                try:
+                    check_boundary_event_config(path.parent, label["boundary_event_config"])
+                except (OSError, UnicodeError, ValueError, RuntimeError) as error:
+                    found.append(f"{name}: {error}")
         cases.append((path, label, found, source))
     return cases
 
@@ -753,6 +974,9 @@ def main():
     parser.add_argument("--verify-freeze", type=pathlib.Path, help="verify a frozen batch before scoring")
     parser.add_argument("--first-score", action="store_true", help="require a verified freeze and exclusively create the JSON output")
     parser.add_argument("--strict-fresh-labels", action="store_true", help="enforce declared fresh-batch reading metadata")
+    parser.add_argument("--profile", choices=("generic", "asic", "fpga"), help="pass --profile <name> to the analyzer")
+    parser.add_argument("--goal", action="append", choices=("lint", "cdc", "rdc"), help="pass --goal <name> to the analyzer (repeatable)")
+    parser.add_argument("--deck", choices=("core", "domain", "1.0", "lint", "cdc"), help="pass --deck <name> to the analyzer")
     args = parser.parse_args()
     if (args.freeze_batch or args.verify_freeze) and not args.batch:
         parser.error("freeze operations require --batch")
@@ -823,6 +1047,7 @@ def main():
             pass
         provenance = measurement_provenance(args, inputs, version)
     budgets_path = args.budgets
+    cli_flags = analyzer_cli_flags(args)
     problems, rows = ([] if label_paths else ["accuracy suite contains no cases"]), []
     for label_path, label, found, source in cases:
         case_dir = label_path.parent
@@ -841,8 +1066,16 @@ def main():
                "execution": "NOT RUN", "exit": None, "coverage": None, "timeout": False,
                "reason": "; ".join(found) if found else None, "diagnostics": [],
                "outcome": "execution error", "rules": [], "review_findings": 0, "unresolved_findings": 0}
+        if valid and "workflow_class" in label:
+            row["workflow_class"] = label["workflow_class"]
+        if valid and "expected_rules" in label:
+            row["expected_rules"] = label["expected_rules"]
+        if valid and "detection_gap" in label:
+            row["detection_gap"] = label["detection_gap"]
+        if valid and "boundary_event_config" in label:
+            row["boundary_event_config"] = label["boundary_event_config"]
         if not found:
-            result = run(args.binary.resolve(), case_dir, label)
+            result = run(args.binary.resolve(), case_dir, label, cli_flags=cli_flags)
             row.update({k: result[k] for k in ("execution", "exit", "coverage", "timeout", "reason", "diagnostics")})
             spans = {"design.sv": procedure_spans(source)}
             # A frontend error at the labelled site distinguishes expected LC01 rejection

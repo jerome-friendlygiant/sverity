@@ -1,0 +1,72 @@
+{
+  "verdict": "bad",
+  "workflow_class": "Qualified payload and event protocols",
+  "critical": true,
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 3,
+      "signal": "live"
+    },
+    {
+      "file": "design.sv",
+      "line": 4,
+      "signal": "captured"
+    }
+  ],
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-3-protocol-fresh",
+  "author": "cdc-protocol-author (GPT-6 Luna)",
+  "author_reading": {
+    "workflow_class": "Qualified payload and event protocols",
+    "verdict": "bad",
+    "label_scope": "Bad",
+    "rationale": "Handshake event is synchronized, but source payload remains live and can change before destination capture/acknowledgment."
+  },
+  "rationale": "The request/acknowledgment chains serialize requests, but live is overwritten on every clk_a cycle while a request is outstanding. Destination captures live after synchronizing req, so it can capture a later payload or a changing asynchronous word instead of the accepted send payload. The handshake does not prove stability; ordinary input delay supplies no hold contract.",
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "bad",
+      "workflow_class": "Qualified payload and event protocols",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 3,
+          "signal": "live"
+        },
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "captured"
+        }
+      ],
+      "by": "cdc-protocol-reader-a (GPT-6.1 Sol)",
+      "rationale": "The request/acknowledgment chains serialize requests, but live is overwritten on every clk_a cycle while a request is outstanding. Destination captures live after synchronizing req, so it can capture a later payload or a changing asynchronous word instead of the accepted send payload. The handshake does not prove stability; ordinary input delay supplies no hold contract."
+    },
+    {
+      "verdict": "bad",
+      "workflow_class": "Qualified payload and event protocols",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 3,
+          "signal": "live"
+        },
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "captured"
+        }
+      ],
+      "by": "cdc-protocol-reader-b (GPT-6.1 Sol)",
+      "rationale": "Request and acknowledgment form a two-stage toggle handshake, but live updates on every source edge while the request is outstanding. The destination therefore captures a later value, or a changing asynchronous word, rather than a payload held for the accepted send. A source can send one value and change payload_in before rq reaches its second stage, yielding a concrete protocol counterexample without assuming unusual clocks. Input-delay constraints impose no hold contract. Reset and bundled-data physical timing are separate obligations."
+    }
+  ]
+}

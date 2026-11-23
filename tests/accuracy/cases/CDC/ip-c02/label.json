@@ -1,0 +1,97 @@
+{
+  "verdict": "bad",
+  "workflow_class": "Synchronizer structure",
+  "critical": true,
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 3,
+      "signal": "async_req"
+    },
+    {
+      "file": "design.sv",
+      "line": 3,
+      "signal": "req_q"
+    }
+  ],
+  "rationale": "The contract permits arbitrary-phase changes and the exposed destination output is one direct sampling flop. Holding a level until observation does not contain metastability.",
+  "caveats": "Physical failure probability is not established by digital simulation. C13 repeats this defect topology; do not count the pair as independent structural coverage. No reset is a stated choice, not an inferred defect.",
+  "whole_ip_good_control": false,
+  "family": "CDC",
+  "top": "c02",
+  "origin": "authored",
+  "batch": "cdc-4-ip-fresh",
+  "author": "cdc-ip-author (GPT-6 Luna)",
+  "author_reading": {
+    "proposed_outcome": "Bad direct asynchronous single-bit sample",
+    "site_or_premise": "`async_req -> req_q/D`",
+    "evidence_and_limits": "Direct async input-to-register path, no synchronizer. Level persistence does not resolve metastability."
+  },
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "bad",
+      "workflow_class": "Synchronizer structure",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 3,
+          "signal": "req_q"
+        }
+      ],
+      "by": "cdc-ip-reader-a (GPT-6.1 Sol)",
+      "rationale": "An arbitrarily timed level directly drives a single destination flop whose output is exposed for use. There is no second metastability-resolution stage. Holding the request until observation prevents short-pulse loss but does not prevent metastability.",
+      "caveats": "No reset is intrinsically required for this steady-state level crossing; physical consequences depend on the receiving consumer. No consumer-side extra synchronizer is promised.",
+      "fit": true,
+      "whole_ip_good_control": false
+    },
+    {
+      "verdict": "bad",
+      "workflow_class": "Synchronizer structure",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 3,
+          "signal": "async_req"
+        },
+        {
+          "file": "design.sv",
+          "line": 3,
+          "signal": "req_q"
+        }
+      ],
+      "by": "cdc-ip-reader-b (GPT-6.1 Sol)",
+      "rationale": "Contract line 7 explicitly permits asynchronous transitions. Line 3 directly samples that level into the exposed output with only one flop; holding the request until observation does not provide a metastability resolution stage.",
+      "caveats": "No reset is a stated design choice, not an additional inferred defect. Structurally duplicates C13 and C14; different boundary facts change their judgments.",
+      "fit": true,
+      "whole_ip_good_control": false
+    }
+  ],
+  "settlement": {
+    "verdict": "bad",
+    "workflow_class": "Synchronizer structure",
+    "critical": true,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 3,
+        "signal": "async_req"
+      },
+      {
+        "file": "design.sv",
+        "line": 3,
+        "signal": "req_q"
+      }
+    ],
+    "by": "cdc-ip-settler (GPT-6.1 Sol)",
+    "rationale": "The contract permits arbitrary-phase changes and the exposed destination output is one direct sampling flop. Holding a level until observation does not contain metastability.",
+    "caveats": "Physical failure probability is not established by digital simulation. C13 repeats this defect topology; do not count the pair as independent structural coverage. No reset is a stated choice, not an inferred defect.",
+    "fit": true,
+    "whole_ip_good_control": false,
+    "reason": "The contract permits arbitrary-phase changes and the exposed destination output is one direct sampling flop. Holding a level until observation does not contain metastability."
+  }
+}

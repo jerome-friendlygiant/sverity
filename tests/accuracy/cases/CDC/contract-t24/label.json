@@ -1,0 +1,166 @@
+{
+  "verdict": "good",
+  "critical": false,
+  "workflow_class": "Clock and reset interaction",
+  "whole_ip_good_control": true,
+  "rationale": "A two-stage asynchronous-assert, synchronous-release reset synchroniser in dst_clk drives local_rst_n. The only functional register uses that synchronised reset. The contract makes recovery/removal and placement external obligations. This is the one case where the design and contract cover the whole IP.",
+  "caveats": [
+    "Expected findings are RDC-003 INFO (recognised synchroniser), RDC-013 (a physical obligation that fires for any asynchronous reset), and RDC-002(a) WARNING Unresolved, because rst_n is named by no SDC path exception. If the scorer counts RDC-002 or RDC-013 as noise, no reset-bearing design can be clean. The maintainer must set that policy. Adding a false-path on rst_n could in turn trigger RDC-027.",
+    "src_clk is unused. local_rst_n is not used in any other domain."
+  ],
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 5,
+      "signal": "r1"
+    },
+    {
+      "file": "design.sv",
+      "line": 5,
+      "signal": "r2"
+    },
+    {
+      "file": "design.sv",
+      "line": 6,
+      "signal": "local_rst_n"
+    },
+    {
+      "file": "design.sv",
+      "line": 7,
+      "signal": "dst_state"
+    }
+  ],
+  "family": "CDC",
+  "top": "top_cdc_rfc1_t24",
+  "origin": "authored",
+  "batch": "cdc-5-contract-fresh",
+  "author": "cdc-contract-author (GPT-6 Luna)",
+  "author_reading": {
+    "id": "CDC-RFC1-T24",
+    "kind": "good",
+    "class": "Clock and reset interaction",
+    "title": "Asynchronous assertion with two-stage local release",
+    "case_files": [
+      "design.sv",
+      "clocks.sdc",
+      "contract.md"
+    ],
+    "boundary_event_config": null,
+    "site_signal": "r1",
+    "expected_rules": [
+      "RDC-003",
+      "RDC-006"
+    ],
+    "rationale": "rst_n asserts asynchronously; local_rst_n deasserts only after two dst_clk edges. Recovery/removal and synchronizer placement are external physical obligations.",
+    "limitations": [
+      "Structural attribution is a proposal for independent adjudication, not analyzer outcome.",
+      "No SVerity scoring performed.",
+      "Physical timing and metastability requirements remain external."
+    ],
+    "top": "top_cdc_rfc1_t24",
+    "profile": "asic",
+    "sdc": "clocks.sdc"
+  },
+  "sdc": [
+    "clocks.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Clock and reset interaction",
+      "fit": true,
+      "whole_ip_good_control": true,
+      "rationale": "Two-stage asynchronous-assert synchronous-release reset generator supplies the sole functional state domain.",
+      "caveats": [
+        "Physical recovery/removal and synchronizer implementation remain external; src_clk is unused."
+      ],
+      "sites": [
+        {
+          "signal": "r1",
+          "file": "design.sv",
+          "line": 5
+        },
+        {
+          "signal": "r2",
+          "file": "design.sv",
+          "line": 5
+        },
+        {
+          "signal": "local_rst_n",
+          "file": "design.sv",
+          "line": 6
+        },
+        {
+          "signal": "dst_state",
+          "file": "design.sv",
+          "line": 7
+        }
+      ],
+      "by": "cdc-contract-reader-a (GPT-6.1 Sol)"
+    },
+    {
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Clock and reset interaction",
+      "fit": "reset release synchronizer control",
+      "whole_ip_good_control": true,
+      "rationale": "Two stages asynchronously assert low and synchronously shift released high in dst_clk. Functional reset is driven only by final stage, giving local synchronized release.",
+      "caveats": "Eligible as a small whole-IP structural control before physical closure under local reset-output use; physical recovery/removal, metastability and placement still need closure. No claim for use of local_rst_n in another clock domain.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 5,
+          "signal": "r1"
+        },
+        {
+          "file": "design.sv",
+          "line": 5,
+          "signal": "r2"
+        },
+        {
+          "file": "design.sv",
+          "line": 7,
+          "signal": "dst_state"
+        }
+      ],
+      "by": "cdc-contract-reader-b (GPT-6.1 Sol)"
+    }
+  ],
+  "settlement": {
+    "verdict": "good",
+    "critical": false,
+    "workflow_class": "Clock and reset interaction",
+    "fit": true,
+    "whole_ip_good_control": true,
+    "rationale": "A two-stage asynchronous-assert, synchronous-release reset synchroniser in dst_clk drives local_rst_n. The only functional register uses that synchronised reset. The contract makes recovery/removal and placement external obligations. This is the one case where the design and contract cover the whole IP.",
+    "caveats": [
+      "Expected findings are RDC-003 INFO (recognised synchroniser), RDC-013 (a physical obligation that fires for any asynchronous reset), and RDC-002(a) WARNING Unresolved, because rst_n is named by no SDC path exception. If the scorer counts RDC-002 or RDC-013 as noise, no reset-bearing design can be clean. The maintainer must set that policy. Adding a false-path on rst_n could in turn trigger RDC-027.",
+      "src_clk is unused. local_rst_n is not used in any other domain."
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 5,
+        "signal": "r1"
+      },
+      {
+        "file": "design.sv",
+        "line": 5,
+        "signal": "r2"
+      },
+      {
+        "file": "design.sv",
+        "line": 6,
+        "signal": "local_rst_n"
+      },
+      {
+        "file": "design.sv",
+        "line": 7,
+        "signal": "dst_state"
+      }
+    ],
+    "by": "cdc-contract-settler (Claude Opus 5.5)",
+    "reason": "A two-stage asynchronous-assert, synchronous-release reset synchroniser in dst_clk drives local_rst_n. The only functional register uses that synchronised reset. The contract makes recovery/removal and placement external obligations. This is the one case where the design and contract cover the whole IP."
+  }
+}

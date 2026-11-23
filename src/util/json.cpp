@@ -1,4 +1,5 @@
 #include "sverity/json.h"
+#include <ostream>
 
 #include <charconv>
 #include <cmath>
@@ -104,7 +105,9 @@ std::string escape(std::string_view s) {
     return out;
 }
 
-void Value::dumpTo(std::string& out, int indent, int depth) const {
+namespace { constexpr size_t kWriteChunk = size_t{1} << 20; }
+
+void Value::dumpTo(std::string& out, int indent, int depth, std::ostream* sink) const {
     auto nl = [&](int d) {
         if (indent < 0) return;
         out += '\n';
@@ -131,7 +134,8 @@ void Value::dumpTo(std::string& out, int indent, int depth) const {
         for (size_t i = 0; i < a.size(); i++) {
             if (i) out += ',';
             nl(depth + 1);
-            a[i].dumpTo(out, indent, depth + 1);
+            a[i].dumpTo(out, indent, depth + 1, sink);
+            if (sink && out.size() >= kWriteChunk) { sink->write(out.data(), static_cast<std::streamsize>(out.size())); out.clear(); }
         }
         nl(depth);
         out += ']';
@@ -145,11 +149,19 @@ void Value::dumpTo(std::string& out, int indent, int depth) const {
             out += '"';
             out += escape(o[i].first);
             out += indent < 0 ? "\":" : "\": ";
-            o[i].second.dumpTo(out, indent, depth + 1);
+            o[i].second.dumpTo(out, indent, depth + 1, sink);
+            if (sink && out.size() >= kWriteChunk) { sink->write(out.data(), static_cast<std::streamsize>(out.size())); out.clear(); }
         }
         nl(depth);
         out += '}';
     }
+}
+
+bool Value::write(std::ostream& sink, int indent, int depth) const {
+    std::string out;
+    dumpTo(out, indent, depth, &sink);
+    sink.write(out.data(), static_cast<std::streamsize>(out.size()));
+    return static_cast<bool>(sink);
 }
 
 std::string Value::dump(int indent) const {

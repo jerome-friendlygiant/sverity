@@ -1,0 +1,41 @@
+{
+  "batch": "cdc-6-whole-ip-fresh",
+  "excluded": [
+    {
+      "id": "Q032",
+      "reason": "Independent adjudication identified the same narrow required-event sampling defect as Q016. Keep Q016 and exclude this duplicate before scoring to avoid double weighting.",
+      "settled_reading": {
+        "id": "Q032",
+        "fit": "valid_with_caveat",
+        "verdict": "bad",
+        "workflow_class": "qualified_payload_event_protocols",
+        "critical": true,
+        "sites": [
+          {
+            "file": "design.sv",
+            "line": 8,
+            "signal": "p1"
+          },
+          {
+            "file": "design.sv",
+            "line": 2,
+            "signal": "event_i"
+          }
+        ],
+        "expected_rules": [
+          "CDC-013"
+        ],
+        "detection_gap": null,
+        "whole_ip_cdc_clean": false,
+        "rationale": "Same mechanism as Q016, with a 1 ns required minimum assertion and a 3-stage chain. p1 samples every 10 ns (line 8) and misses a permitted pulse, which the Icarus witness confirms (p1 and event_o never rise). CDC-013(c) diagnoses it. The class moves from ip_external_boundaries to qualified_payload_event_protocols, matching both readers: the boundary contract is present and valid, and the defect is event loss. Same port-attached create_clock caveat as Q016. This case is correlated with Q016 and is not independent evidence. Raw rst_n release, recovery/removal and physical timing remain external obligations outside this label.",
+        "exclusion_reason": null
+      }
+    }
+  ],
+  "contract_translation": {
+    "id": "Q016",
+    "source": "boundary_events.json",
+    "scoring_input": "sverity-boundary-events.json",
+    "reason": "Encode the independently reviewed 2 ns required-event contract in the CLI schema; preserve the source and every reviewed timing and/reset premise."
+  }
+}

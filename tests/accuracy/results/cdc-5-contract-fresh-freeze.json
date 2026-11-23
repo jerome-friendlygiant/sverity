@@ -1,0 +1,179 @@
+{
+ "batch": "cdc-5-contract-fresh",
+ "cases": {
+  "CDC/contract-t02": {
+   "clocks.sdc": "f73ca47b48bb799a54b35fbb2b64874421efa264f2ebf466de5048780869b604",
+   "contract.md": "669bf769296041139b7f6bf5e806367d3441bbb801951b2c7ffb7e3b102e6712",
+   "design.sv": "96f34b995e57a23b559f93606f0b7fef52a9026377473d198330b8ac5b4370e3",
+   "label.json": "9077f5e8e15fb7a6a03cf39c341cf2213d69671e9c79ceefc8981b5b8d4a99e7"
+  },
+  "CDC/contract-t03": {
+   "clocks.sdc": "394017fbfb572c7867982db3d2ba9473a160ef88fa3905913961f135f80bd63c",
+   "contract.md": "21278f11d2a4406d0c0c0c97860d24af2d52f25c85a5fa605842cdc29832c64f",
+   "design.sv": "6f4e6fc697161a7121d8223fe036c25ed9b92d6c3e8c2095a50c66b93c7ed0ba",
+   "label.json": "1fba4a220bbb04f7b9a9047a8e2b81e790e88a8a387b0372e37941d8a24f3546"
+  },
+  "CDC/contract-t04": {
+   "clocks.sdc": "995445657c0c7a52f2891db15b875414e93743b118d9d829c124403a697fa05f",
+   "contract.md": "2e7140957404fc8a161417a33443b4c2696d24c017521ff7f8a1f36da980c707",
+   "design.sv": "1dcf96ab10e8ec00ff275753895eba5d683662a60a39528d4fcf5f01704bfd55",
+   "label.json": "79342c7fae5224d5b1189298de640a3dd4fcd003db26e335cf837f6691ce8409"
+  },
+  "CDC/contract-t05": {
+   "clocks.sdc": "0c882b51e88a2af1b22d7b8e56f29f72813e6b4e7276eaba33f181dd4f14a52a",
+   "contract.md": "8880d1ada25a4a7f0ce89f1be011d5f205d094beb436825d1fb5ca7687b4f2ca",
+   "design.sv": "05320481b6166d88c6b4aa25c5f47111e63c0198ddaa9566c4517373331a05f0",
+   "label.json": "b77d1e9467e1b90ae50ab6c9c44d24374c84e708daae1eeda9254f9fe96c0b38"
+  },
+  "CDC/contract-t06": {
+   "clocks.sdc": "8b9ddceb2c9d20ad11e8964d613dced055eb7343ef1d955ba8715ce6e535f87c",
+   "contract.md": "c27310f87497850d51033778970e7ebbd9a8606ec70cfe82ed5dbf5a080cf2d6",
+   "design.sv": "2d45c95f2db4e54853a6cfaadd6d2284fc63a57345a97fd0eef2c2983d40c74b",
+   "label.json": "94b4b5f511dad8d2e7f5b65b079728f4f2a97f20b7ef22376d2037ee4326204d"
+  },
+  "CDC/contract-t07": {
+   "clocks.sdc": "8b9ddceb2c9d20ad11e8964d613dced055eb7343ef1d955ba8715ce6e535f87c",
+   "contract.md": "b0f565ca72089e0ca81fcef9eedca9193186db51e752b73958bda832a4085246",
+   "design.sv": "dff8b24ca02f94c5eaefa055d6498119dce283d596b7b28b1269a1a6d7bd47f7",
+   "label.json": "d5b8ae1e2364f02e1ec964bb78bd73f0f9b21e93d665c1cd2a7feba3e6b35a49"
+  },
+  "CDC/contract-t08": {
+   "clocks.sdc": "7aa58e0e0d78a51b17dd3938878bd3af53917e2661054b8d50a9a8edceacd50b",
+   "contract.md": "ce7985d5250a002054ce1b50e474039c8a4feea579069d25424bf5a586ca0407",
+   "design.sv": "ff6fadb3c40c8f1a53ee03effe527339de88b242720a98ce81e4d1e89fd560a0",
+   "label.json": "28b0a4e50b4781d5898aa806fea97eb759d3a43cfe74753b91b90de677ff33e1"
+  },
+  "CDC/contract-t09": {
+   "clocks.sdc": "7aa58e0e0d78a51b17dd3938878bd3af53917e2661054b8d50a9a8edceacd50b",
+   "contract.md": "0d8e13dbe775275819130fed36d47de400233b7ca7839e04b6ad2910d4ca12e0",
+   "design.sv": "4383e808d28c07dbe503b9f55f17fcf7692515e1b5adad85045ea0d26abdbb67",
+   "label.json": "9e02ea09d92fd9f299b9f8af9d15b7b4c84a33c2ae6699746b356e3085263cf6"
+  },
+  "CDC/contract-t10": {
+   "clocks.sdc": "8b9ddceb2c9d20ad11e8964d613dced055eb7343ef1d955ba8715ce6e535f87c",
+   "contract.md": "5f3b4ce73baef8565a0a2d71b451cbfcb033621a4798ba8bdb76861b60337e0f",
+   "design.sv": "ff64dfec7de1367013458bdead8a01fe5ab15e64c0c1bdbe09a8b50a0a415d8b",
+   "label.json": "73201ba147022602c5081181e0ca0aa55590d1e1db91e8f6b43839e43495b3e5"
+  },
+  "CDC/contract-t11": {
+   "clocks.sdc": "2ba7a3c7d63234182b69e086032939fcbcb077810ce9569921651883c2186488",
+   "contract.md": "7f034a31474f45c3355a7bed1dea7009c50a2b0a812939c436823ac60ff17d3d",
+   "design.sv": "0d9eab40c0fb9ce3086537da82620858329dce9c65a43ce3fe87e17c53f133ee",
+   "label.json": "c1d0999a87cce4557f8a5e35776b533ef7e18f0357c0c8cf18f17b62cd580bde"
+  },
+  "CDC/contract-t12": {
+   "clocks.sdc": "2ba7a3c7d63234182b69e086032939fcbcb077810ce9569921651883c2186488",
+   "contract.md": "6e98e527639d1c0a371c7fbb55b46878e898767617fda42801ba048ff96d8f6b",
+   "design.sv": "6ee11d71066e0e80a83b6b059d6db2c8fecd4c25f8e62b4ff5ae9a5c90683e1e",
+   "label.json": "9905e757a119112183c67fe60a6f3bed95e40f0419508fa288f74fb73c5dab71"
+  },
+  "CDC/contract-t13": {
+   "clocks.sdc": "736069aa4e218a658be98e93c267fb42b6c1a04eb578f2db388769a761225aba",
+   "contract.md": "96b705414cb332876c110976439939663374cf8de5007822d5c9f57844873ddb",
+   "design.sv": "84153eb1c39e0408154a0206a6bd796167b2590189154504d06f1735972fd43f",
+   "label.json": "0faffc15800689c0d3e8b28dc9f6c6e57d2b335028a5890e56738d98d5dbfe89"
+  },
+  "CDC/contract-t14": {
+   "clocks.sdc": "885f94d896b0e735616811fd215aaf6af0071ebf71ce1a6db8433a09da25bcad",
+   "contract.md": "f13c981183262a41803618132a20677529124f2637ec3b702f842cfa05c7ad17",
+   "design.sv": "db7efaff9ccd67550d42c6738b474f9a05b32f5d7721013dce8f6546b03df899",
+   "label.json": "744504578e1a949d64ea6b3a7f9e59806628b4bfcc4937227ed8a7a001a422a8"
+  },
+  "CDC/contract-t15": {
+   "clocks.sdc": "6ce11728c728388d970b2d79f35b0180cc8229b67edaad5abfa43721dc08b598",
+   "config.json": "2ce31168f65b3f26fe77e10484b70f7befea6a1b3bc0a4b44e68cbf9dab99269",
+   "contract.md": "2354c8efc0ca76be7bca07b0e683112834741b88ed2af532a34d492bc45e5bd7",
+   "design.sv": "ab68e69287c8ce4d5175fcc747834797b36925907a265ae5cced0edd34bbd65e",
+   "label.json": "74dd2a69719e6fbe7baa64dbd421dae3fcd771ac6ff693d8113e46dbe275490d"
+  },
+  "CDC/contract-t16": {
+   "clocks.sdc": "f73ca47b48bb799a54b35fbb2b64874421efa264f2ebf466de5048780869b604",
+   "contract.md": "c28ddd3244f4f0b4dab8e70f9d1bb457fda6c369a9508e39d6d8c367d547c488",
+   "design.sv": "ccc10b71cbfb1a0fc79a98cae75928f51661f6614cefbff9ff582df1e572a739",
+   "label.json": "8bd60627326b49829a408aa8a9863b03433c46c7e0862163a5bedbcd54a1cded"
+  },
+  "CDC/contract-t17": {
+   "clocks.sdc": "f73ca47b48bb799a54b35fbb2b64874421efa264f2ebf466de5048780869b604",
+   "contract.md": "fecd807e2f1221958c49ab5acb6884b85df8271cb3b66421a19f9f958c0685c9",
+   "design.sv": "3fab5ecd84114f21170e06743a7b1d0ff0c7c37a627c442586ad8e1c5a1f553a",
+   "label.json": "22a8da7ee71f0c33766eab77f777259ad89dd48cea53435fee4309bbe43f72f1"
+  },
+  "CDC/contract-t18": {
+   "bench.sv": "9494d0574347f59a9084333f09882f6a54f4d2b88ccdc1338d0a19ca7c83a349",
+   "clocks.sdc": "1b5706a4c097c5f9ec91a21d8bb009d71b61d2730b343121b603df1abe62e6de",
+   "contract.md": "3224d28efa89085b021c1f1667451ebff8a0fbdb5610ad12fe243439f0efe19d",
+   "design.sv": "713fb73218f4aa4847a232abc47d6c709de1475814106970f9e435c6956d4416",
+   "label.json": "bf52078ed0d155b0b1ce030f7584c500774f0ea33d8cc29332fc51727c32a5ea"
+  },
+  "CDC/contract-t19": {
+   "clocks.sdc": "aa63a9cbb9d2b972d098fe0724fe6782485d304e558bdf1997c5248fcea87cbd",
+   "contract.md": "8df78b6692e5c284fa755544288c6c73978776e1a12819cc240ada2f7719aa5d",
+   "design.sv": "676aab783a764f37c8cead3fcb20f0fb824150938a65bc9874e3da44482a94d3",
+   "label.json": "db710326bd71483d2102fea174c81340d5111ad8b78fbca232c7769fa7c578c6"
+  },
+  "CDC/contract-t20": {
+   "clocks.sdc": "6ce11728c728388d970b2d79f35b0180cc8229b67edaad5abfa43721dc08b598",
+   "config.json": "634598dcf64119f8b792db7cbbdbec0cbeae41b9962a703c8aa315a6a62b28e1",
+   "contract.md": "3af65eead80cf89a88b6898ccc68ea36a596c9b38fb5d1cac3c3d2455f344aad",
+   "design.sv": "04ecd7d97bff8aaad864f9691dda2433fd1d6eeb78e1ee1fc6d6305499a49864",
+   "label.json": "ec83178a550ea7043cba62cb2a042eaeb3ff0fcecbc7ceb163992cbb67baa314"
+  },
+  "CDC/contract-t21": {
+   "clocks.sdc": "6ce11728c728388d970b2d79f35b0180cc8229b67edaad5abfa43721dc08b598",
+   "config.json": "f73f1ffd778b9649322da6c0491ac4042e69ba02b80853a495ce4627a02e301c",
+   "contract.md": "63e12cbc2cbd3a041742e9c78fae1928be11252c549f7c28f4f18d707c7f676d",
+   "design.sv": "4e97f22127f700bf25768b55e033b8fbda334028052da37f9b371d219eb048b8",
+   "label.json": "bfb6b080d2e01b48dadf3fd05a7cd658e716a0a860ce5524ecde71320f59f0b2"
+  },
+  "CDC/contract-t22": {
+   "clocks.sdc": "698316d3d279641ce599e1d9e19b403aaaad9c08f3c926ec91489cf2f3934f61",
+   "contract.md": "39886e9c6edaab5d5e44773f22a7b205187e3ef991243c0d2f85d0093c3ea31c",
+   "design.sv": "fa04cd531668fa0201deab65cd63d33e7b88fc1dfde2ff6ba24e73497e3b8520",
+   "label.json": "c9c1e158b9e03d089ed04edc19bcbcb5b8528536ab4bdcd60660b3b5323f8c2c"
+  },
+  "CDC/contract-t24": {
+   "clocks.sdc": "736069aa4e218a658be98e93c267fb42b6c1a04eb578f2db388769a761225aba",
+   "contract.md": "3a08faefde46f865f5cfafea00298513f81d602d4e01855f59f3d33be408602b",
+   "design.sv": "c00b5255adaae6bb1134d07212e850f53aeec858e08e04cb5aa892cc7024a800",
+   "label.json": "eed52c44162fd9bf0fab5dd06f0e9f54fa70d82b78256c4962137e448fcb2fe9"
+  },
+  "CDC/contract-t25": {
+   "clocks.sdc": "0824fe29be663dd7e2be3004763267a22fe034beac33befb25a57a578eb360f3",
+   "contract.md": "ec31d2709ade1c0f4761989420ff44d8c6e18a3714caf4fd5af6b080bdca711a",
+   "design.sv": "de0633a822f9b02b8d8d8c9745a50d771d6b4e51b99bc3945f10305743817751",
+   "label.json": "902fe41387370b0ceb9e073956cd3baf9ed3122056ad78d1ef9c986bc85c3b3b"
+  },
+  "CDC/contract-t26": {
+   "clocks.sdc": "d63073cfb7a7a42ef174d7756b642e041925d9af6aad92509f3d9e680d5315f6",
+   "contract.md": "719f5e25db651f6f21c7b64dc5e5ca0c5750bd56681d0d745b97e64ac9ad2968",
+   "design.sv": "39633f947ba5f946b905205311be2e737bba8a914d79e5a7403fe18ee4a4433b",
+   "label.json": "52c151e7bf517c436f4b03e16ebeac15b1a8d755e5e7595ac3f4ef2ff9b2d4d1"
+  },
+  "CDC/contract-t27": {
+   "clocks.sdc": "298ece7e1d563c4af16a9a62f9371c9f2b47def13247274bdf0ede15e3295918",
+   "config.json": "9e905bb51aaf459ebcc3a42740313519a0daf30808907f8e059f4f8c10cd1509",
+   "contract.md": "ff321b538b1b19f0227f693ebe9fbb8d2f6d0febd22611f7d62c2429a30c942e",
+   "design.sv": "59c16935651b8ee8ee9734f7f8a5ce48123a6ea8c20264d643bb3fddeaa1590c",
+   "label.json": "1eaf063fff85ec173a6dd81f59a684e1c48e4ed293b01df76ad79c31f2205fce"
+  },
+  "CDC/contract-t28": {
+   "clocks.sdc": "89e7ef82113cfd312258a667b7c9cbf10c75938fca6ffb262e5c070ac71bb34a",
+   "contract.md": "a6808a6f8c98b493d5ad0504c56f88034f870554189227edc8ce9c62a796f96f",
+   "design.sv": "0aa249c4e280882701d09de75c24034bb46b434b188703c7da18c42191af5bde",
+   "label.json": "b5a9a5f736504b96b7ff3538adae21704fdd637de02eaace2359f96bb83e6a6e"
+  },
+  "CDC/contract-t29": {
+   "clocks.sdc": "2f9e553c032c16fb2c78bfdf07ab60c0afbd69d22f5fb46ee3ad9f863547fbf9",
+   "contract.md": "b1369e58fafb4133c6a7b13c2ee14ded388459e6cb5f3ea7a646c3e16af6c90a",
+   "design.sv": "fb7c25b116b3ffd94717ae0d421c7ad7f3a63f6715f7003230aac628d9461461",
+   "label.json": "79e2abe3fe35e753e36f3e02ad169316307d7b3a03d2769899b94f3a2ac76e76"
+  },
+  "CDC/contract-t30": {
+   "clocks.sdc": "59abd212aa7c8701d109350252f90f12a4c4e9bbd1d16e2b2c67ff214d602160",
+   "contract.md": "ba364c08668176e6a3630d17f95076b746575ec77c2bbf4c0b8f2dccb5a84912",
+   "design.sv": "d1ccedad413d28c653a55d58131afdda43e774c9ce73450ad535ffafd279675c",
+   "label.json": "05fe98716b8accc6bca8cf8f56324813c5d31d272478e928fd7969098333acb5"
+  }
+ },
+ "schema": "sverity-accuracy-freeze/1"
+}

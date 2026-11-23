@@ -1,0 +1,155 @@
+{
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Qualified payload and event protocols",
+  "whole_ip_good_control": false,
+  "rationale": "The contract lets the source toggle twice between adjacent destination edges. With a 10 ns source period against a 14 ns destination period, two toggles cancel before sampling and events are lost, even though the XOR edge detector is sound.",
+  "caveats": [
+    "CDC-013(a) gives WARNING Established for a register-launched source period below 1.5 times the destination period. Its trigger is the clock ratio, which matches the stated rate defect here.",
+    "CDC-014 INFO and CDC-024 obligations are expected and earn no credit.",
+    "Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+  ],
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 7,
+      "signal": "src_toggle"
+    },
+    {
+      "file": "design.sv",
+      "line": 8,
+      "signal": "t1"
+    },
+    {
+      "file": "design.sv",
+      "line": 8,
+      "signal": "dst_pulse"
+    }
+  ],
+  "expected_rules": [
+    "CDC-013"
+  ],
+  "family": "CDC",
+  "top": "top_cdc_rfc1_t09",
+  "origin": "authored",
+  "batch": "cdc-5-contract-fresh",
+  "author": "cdc-contract-author (GPT-6 Luna)",
+  "author_reading": {
+    "id": "CDC-RFC1-T09",
+    "kind": "bad",
+    "class": "Qualified payload and event protocols",
+    "title": "Toggle event rate exceeds sampling",
+    "case_files": [
+      "design.sv",
+      "clocks.sdc",
+      "contract.md"
+    ],
+    "boundary_event_config": null,
+    "site_signal": "src_toggle",
+    "expected_rules": [
+      "CDC-013",
+      "CDC-024"
+    ],
+    "rationale": "Source may toggle twice between adjacent destination edges. The edge detector is structurally sound but this rate permits cancellation and lost events.",
+    "limitations": [
+      "Structural attribution is a proposal for independent adjudication, not analyzer outcome.",
+      "No SVerity scoring performed.",
+      "Physical timing and metastability requirements remain external."
+    ],
+    "top": "top_cdc_rfc1_t09",
+    "profile": "asic",
+    "sdc": "clocks.sdc"
+  },
+  "sdc": [
+    "clocks.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Qualified payload and event protocols",
+      "fit": true,
+      "whole_ip_good_control": false,
+      "rationale": "Two source toggles can occur inside one destination sampling interval and cancel; XOR detector cannot recover them.",
+      "caveats": [
+        "10 ns toggle separation can fit twice inside a 14 ns interval. CDC-013 rate warning is plausible defect-specific evidence, not proof of all event behavior."
+      ],
+      "sites": [
+        {
+          "signal": "src_toggle",
+          "file": "design.sv",
+          "line": 7
+        },
+        {
+          "signal": "t1",
+          "file": "design.sv",
+          "line": 8
+        }
+      ],
+      "expected_rules": [
+        "CDC-013"
+      ],
+      "by": "cdc-contract-reader-a (GPT-6.1 Sol)"
+    },
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Qualified payload and event protocols",
+      "fit": "toggle rate violation",
+      "whole_ip_good_control": false,
+      "rationale": "Two source toggles can occur between destination samples and cancel. At 10 ns source spacing versus 14 ns destination period, required distinct events can disappear despite a sound detector.",
+      "caveats": "CDC-024 is a generic protocol obligation and does not detect this loss. Raw rst_n release is not locally synchronized or bounded by a release contract; RDC-003 remains a whole-IP closure confounder. Output consumer timing is not specified. Physical closure is excluded.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 7,
+          "signal": "src_toggle"
+        },
+        {
+          "file": "design.sv",
+          "line": 8,
+          "signal": "dst_pulse"
+        }
+      ],
+      "expected_rules": [
+        "CDC-013"
+      ],
+      "by": "cdc-contract-reader-b (GPT-6.1 Sol)"
+    }
+  ],
+  "settlement": {
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Qualified payload and event protocols",
+    "fit": true,
+    "whole_ip_good_control": false,
+    "rationale": "The contract lets the source toggle twice between adjacent destination edges. With a 10 ns source period against a 14 ns destination period, two toggles cancel before sampling and events are lost, even though the XOR edge detector is sound.",
+    "caveats": [
+      "CDC-013(a) gives WARNING Established for a register-launched source period below 1.5 times the destination period. Its trigger is the clock ratio, which matches the stated rate defect here.",
+      "CDC-014 INFO and CDC-024 obligations are expected and earn no credit.",
+      "Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 7,
+        "signal": "src_toggle"
+      },
+      {
+        "file": "design.sv",
+        "line": 8,
+        "signal": "t1"
+      },
+      {
+        "file": "design.sv",
+        "line": 8,
+        "signal": "dst_pulse"
+      }
+    ],
+    "expected_rules": [
+      "CDC-013"
+    ],
+    "by": "cdc-contract-settler (Claude Opus 5.5)",
+    "reason": "The contract lets the source toggle twice between adjacent destination edges. With a 10 ns source period against a 14 ns destination period, two toggles cancel before sampling and events are lost, even though the XOR edge detector is sound."
+  }
+}

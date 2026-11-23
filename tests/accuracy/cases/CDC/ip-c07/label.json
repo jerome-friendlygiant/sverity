@@ -1,0 +1,157 @@
+{
+  "verdict": "unknown",
+  "workflow_class": "Qualified payload and event protocols",
+  "critical": false,
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 4,
+      "signal": "payload_s"
+    },
+    {
+      "file": "design.sv",
+      "line": 4,
+      "signal": "payload_d"
+    },
+    {
+      "file": "design.sv",
+      "line": 4,
+      "signal": "flag_s"
+    },
+    {
+      "file": "design.sv",
+      "line": 4,
+      "signal": "f1"
+    },
+    {
+      "file": "design.sv",
+      "line": 4,
+      "signal": "f2"
+    },
+    {
+      "file": "design.sv",
+      "line": 5,
+      "signal": "flag_d"
+    }
+  ],
+  "rationale": "The flag is synchronized but payload is continuously sampled. Contract explicitly withholds both source hold and destination consumption qualification. Harmful consumption and safe qualified use are both compatible with the inputs.",
+  "caveats": "Obtain hold/stability duration, consumption gating, startup masking and bundled-data physical timing. A synchronized flag name does not prove any of these. Fit as a deliberate unknown contract case.",
+  "whole_ip_good_control": false,
+  "family": "CDC",
+  "top": "c07",
+  "origin": "authored",
+  "batch": "cdc-4-ip-fresh",
+  "author": "cdc-ip-author (GPT-6 Luna)",
+  "author_reading": {
+    "proposed_outcome": "Unknown payload qualification/protocol",
+    "site_or_premise": "`payload_s -> payload_d`; `flag_s -> f1 -> f2 -> flag_d`",
+    "evidence_and_limits": "Source hold and consumer gating are explicitly unavailable. Do not call safe because the qualifier is synchronized or its name suggests a valid bit."
+  },
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "unknown",
+      "workflow_class": "Qualified payload and event protocols",
+      "critical": false,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "payload_d"
+        },
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "f2"
+        }
+      ],
+      "by": "cdc-ip-reader-a (GPT-6.1 Sol)",
+      "rationale": "The flag has two-stage synchronization but payload is sampled continuously without local qualification. Safety depends on unavailable source payload stability and destination use rules. Neither coherent qualified use nor harmful consumption can be concluded.",
+      "caveats": "Close by supplying a reviewed source hold interval spanning flag synchronization and all consumed payload samples, plus destination assertions that payload is ignored until settled and after invalidation, and startup/reset masking. If payload can change while consumed, classify bad; with sufficient stability, qualification and physical bundled-data timing evidence the site can be safe.",
+      "fit": true,
+      "whole_ip_good_control": false
+    },
+    {
+      "verdict": "unknown",
+      "workflow_class": "Qualified payload and event protocols",
+      "critical": false,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "payload_s"
+        },
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "payload_d"
+        },
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "flag_s"
+        },
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "f1"
+        },
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "f2"
+        }
+      ],
+      "by": "cdc-ip-reader-b (GPT-6.1 Sol)",
+      "rationale": "The flag has a two-stage synchronizer but payload is continuously directly sampled. Contract line 7 withholds both payload stability and destination use qualification. If payload changes while used it can tear; if it is held sufficiently early and used only after synchronized qualification it can be acceptable. The available facts distinguish neither case.",
+      "caveats": "Preserve the explicit interface gap; flag naming or adjacency does not prove qualification. Startup flag behavior, hold duration, and consumption timing must be obtained. Not a whole-IP clean control.",
+      "fit": true,
+      "whole_ip_good_control": false
+    }
+  ],
+  "settlement": {
+    "verdict": "unknown",
+    "workflow_class": "Qualified payload and event protocols",
+    "critical": false,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 4,
+        "signal": "payload_s"
+      },
+      {
+        "file": "design.sv",
+        "line": 4,
+        "signal": "payload_d"
+      },
+      {
+        "file": "design.sv",
+        "line": 4,
+        "signal": "flag_s"
+      },
+      {
+        "file": "design.sv",
+        "line": 4,
+        "signal": "f1"
+      },
+      {
+        "file": "design.sv",
+        "line": 4,
+        "signal": "f2"
+      },
+      {
+        "file": "design.sv",
+        "line": 5,
+        "signal": "flag_d"
+      }
+    ],
+    "by": "cdc-ip-settler (GPT-6.1 Sol)",
+    "rationale": "The flag is synchronized but payload is continuously sampled. Contract explicitly withholds both source hold and destination consumption qualification. Harmful consumption and safe qualified use are both compatible with the inputs.",
+    "caveats": "Obtain hold/stability duration, consumption gating, startup masking and bundled-data physical timing. A synchronized flag name does not prove any of these. Fit as a deliberate unknown contract case.",
+    "fit": true,
+    "whole_ip_good_control": false,
+    "reason": "The flag is synchronized but payload is continuously sampled. Contract explicitly withholds both source hold and destination consumption qualification. Harmful consumption and safe qualified use are both compatible with the inputs."
+  }
+}

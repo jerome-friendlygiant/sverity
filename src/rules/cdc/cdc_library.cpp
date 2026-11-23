@@ -17,6 +17,23 @@ int Shared::domainOfClockNode(NodeId clk) const {
 }
 
 void Shared::libraryCells() {
+    auto containedReadBit = [&](const Flop& capture, uint32_t index, const std::set<NodeId>& readBits) -> NodeId {
+        if (capture.blocking) return kNoNode;
+        NodeId source = kNoNode;
+        for (auto ei : m->in[capture.q]) {
+            const Edge& edge = m->edges[ei];
+            if (edge.type != EdgeType::Seq || (edge.ctrl && trustedSyncReset(capture, edge.from))) continue;
+            if (!edge.exact || edge.ctrl || edge.approximate || edge.shared) return kNoNode;
+            const NodeId root = aliasRoot(edge.from);
+            if (!readBits.contains(root) || (source != kNoNode && source != root)) return kNoNode;
+            source = root;
+        }
+        if (source == kNoNode) return kNoNode;
+        const Chain chain = chainFor(index);
+        return chain.depth >= minStages_ && !chain.callEffectsUnknown && !chain.linkLogic &&
+            !chain.extraFanout && !chain.midFanout && !chain.leaksDomain && !chain.feedbackWithFanout &&
+            !chain.dualEdgeStage && !chain.clockMismatch && !chain.resetMismatch ? source : kNoNode;
+    };
     auto sevOf = [](Relation rel) {
         return rel == Relation::Async ? Severity::Error : rel == Relation::Exclusive ? Severity::Info : Severity::Warning;
     };
@@ -26,10 +43,48 @@ void Shared::libraryCells() {
         return -1;
     };
     // one crossing finding: data launched in `src`, captured or consumed in `dst`
-    auto crossing = [&](const char* rule, int64_t src, int64_t dst, const std::string& what, const SourceLocation& loc, const std::string& hier) {
+    auto crossing = [&](const char* rule, int64_t src, int64_t dst, const std::string& what, const SourceLocation& loc,
+                        const std::string& hier, const Flop* capture = nullptr,
+                        Qualification writeEnableQualification = Qualification::Disproven,
+                        const std::set<NodeId>& readBits = {}) {
         if (src == dst) return;
         Relation rel = relation(static_cast<uint32_t>(src), static_cast<uint32_t>(dst));
         if (rel == Relation::Same) return;
+        if (capture && rel == Relation::Async) {
+            auto qualification = ctrlFromSynced(*capture, static_cast<uint32_t>(src), {}, readBits);
+            if (qualification.state != Qualification::Disproven) {
+                const bool proven = qualification.state == Qualification::ProvenNecessary;
+                Diagnostic d = mk(rule, Severity::Warning,
+                    what + (proven
+                        ? ": capture is guarded by a synchronised qualifier; payload stability and RAM protocol remain unproved"
+                        : ": capture qualification is unresolved"),
+                    loc, hier, proven ? Confidence::Heuristic : Confidence::Unresolved);
+                d.proofState = ProofState::NotAttempted;
+                d.nextStep = "Review payload stability and the RAM access protocol.";
+                if (!proven) incomplete("payload-qualification", what + ": " + qualification.reason);
+                add(std::move(d));
+                return;
+            }
+        }
+        if (writeEnableQualification != Qualification::Disproven && rel == Relation::Async) {
+            if (writeEnableQualification == Qualification::Undecided) {
+                Diagnostic d = mk(rule, Severity::Warning,
+                    what + ": write-enable synchronization is ambiguous; payload qualification remains unresolved",
+                    loc, hier, Confidence::Unresolved);
+                d.proofState = ProofState::NotAttempted;
+                d.nextStep = "Review the RAM write-enable connection and its complete synchronizer chain.";
+                incomplete("payload-qualification", what + ": write-enable synchronizer evidence is ambiguous");
+                add(std::move(d));
+                return;
+            }
+            Diagnostic d = mk(rule, Severity::Warning,
+                what + ": write data is covered by a recognised synchronised write enable; payload stability and RAM protocol remain unproved",
+                loc, hier, Confidence::Heuristic);
+            d.proofState = ProofState::NotAttempted;
+            d.nextStep = "Review payload stability and the RAM access protocol; a synchronised write enable does not prove either.";
+            add(std::move(d));
+            return;
+        }
         Diagnostic d = mk(rule, sevOf(rel), what + " [" + relName(rel) + "]: the crossing is unsynchronised", loc, hier,
                           rel == Relation::Unknown ? Confidence::Unresolved : Confidence::Established);
         d.evidence.push_back({"source_domain", m->domains[src].name, {}});
@@ -73,6 +128,36 @@ void Shared::libraryCells() {
                 add(std::move(d));
             }
         }
+        std::vector<const BlackBoxPort*> writeEnables;
+        for (const auto& port : ram.ports) {
+            if (port.role != PortRole::WriteEnable) continue;
+            writeEnables.push_back(&port);
+        }
+        auto writeEnableQualifies = [&](uint32_t src, int64_t ref) -> Qualification {
+            if (writeEnables.empty()) return Qualification::Disproven;
+            if (ref != ram.writeDomain) return Qualification::Disproven;
+            if (rel_->hasMultipleClocks(src) || rel_->hasMultipleClocks(ref)) return Qualification::Undecided;
+            bool ambiguousShape = writeEnables.size() != 1;
+            bool hasMatchingSync = false;
+            for (const auto* enable : writeEnables) {
+                if (enable->dir != PortDir::In || enable->nodes.empty()) return Qualification::Disproven;
+                ambiguousShape |= !enable->simpleScalarConnection;
+                if (!enable->clock.empty() && portDomain(ram.ports, enable->clock) != ref) return Qualification::Disproven;
+                for (NodeId node : enable->nodes) {
+                    const NodeId root = aliasRoot(node);
+                    const SyncOut* sync = nullptr;
+                    if (const auto found = syncedOut_.find(root); found != syncedOut_.end()) sync = &found->second;
+                    else if (const auto tap = earlyQualifierTap_.find(root); tap != earlyQualifierTap_.end()) sync = &tap->second;
+                    if (!sync && enable->conjunctiveConnection && writeEnables.size() == 1) continue;
+                    if (!sync || sync->srcDomain != src || sync->dstDomain != ref) return Qualification::Disproven;
+                    hasMatchingSync = true;
+                    ambiguousShape |= !sync->sourceClock.empty() || sync->sourceIncomplete ||
+                        sync->stageMismatch || sync->dualEdgeStage || !sync->full;
+                }
+            }
+            if (!hasMatchingSync) return Qualification::Disproven;
+            return ambiguousShape ? Qualification::Undecided : Qualification::ProvenNecessary;
+        };
         for (auto& p : ram.ports) {
             if (p.nodes.empty() || p.role == PortRole::Clock) continue;
             std::string who = "library RAM '" + ram.module + "' at " + ram.hierarchy + " port " + p.name;
@@ -92,7 +177,8 @@ void Shared::libraryCells() {
                     const Flop& sf = m->flops[m->flopOfQ.at(s.q)];
                     if (!sf.clockResolved) { unresolvedCrossing("CDC-035", who + " is fed by a register with an unidentified clock", ram.loc, ram.hierarchy, "clock-extraction"); continue; }
                     crossing("CDC-035", sf.domain, ref, who + " is fed by " + m->nameOf(s.q) + " launched in clock domain " + m->domains[sf.domain].name +
-                                                            " but is synchronous to " + m->domains[ref].name, ram.loc, ram.hierarchy);
+                                                            " but is synchronous to " + m->domains[ref].name, ram.loc, ram.hierarchy,
+                             nullptr, p.role == PortRole::DataIn ? writeEnableQualifies(sf.domain, ref) : Qualification::Disproven);
                 }
                 if (!c.inputs.empty())
                     unresolvedCrossing("CDC-035", who + " is fed by primary input " + m->nameOf(c.inputs[0].q) + " with no declared relation to " + m->domains[ref].name, ram.loc, ram.hierarchy, "constraints");
@@ -109,14 +195,35 @@ void Shared::libraryCells() {
                         if (e.type == EdgeType::Comb && seen.insert(e.to).second) st.push_back(e.to);
                     }
                 }
+                std::set<NodeId> readBits(p.nodes.begin(), p.nodes.end());
+                std::map<uint32_t, std::set<NodeId>> independentlyCapturedBits;
                 for (auto q : dests) {
                     const Flop& df = *m->flopAt(q);
                     if (ref < 0 || !df.clockResolved) {
                         unresolvedCrossing("CDC-035", who + " read data is captured by " + m->nameOf(q) + " whose clock or the RAM read clock is unresolved", ram.loc, ram.hierarchy, "clock-extraction");
                         continue;
                     }
+                    const Relation readRelation = relation(static_cast<uint32_t>(ref), df.domain);
+                    if (readRelation == Relation::Unknown)
+                        incomplete("clock-relationships", who + " read clock has an unknown relationship to a receiving register clock");
+                    if (readRelation == Relation::Async) {
+                        const NodeId bit = containedReadBit(df, m->flopOfQ.at(q), readBits);
+                        if (bit != kNoNode) {
+                            if (readBits.size() > 1) independentlyCapturedBits[df.domain].insert(bit);
+                            continue;
+                        }
+                    }
                     crossing("CDC-035", ref, df.domain, who + " read data (domain " + m->domains[ref].name + ") is captured by " + m->nameOf(q) + " in clock domain " + m->domains[df.domain].name,
-                             ram.loc, ram.hierarchy);
+                             ram.loc, ram.hierarchy, &df, Qualification::Disproven, readBits);
+                }
+                for (const auto& [domain, bits] : independentlyCapturedBits) {
+                    if (bits.size() < 2) continue;
+                    Diagnostic d = mk("CDC-035", Severity::Warning,
+                        who + " is captured through independent per-bit synchronizer chains in " + m->domains[domain].name + "; bus coherence is not established",
+                        ram.loc, ram.hierarchy, Confidence::Heuristic);
+                    d.proofState = ProofState::NotAttempted;
+                    d.nextStep = "Review whether the read bus requires an atomic handshake or another coherent transfer protocol.";
+                    add(std::move(d));
                 }
             }
         }
@@ -209,6 +316,10 @@ void Shared::libraryCells() {
 
     // ---- library clock gates
     for (auto& g : m->clockGates) {
+        auto gateSite = [&](Diagnostic& d) {
+            d.evidence.push_back({"site_signal", g.hierarchy, g.loc});
+            for (auto out : g.out) d.evidence.push_back({"site_signal", m->nameOf(out), g.loc});
+        };
         int gd = g.clk.empty() ? -1 : domainOfClockNode(g.clk[0]);
         evaluated["CDC-020"]++;
         evaluated["CDC-045"]++;
@@ -217,6 +328,7 @@ void Shared::libraryCells() {
                               "library clock gate '" + g.module + "' at " + g.hierarchy + " does not latch its enable inside the cell (library declaration): a late or changing enable can truncate or glitch the clock pulse",
                               g.loc, g.hierarchy, Confidence::Established);
             d.nextStep = "Use a latch-based integrated clock gate or declare enable_latched in the library when the cell really contains the latch.";
+            gateSite(d);
             add(std::move(d));
         }
         else {
@@ -224,11 +336,13 @@ void Shared::libraryCells() {
                               g.loc, g.hierarchy, Confidence::Heuristic);
             d.proofState = ProofState::NotAttempted;
             d.evidence.push_back({"trust_model", "the library declaration is trusted: the cell's latch phase and timing are not verified", {}});
+            gateSite(d);
             add(std::move(d));
         }
         if (gd < 0) {
             Diagnostic d = mk("CDC-020", Severity::Warning, "library clock gate '" + g.module + "' at " + g.hierarchy + ": its clock does not resolve to a clock root, so the enable crossing is unresolved",
                               g.loc, g.hierarchy, Confidence::Unresolved);
+            gateSite(d);
             add(std::move(d));
             incomplete("clock-extraction", "library clock gate " + g.hierarchy + " clock unresolved");
             continue;
@@ -237,11 +351,13 @@ void Shared::libraryCells() {
         for (auto& s : c.flops) {
             const Flop& sf = m->flops[m->flopOfQ.at(s.q)];
             if (!sf.clockResolved) {
-                add(mk("CDC-020", Severity::Warning, "enable of library clock gate '" + g.module + "' at " + g.hierarchy + " comes from a register with an unidentified clock",
-                       g.loc, g.hierarchy, Confidence::Unresolved));
+                auto d = mk("CDC-020", Severity::Warning, "enable of library clock gate '" + g.module + "' at " + g.hierarchy + " comes from a register with an unidentified clock",
+                            g.loc, g.hierarchy, Confidence::Unresolved);
+                gateSite(d);
+                d.evidence.push_back({"site_signal", m->nameOf(s.q), procOf(sf).loc});
+                add(std::move(d));
                 continue;
             }
-            if (sf.domain == static_cast<uint32_t>(gd)) continue;
             Relation rel = relation(sf.domain, static_cast<uint32_t>(gd));
             if (rel == Relation::Same) continue;
             Diagnostic d = mk("CDC-020", sevOf(rel),
@@ -249,11 +365,17 @@ void Shared::libraryCells() {
                                   " but the gate is clocked by " + m->domains[gd].name + " [" + relName(rel) + "]: the gate can glitch the clock",
                               procOf(sf).loc, procOf(sf).instancePath, rel == Relation::Unknown ? Confidence::Unresolved : Confidence::Established);
             d.nextStep = "Synchronise the enable to the gate's clock domain.";
+            gateSite(d);
+            d.evidence.push_back({"site_signal", m->nameOf(s.q), procOf(sf).loc});
             add(std::move(d));
         }
-        for (auto& in : c.inputs)
-            add(mk("CDC-020", Severity::Warning, "enable " + m->nameOf(in.q) + " of library clock gate '" + g.module + "' at " + g.hierarchy + " is a primary input with no declared relation to the clock",
-                   g.loc, g.hierarchy, Confidence::Unresolved));
+        for (auto& in : c.inputs) {
+            auto d = mk("CDC-020", Severity::Warning, "enable " + m->nameOf(in.q) + " of library clock gate '" + g.module + "' at " + g.hierarchy + " is a primary input with no declared relation to the clock",
+                        g.loc, g.hierarchy, Confidence::Unresolved);
+            gateSite(d);
+            d.evidence.push_back({"site_signal", m->nameOf(in.q), g.loc});
+            add(std::move(d));
+        }
     }
 }
 

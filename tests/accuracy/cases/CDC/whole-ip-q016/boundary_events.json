@@ -1,0 +1,9 @@
+[
+  {
+    "port": "event_i",
+    "launch_clock": "event_src",
+    "protocol": "event",
+    "minimum_assertion_duration": "2 ns",
+    "delivery": "required"
+  }
+]

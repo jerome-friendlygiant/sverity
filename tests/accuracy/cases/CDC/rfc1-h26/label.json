@@ -1,0 +1,54 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": true,
+  "verdict": "good",
+  "critical": false,
+  "workflow_class": "Multi-bit transfer and reconvergence",
+  "sites": [],
+  "rationale": "shadow_a_q and shadow_b_q are one-stage followers of the same u_sync output; comb_q's cone holds a single synchronizer influence (duplicate copies of one launch bit), so CDC-010 does not trigger; CDC-047 is exempt (one chain whose last stage fans out). CDC-013 is INFO (20 ns vs 8 ns).",
+  "author_reading": {
+    "id": "rfc1-h26",
+    "intended_verdict": "good",
+    "critical": false,
+    "workflow_class": "Multi-bit transfer and reconvergence",
+    "expected_rules": [],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 35,
+        "signal": "shadow_a_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 36,
+        "signal": "shadow_b_q"
+      }
+    ],
+    "rationale": "Clean depth-2 synchronizer of an uncomputed 20 ns -> 8 ns bit; the stage-2 output fans out afterwards to two destination flops and a downstream OR of those copies, a single-source echo."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Multi-bit transfer and reconvergence",
+      "sites": [],
+      "rationale": "The shadows derive from the same completed synchronizer output and update together. Their OR combines copies of one synchronized influence, with no second independent chain."
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Multi-bit transfer and reconvergence",
+      "sites": [],
+      "rationale": "Single-bit source src_ctrl_q (src_clk, 20.0 ns) is synchronized once into dst_clk (8.0 ns) through 2-stage synchronizer u_sync (output sync_s). The true and inverted follower registers shadow_a_q and shadow_b_q both derive from the same synchronized output sync_s rather than multiple independent crossings, so neither CDC-047 nor CDC-010 triggers."
+    }
+  ]
+}

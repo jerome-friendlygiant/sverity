@@ -1,0 +1,136 @@
+{
+  "verdict": "unknown",
+  "critical": true,
+  "workflow_class": "Clock and reset interaction",
+  "whole_ip_good_control": false,
+  "rationale": "The combinational mux clk_out = mode_a ? clk_a : clk_b is glitch-free only under the prose contract: mode_a changes only while both clocks are stopped. No machine-readable mode declaration exists, so the SDC exclusive group alone cannot express the static-select premise, and the select is a primary input. Under the CDC workflow, an unapplied mode declaration must be disclosed. Silence would accept an unrecognised clock mux with an asynchronous select.",
+  "caveats": [
+    "Reader B called this a whole-IP good case and Reader A called it good with fit=false. I keep it unknown. The hardware is safe only under an externally enforced prose condition, and the scoring incentive must reward disclosure, not silence.",
+    "Coverage risk: CDC-019(b) needs a top-level output 'named as a clock', and clk_out appears in no create_clock. If that wording means an SDC-declared clock, CDC-019 and CDC-031 (which needs the CDC-019 shape) may both stay silent. That would be a silent unknown, so report it as such and do not relabel.",
+    "rst_n, src_clk and dst_clk are unused. Critical because a dynamic switch would glitch the clock."
+  ],
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 7,
+      "signal": "clk_out"
+    },
+    {
+      "file": "design.sv",
+      "line": 7,
+      "signal": "mode_a"
+    }
+  ],
+  "expected_rules": [
+    "CDC-019",
+    "CDC-031"
+  ],
+  "family": "CDC",
+  "top": "top_cdc_rfc1_t25",
+  "origin": "authored",
+  "batch": "cdc-5-contract-fresh",
+  "author": "cdc-contract-author (GPT-6 Luna)",
+  "author_reading": {
+    "id": "CDC-RFC1-T25",
+    "kind": "unknown",
+    "class": "Clock and reset interaction",
+    "title": "Clock mux mode stability is prose-only",
+    "case_files": [
+      "design.sv",
+      "clocks.sdc",
+      "contract.md"
+    ],
+    "boundary_event_config": null,
+    "site_signal": "mode_a",
+    "expected_rules": [
+      "CDC-019",
+      "CDC-031"
+    ],
+    "rationale": "The prose says mode_a changes only while both clocks are stopped and remains fixed during operation, but the input is unconstrained in RTL and SDC only declares the source clocks exclusive. The integration mode condition is not machine-applied, so glitch-free switching and selector synchronization cannot be decided from this batch input.",
+    "limitations": [
+      "Structural attribution is a proposal for independent adjudication, not analyzer outcome.",
+      "No SVerity scoring performed.",
+      "Physical timing and metastability requirements remain external."
+    ],
+    "top": "top_cdc_rfc1_t25",
+    "profile": "asic",
+    "sdc": "clocks.sdc"
+  },
+  "sdc": [
+    "clocks.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Clock and reset interaction",
+      "fit": false,
+      "whole_ip_good_control": false,
+      "rationale": "Immutable select while clocks run and switching only with both sources stopped prevents mux switching glitches under the supplied static-mode contract.",
+      "caveats": [
+        "SDC exclusivity is trusted. No internal sequential clock consumer exercises mux extraction; static select is prose rather than machine-readable mode declaration. Unused src_clk/dst_clk/rst_n are not active missing roots."
+      ],
+      "sites": [
+        {
+          "signal": "mode_a",
+          "file": "design.sv",
+          "line": 7
+        },
+        {
+          "signal": "clk_out",
+          "file": "design.sv",
+          "line": 7
+        }
+      ],
+      "by": "cdc-contract-reader-a (GPT-6.1 Sol)"
+    },
+    {
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Clock and reset interaction",
+      "fit": "static clock-mode contract control",
+      "whole_ip_good_control": true,
+      "rationale": "Mode changes only while both source clocks are stopped and remains immutable during operation. Under that explicit contract the mux has no dynamic switching hazard; exclusive clocks agree with static intent.",
+      "caveats": "CDC-019/031 may still disclose unrecognized mux structure; these are review obligations, not a demonstrated defect under this contract. Clock stop/start and output use must enforce the written mode contract. rst_n and src_clk/dst_clk are unused. Physical clock-tree closure remains external.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 7,
+          "signal": "clk_out"
+        }
+      ],
+      "by": "cdc-contract-reader-b (GPT-6.1 Sol)"
+    }
+  ],
+  "settlement": {
+    "verdict": "unknown",
+    "critical": true,
+    "workflow_class": "Clock and reset interaction",
+    "fit": true,
+    "whole_ip_good_control": false,
+    "rationale": "The combinational mux clk_out = mode_a ? clk_a : clk_b is glitch-free only under the prose contract: mode_a changes only while both clocks are stopped. No machine-readable mode declaration exists, so the SDC exclusive group alone cannot express the static-select premise, and the select is a primary input. Under the CDC workflow, an unapplied mode declaration must be disclosed. Silence would accept an unrecognised clock mux with an asynchronous select.",
+    "caveats": [
+      "Reader B called this a whole-IP good case and Reader A called it good with fit=false. I keep it unknown. The hardware is safe only under an externally enforced prose condition, and the scoring incentive must reward disclosure, not silence.",
+      "Coverage risk: CDC-019(b) needs a top-level output 'named as a clock', and clk_out appears in no create_clock. If that wording means an SDC-declared clock, CDC-019 and CDC-031 (which needs the CDC-019 shape) may both stay silent. That would be a silent unknown, so report it as such and do not relabel.",
+      "rst_n, src_clk and dst_clk are unused. Critical because a dynamic switch would glitch the clock."
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 7,
+        "signal": "clk_out"
+      },
+      {
+        "file": "design.sv",
+        "line": 7,
+        "signal": "mode_a"
+      }
+    ],
+    "expected_rules": [
+      "CDC-019",
+      "CDC-031"
+    ],
+    "by": "cdc-contract-settler (Claude Opus 5.5)",
+    "reason": "The combinational mux clk_out = mode_a ? clk_a : clk_b is glitch-free only under the prose contract: mode_a changes only while both clocks are stopped. No machine-readable mode declaration exists, so the SDC exclusive group alone cannot express the static-select premise, and the select is a primary input. Under the CDC workflow, an unapplied mode declaration must be disclosed. Silence would accept an unrecognised clock mux with an asynchronous select."
+  }
+}

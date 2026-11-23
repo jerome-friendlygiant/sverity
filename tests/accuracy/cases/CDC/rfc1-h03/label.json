@@ -1,0 +1,125 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Synchronizer structure",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 15,
+      "signal": "cap_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 15,
+      "signal": "u_rx.cap_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 27,
+      "signal": "ready_o"
+    }
+  ],
+  "expected_rules": [
+    "CDC-003"
+  ],
+  "rationale": "status_q (clk_a, u_tx) is captured by a single clk_b flop u_rx.cap_q that drives ready_o directly; clocks are declared asynchronous: CDC-003 ERROR Established. Sites merge leaf, qualified and port-alias names.",
+  "author_reading": {
+    "id": "rfc1-h03",
+    "intended_verdict": "bad",
+    "critical": true,
+    "workflow_class": "Synchronizer structure",
+    "expected_rules": [
+      "CDC-003"
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 15,
+        "signal": "cap_q"
+      }
+    ],
+    "rationale": "Async single-bit status crosses a module boundary into one capture flop that drives the output directly: no two-stage synchronizer."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Synchronizer structure",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 15,
+          "signal": "cap_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 27,
+          "signal": "ready_o"
+        }
+      ],
+      "rationale": "status_q launches on clk_a and reaches cap_q on asynchronous clk_b through the instance ports. There is only one capture flop before ready_o.",
+      "expected_rules": [
+        "CDC-003"
+      ]
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Synchronizer structure",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 15,
+          "signal": "u_rx.cap_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 15,
+          "signal": "cap_q"
+        }
+      ],
+      "rationale": "u_tx.status_q launched on posedge clk_a (design.sv:7) crosses directly to u_rx.cap_q captured on posedge clk_b (design.sv:15), which immediately drives top-level output ready_o (depth 1, no synchronizer chain of depth >= 2) between clocks declared asynchronous in intent.sdc:4 (CDC-003 ERROR Established).",
+      "expected_rules": [
+        "CDC-003"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "cdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Synchronizer structure",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 15,
+        "signal": "cap_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 15,
+        "signal": "u_rx.cap_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 27,
+        "signal": "ready_o"
+      }
+    ],
+    "expected_rules": [
+      "CDC-003"
+    ],
+    "rationale": "status_q (clk_a, u_tx) is captured by a single clk_b flop u_rx.cap_q that drives ready_o directly; clocks are declared asynchronous: CDC-003 ERROR Established. Sites merge leaf, qualified and port-alias names."
+  }
+}

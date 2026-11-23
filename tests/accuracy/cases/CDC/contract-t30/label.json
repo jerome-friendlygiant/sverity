@@ -1,0 +1,179 @@
+{
+  "verdict": "unknown",
+  "critical": true,
+  "workflow_class": "IP and external boundaries",
+  "whole_ip_good_control": false,
+  "rationale": "alarm is driven by the black_box-attributed status_macro, which has no timing, launch-domain, reset or event-retention model. A two-stage synchroniser in dst_clk contains metastability only if alarm is a glitch-free registered level that lasts long enough. Neither condition can be established.",
+  "caveats": [
+    "CDC-023 should report capturing register a1 and CST-005 should report the u_status/status_macro inventory, both WARNING Unresolved. CDC-046(b) needs a multi-domain cone into the box. Only macro_clk and the unconstrained mode enter it, so CDC-046 is not expected and not credited.",
+    "mode has no input delay. alarm also feeds through to an output with no output delay. The macro is not reset by the IP.",
+    "Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+  ],
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 7,
+      "signal": "u_status"
+    },
+    {
+      "file": "design.sv",
+      "line": 11,
+      "signal": "status_macro"
+    },
+    {
+      "file": "design.sv",
+      "line": 7,
+      "signal": "alarm"
+    },
+    {
+      "file": "design.sv",
+      "line": 8,
+      "signal": "a1"
+    }
+  ],
+  "expected_rules": [
+    "CDC-023",
+    "CST-005"
+  ],
+  "family": "CDC",
+  "top": "top_cdc_rfc1_t30",
+  "origin": "authored",
+  "batch": "cdc-5-contract-fresh",
+  "author": "cdc-contract-author (GPT-6 Luna)",
+  "author_reading": {
+    "id": "CDC-RFC1-T30",
+    "kind": "unknown",
+    "class": "IP and external boundaries",
+    "title": "Opaque macro drives status used by destination",
+    "case_files": [
+      "design.sv",
+      "clocks.sdc",
+      "contract.md"
+    ],
+    "boundary_event_config": null,
+    "site_signal": "dst_alarm",
+    "expected_rules": [
+      "CST-005",
+      "CDC-023"
+    ],
+    "rationale": "Macro timing, source clock, reset behavior and alarm protocol are unavailable. No declaration of launch domain or event retention can be inferred.",
+    "limitations": [
+      "Structural attribution is a proposal for independent adjudication, not analyzer outcome.",
+      "No SVerity scoring performed.",
+      "Physical timing and metastability requirements remain external."
+    ],
+    "top": "top_cdc_rfc1_t30",
+    "profile": "asic",
+    "sdc": "clocks.sdc"
+  },
+  "sdc": [
+    "clocks.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "IP and external boundaries",
+      "fit": true,
+      "whole_ip_good_control": false,
+      "rationale": "Opaque macro output has unknown timing, event retention and reset behavior; downstream two-stage chain cannot establish macro protocol safety.",
+      "caveats": [
+        "mode has no boundary launch contract; macro_clk binding alone does not model alarm timing. CDC-046 applies to unresolved black-box boundary; CDC-023 to receiving macro output."
+      ],
+      "sites": [
+        {
+          "signal": "u_status",
+          "file": "design.sv",
+          "line": 7
+        },
+        {
+          "signal": "alarm",
+          "file": "design.sv",
+          "line": 7
+        },
+        {
+          "signal": "a1",
+          "file": "design.sv",
+          "line": 8
+        }
+      ],
+      "expected_rules": [
+        "CDC-023",
+        "CDC-046"
+      ],
+      "by": "cdc-contract-reader-a (GPT-6.1 Sol)"
+    },
+    {
+      "verdict": "unknown",
+      "critical": true,
+      "workflow_class": "IP and external boundaries",
+      "fit": "opaque macro boundary disclosure",
+      "whole_ip_good_control": false,
+      "rationale": "Macro alarm timing, event retention and reset behavior are unavailable. Two receiving stages do not supply the missing macro launch and delivery contract.",
+      "caveats": "No library timing/protocol model is supplied. mode is also unbound, but this is not independent evidence that alarm crossing is defective. Do not infer behavior from an empty black-box body. Raw rst_n release is not locally synchronized or bounded by a release contract; RDC-003 remains a whole-IP closure confounder. Output consumer timing is not specified. Physical closure is excluded.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 7,
+          "signal": "u_status"
+        },
+        {
+          "file": "design.sv",
+          "line": 8,
+          "signal": "a1"
+        },
+        {
+          "file": "design.sv",
+          "line": 8,
+          "signal": "dst_alarm"
+        }
+      ],
+      "expected_rules": [
+        "CDC-023",
+        "CST-005"
+      ],
+      "by": "cdc-contract-reader-b (GPT-6.1 Sol)"
+    }
+  ],
+  "settlement": {
+    "verdict": "unknown",
+    "critical": true,
+    "workflow_class": "IP and external boundaries",
+    "fit": true,
+    "whole_ip_good_control": false,
+    "rationale": "alarm is driven by the black_box-attributed status_macro, which has no timing, launch-domain, reset or event-retention model. A two-stage synchroniser in dst_clk contains metastability only if alarm is a glitch-free registered level that lasts long enough. Neither condition can be established.",
+    "caveats": [
+      "CDC-023 should report capturing register a1 and CST-005 should report the u_status/status_macro inventory, both WARNING Unresolved. CDC-046(b) needs a multi-domain cone into the box. Only macro_clk and the unconstrained mode enter it, so CDC-046 is not expected and not credited.",
+      "mode has no input delay. alarm also feeds through to an output with no output delay. The macro is not reset by the IP.",
+      "Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 7,
+        "signal": "u_status"
+      },
+      {
+        "file": "design.sv",
+        "line": 11,
+        "signal": "status_macro"
+      },
+      {
+        "file": "design.sv",
+        "line": 7,
+        "signal": "alarm"
+      },
+      {
+        "file": "design.sv",
+        "line": 8,
+        "signal": "a1"
+      }
+    ],
+    "expected_rules": [
+      "CDC-023",
+      "CST-005"
+    ],
+    "by": "cdc-contract-settler (Claude Opus 5.5)",
+    "reason": "alarm is driven by the black_box-attributed status_macro, which has no timing, launch-domain, reset or event-retention model. A two-stage synchroniser in dst_clk contains metastability only if alarm is a glitch-free registered level that lasts long enough. Neither condition can be established."
+  }
+}

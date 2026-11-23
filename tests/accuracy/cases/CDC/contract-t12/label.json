@@ -1,0 +1,145 @@
+{
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Gray pointer FIFO and cross-clock memory",
+  "whole_ip_good_control": false,
+  "rationale": "Bit 0 of the registered Gray pointer is captured raw into wr_seen_rd[0] in one stage, while bits 2:1 pass through g1, giving two stages. A partly synchronised Gray pointer leaves bit 0 uncontained and can be incoherent with the upper bits.",
+  "caveats": [
+    "CDC-017 (Gray pointer not fully synchronised), CDC-032(a) (mixed chain depths) and CDC-004 (a partly synchronised Gray pointer) all describe this defect. g1[0] is captured but unused.",
+    "Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+  ],
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 7,
+      "signal": "rd_gray[0]"
+    },
+    {
+      "file": "design.sv",
+      "line": 7,
+      "signal": "wr_seen_rd[0]"
+    }
+  ],
+  "expected_rules": [
+    "CDC-004",
+    "CDC-017",
+    "CDC-032"
+  ],
+  "family": "CDC",
+  "top": "top_cdc_rfc1_t12",
+  "origin": "authored",
+  "batch": "cdc-5-contract-fresh",
+  "author": "cdc-contract-author (GPT-6 Luna)",
+  "author_reading": {
+    "id": "CDC-RFC1-T12",
+    "kind": "bad",
+    "class": "Gray pointer FIFO and cross-clock memory",
+    "title": "Gray pointer has an unsynchronized bypass bit",
+    "case_files": [
+      "design.sv",
+      "clocks.sdc",
+      "contract.md"
+    ],
+    "boundary_event_config": null,
+    "site_signal": "wr_seen_rd[0]",
+    "expected_rules": [
+      "CDC-017",
+      "CDC-004"
+    ],
+    "rationale": "The low pointer bit bypasses both destination synchronizer stages while the upper bits use them. The destination observes a partially synchronized pointer and can make an incoherent FIFO decision.",
+    "limitations": [
+      "Structural attribution is a proposal for independent adjudication, not analyzer outcome.",
+      "No SVerity scoring performed.",
+      "Physical timing and metastability requirements remain external."
+    ],
+    "top": "top_cdc_rfc1_t12",
+    "profile": "asic",
+    "sdc": "clocks.sdc"
+  },
+  "sdc": [
+    "clocks.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Gray pointer FIFO and cross-clock memory",
+      "fit": true,
+      "whole_ip_good_control": false,
+      "rationale": "Pointer bit zero bypasses the first-stage bank and is consumed with only one destination stage.",
+      "caveats": [
+        "Upper bits have two stages; Gray encoding does not contain metastability on bit zero."
+      ],
+      "sites": [
+        {
+          "signal": "rd_gray[0]",
+          "file": "design.sv",
+          "line": 7
+        },
+        {
+          "signal": "wr_seen_rd[0]",
+          "file": "design.sv",
+          "line": 7
+        }
+      ],
+      "expected_rules": [
+        "CDC-017",
+        "CDC-032"
+      ],
+      "by": "cdc-contract-reader-a (GPT-6.1 Sol)"
+    },
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Gray pointer FIFO and cross-clock memory",
+      "fit": "partial Gray pointer synchronization",
+      "whole_ip_good_control": false,
+      "rationale": "Bit zero bypasses g1 and is captured raw while upper bits have two stages; Gray encoding does not protect an unsynchronized destination bit.",
+      "caveats": "Missing Gray delay/skew evidence is separate from this bypass. Raw rst_n release is not locally synchronized or bounded by a release contract; RDC-003 remains a whole-IP closure confounder. Output consumer timing is not specified. Physical closure is excluded.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 7,
+          "signal": "wr_seen_rd[0]"
+        }
+      ],
+      "expected_rules": [
+        "CDC-004",
+        "CDC-017",
+        "CDC-032"
+      ],
+      "by": "cdc-contract-reader-b (GPT-6.1 Sol)"
+    }
+  ],
+  "settlement": {
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Gray pointer FIFO and cross-clock memory",
+    "fit": true,
+    "whole_ip_good_control": false,
+    "rationale": "Bit 0 of the registered Gray pointer is captured raw into wr_seen_rd[0] in one stage, while bits 2:1 pass through g1, giving two stages. A partly synchronised Gray pointer leaves bit 0 uncontained and can be incoherent with the upper bits.",
+    "caveats": [
+      "CDC-017 (Gray pointer not fully synchronised), CDC-032(a) (mixed chain depths) and CDC-004 (a partly synchronised Gray pointer) all describe this defect. g1[0] is captured but unused.",
+      "Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 7,
+        "signal": "rd_gray[0]"
+      },
+      {
+        "file": "design.sv",
+        "line": 7,
+        "signal": "wr_seen_rd[0]"
+      }
+    ],
+    "expected_rules": [
+      "CDC-004",
+      "CDC-017",
+      "CDC-032"
+    ],
+    "by": "cdc-contract-settler (Claude Opus 5.5)",
+    "reason": "Bit 0 of the registered Gray pointer is captured raw into wr_seen_rd[0] in one stage, while bits 2:1 pass through g1, giving two stages. A partly synchronised Gray pointer leaves bit 0 uncontained and can be incoherent with the upper bits."
+  }
+}

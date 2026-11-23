@@ -1,0 +1,47 @@
+{
+  "verdict": "good",
+  "workflow_class": "IP and external boundaries",
+  "critical": false,
+  "sites": [],
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-3-protocol-fresh",
+  "author": "cdc-protocol-author (GPT-6 Luna)",
+  "author_reading": {
+    "workflow_class": "Multi-bit transfer and reconvergence",
+    "verdict": "good",
+    "label_scope": "Good, whole-IP control",
+    "rationale": "Same-clock register and output path. No cross-domain functional intent is needed for this control. clk_b is declared but unused."
+  },
+  "rationale": "SDC assigns d and out to clk_a; q captures on clk_a. clk_b is unused. Thus the entire visible data path is same-domain, with no data CDC or unknown external data clock. This is a valid structural data-CDC whole-IP noise control within the supplied configuration, not evidence of reset or ordinary timing closure. Physical synchronizer implementation and asynchronous reset release/recovery remain external obligations; neither SDC nor sampled digital simulation closes them.",
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "good",
+      "workflow_class": "IP and external boundaries",
+      "critical": false,
+      "sites": [],
+      "by": "cdc-protocol-reader-a (GPT-6.1 Sol)",
+      "rationale": "Input d, q and the output contract are all clk_a. The declared asynchronous clk_b is unused, so there is no data CDC in the shown design. Asynchronous reset release remains an orthogonal integration obligation."
+    },
+    {
+      "verdict": "good",
+      "workflow_class": "IP and external boundaries",
+      "critical": false,
+      "sites": [],
+      "by": "cdc-protocol-reader-b (GPT-6.1 Sol)",
+      "rationale": "Input d, register q and output out all belong to clk_a under the supplied SDC. The unused clk_b creates no data crossing. This is a structural same-domain result; ordinary timing closure and asynchronous reset release are orthogonal obligations."
+    }
+  ],
+  "settlement": {
+    "verdict": "good",
+    "workflow_class": "IP and external boundaries",
+    "critical": false,
+    "sites": [],
+    "by": "cdc-protocol-settler (GPT-6.1 Sol)",
+    "reason": "SDC assigns d and out to clk_a; q captures on clk_a. clk_b is unused. Thus the entire visible data path is same-domain, with no data CDC or unknown external data clock. This is a valid structural data-CDC whole-IP noise control within the supplied configuration, not evidence of reset or ordinary timing closure. Physical synchronizer implementation and asynchronous reset release/recovery remain external obligations; neither SDC nor sampled digital simulation closes them."
+  }
+}

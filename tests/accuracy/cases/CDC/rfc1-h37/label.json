@@ -1,0 +1,96 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "verdict": "unknown",
+  "critical": false,
+  "workflow_class": "Synchronizer structure",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 15,
+      "signal": "s1_q"
+    }
+  ],
+  "expected_rules": [
+    "CDC-043"
+  ],
+  "rationale": "s1_q is triggered on both dst_clk edges: CDC-043(b) WARNING Unresolved. A required dual-edge stage cannot establish containment, so the crossing is neither safe nor an established defect. CDC-003's trigger and severity for this unresolved chain are not stated by the spec, so it is not expected; Reader B's CDC-003 addition rejected.",
+  "author_reading": {
+    "id": "rfc1-h37",
+    "intended_verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Synchronizer structure",
+    "expected_rules": [
+      "CDC-043"
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 15,
+        "signal": "s1_q"
+      }
+    ],
+    "rationale": "First synchronizer stage is clocked on both edges of dst_clk; dual-edge behaviour is not modelled, so containment is undecided."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Synchronizer structure",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 15,
+          "signal": "s1_q"
+        }
+      ],
+      "rationale": "The required first stage samples on both edges. The single-edge synchronization model cannot establish containment or the effective resolution interval.",
+      "expected_rules": [
+        "CDC-043"
+      ]
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Synchronizer structure",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 15,
+          "signal": "s1_q"
+        }
+      ],
+      "rationale": "First synchronizer stage s1_q is triggered on both edges of dst_clk (always @(posedge dst_clk or negedge dst_clk) s1_q <= src_q at design.sv:15). Dual-edge stage timing is unmodeled, disclosing CDC-043 WARNING Unresolved (clock-relationships INCOMPLETE) and leaving CDC-003 synchronizer containment Unresolved.",
+      "expected_rules": [
+        "CDC-003",
+        "CDC-043"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "cdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Synchronizer structure",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 15,
+        "signal": "s1_q"
+      }
+    ],
+    "expected_rules": [
+      "CDC-043"
+    ],
+    "rationale": "s1_q is triggered on both dst_clk edges: CDC-043(b) WARNING Unresolved. A required dual-edge stage cannot establish containment, so the crossing is neither safe nor an established defect. CDC-003's trigger and severity for this unresolved chain are not stated by the spec, so it is not expected; Reader B's CDC-003 addition rejected."
+  }
+}

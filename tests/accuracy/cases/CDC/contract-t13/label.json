@@ -1,0 +1,140 @@
+{
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Clock and reset interaction",
+  "whole_ip_good_control": false,
+  "rationale": "The contract allows rst_n to deassert arbitrarily close to dst_clk and requires a locally synchronised release. dst_state uses the raw port reset, so its release can violate recovery and removal timing and go metastable.",
+  "caveats": [
+    "RDC-003(a) is WARNING Unresolved by specification, so this is an unresolved-bad outcome, not established detection.",
+    "RDC-013 is a generic per-source physical obligation that fires on every asynchronous reset. It is not defect-specific and is excluded. RDC-002 (no SDC reset exception) is a constraint disclosure, not this defect.",
+    "This is in scope as the RDC part of the clock and reset interaction class. There is no CDC data path."
+  ],
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 4,
+      "signal": "rst_n"
+    },
+    {
+      "file": "design.sv",
+      "line": 4,
+      "signal": "dst_state"
+    }
+  ],
+  "expected_rules": [
+    "RDC-003"
+  ],
+  "family": "CDC",
+  "top": "top_cdc_rfc1_t13",
+  "origin": "authored",
+  "batch": "cdc-5-contract-fresh",
+  "author": "cdc-contract-author (GPT-6 Luna)",
+  "author_reading": {
+    "id": "CDC-RFC1-T13",
+    "kind": "bad",
+    "class": "Clock and reset interaction",
+    "title": "Asynchronous reset released directly into destination",
+    "case_files": [
+      "design.sv",
+      "clocks.sdc",
+      "contract.md"
+    ],
+    "boundary_event_config": null,
+    "site_signal": "rst_n",
+    "expected_rules": [
+      "RDC-003",
+      "RDC-013"
+    ],
+    "rationale": "rst_n assertion is asynchronous and may occur any time. Deassertion can occur arbitrarily close to dst_clk; integration requires locally synchronized release and recovery/removal closure.",
+    "limitations": [
+      "Structural attribution is a proposal for independent adjudication, not analyzer outcome.",
+      "No SVerity scoring performed.",
+      "Physical timing and metastability requirements remain external."
+    ],
+    "top": "top_cdc_rfc1_t13",
+    "profile": "asic",
+    "sdc": "clocks.sdc"
+  },
+  "sdc": [
+    "clocks.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Clock and reset interaction",
+      "fit": true,
+      "whole_ip_good_control": false,
+      "rationale": "Contract explicitly permits reset release arbitrarily near the functional flop clock edge and requires synchronized local release; RTL omits it.",
+      "caveats": [
+        "RDC-003 is an Unresolved warning, not established physical failure or gating detection."
+      ],
+      "sites": [
+        {
+          "signal": "rst_n",
+          "file": "design.sv",
+          "line": 4
+        },
+        {
+          "signal": "dst_state",
+          "file": "design.sv",
+          "line": 4
+        }
+      ],
+      "expected_rules": [
+        "RDC-003"
+      ],
+      "by": "cdc-contract-reader-a (GPT-6.1 Sol)"
+    },
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Clock and reset interaction",
+      "fit": "required reset release synchronization absent",
+      "whole_ip_good_control": false,
+      "rationale": "The contract permits arbitrary reset release near dst_clk and requires local synchronized release, but functional state uses raw reset directly.",
+      "caveats": "RDC-003 discloses unsafe/unestablished release as Unresolved; RTL cannot quantify recovery/removal failure probability. No CDC data path is needed for this reset defect.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "dst_state"
+        }
+      ],
+      "expected_rules": [
+        "RDC-003"
+      ],
+      "by": "cdc-contract-reader-b (GPT-6.1 Sol)"
+    }
+  ],
+  "settlement": {
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Clock and reset interaction",
+    "fit": true,
+    "whole_ip_good_control": false,
+    "rationale": "The contract allows rst_n to deassert arbitrarily close to dst_clk and requires a locally synchronised release. dst_state uses the raw port reset, so its release can violate recovery and removal timing and go metastable.",
+    "caveats": [
+      "RDC-003(a) is WARNING Unresolved by specification, so this is an unresolved-bad outcome, not established detection.",
+      "RDC-013 is a generic per-source physical obligation that fires on every asynchronous reset. It is not defect-specific and is excluded. RDC-002 (no SDC reset exception) is a constraint disclosure, not this defect.",
+      "This is in scope as the RDC part of the clock and reset interaction class. There is no CDC data path."
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 4,
+        "signal": "rst_n"
+      },
+      {
+        "file": "design.sv",
+        "line": 4,
+        "signal": "dst_state"
+      }
+    ],
+    "expected_rules": [
+      "RDC-003"
+    ],
+    "by": "cdc-contract-settler (Claude Opus 5.5)",
+    "reason": "The contract allows rst_n to deassert arbitrarily close to dst_clk and requires a locally synchronised release. dst_state uses the raw port reset, so its release can violate recovery and removal timing and go metastable."
+  }
+}

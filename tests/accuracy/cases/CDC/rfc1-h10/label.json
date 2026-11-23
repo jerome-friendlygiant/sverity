@@ -1,0 +1,111 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "boundary_event_config": "events.json",
+  "whole_ip_good_control": false,
+  "verdict": "bad",
+  "critical": false,
+  "workflow_class": "Qualified payload and event protocols",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 5,
+      "signal": "req_pulse_i"
+    },
+    {
+      "file": "design.sv",
+      "line": 13,
+      "signal": "p1_q"
+    }
+  ],
+  "expected_rules": [
+    "CDC-013"
+  ],
+  "rationale": "events.json binds req_pulse_i to src_clk with a required 3 ns event; the dst_clk sampler period is 10 ns and the path is an exact input-to-D chain p1_q->p2_q with an observable consumer: CDC-013(c) WARNING Established (required assertion shorter than one sampling interval).",
+  "author_reading": {
+    "id": "rfc1-h10",
+    "intended_verdict": "bad",
+    "critical": false,
+    "workflow_class": "Qualified payload and event protocols",
+    "expected_rules": [
+      "CDC-013"
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 13,
+        "signal": "req_pulse_i"
+      }
+    ],
+    "rationale": "Required boundary event of 3 ns minimum assertion is sampled by a 10 ns two-stage non-resettable synchronizer: assertion shorter than one sampling interval, so delivery is not guaranteed."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": false,
+      "workflow_class": "Qualified payload and event protocols",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 5,
+          "signal": "req_pulse_i"
+        }
+      ],
+      "rationale": "The event contract permits a required 3 ns assertion. It can fall wholly between active edges of the 10 ns sampler and be lost despite a clean two-stage chain.",
+      "expected_rules": [
+        "CDC-013"
+      ]
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "bad",
+      "critical": false,
+      "workflow_class": "Qualified payload and event protocols",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 5,
+          "signal": "req_pulse_i"
+        },
+        {
+          "file": "design.sv",
+          "line": 13,
+          "signal": "p1_q"
+        }
+      ],
+      "rationale": "Per events.json, primary input req_pulse_i (design.sv:5, launched on src_clk) has protocol 'event', delivery 'required', and a minimum assertion duration of 3 ns, which is shorter than one 10.0 ns period of the sampling clock dst_clk at p1_q (design.sv:13), allowing required pulses to be missed between sampling edges (CDC-013 WARNING Established).",
+      "expected_rules": [
+        "CDC-013"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "cdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "bad",
+    "critical": false,
+    "workflow_class": "Qualified payload and event protocols",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 5,
+        "signal": "req_pulse_i"
+      },
+      {
+        "file": "design.sv",
+        "line": 13,
+        "signal": "p1_q"
+      }
+    ],
+    "expected_rules": [
+      "CDC-013"
+    ],
+    "rationale": "events.json binds req_pulse_i to src_clk with a required 3 ns event; the dst_clk sampler period is 10 ns and the path is an exact input-to-D chain p1_q->p2_q with an observable consumer: CDC-013(c) WARNING Established (required assertion shorter than one sampling interval)."
+  }
+}

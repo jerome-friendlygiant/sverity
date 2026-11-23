@@ -1,0 +1,71 @@
+{
+  "verdict": "unknown",
+  "workflow_class": "Multi-bit transfer and reconvergence",
+  "critical": false,
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 2,
+      "signal": "s1"
+    }
+  ],
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-3-protocol-fresh",
+  "author": "cdc-protocol-author (GPT-6 Luna)",
+  "author_reading": {
+    "workflow_class": "Multi-bit transfer and reconvergence",
+    "verdict": "bad",
+    "label_scope": "Bad",
+    "rationale": "Eight unrelated input bits feed a two-stage bus capture; independent bit synchronizers do not preserve a coherent word."
+  },
+  "rationale": "SDC assigns d to clk_a and capture to asynchronous clk_b. Two stages per bit do not prove word coherence. No source encoding, stability, independence or consumer atomicity contract establishes whether a mixed word is forbidden. Disclose the coherence obligation rather than infer a functional defect from bus width. Physical synchronizer implementation and asynchronous reset release/recovery remain external obligations; neither SDC nor sampled digital simulation closes them.",
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "unknown",
+      "workflow_class": "Multi-bit transfer and reconvergence",
+      "critical": false,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 2,
+          "signal": "s1"
+        }
+      ],
+      "by": "cdc-protocol-reader-a (GPT-6.1 Sol)",
+      "rationale": "SDC places d in clk_a and capture in asynchronous clk_b. Two stages per bit contain metastability structurally but do not prove word coherence. No encoding, stability or independent-bit functional contract is supplied; an incoherent word is possible if coherence is required. Physical synchronizer and reset-release closure are separate obligations."
+    },
+    {
+      "verdict": "unknown",
+      "workflow_class": "Multi-bit transfer and reconvergence",
+      "critical": false,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 2,
+          "signal": "d"
+        }
+      ],
+      "by": "cdc-protocol-reader-b (GPT-6.1 Sol)",
+      "rationale": "SDC establishes an asynchronous clk_a-to-clk_b bus. Two stages per bit reduce metastability propagation but do not prove word coherence. No encoding, stability, independence or consumer contract establishes whether mixed words are forbidden. Coherence requires disclosure; a functional failure is not proven from the interface alone. Reset release and physical synchronizer implementation remain separate obligations."
+    }
+  ],
+  "settlement": {
+    "verdict": "unknown",
+    "workflow_class": "Multi-bit transfer and reconvergence",
+    "critical": false,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 2,
+        "signal": "s1"
+      }
+    ],
+    "by": "cdc-protocol-settler (GPT-6.1 Sol)",
+    "reason": "SDC assigns d to clk_a and capture to asynchronous clk_b. Two stages per bit do not prove word coherence. No source encoding, stability, independence or consumer atomicity contract establishes whether a mixed word is forbidden. Disclose the coherence obligation rather than infer a functional defect from bus width. Physical synchronizer implementation and asynchronous reset release/recovery remain external obligations; neither SDC nor sampled digital simulation closes them."
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "verdict": "unknown",
+  "workflow_class": "Qualified payload and event protocols",
+  "critical": false,
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 2,
+      "signal": "pulse_a"
+    }
+  ],
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-3-protocol-fresh",
+  "author": "cdc-protocol-author (GPT-6 Luna)",
+  "author_reading": {
+    "workflow_class": "Qualified payload and event protocols",
+    "verdict": "bad",
+    "label_scope": "Bad",
+    "rationale": "A narrow source pulse is sampled directly by a slower independent destination clock; no event stretching/acknowledgment guarantee exists."
+  },
+  "rationale": "A two-stage level synchronizer is present. The input name does not specify width, spacing or mandatory event delivery. A one-clk_a-cycle pulse could be missed by clk_b, but no source logic or contract requires that pulse pattern or lossless edge counting. SDC periods and input delay do not supply this functional contract. Physical synchronizer implementation and asynchronous reset release/recovery remain external obligations; neither SDC nor sampled digital simulation closes them.",
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "unknown",
+      "workflow_class": "Qualified payload and event protocols",
+      "critical": false,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 2,
+          "signal": "p1"
+        }
+      ],
+      "by": "cdc-protocol-reader-a (GPT-6.1 Sol)",
+      "rationale": "The two-stage level synchronizer is structurally sound, but the name pulse_a does not supply a pulse-width or event-delivery contract. A one-clk_a-cycle pulse can be missed by the slower clk_b; sufficiently long separated levels can work. Without the width/rate and delivery requirement, event safety is unresolved rather than proved bad."
+    },
+    {
+      "verdict": "unknown",
+      "workflow_class": "Qualified payload and event protocols",
+      "critical": false,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 2,
+          "signal": "pulse_a"
+        }
+      ],
+      "by": "cdc-protocol-reader-b (GPT-6.1 Sol)",
+      "rationale": "A two-stage level synchronizer is structurally present. No pulse width, minimum spacing or delivery contract is supplied. A clk_a-cycle pulse can be shorter than the clk_b period and be missed, but the input name alone does not establish that width or require every edge to be counted. Event delivery is therefore unproven rather than a demonstrated violation. SDC input delay does not supply a functional pulse contract."
+    }
+  ],
+  "settlement": {
+    "verdict": "unknown",
+    "workflow_class": "Qualified payload and event protocols",
+    "critical": false,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 2,
+        "signal": "pulse_a"
+      }
+    ],
+    "by": "cdc-protocol-settler (GPT-6.1 Sol)",
+    "reason": "A two-stage level synchronizer is present. The input name does not specify width, spacing or mandatory event delivery. A one-clk_a-cycle pulse could be missed by clk_b, but no source logic or contract requires that pulse pattern or lossless edge counting. SDC periods and input delay do not supply this functional contract. Physical synchronizer implementation and asynchronous reset release/recovery remain external obligations; neither SDC nor sampled digital simulation closes them."
+  }
+}

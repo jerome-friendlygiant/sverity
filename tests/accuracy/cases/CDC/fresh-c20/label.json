@@ -1,0 +1,54 @@
+{
+  "verdict": "good",
+  "workflow_class": "Synchronizer structure",
+  "critical": false,
+  "sites": [],
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-1-fresh",
+  "author": "cdc-author-replacement (GPT-6 Luna)",
+  "author_reading": {
+    "verdict": "good",
+    "workflow_class": "Synchronizer structure",
+    "critical": false,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 4,
+        "signal": "s2"
+      }
+    ],
+    "rationale": "An asynchronous single-bit source register feeds a two-stage destination chain with no logic between stages. The input is timed to clk_a; both clocks are declared asynchronous."
+  },
+  "rationale": "The source register feeds two direct clk_b stages; only the second stage is exposed. No early fanout or stage logic exists. This is a structural single-bit level synchronizer, not a guaranteed pulse-delivery mechanism. Startup is unspecified until the chain fills, and physical MTBF/placement remain external obligations.",
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "good",
+      "workflow_class": "Synchronizer structure",
+      "critical": false,
+      "sites": [],
+      "by": "cdc-replacement-reader-a (GPT-6.1 Sol)",
+      "rationale": "The registered source feeds two successive clk_b registers with no stage logic or early fanout; only s2 drives the output. This is a structurally safe single-bit level synchronizer. No reset is needed to establish this structure. Event-delivery intent and physical MTBF/placement are external obligations; the RTL does not claim pulse delivery and does not demonstrate a structural defect."
+    },
+    {
+      "verdict": "good",
+      "workflow_class": "Synchronizer structure",
+      "critical": false,
+      "sites": [],
+      "by": "cdc-replacement-reader-b (GPT-6.1 Sol)",
+      "rationale": "A registered source feeds two direct destination stages with no early first-stage fanout or stage logic. Only the second stage drives the output. Startup output is unspecified until the chain fills; no reset-dependent protocol or guaranteed initial output is claimed. MTBF and physical placement remain external implementation obligations."
+    }
+  ],
+  "settlement": {
+    "verdict": "good",
+    "workflow_class": "Synchronizer structure",
+    "critical": false,
+    "sites": [],
+    "by": "cdc-settler-replacement (GPT-6.1 Sol)",
+    "reason": "The source register feeds two direct clk_b stages; only the second stage is exposed. No early fanout or stage logic exists. This is a structural single-bit level synchronizer, not a guaranteed pulse-delivery mechanism. Startup is unspecified until the chain fills, and physical MTBF/placement remain external obligations."
+  }
+}

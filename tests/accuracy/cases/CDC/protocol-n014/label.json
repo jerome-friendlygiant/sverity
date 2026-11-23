@@ -1,0 +1,101 @@
+{
+  "verdict": "unknown",
+  "workflow_class": "Qualified payload and event protocols",
+  "critical": false,
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 3,
+      "signal": "e1"
+    },
+    {
+      "file": "design.sv",
+      "line": 3,
+      "signal": "p1"
+    }
+  ],
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-3-protocol-fresh",
+  "author": "cdc-protocol-author (GPT-6 Luna)",
+  "author_reading": {
+    "workflow_class": "Qualified payload and event protocols",
+    "verdict": "unknown",
+    "label_scope": "Unknown",
+    "rationale": "Event/payload inputs are sampled independently, but no contract says whether the destination consumes the payload, when it is valid, or what event means."
+  },
+  "rationale": "The comment explicitly supplies no hold or acknowledgment constraint. Independently synchronized event_req and payload bit 0 are merely exposed together, without qualified capture. This does not prove transaction association or event delivery, but no contract requires either. Do not turn absent intent into an invented functional specification. Other payload bits are unobservable at out. Physical synchronizer implementation and asynchronous reset release/recovery remain external obligations; neither SDC nor sampled digital simulation closes them.",
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "unknown",
+      "workflow_class": "Qualified payload and event protocols",
+      "critical": false,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 3,
+          "signal": "p1"
+        },
+        {
+          "file": "design.sv",
+          "line": 3,
+          "signal": "e1"
+        },
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "out"
+        }
+      ],
+      "by": "cdc-protocol-reader-a (GPT-6.1 Sol)",
+      "rationale": "Two stages contain metastability per observed bit, but independent event and payload chains do not establish transaction association or guaranteed event observation. The explicit lack of hold/acknowledgment constraints leaves those obligations open. No supplied contract establishes event width/rate, correlation or a required transaction interpretation, so neither safe transaction delivery nor a mandatory functional violation is proved."
+    },
+    {
+      "verdict": "unknown",
+      "workflow_class": "Qualified payload and event protocols",
+      "critical": false,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 3,
+          "signal": "payload_in"
+        },
+        {
+          "file": "design.sv",
+          "line": 3,
+          "signal": "event_req"
+        },
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "out"
+        }
+      ],
+      "by": "cdc-protocol-reader-b (GPT-6.1 Sol)",
+      "rationale": "The comment explicitly supplies no hold or acknowledgment guarantee, and the RTL independently synchronizes event and payload without capture qualification. This cannot establish event-associated payload coherence or lossless event delivery. However, the output exposes two levels and gives no functional requirement that associates them or requires counting pulses; independent status interpretation remains possible. The absent contract warrants unknown, not safe recognition or an invented functional specification. Reset and physical closure are separate."
+    }
+  ],
+  "settlement": {
+    "verdict": "unknown",
+    "workflow_class": "Qualified payload and event protocols",
+    "critical": false,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 3,
+        "signal": "e1"
+      },
+      {
+        "file": "design.sv",
+        "line": 3,
+        "signal": "p1"
+      }
+    ],
+    "by": "cdc-protocol-settler (GPT-6.1 Sol)",
+    "reason": "The comment explicitly supplies no hold or acknowledgment constraint. Independently synchronized event_req and payload bit 0 are merely exposed together, without qualified capture. This does not prove transaction association or event delivery, but no contract requires either. Do not turn absent intent into an invented functional specification. Other payload bits are unobservable at out. Physical synchronizer implementation and asynchronous reset release/recovery remain external obligations; neither SDC nor sampled digital simulation closes them."
+  }
+}

@@ -1,0 +1,99 @@
+{
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Synchronizer structure",
+  "rationale": "stage_one (first stage) drives both stage_two and data_o_r[0] (line 9) before min depth; the two independent second captures can resolve differently and are separately observable (data_o[0], event_o). CDC-007 diagnoses it. Author and both readers agree. Raw rst_n release, recovery/removal and physical timing remain external obligations outside this label.",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 9,
+      "signal": "stage_one"
+    }
+  ],
+  "expected_rules": [
+    "CDC-007"
+  ],
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-6-whole-ip-fresh",
+  "author": "cdc-whole-ip-author (GPT-6 Luna)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "author_reading": {
+    "id": "Q007",
+    "workflow_class": "synchronizer_structure",
+    "case_type": "bad",
+    "expected_rules": [
+      "CDC-007"
+    ],
+    "detection_gap": null,
+    "site": {
+      "signal": "stage_one",
+      "file": "design.sv",
+      "line": 4
+    },
+    "rationale": "First synchronizer stage fans out to output datapath before minimum depth; early use bypasses the second stage.",
+    "premises": {
+      "clocks": "clk_a and clk_b both have 10 ns primary clocks; clock relationships are undeclared for six unknown cases, while the Gray-pointer unknown declares asynchronous groups and lacks a datapath bound",
+      "reset": "common rst_n unless the defect specifically exercises reset roots",
+      "protocol": "event delivery required at the stated minimum assertion duration only where boundary_events.json is supplied",
+      "physical_evidence": "No library, metastability MTBF, placement or bus-skew claim; external implementation evidence remains required"
+    }
+  },
+  "settlement": {
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Synchronizer structure",
+    "rationale": "stage_one (first stage) drives both stage_two and data_o_r[0] (line 9) before min depth; the two independent second captures can resolve differently and are separately observable (data_o[0], event_o). CDC-007 diagnoses it. Author and both readers agree. Raw rst_n release, recovery/removal and physical timing remain external obligations outside this label.",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 9,
+        "signal": "stage_one"
+      }
+    ],
+    "by": "cdc-whole-ip-settler (Claude Opus 5.5)",
+    "expected_rules": [
+      "CDC-007"
+    ]
+  },
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Synchronizer structure",
+      "rationale": "stage_one fans out to both stage_two and data_o_r[0] before minimum depth. The two independent second captures can disagree; event_o_r observes the other branch one cycle later.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 9,
+          "signal": "stage_one"
+        }
+      ],
+      "by": "cdc-whole-ip-reader-a (GPT-6.1 Sol)",
+      "expected_rules": [
+        "CDC-007"
+      ]
+    },
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Synchronizer structure",
+      "rationale": "stage_one fans out before the required second stage to both stage_two and data_o_r[0]. These separate second-stage captures can resolve differently and are externally observable through separate paths.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 9,
+          "signal": "stage_one"
+        }
+      ],
+      "by": "cdc-whole-ip-reader-b (GPT-6.1 Sol)",
+      "expected_rules": [
+        "CDC-007"
+      ]
+    }
+  ]
+}

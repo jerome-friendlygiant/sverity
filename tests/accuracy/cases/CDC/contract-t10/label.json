@@ -1,0 +1,139 @@
+{
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Qualified payload and event protocols",
+  "whole_ip_good_control": false,
+  "rationale": "The destination register dst_done is sampled directly by the src_clk register src_done_seen with no synchroniser on the acknowledgment return path. This is an asynchronous single-bit flop-to-flop crossing.",
+  "caveats": [
+    "The intended four-phase source state machine is external, so the missing internal progress state alone is not counted as a defect. The established defect is the return path.",
+    "The payload capture under q2 carries a CDC-039 obligation, which is not credit.",
+    "Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+  ],
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 9,
+      "signal": "dst_done"
+    },
+    {
+      "file": "design.sv",
+      "line": 10,
+      "signal": "src_done_seen"
+    }
+  ],
+  "expected_rules": [
+    "CDC-003"
+  ],
+  "family": "CDC",
+  "top": "top_cdc_rfc1_t10",
+  "origin": "authored",
+  "batch": "cdc-5-contract-fresh",
+  "author": "cdc-contract-author (GPT-6 Luna)",
+  "author_reading": {
+    "id": "CDC-RFC1-T10",
+    "kind": "bad",
+    "class": "Qualified payload and event protocols",
+    "title": "Handshake has no acknowledgment return qualification",
+    "case_files": [
+      "design.sv",
+      "clocks.sdc",
+      "contract.md"
+    ],
+    "boundary_event_config": null,
+    "site_signal": "src_done_seen",
+    "expected_rules": [
+      "CDC-003"
+    ],
+    "rationale": "Intended four-phase request/ack handshake: source must hold request and payload until synchronized acknowledgment, then wait for request low. Acknowledgment is not returned through a synchronizer and source has no progress state.",
+    "limitations": [
+      "Structural attribution is a proposal for independent adjudication, not analyzer outcome.",
+      "No SVerity scoring performed.",
+      "Physical timing and metastability requirements remain external."
+    ],
+    "top": "top_cdc_rfc1_t10",
+    "profile": "asic",
+    "sdc": "clocks.sdc"
+  },
+  "sdc": [
+    "clocks.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Qualified payload and event protocols",
+      "fit": true,
+      "whole_ip_good_control": false,
+      "rationale": "Acknowledgment crosses back directly to one source flop without a synchronizer.",
+      "caveats": [
+        "Other handshake/stability obligations remain; this is a concrete missing return-chain defect."
+      ],
+      "sites": [
+        {
+          "signal": "dst_done",
+          "file": "design.sv",
+          "line": 9
+        },
+        {
+          "signal": "src_done_seen",
+          "file": "design.sv",
+          "line": 10
+        }
+      ],
+      "expected_rules": [
+        "CDC-003"
+      ],
+      "by": "cdc-contract-reader-a (GPT-6.1 Sol)"
+    },
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Qualified payload and event protocols",
+      "fit": "unsynchronized return acknowledgment",
+      "whole_ip_good_control": false,
+      "rationale": "Destination acknowledgment dst_done is sampled directly in src_clk with no two-stage return synchronization.",
+      "caveats": "Source request is external; lack of internal source progress state alone is not proof of an external handshake defect. Definite defect is return sampling. Raw rst_n release is not locally synchronized or bounded by a release contract; RDC-003 remains a whole-IP closure confounder. Output consumer timing is not specified. Physical closure is excluded.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 10,
+          "signal": "src_done_seen"
+        }
+      ],
+      "expected_rules": [
+        "CDC-003"
+      ],
+      "by": "cdc-contract-reader-b (GPT-6.1 Sol)"
+    }
+  ],
+  "settlement": {
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Qualified payload and event protocols",
+    "fit": true,
+    "whole_ip_good_control": false,
+    "rationale": "The destination register dst_done is sampled directly by the src_clk register src_done_seen with no synchroniser on the acknowledgment return path. This is an asynchronous single-bit flop-to-flop crossing.",
+    "caveats": [
+      "The intended four-phase source state machine is external, so the missing internal progress state alone is not counted as a defect. The established defect is the return path.",
+      "The payload capture under q2 carries a CDC-039 obligation, which is not credit.",
+      "Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 9,
+        "signal": "dst_done"
+      },
+      {
+        "file": "design.sv",
+        "line": 10,
+        "signal": "src_done_seen"
+      }
+    ],
+    "expected_rules": [
+      "CDC-003"
+    ],
+    "by": "cdc-contract-settler (Claude Opus 5.5)",
+    "reason": "The destination register dst_done is sampled directly by the src_clk register src_done_seen with no synchroniser on the acknowledgment return path. This is an asynchronous single-bit flop-to-flop crossing."
+  }
+}

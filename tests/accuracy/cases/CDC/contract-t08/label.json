@@ -1,0 +1,149 @@
+{
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Qualified payload and event protocols",
+  "whole_ip_good_control": false,
+  "rationale": "Each event toggles src_toggle, but the destination only delays the synchronised level (event_pulse <= t2). There is no edge detector, so it never emits the required one-cycle pulse per transition. The first event leaves the output stuck high and the next one clears it.",
+  "caveats": [
+    "CDC-014 (no edge detector) is specified as WARNING Unresolved, so a hit is an unresolved-bad outcome, not established detection. Report it against the unresolved-bad budget.",
+    "CDC-013(a) will probably also fire on the 10 ns to 14 ns ratio. The contract guarantees four dst periods between toggles, so CDC-013 is not defect-specific here and is not in expected_rules.",
+    "Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+  ],
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 7,
+      "signal": "src_toggle"
+    },
+    {
+      "file": "design.sv",
+      "line": 8,
+      "signal": "t1"
+    },
+    {
+      "file": "design.sv",
+      "line": 8,
+      "signal": "event_pulse"
+    }
+  ],
+  "expected_rules": [
+    "CDC-014"
+  ],
+  "family": "CDC",
+  "top": "top_cdc_rfc1_t08",
+  "origin": "authored",
+  "batch": "cdc-5-contract-fresh",
+  "author": "cdc-contract-author (GPT-6 Luna)",
+  "author_reading": {
+    "id": "CDC-RFC1-T08",
+    "kind": "bad",
+    "class": "Qualified payload and event protocols",
+    "title": "Toggle event has no edge detector",
+    "case_files": [
+      "design.sv",
+      "clocks.sdc",
+      "contract.md"
+    ],
+    "boundary_event_config": null,
+    "site_signal": "event_pulse",
+    "expected_rules": [
+      "CDC-014"
+    ],
+    "rationale": "Each accepted event toggles src_toggle and source guarantees toggle separation of at least four dst_clk periods. Destination must emit one-cycle pulse per transition; it currently exposes level.",
+    "limitations": [
+      "Structural attribution is a proposal for independent adjudication, not analyzer outcome.",
+      "No SVerity scoring performed.",
+      "Physical timing and metastability requirements remain external."
+    ],
+    "top": "top_cdc_rfc1_t08",
+    "profile": "asic",
+    "sdc": "clocks.sdc"
+  },
+  "sdc": [
+    "clocks.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Qualified payload and event protocols",
+      "fit": true,
+      "whole_ip_good_control": false,
+      "rationale": "Output follows synchronized toggle level rather than emitting a one-cycle transition pulse.",
+      "caveats": [
+        "CDC-014 is an eligible malformed-toggle disclosure but specified as Unresolved; it may not earn gating defect detection credit."
+      ],
+      "sites": [
+        {
+          "signal": "src_toggle",
+          "file": "design.sv",
+          "line": 7
+        },
+        {
+          "signal": "event_pulse",
+          "file": "design.sv",
+          "line": 8
+        }
+      ],
+      "expected_rules": [
+        "CDC-014"
+      ],
+      "by": "cdc-contract-reader-a (GPT-6.1 Sol)"
+    },
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Qualified payload and event protocols",
+      "fit": "toggle delivery malformed",
+      "whole_ip_good_control": false,
+      "rationale": "Output copies synchronized toggle level instead of detecting transitions: first event leaves output asserted, next event clears it rather than emitting one-cycle pulses.",
+      "caveats": "CDC-014 explicitly discloses missing edge detection but has Unresolved confidence; its warning does not prove the functional defect without the written event contract. Raw rst_n release is not locally synchronized or bounded by a release contract; RDC-003 remains a whole-IP closure confounder. Output consumer timing is not specified. Physical closure is excluded.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 8,
+          "signal": "event_pulse"
+        }
+      ],
+      "expected_rules": [
+        "CDC-014"
+      ],
+      "by": "cdc-contract-reader-b (GPT-6.1 Sol)"
+    }
+  ],
+  "settlement": {
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Qualified payload and event protocols",
+    "fit": true,
+    "whole_ip_good_control": false,
+    "rationale": "Each event toggles src_toggle, but the destination only delays the synchronised level (event_pulse <= t2). There is no edge detector, so it never emits the required one-cycle pulse per transition. The first event leaves the output stuck high and the next one clears it.",
+    "caveats": [
+      "CDC-014 (no edge detector) is specified as WARNING Unresolved, so a hit is an unresolved-bad outcome, not established detection. Report it against the unresolved-bad budget.",
+      "CDC-013(a) will probably also fire on the 10 ns to 14 ns ratio. The contract guarantees four dst periods between toggles, so CDC-013 is not defect-specific here and is not in expected_rules.",
+      "Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 7,
+        "signal": "src_toggle"
+      },
+      {
+        "file": "design.sv",
+        "line": 8,
+        "signal": "t1"
+      },
+      {
+        "file": "design.sv",
+        "line": 8,
+        "signal": "event_pulse"
+      }
+    ],
+    "expected_rules": [
+      "CDC-014"
+    ],
+    "by": "cdc-contract-settler (Claude Opus 5.5)",
+    "reason": "Each event toggles src_toggle, but the destination only delays the synchronised level (event_pulse <= t2). There is no edge detector, so it never emits the required one-cycle pulse per transition. The first event leaves the output stuck high and the next one clears it."
+  }
+}

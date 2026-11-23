@@ -208,8 +208,313 @@ TEST(cli_cdc_messages_describe_captures_and_comparable_periods) {
         CHECK(found);
     };
     check("CDC-032/bad_scalar_fanout_depth.sv", "CDC-032", "captures of");
-    check("CDC-032/bad_scalar_fanout_depth.sv", "CDC-009", "synchroniser captures");
+    check("CDC-009/bad_named_scalar_lanes.sv", "CDC-009", "synchroniser captures");
     check("CDC-013/bad_comparable_periods.sv", "CDC-013", "comparable to or shorter");
+}
+
+TEST(cli_exclusive_input_hazards_state_the_trusted_clock_intent) {
+    const std::string fixtures = std::string(SVERITY_SOURCE_DIR) + "/tests/fixtures/";
+    const auto out = (scratch() / "exclusive-input-hazards.json").string();
+    const std::pair<const char*, const char*> cases[] = {
+        {"CDC-006", "CDC-006/bad_async_input_link_logic.sv"},
+        {"CDC-007", "CDC-007/boundary_exclusive_input_tap.sv"},
+        {"CDC-008", "CDC-008/boundary_exclusive_input_logic.sv"},
+    };
+    for (const auto& [rule, file] : cases) {
+        run("--top top --sdc " + fixtures + "CDC-047/primary_input_exclusive.sdc --json " + out + " " + fixtures + file);
+        const auto report = sverity::json::parse(slurp(out));
+        CHECK(report.ok);
+        bool trusted = false;
+        for (const auto& finding : report.value["diagnostics"].asArray()) {
+            if (finding["rule_id"].asString() != rule || finding["severity"].asString() != "INFO") continue;
+            for (const auto& evidence : finding["evidence"].asArray())
+                trusted |= evidence["kind"].asString() == "trust_model";
+        }
+        CHECK(trusted);
+    }
+}
+
+TEST(cli_cdc_reports_register_driven_divider_as_generated_clock) {
+    const std::string fixtures = std::string(SVERITY_SOURCE_DIR) + "/tests/fixtures/";
+    const auto out = (scratch() / "cdc-divider-root.json").string();
+    run("--top top --sdc " + fixtures + "_common/async.sdc --json " + out +
+        " " + fixtures + "CDC-002/bad_free_running_divider.sv");
+    const auto report = sverity::json::parse(slurp(out));
+    CHECK(report.ok);
+    bool generated = false;
+    for (const auto& diagnostic : report.value["diagnostics"].asArray()) {
+        if (diagnostic["rule_id"].asString() != "CDC-002") continue;
+        generated |= diagnostic["message"].asString().find("logic-generated") != std::string::npos &&
+                     diagnostic["confidence"].asString() == "unresolved";
+    }
+    CHECK(generated);
+}
+
+TEST(cli_cdc_clock_mux_reports_located_site_evidence) {
+    const std::string fixtures = std::string(SVERITY_SOURCE_DIR) + "/tests/fixtures/";
+    const auto out = (scratch() / "cdc-clock-mux-site.json").string();
+    run("--top top --root " + fixtures + "CDC-019 --sdc " + fixtures +
+        "_common/async.sdc --json " + out + " " + fixtures + "CDC-019/bad_clock_mux.sv");
+    const auto report = sverity::json::parse(slurp(out));
+    CHECK(report.ok);
+    for (const auto* rule : {"CDC-019", "CDC-031"}) {
+        bool located = false;
+        for (const auto& d : report.value["diagnostics"].asArray()) {
+            if (d["rule_id"].asString() != rule) continue;
+            CHECK(d["signals"].asArray().empty());
+            for (const auto& item : d["evidence"].asArray()) {
+                if (item["kind"].asString() == "site_signal" &&
+                    item["text"].asString() == "top.mclk" &&
+                    item["location"]["file"].asString() == "bad_clock_mux.sv" &&
+                    item["location"]["line"].asInt() == 8)
+                    located = true;
+            }
+        }
+        CHECK(located);
+    }
+}
+
+TEST(cli_cdc_output_cones_disclose_reconvergence_word_and_delivery_contracts) {
+    const std::string fixtures = std::string(SVERITY_SOURCE_DIR) + "/tests/fixtures/";
+    const auto out = (scratch() / "cdc-output-contracts.json").string();
+    auto runFixture = [&](const std::string& sdc, const std::string& design) {
+        run("--top top --sdc " + fixtures + sdc + " --json " + out + " " + fixtures + design);
+        auto result = sverity::json::parse(slurp(out));
+        CHECK(result.ok);
+        return result.value;
+    };
+    auto contains = [](const sverity::json::Value& diagnostic, const std::string& type, const std::string& value) {
+        for (const auto& evidence : diagnostic["evidence"].asArray())
+            if (evidence["kind"].asString() == type && evidence["text"].asString().find(value) != std::string::npos) return true;
+        return false;
+    };
+    auto packed = runFixture("CDC-010/output_reconvergence.sdc", "CDC-010/output_reconvergence.sv");
+    bool reconvergesAtXorBit = false, coherentPackedWord = false;
+    bool repeatedCopyWarning = false, constantPaddingWarning = false, independentPortWarning = false, opaqueSourceWarning = false;
+    for (const auto& diagnostic : packed["diagnostics"].asArray()) {
+        const auto rule = diagnostic["rule_id"].asString();
+        const auto message = diagnostic["message"].asString();
+        if (rule == "CDC-010" && contains(diagnostic, "output_bit", "xor_out") &&
+            diagnostic["proof_state"].asString() == "NOT_ATTEMPTED" && diagnostic["confidence"].asString() == "unresolved")
+            reconvergesAtXorBit = true;
+        if (rule == "CST-012" && message.find("packed_word") != std::string::npos &&
+            contains(diagnostic, "output_word_bit", "packed_word[0]") && contains(diagnostic, "output_word_bit", "packed_word[1]") &&
+            diagnostic["proof_state"].asString() == "NOT_ATTEMPTED" && diagnostic["confidence"].asString() == "unresolved") coherentPackedWord = true;
+        if (rule == "CST-012" && message.find("packs independently synchronized source bits") != std::string::npos &&
+            message.find("repeated") != std::string::npos) repeatedCopyWarning = true;
+        if (rule == "CST-012" && message.find("packs independently synchronized source bits") != std::string::npos &&
+            message.find("padded") != std::string::npos) constantPaddingWarning = true;
+        if (rule == "CST-012" && message.find("packs independently synchronized source bits") != std::string::npos &&
+            (message.find("out_a") != std::string::npos || message.find("out_b") != std::string::npos))
+            independentPortWarning = true;
+        if (rule == "CST-012" && message.find("packs independently synchronized source bits") != std::string::npos &&
+            message.find("opaque_mix") != std::string::npos) opaqueSourceWarning = true;
+    }
+    CHECK(reconvergesAtXorBit);
+    CHECK(coherentPackedWord);
+    CHECK(!repeatedCopyWarning);
+    CHECK(!constantPaddingWarning);
+    CHECK(!independentPortWarning);
+    CHECK(!opaqueSourceWarning);
+
+    auto vector = runFixture("CDC-010/output_vector_origins.sdc", "CDC-010/output_vector_origins.sv");
+    unsigned reconvergenceCount = 0, coherenceCount = 0;
+    for (const auto& diagnostic : vector["diagnostics"].asArray()) {
+        if (diagnostic["rule_id"].asString() == "CDC-010" && contains(diagnostic, "output_bit", "observed[2]")) {
+            ++reconvergenceCount;
+            CHECK(contains(diagnostic, "synchronized_source_bit", "launched[0]"));
+            CHECK(contains(diagnostic, "synchronized_source_bit", "launched[1]"));
+        }
+        if (diagnostic["rule_id"].asString() == "CST-012" && contains(diagnostic, "output_word_bit", "observed[0]")) {
+            ++coherenceCount;
+            CHECK(contains(diagnostic, "output_word_bit", "observed[1]"));
+            CHECK(!contains(diagnostic, "output_word_bit", "observed[2]"));
+        }
+    }
+    CHECK(reconvergenceCount == 1);
+    CHECK(coherenceCount == 1);
+
+    auto event = runFixture("CDC-013/synchronized_input_to_output.sdc", "CDC-013/synchronized_input_to_output.sv");
+    bool deliveryOpen = false;
+    for (const auto& diagnostic : event["diagnostics"].asArray())
+        if (diagnostic["rule_id"].asString() == "CDC-013" &&
+            diagnostic["message"].asString().find("minimum duration") != std::string::npos &&
+            contains(diagnostic, "output_bit", "event_out") &&
+            diagnostic["proof_state"].asString() == "NOT_ATTEMPTED" && diagnostic["confidence"].asString() == "unresolved") deliveryOpen = true;
+    CHECK(deliveryOpen);
+}
+
+TEST(cli_cdc007_taps_are_evidence_not_waiver_handles) {
+    const auto sdc = std::string(SVERITY_SOURCE_DIR) + "/tests/fixtures/_common/async.sdc";
+    const auto sv = write("cdc007-tap.sv",
+        "module top(input logic clka, clkb, d, output logic y);\n"
+        "  logic s1, s2;\n"
+        "  always_ff @(posedge clkb) begin s1 <= d; s2 <= s1; end\n"
+        "  assign y = ~s1;\n"
+        "endmodule\n");
+    const auto waivers = write("cdc007-tap-waiver.json",
+        R"({"waivers":[{"rule":"CDC-007","signal":"top.y","owner":"review","reason":"tap scope regression"}]})");
+    const auto firstOut = (scratch() / "cdc007-tap-first.json").string();
+    const auto renamedOut = (scratch() / "cdc007-tap-renamed.json").string();
+    auto readTap = [&](const std::string& out) {
+        auto j = sverity::json::parse(slurp(out)); CHECK(j.ok);
+        for (const auto& d : j.value["diagnostics"].asArray())
+            if (d["rule_id"].asString() == "CDC-007") return d;
+        CHECK(false);
+        return sverity::json::Value{};
+    };
+    auto args = "--top top --goal cdc --root " + scratch().string() + " --sdc " + sdc + " --waivers " + waivers + " --json ";
+    run(args + firstOut + " " + sv);
+    auto first = readTap(firstOut);
+    CHECK_EQ(first["signals"].asArray().size(), size_t{1});
+    CHECK_EQ(first["signals"].asArray()[0].asString(), std::string("top.d"));
+    CHECK(first["disposition"].asString() != "WAIVED");
+    bool locatedTap = false;
+    for (const auto& e : first["evidence"].asArray())
+        if (e["kind"].asString() == "downstream_tap" && e["text"].asString() == "top.y")
+            locatedTap = e["location"]["line"].asInt() > 0 && e["location"]["column"].asInt() > 0;
+    CHECK(locatedTap);
+
+    write("cdc007-tap.sv",
+        "module top(input logic clka, clkb, d, output logic z);\n"
+        "  logic s1, s2;\n"
+        "  always_ff @(posedge clkb) begin s1 <= d; s2 <= s1; end\n"
+        "  assign z = ~s1;\n"
+        "endmodule\n");
+    run(args + renamedOut + " " + sv);
+    auto renamed = readTap(renamedOut);
+    CHECK_EQ(first["fingerprint"].asString(), renamed["fingerprint"].asString());
+    CHECK(renamed["disposition"].asString() != "WAIVED");
+    bool renamedTap = false;
+    for (const auto& e : renamed["evidence"].asArray())
+        if (e["kind"].asString() == "downstream_tap" && e["text"].asString() == "top.z")
+            renamedTap = e["location"]["line"].asInt() > 0 && e["location"]["column"].asInt() > 0;
+    CHECK(renamedTap);
+}
+
+TEST(cli_cdc_input_delay_evidence_shows_effective_modes_and_mixed_intent) {
+    const auto fixtures = std::string(SVERITY_SOURCE_DIR) + "/tests/fixtures/";
+    const auto out = (scratch() / "cdc-input-delay-evidence.json").string();
+    run("--top top --json " + out + " --sdc " + fixtures + "CDC-029/registered_bit_modes.sdc " +
+        fixtures + "CDC-029/bad_registered_input_bit_modes.sv");
+    auto registered = sverity::json::parse(slurp(out)); CHECK(registered.ok);
+    bool asyncMin = false, sameMax = false;
+    for (const auto& d : registered.value["diagnostics"].asArray()) if (d["rule_id"].asString() == "CDC-029")
+        for (const auto& e : d["evidence"].asArray()) if (e["kind"].asString() == "input_delay_contract") {
+            asyncMin |= e["text"].asString().find("effective min mode") != std::string::npos &&
+                        e["text"].asString().find("src_clk") != std::string::npos;
+            sameMax |= e["text"].asString().find("effective max mode") != std::string::npos &&
+                       e["text"].asString().find("dst_clk") != std::string::npos;
+        }
+    CHECK(asyncMin); CHECK(sameMax);
+
+    run("--top top --json " + out + " --sdc " + fixtures + "CDC-029/output_mixed_unknown.sdc " +
+        fixtures + "CDC-029/bad_output_mixed_unknown.sv");
+    auto mixed = sverity::json::parse(slurp(out)); CHECK(mixed.ok);
+    bool disclosed = false, additive = false;
+    for (const auto& d : mixed.value["diagnostics"].asArray()) if (d["rule_id"].asString() == "CDC-029")
+        for (const auto& e : d["evidence"].asArray()) {
+            disclosed |= e["kind"].asString() == "mixed_clock_intent";
+            additive |= e["kind"].asString() == "input_delay_contract" &&
+                        e["text"].asString().find("additive") != std::string::npos;
+        }
+    CHECK(disclosed); CHECK(additive);
+}
+
+TEST(cli_cdc013_explicit_boundary_contract_validates_and_reports_sampling_evidence) {
+    const auto fixtures = std::string(SVERITY_SOURCE_DIR) + "/tests/fixtures/CDC-013/";
+    const auto out = (scratch() / "cdc013-boundary.json").string();
+    const auto common = "--top top --goal cdc --root " + scratch().string() + " --sdc " + fixtures + "boundary_input_sync.sdc --json ";
+    auto hasEvidence = [](const sverity::json::Value& diagnostic, const std::string& kind, const std::string& text) {
+        for (const auto& evidence : diagnostic["evidence"].asArray())
+            if (evidence["kind"].asString() == kind && evidence["text"].asString().find(text) != std::string::npos) return true;
+        return false;
+    };
+    run(common + out + " --config " + fixtures + "boundary_short.json " + fixtures + "boundary_input_sync.sv");
+    auto shortRun = sverity::json::parse(slurp(out)); CHECK(shortRun.ok);
+    bool loss = false, contractEvidence = false, internalSampling = false;
+    for (const auto& d : shortRun.value["diagnostics"].asArray()) if (d["rule_id"].asString() == "CDC-013") {
+        loss |= d["message"].asString().find("can be lost at arbitrary phase") != std::string::npos && d["confidence"].asString() == "established";
+        for (const auto& e : d["evidence"].asArray()) {
+            contractEvidence |= e["kind"].asString() == "boundary_event_contract" && e["text"].asString().find("launch_clock=launch") != std::string::npos;
+            internalSampling |= e["kind"].asString() == "sampling_intervals" && e["text"].asString().find("destination period 20") != std::string::npos;
+        }
+    }
+    CHECK(loss); CHECK(contractEvidence); CHECK(internalSampling);
+
+    run(common + out + " --config " + fixtures + "boundary_equal.json " + fixtures + "boundary_input_sync.sv");
+    auto equalRun = sverity::json::parse(slurp(out)); CHECK(equalRun.ok);
+    bool equality = false;
+    for (const auto& d : equalRun.value["diagnostics"].asArray()) if (d["rule_id"].asString() == "CDC-013")
+        equality |= d["severity"].asString() == "WARNING" && d["confidence"].asString() == "unresolved" &&
+            d["message"].asString().find("1.5-period review margin") != std::string::npos;
+    CHECK(equality);
+
+    run(common + out + " --config " + fixtures + "boundary_unknown.json " + fixtures + "boundary_input_sync.sv");
+    auto unknownRun = sverity::json::parse(slurp(out)); CHECK(unknownRun.ok);
+    bool unresolved = false;
+    for (const auto& d : unknownRun.value["diagnostics"].asArray()) if (d["rule_id"].asString() == "CDC-013")
+        unresolved |= d["confidence"].asString() == "unresolved" && hasEvidence(d, "boundary_contract_validation", "launch clock is not declared");
+    CHECK(unresolved);
+
+    const auto invalid = write("cdc013-invalid-contract.json", R"({"boundary_events":[{"port":"event_i*","launch_clock":"launch","protocol":"event","duration":{"value":4,"unit":"ns"},"delivery":"required"}]})");
+    CHECK_EQ(run("--config " + invalid + " " + fixtures + "boundary_input_sync.sv"), 64);
+
+    const auto mixed = write("cdc013-mixed.sdc",
+        "create_clock -name launch -period 4 [get_ports launch_clk]\n"
+        "create_clock -name sample -period 20 [get_ports sample_clk]\n"
+        "create_clock -name other -period 7 [get_ports other_clk]\n"
+        "set_clock_groups -asynchronous -group launch -group sample\n"
+        "set_clock_groups -asynchronous -group other -group sample\n"
+        "set_input_delay -clock launch -min 1 [get_ports event_i]\n"
+        "set_input_delay -clock other -max 1 [get_ports event_i]\n");
+    run("--top top --goal cdc --root " + scratch().string() + " --sdc " + mixed + " --config " + fixtures + "boundary_short.json --json " + out + " " + fixtures + "boundary_input_sync.sv");
+    auto mixedRun = sverity::json::parse(slurp(out)); CHECK(mixedRun.ok);
+    bool mixedUnresolved = false;
+    for (const auto& d : mixedRun.value["diagnostics"].asArray()) if (d["rule_id"].asString() == "CDC-013")
+        mixedUnresolved |= d["confidence"].asString() == "unresolved" && hasEvidence(d, "boundary_contract_validation", "conflicts with effective set_input_delay");
+    CHECK(mixedUnresolved);
+}
+
+TEST(cli_cdc013_exact_boundary_event_sampling_premises) {
+    const auto fixtures = std::string(SVERITY_SOURCE_DIR) + "/tests/fixtures/CDC-013/";
+    const auto out = (scratch() / "cdc013-boundary-recheck.json").string();
+    const auto clocks = slurp(fixtures + "boundary_input_sync.sdc");
+    auto contract = [&](const std::string& port, const std::string& width, const std::string& units) {
+        return write("cdc013-recheck-contract.json",
+            R"({"boundary_events":[{"port":")" + port +
+            R"(","launch_clock":"launch","protocol":"event","delivery":"required","duration":{"value":)" +
+            width + R"(,"unit":")" + units + R"("}}]})");
+    };
+    auto check = [&](const std::string& design, const std::string& sdc, const std::string& config,
+                     const std::string& confidence, const std::string& message) {
+        const auto constraints = write("cdc013-recheck-sdc.sdc", sdc);
+        const auto exit = run("--top top --goal cdc --root " + scratch().string() + " --sdc " + constraints +
+                              " --config " + config + " --json " + out + " " + fixtures + design);
+        CHECK(exit >= 0 && exit < 8);
+        const auto report = sverity::json::parse(slurp(out));
+        CHECK(report.ok);
+        unsigned findings = 0;
+        for (const auto& d : report.value["diagnostics"].asArray()) {
+            if (d["rule_id"].asString() != "CDC-013") continue;
+            ++findings;
+            CHECK_EQ(d["confidence"].asString(), confidence);
+            CHECK(d["message"].asString().find(message) != std::string::npos);
+        }
+        CHECK_EQ(findings, 1u);
+    };
+    check("boundary_ascending_input.sv", clocks, contract("event_i[4]", "4", "ns"), "established", "event_i[4]");
+    check("boundary_ascending_input.sv", clocks, contract("event_i[0]", "4", "ns"), "unresolved", "one exact");
+    check("boundary_masked_input.sv", clocks, contract("event_i", "4", "ns"), "unresolved", "unconditional");
+    check("boundary_input_sync.sv", clocks, contract("event_i", "1e308", "s"), "unresolved", "finite positive");
+    check("boundary_input_sync.sv", clocks, contract("event_i", "21", "ns"), "unresolved", "1.5-period review margin");
+    check("boundary_input_sync.sv", clocks, contract("event_i", "30", "ns"), "heuristic", "at least one");
+    check("boundary_input_sync.sv", clocks + "create_clock -name launch -period 40 [get_ports launch_clk]\n",
+          contract("event_i", "1", "source_cycles"), "heuristic", "at least one");
+    check("boundary_input_sync.sv", clocks + "set_output_delay -clock sample 1 [get_ports event_o]\n",
+          contract("event_i", "4", "ns"), "established", "can be lost");
+    check("boundary_input_sync.sv", clocks + "set_clock_groups -logically_exclusive -group launch -group sample\n",
+          contract("event_i", "4", "ns"), "unresolved", "not established asynchronous");
 }
 
 namespace {
@@ -351,9 +656,9 @@ TEST(cli_config_fatal_and_slang_errors_cannot_be_downgraded) {
     CHECK(seen);
 }
 TEST(cli_config_enable_cannot_implement_proposed_rule) {
-    auto out=cfgRun(R"({"enable":["CST-013"],"disable":["CST-013"]})", "--enable-rule CST-013");
+    auto out=cfgRun(R"({"enable":["CST-020"],"disable":["CST-020"]})", "--enable-rule CST-020");
     auto j=sverity::json::parse(slurp(out)); bool seen=false;
-    for(const auto& r:j.value["coverage"]["rules"].asArray()) if(r["rule_id"].asString()=="CST-013") { seen=true; CHECK_EQ(r["state"].asString(),std::string("UNIMPLEMENTED")); }
+    for(const auto& r:j.value["coverage"]["rules"].asArray()) if(r["rule_id"].asString()=="CST-020") { seen=true; CHECK_EQ(r["state"].asString(),std::string("UNIMPLEMENTED")); }
     CHECK(seen); CHECK((j.value["summary"]["exit_code_strict"].asInt() & 4) != 0);   // the rule stays unimplemented: strict still reports it
 }
 TEST(cli_config_fingerprint_waiver_matches_after_override) {
@@ -403,7 +708,7 @@ TEST(cli_rule_accounting_is_listed_as_partial_with_its_gap) {
     auto report = sverity::json::parse(slurp(out)); CHECK(report.ok);
     bool found = false;
     for (const auto& rule : report.value["coverage"]["rules"].asArray())
-        if (rule["rule_id"].asString() == "CST-019") found = rule["state"].asString() == "PARTIAL" && !rule["reason"].asString().empty();
+        if (rule["rule_id"].asString() == "CDC-012") found = rule["state"].asString() == "PARTIAL" && !rule["reason"].asString().empty();
     CHECK(found);
 }
 TEST(cli_config_unreadable_source_report_has_no_absolute_path) {
@@ -590,7 +895,7 @@ TEST(cli_all_inputs_input_delay_includes_clock_ports_captured_as_data) {
         ++inputs;
         auto msg = d["message"].asString();
         if (msg.find("input 'top.other'") != std::string::npos) { clockData = true; CHECK_EQ(d["severity"].asString(), std::string("INFO")); }
-        if (msg.find("domain 'top.other'") != std::string::npos) { foreign = true; CHECK_EQ(d["severity"].asString(), std::string("WARNING")); }
+        if (msg.find("domain 'top.other'") != std::string::npos) { foreign = true; CHECK_EQ(d["severity"].asString(), std::string("ERROR")); }
         CHECK(msg.find("set_input_delay -clock clk") != std::string::npos);
     }
     CHECK_EQ(inputs, 3u); CHECK(clockData); CHECK(foreign);
@@ -861,6 +1166,68 @@ TEST(cli_deck_claims_only_its_rules_and_keeps_every_finding) {
     CHECK(preview > 0);
     CHECK(deck.value["summary"]["analysis_coverage"].asString() == "INCOMPLETE");   // core rules are still partial
     CHECK_EQ(run("--deck nonsense" + common), 64);
+}
+
+TEST(cli_deck_cdc_enables_coupled_rdc_without_rdc_goal) {
+    const auto root = std::string(SVERITY_SOURCE_DIR);
+    const auto out = (scratch() / "cdc_deck.json").string();
+    const auto common = " --profile asic --goal cdc --deck cdc --top top --sdc " + root + "/docs/tutorial/clocks.sdc --root " + root + " " + root + "/docs/tutorial/bad.sv";
+    run("--json " + out + common);
+    auto deck = sverity::json::parse(slurp(out));
+    CHECK(deck.ok);
+    CHECK_EQ(deck.value["inputs"]["deck"].asString(), std::string("cdc"));
+    size_t inDeckCount = 0, previewCount = 0;
+    bool rdc003Active = false, rdc004Disabled = false, cdc012Preview = false;
+    for (const auto& rule : deck.value["coverage"]["rules"].asArray()) {
+        const auto id = rule["rule_id"].asString();
+        const bool preview = rule["preview"].asBool();
+        if (preview) previewCount++; else inDeckCount++;
+        if (id == "RDC-003") rdc003Active = !preview && rule["state"].asString() != "DISABLED";
+        if (id == "RDC-004") rdc004Disabled = preview && rule["state"].asString() == "DISABLED";
+        if (id == "CDC-012") cdc012Preview = preview;
+    }
+    CHECK_EQ(inDeckCount, 60u);
+    CHECK(previewCount > 0);
+    CHECK(rdc003Active);
+    CHECK(rdc004Disabled);
+    CHECK(cdc012Preview);
+}
+
+TEST(cli_cdc_deck_clean_complete_vs_five_adverse_cases) {
+    const auto root = std::string(SVERITY_SOURCE_DIR);
+    // Clean constrained design reaches COMPLETE analysis_coverage under --profile asic --goal cdc --deck cdc.
+    const auto cleanSv = write("cdc_clean.sv",
+        "module top(input logic clk, d, output logic q);\n"
+        "  always_ff @(posedge clk) q <= d;\n"
+        "endmodule\n");
+    const auto cleanSdc = write("cdc_clean.sdc",
+        "create_clock -name clk -period 10 [get_ports clk]\n"
+        "set_input_delay -clock clk 1.0 [get_ports d]\n");
+    const auto cleanOut = (scratch() / "cdc_clean.json").string();
+    run("--profile asic --goal cdc --deck cdc --top top --sdc " + cleanSdc + " --json " + cleanOut + " " + cleanSv);
+    auto clean = sverity::json::parse(slurp(cleanOut));
+    CHECK(clean.ok);
+    CHECK_EQ(clean.value["summary"]["analysis_coverage"].asString(), std::string("COMPLETE"));
+    CHECK_EQ(clean.value["summary"]["review_status"].asString(), std::string("PASS"));
+    CHECK_EQ(clean.value["summary"]["exit_code_strict"].asInt(), 0);
+
+    // All 5 adverse readiness cases must force INCOMPLETE coverage.
+    struct Adverse { const char* name; std::string sv; std::string sdc; };
+    const std::vector<Adverse> cases = {
+        {"two_async_aliases", root + "/tests/fixtures/CST-003/unknown_two_async_aliases_one_root.sv", root + "/tests/fixtures/CST-003/two_async_aliases.sdc"},
+        {"gen_src_mismatch",  root + "/tests/fixtures/CST-013/bad_source_mismatch.sv",              root + "/tests/fixtures/CST-013/source_mismatch.sdc"},
+        {"through_exception", root + "/tests/fixtures/CDC-038/unknown_through_exception_incomplete.sv", root + "/tests/fixtures/CDC-038/through_net.sdc"},
+        {"netlist_selector",  root + "/tests/fixtures/CST-002/unknown_netlist_selector_exception.sv",   root + "/tests/fixtures/CST-002/netlist_selector.sdc"},
+        {"static_subroutine", root + "/tests/fixtures/CST-010/unknown_subroutine_static_state.sv",      root + "/tests/fixtures/CDC-003/async.sdc"},
+    };
+    for (const auto& c : cases) {
+        const auto out = (scratch() / (std::string("adverse_") + c.name + ".json")).string();
+        run("--profile asic --goal cdc --deck cdc --top top --sdc " + c.sdc + " --json " + out + " " + c.sv);
+        auto j = sverity::json::parse(slurp(out));
+        CHECK(j.ok);
+        CHECK_EQ(j.value["summary"]["analysis_coverage"].asString(), std::string("INCOMPLETE"));
+        CHECK((j.value["summary"]["exit_code_strict"].asInt() & 4) != 0);
+    }
 }
 
 TEST(cli_single_unit_lints_every_source_file) {
@@ -1296,4 +1663,146 @@ TEST(cli_html_detail_row_spans_every_column_and_lists_no_known_disposition) {
         const auto row = text.substr(at, text.find("</td>", at) - at);
         CHECK(row.find("OBLIGATION") == std::string::npos && row.find("NOT_ANALYSED") == std::string::npos);
     }
+}
+TEST(cli_malformed_waiver_file_reports_cst006_error_established) {
+    const auto sv = write("cst006_bad_file.sv",
+                          "module top(input logic clk, d, output logic q);\n"
+                          "  always_ff @(posedge clk) q <= d;\nendmodule\n");
+    const auto sdc = write("cst006_bad_file.sdc",
+                           "create_clock -name clk -period 10 [get_ports clk]\n"
+                           "set_input_delay -clock clk 0 [get_ports d]\n");
+    const auto badWaiver = write("cst006_bad_file.waivers.json", "{\"waivers\": [");
+    const auto out = (scratch() / "cst006_bad_file.json").string();
+    const int rc = run("--profile asic --goal cdc --deck cdc --top top --sdc " + sdc + " --waivers " + badWaiver + " --json " + out + " " + sv);
+    CHECK((rc & 8) != 0);
+    auto j = sverity::json::parse(slurp(out));
+    CHECK(j.ok);
+    CHECK_EQ(j.value["summary"]["execution_status"].asString(), std::string("ERROR"));
+    bool seen = false;
+    for (const auto& d : j.value["diagnostics"].asArray()) {
+        if (d["rule_id"].asString() == "CST-006" && d["severity"].asString() == "ERROR" &&
+            d["confidence"].asString() == "established")
+            seen = true;
+    }
+    CHECK(seen);
+}
+
+TEST(cli_cst004_unknown_clock_pair_populates_signals) {
+    const auto hasSignal = [](const auto& d, std::string_view wanted) {
+        for (const auto& s : d["signals"].asArray())
+            if (s.asString() == wanted) return true;
+        return false;
+    };
+    const auto sv = write("cst004_sigs.sv",
+                          "module top(input logic clk_a, clk_b, d, output logic q);\n"
+                          "  logic s_q;\n"
+                          "  always_ff @(posedge clk_a) s_q <= d;\n"
+                          "  always_ff @(posedge clk_b) q <= s_q;\n"
+                          "endmodule\n");
+    const auto sdc = write("cst004_sigs.sdc",
+                           "create_clock -name sys_clk -period 10 [get_ports clk_a]\n"
+                           "create_clock -name clk_b -period 8 [get_ports clk_b]\n"
+                           "set_input_delay -clock sys_clk 1 [get_ports d]\n");
+    const auto out = (scratch() / "cst004_sigs.json").string();
+    const int rc = run("--profile asic --goal cdc --deck cdc --top top --sdc " + sdc + " --json " + out + " " + sv);
+    CHECK((rc & 8) == 0);
+    auto j = sverity::json::parse(slurp(out));
+    CHECK(j.ok);
+    bool seen = false;
+    for (const auto& d : j.value["diagnostics"].asArray()) {
+        if (d["rule_id"].asString() != "CST-004") continue;
+        seen = true;
+        CHECK(hasSignal(d, "top.clk_a"));
+        CHECK(hasSignal(d, "sys_clk"));
+        CHECK(hasSignal(d, "top.clk_b"));
+    }
+    CHECK(seen);
+}
+
+TEST(cli_cst009_populates_signals_from_command_and_targets) {
+    const auto hasSignal = [](const auto& d, std::string_view wanted) {
+        for (const auto& s : d["signals"].asArray())
+            if (s.asString() == wanted) return true;
+        return false;
+    };
+    const auto sv = write("cst009_sigs.sv",
+                          "module top(input logic clk_src, clk_dst, flag_i, en_i, output logic flag_o);\n"
+                          "  logic src_q, s1_q, s2_q;\n"
+                          "  always_ff @(posedge clk_src) src_q <= flag_i & en_i;\n"
+                          "  always_ff @(posedge clk_dst) begin s1_q <= src_q; s2_q <= s1_q; end\n"
+                          "  assign flag_o = s2_q;\n"
+                          "endmodule\n");
+    const auto sdc = write("cst009_sigs.sdc",
+                           "create_clock -name clk_src -period 20 [get_ports clk_src]\n"
+                           "create_clock -name clk_dst -period 8 [get_ports clk_dst]\n"
+                           "set_clock_groups -asynchronous -group {clk_src} -group {clk_dst}\n"
+                           "set_input_delay -clock clk_src 1 [get_ports flag_i]\n"
+                           "set_clock_latency -source 0.5 [get_clocks clk_dst]\n"
+                           "set_load 0.1 [get_ports -filter {name =~ d*}]\n"
+                           "set_input_transition 0.2 [get_ports -filter \"direction == in\"]\n"
+                           "set_drive 1 [get_ports -regexp {d.+}]\n"
+                           "set_case_analysis 1 [get_nets src_q]\n");
+    const auto out = (scratch() / "cst009_sigs.json").string();
+    const int rc = run("--profile asic --goal cdc --deck cdc --top top --sdc " + sdc + " --json " + out + " " + sv);
+    CHECK((rc & 8) == 0);
+    auto j = sverity::json::parse(slurp(out));
+    CHECK(j.ok);
+    bool latencySeen = false, caseSeen = false, loadSeen = false, transSeen = false, driveSeen = false;
+    for (const auto& d : j.value["diagnostics"].asArray()) {
+        if (d["rule_id"].asString() != "CST-009") continue;
+        const auto& sigs = d["signals"].asArray();
+        if (hasSignal(d, "set_clock_latency")) {
+            latencySeen = true;
+            CHECK(hasSignal(d, "clk_dst"));
+        }
+        if (hasSignal(d, "set_case_analysis")) {
+            caseSeen = true;
+            CHECK(hasSignal(d, "src_q"));
+        }
+        if (hasSignal(d, "set_load")) {
+            loadSeen = true;
+            CHECK_EQ(sigs.size(), 1u);
+        }
+        if (hasSignal(d, "set_input_transition")) {
+            transSeen = true;
+            CHECK_EQ(sigs.size(), 1u);
+        }
+        if (hasSignal(d, "set_drive")) {
+            driveSeen = true;
+            CHECK_EQ(sigs.size(), 1u);
+        }
+    }
+    CHECK(latencySeen);
+    CHECK(caseSeen);
+    CHECK(loadSeen);
+    CHECK(transSeen);
+    CHECK(driveSeen);
+}
+
+TEST(cli_cdc043_dual_edge_populates_signals_and_deduplicates_vector) {
+    const auto sv = write("cdc043_sigs.sv",
+                          "module top(input logic clk, input logic [3:0] d, output logic [3:0] q);\n"
+                          "  logic [3:0] ddr_q, split_q;\n"
+                          "  always @(posedge clk or negedge clk) ddr_q <= d;\n"
+                          "  always @(posedge clk or negedge clk) split_q[1:0] <= d[1:0];\n"
+                          "  always @(posedge clk or negedge clk) split_q[3:2] <= d[3:2];\n"
+                          "  always_ff @(posedge clk) q <= ddr_q ^ split_q;\n"
+                          "endmodule\n");
+    const auto sdc = write("cdc043_sigs.sdc",
+                           "create_clock -name clk -period 10 [get_ports clk]\n");
+    const auto out = (scratch() / "cdc043_sigs.json").string();
+    const int rc = run("--profile asic --goal cdc --deck cdc --top top --sdc " + sdc + " --json " + out + " " + sv);
+    CHECK((rc & 8) == 0);
+    auto j = sverity::json::parse(slurp(out));
+    CHECK(j.ok);
+    int ddrCount = 0, splitCount = 0;
+    for (const auto& d : j.value["diagnostics"].asArray()) {
+        if (d["rule_id"].asString() != "CDC-043") continue;
+        const auto& sigs = d["signals"].asArray();
+        CHECK_EQ(sigs.size(), 1u);
+        if (sigs[0].asString() == "top.ddr_q") ++ddrCount;
+        else if (sigs[0].asString() == "top.split_q") ++splitCount;
+    }
+    CHECK_EQ(ddrCount, 1);
+    CHECK_EQ(splitCount, 1);
 }

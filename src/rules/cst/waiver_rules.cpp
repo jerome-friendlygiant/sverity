@@ -18,8 +18,6 @@ class RuleAccounting final : public Rule {
 public:
     std::string_view id() const override { return "CST-019"; }
     void run(RuleContext&) override {}
-    RuleState completeness() const override { return RuleState::Partial; }
-    std::string partialReason() const override { return "accounts for rules not fully evaluated and for unknown rule names; profile policy drift is not checked"; }
 };
 } // namespace
 

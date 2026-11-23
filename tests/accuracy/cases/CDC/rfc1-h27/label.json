@@ -1,0 +1,55 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "boundary_event_config": "events.json",
+  "whole_ip_good_control": true,
+  "verdict": "good",
+  "critical": false,
+  "workflow_class": "Qualified payload and event protocols",
+  "sites": [],
+  "rationale": "events.json declares pulse_i best_effort (4 ns), so CDC-013(c) is INFO Heuristic on the unreset p1_q/p2_q sampler, and the applied contract supplies the delivery evidence for the output observation. seen_q's synchronous reset is contracted; CDC-029 is INFO for the recognized chain; CDC-044 has no adjacent-stage or shift-word evidence.",
+  "author_reading": {
+    "id": "rfc1-h27",
+    "intended_verdict": "good",
+    "critical": false,
+    "workflow_class": "Qualified payload and event protocols",
+    "expected_rules": [],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 14,
+        "signal": "pulse_i"
+      },
+      {
+        "file": "design.sv",
+        "line": 20,
+        "signal": "seen_q"
+      }
+    ],
+    "rationale": "Best-effort event contract: 4 ns pulse on a non-resettable two-stage sampler feeding a sticky seen register; delivery is not required, and the register stops the output cone."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Qualified payload and event protocols",
+      "sites": [],
+      "rationale": "The exact two-stage sampler meets the best-effort contract, which permits misses. The sticky consumer observes only the completed chain, with no adjacent-stage evidence."
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Qualified payload and event protocols",
+      "sites": [],
+      "rationale": "Primary input pulse_i (launched on src_clk) enters dst_clk through a clean 2-stage unreset synchronizer (p1_q -> p2_q) before setting sticky register seen_q. Although events.json gives a 4 ns minimum duration (< 10 ns dst_clk period), delivery is declared 'best_effort', which CDC-013 accepts as INFO Heuristic with no warning or error."
+    }
+  ]
+}

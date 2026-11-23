@@ -1,0 +1,140 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "verdict": "unknown",
+  "critical": false,
+  "workflow_class": "IP and external boundaries",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 3,
+      "signal": "vendor_ip"
+    },
+    {
+      "file": "design.sv",
+      "line": 22,
+      "signal": "u_ip"
+    },
+    {
+      "file": "design.sv",
+      "line": 26,
+      "signal": "resp_q"
+    }
+  ],
+  "expected_rules": [
+    "CDC-023",
+    "CST-005"
+  ],
+  "rationale": "vendor_ip is attributed black_box, so u_ip is unmodeled (CST-005 WARNING Unresolved) and resp_q captures its output (CDC-023 WARNING Unresolved). The macro's internal domains and output timing are unknown.",
+  "author_reading": {
+    "id": "rfc1-h45",
+    "intended_verdict": "unknown",
+    "critical": false,
+    "workflow_class": "IP and external boundaries",
+    "expected_rules": [
+      "CST-005",
+      "CDC-023"
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 22,
+        "signal": "u_ip"
+      },
+      {
+        "file": "design.sv",
+        "line": 26,
+        "signal": "resp_q"
+      }
+    ],
+    "rationale": "Output of an unmodeled (* black_box *) vendor submodule is captured by a clk_io register: behaviour and domain of the box are unanalyzed."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "IP and external boundaries",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 22,
+          "signal": "u_ip"
+        },
+        {
+          "file": "design.sv",
+          "line": 26,
+          "signal": "resp_q"
+        }
+      ],
+      "rationale": "An attributed black box drives ip_resp and resp_q captures it. The shared interface clock cannot establish which domain launches the opaque macro response.",
+      "expected_rules": [
+        "CDC-023",
+        "CST-005"
+      ]
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "IP and external boundaries",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 22,
+          "signal": "u_ip"
+        },
+        {
+          "file": "design.sv",
+          "line": 26,
+          "signal": "resp_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 3,
+          "signal": "vendor_ip"
+        }
+      ],
+      "rationale": "Instance u_ip of module vendor_ip is marked (* black_box *) (design.sv:2-3, 22) with no library model supplied (CST-005 WARNING Unresolved), and its output ip_resp is captured by register resp_q on posedge clk_io (design.sv:26), leaving the internal launch domain and CDC safety of the black-box output path unresolved (CDC-023 WARNING Unresolved).",
+      "expected_rules": [
+        "CDC-023",
+        "CST-005"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "cdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "unknown",
+    "critical": false,
+    "workflow_class": "IP and external boundaries",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 3,
+        "signal": "vendor_ip"
+      },
+      {
+        "file": "design.sv",
+        "line": 22,
+        "signal": "u_ip"
+      },
+      {
+        "file": "design.sv",
+        "line": 26,
+        "signal": "resp_q"
+      }
+    ],
+    "expected_rules": [
+      "CDC-023",
+      "CST-005"
+    ],
+    "rationale": "vendor_ip is attributed black_box, so u_ip is unmodeled (CST-005 WARNING Unresolved) and resp_q captures its output (CDC-023 WARNING Unresolved). The macro's internal domains and output timing are unknown."
+  }
+}

@@ -1,0 +1,149 @@
+{
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Clock and reset interaction",
+  "whole_ip_good_control": false,
+  "rationale": "gclk = src_clk & gate_en, where gate_en is launched by dst_clk and can change while src_clk is high. The latchless AND gate can produce truncated or spurious clock edges on q's clock.",
+  "caveats": [
+    "CDC-045(a) gives WARNING Heuristic. CDC-020 gives WARNING Unresolved because the enable is a primary input, even though the SDC binds it to dst_clk.",
+    "CDC-002 (logic-generated clock root) is a generic root disclosure and is not counted as defect-specific.",
+    "Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+  ],
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 5,
+      "signal": "gclk"
+    },
+    {
+      "file": "design.sv",
+      "line": 5,
+      "signal": "gate_en"
+    }
+  ],
+  "expected_rules": [
+    "CDC-020",
+    "CDC-045"
+  ],
+  "family": "CDC",
+  "top": "top_cdc_rfc1_t14",
+  "origin": "authored",
+  "batch": "cdc-5-contract-fresh",
+  "author": "cdc-contract-author (GPT-6 Luna)",
+  "author_reading": {
+    "id": "CDC-RFC1-T14",
+    "kind": "bad",
+    "class": "Clock and reset interaction",
+    "title": "Generated clock from combinational enable",
+    "case_files": [
+      "design.sv",
+      "clocks.sdc",
+      "contract.md"
+    ],
+    "boundary_event_config": null,
+    "site_signal": "gclk",
+    "expected_rules": [
+      "CDC-002",
+      "CDC-045"
+    ],
+    "rationale": "gate_en is controlled by dst_clk and can change while src_clk is high. Intended clock gating needs an integrated glitch-free latch-based cell and characterized clock model.",
+    "limitations": [
+      "Structural attribution is a proposal for independent adjudication, not analyzer outcome.",
+      "No SVerity scoring performed.",
+      "Physical timing and metastability requirements remain external."
+    ],
+    "top": "top_cdc_rfc1_t14",
+    "profile": "asic",
+    "sdc": "clocks.sdc"
+  },
+  "sdc": [
+    "clocks.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Clock and reset interaction",
+      "fit": true,
+      "whole_ip_good_control": false,
+      "rationale": "Asynchronous enable directly ANDs the clock and can introduce a truncated pulse or spurious edge.",
+      "caveats": [
+        "No low-phase enable latch or modeled integrated gate."
+      ],
+      "sites": [
+        {
+          "signal": "gclk",
+          "file": "design.sv",
+          "line": 5
+        },
+        {
+          "signal": "gate_en",
+          "file": "design.sv",
+          "line": 5
+        }
+      ],
+      "expected_rules": [
+        "CDC-020",
+        "CDC-045"
+      ],
+      "by": "cdc-contract-reader-a (GPT-6.1 Sol)"
+    },
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Clock and reset interaction",
+      "fit": "glitch-prone clock gating",
+      "whole_ip_good_control": false,
+      "rationale": "Combinational AND gate allows asynchronous gate_en changes while src_clk is high, creating truncated or extra clock edges without a low-phase enable latch.",
+      "caveats": "CDC-020 treats primary-input enable as Unresolved even though SDC/prose identify launch domain. CDC-045 names the actual latchless gate defect. Raw rst_n release is not locally synchronized or bounded by a release contract; RDC-003 remains a whole-IP closure confounder. Output consumer timing is not specified. Physical closure is excluded.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 5,
+          "signal": "gclk"
+        },
+        {
+          "file": "design.sv",
+          "line": 5,
+          "signal": "q"
+        }
+      ],
+      "expected_rules": [
+        "CDC-020",
+        "CDC-045"
+      ],
+      "by": "cdc-contract-reader-b (GPT-6.1 Sol)"
+    }
+  ],
+  "settlement": {
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Clock and reset interaction",
+    "fit": true,
+    "whole_ip_good_control": false,
+    "rationale": "gclk = src_clk & gate_en, where gate_en is launched by dst_clk and can change while src_clk is high. The latchless AND gate can produce truncated or spurious clock edges on q's clock.",
+    "caveats": [
+      "CDC-045(a) gives WARNING Heuristic. CDC-020 gives WARNING Unresolved because the enable is a primary input, even though the SDC binds it to dst_clk.",
+      "CDC-002 (logic-generated clock root) is a generic root disclosure and is not counted as defect-specific.",
+      "Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 5,
+        "signal": "gclk"
+      },
+      {
+        "file": "design.sv",
+        "line": 5,
+        "signal": "gate_en"
+      }
+    ],
+    "expected_rules": [
+      "CDC-020",
+      "CDC-045"
+    ],
+    "by": "cdc-contract-settler (Claude Opus 5.5)",
+    "reason": "gclk = src_clk & gate_en, where gate_en is launched by dst_clk and can change while src_clk is high. The latchless AND gate can produce truncated or spurious clock edges on q's clock."
+  }
+}

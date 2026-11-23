@@ -111,7 +111,7 @@ struct Diagnostic {
     bool baselined = false;             // present in the baseline of this run (Report::setBaseline): visible, counted, not gating
     std::string baselineBasis;          // how it matched: "fingerprint", "key" (same identity, another line) or "anchor" (same rule, file and name)
     std::string originalFile, originalMessage; // internal, before report-root relativization
-    std::vector<std::string> originalEvidence, originalEvidenceFiles, originalIdentityArguments;
+    std::vector<std::string> originalEvidenceFiles, originalIdentityArguments;
     bool groupingOriginCaptured = false;
     std::string groupingUnit;            // internal elaborated module/interface definition
     std::string scope;                   // name of the module, interface, program, package or class definition the location lies in (empty: unknown); part of the baseline identity

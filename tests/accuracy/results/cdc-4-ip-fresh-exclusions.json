@@ -1,0 +1,12 @@
+[
+  {
+    "case": "C01",
+    "reason": "Contract line 7 supplies the relationship: no guaranteed phase/frequency relation between independent active package clocks. The SDC omits the asynchronous relationship. This is an integration clock-intent omission, not an explicit unknown relationship or a demonstrated unsafe crossing. d is explicitly synchronous to clk_a.",
+    "caveats": "Exclude from per-IP crossing scoring: clk_b has no clocked load or transfer in this module. Bad refers only to omitted machine-readable intent; absent a requirement to encode all clock-pair intent, there is no actual bad RTL premise. An inventory-only metric could retain it separately. Do not manufacture an inter-domain path or score unknown merely because the SDC is silent."
+  },
+  {
+    "case": "C13",
+    "reason": "The operating contract explicitly establishes independent external launch and direct destination sampling without synchronization, so the unsafe verdict is settled. Structurally this is the same single-flop asynchronous-input defect as C02.",
+    "caveats": "Exclude from this initial independent-coverage scoring set: nonrepresentative duplicate and confounded SDC. constraints.sdc line 1 creates the ext clock on the data port async_in; this does not describe the separate external clock launching arbitrary data. A virtual/actual external source clock and data input launch association are absent. This does not erase the explicit contract evidence of bad behavior. Retain C14 as the genuinely different missing-intent boundary case; redesign a later boundary case rather than count C13 as new defect coverage."
+  }
+]

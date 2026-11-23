@@ -1,0 +1,21 @@
+{
+  "top": "top",
+  "sources": [
+    "design.sv"
+  ],
+  "bench_sources": [
+    "tb.sv"
+  ],
+  "defines": [],
+  "parameters": {},
+  "sdc": "intent.sdc",
+  "boundary_events": "boundary_events.json",
+  "clock_roots": {
+    "clk_a": "primary input, 10 ns",
+    "clk_b": "primary input, 10 ns",
+    "event_src": "primary input event_i, 10 ns"
+  },
+  "reset": "rst_n active-low asynchronous reset; no functional reset sequencing claim",
+  "mode": "mode_i is unconstrained primary input; only used where stated in RTL",
+  "build_scope": "standalone synthesizable SystemVerilog top"
+}

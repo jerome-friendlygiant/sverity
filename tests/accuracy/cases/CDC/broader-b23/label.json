@@ -1,0 +1,37 @@
+{
+  "verdict": "good",
+  "workflow_class": "Clock intent and inventory",
+  "critical": false,
+  "sites": [],
+  "family": "CDC",
+  "top": "case_ci01",
+  "origin": "authored",
+  "batch": "cdc-2-fresh",
+  "author": "cdc-broader-author (GPT-6 Luna)",
+  "author_reading": {
+    "verdict": "good",
+    "workflow_class": "Clock intent and inventory"
+  },
+  "rationale": "One declared clock drives every stage; async_req and reset are timed to it. s1,s2 then req_seen form a clean same-clock pipeline.",
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "good",
+      "workflow_class": "Clock intent and inventory",
+      "critical": false,
+      "sites": [],
+      "by": "cdc-broader-reader-a (GPT-6.1 Sol)",
+      "rationale": "One declared clock drives every stage; async_req and reset are timed to it. s1,s2 then req_seen form a clean same-clock pipeline."
+    },
+    {
+      "verdict": "good",
+      "workflow_class": "Clock intent and inventory",
+      "critical": false,
+      "sites": [],
+      "by": "cdc-broader-reader-b (GPT-6.1 Sol)",
+      "rationale": "clk is the sole state clock and is declared. async_req is clk-timed and passes through a consistent two-stage pipeline before req_seen. No generated root or missing clock relation is apparent."
+    }
+  ]
+}

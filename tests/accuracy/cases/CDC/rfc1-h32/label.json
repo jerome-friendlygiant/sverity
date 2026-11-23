@@ -1,0 +1,54 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": true,
+  "verdict": "good",
+  "critical": false,
+  "workflow_class": "Clock and reset interaction",
+  "sites": [],
+  "rationale": "rst_s1_q/rst_s2_q form a recognized depth-2 reset synchronizer (assert 0, release constant 1 then predecessor, same raw reset and edge as q_q): RDC-003 INFO. rst_ni carries an applied set_input_delay, so RDC-002(a) is exempt. RDC-006/016/007 do not trigger, and RDC-012/013 are run-level outside the expected-rule scope.",
+  "author_reading": {
+    "id": "rfc1-h32",
+    "intended_verdict": "good",
+    "critical": false,
+    "workflow_class": "Clock and reset interaction",
+    "expected_rules": [],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 18,
+        "signal": "rst_s2_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 22,
+        "signal": "rst_s2_q"
+      }
+    ],
+    "rationale": "Local two-stage asynchronous-assert/synchronous-release reset bridge in clk_a releasing clk_a registers only; reset reaches only reset pins and the input reset carries an input delay."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Clock and reset interaction",
+      "sites": [],
+      "rationale": "Both bridge stages asynchronously assert low on the same raw reset. The first samples a released high and the second copies it on the same edge. Only the final stage resets the functional register, and the raw reset has an input contract."
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Clock and reset interaction",
+      "sites": [],
+      "rationale": "Top-level asynchronous reset rst_ni is constrained by set_input_delay on clk_a (satisfying RDC-002) and passes through a recognized 2-stage active-low reset synchronizer (rst_s1_q -> rst_s2_q on posedge clk_a, asserting 1'b0 and releasing 1'b1) that synchronously releases downstream register q_q on the matching posedge clk_a (earning RDC-003 INFO)."
+    }
+  ]
+}

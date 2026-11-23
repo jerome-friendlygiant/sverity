@@ -1,0 +1,45 @@
+{
+  "verdict": "good",
+  "workflow_class": "IP and external boundaries",
+  "critical": false,
+  "sites": [],
+  "family": "CDC",
+  "top": "case_ib03",
+  "origin": "authored",
+  "batch": "cdc-2-fresh",
+  "author": "cdc-broader-author (GPT-6 Luna)",
+  "author_reading": {
+    "verdict": "bad",
+    "workflow_class": "IP and external boundaries"
+  },
+  "rationale": "The boundary supplies both minimum and maximum input delay relative to the sole capture clock. The direct register is a valid synchronous boundary capture under that explicit contract. No unresolved asynchronous input contract remains within structural CDC scope.",
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "good",
+      "workflow_class": "IP and external boundaries",
+      "critical": false,
+      "sites": [],
+      "by": "cdc-broader-reader-a (GPT-6.1 Sol)",
+      "rationale": "async_pin has min/max input delay relative to clk, so q directly captures a synchronous input under the supplied contract. No asynchronous pin contract is supplied; unsuitable as an unsafe external asynchronous boundary case."
+    },
+    {
+      "verdict": "good",
+      "workflow_class": "IP and external boundaries",
+      "critical": false,
+      "sites": [],
+      "by": "cdc-broader-reader-b (GPT-6.1 Sol)",
+      "rationale": "The supplied input and output delays describe a synchronous clk boundary. The identifier async_pin does not override that contract. Unfit as an unsafe asynchronous boundary example."
+    }
+  ],
+  "settlement": {
+    "verdict": "good",
+    "workflow_class": "IP and external boundaries",
+    "critical": false,
+    "sites": [],
+    "by": "cdc-broader-settler (GPT-6.1 Sol)",
+    "reason": "The boundary supplies both minimum and maximum input delay relative to the sole capture clock. The direct register is a valid synchronous boundary capture under that explicit contract. No unresolved asynchronous input contract remains within structural CDC scope."
+  }
+}

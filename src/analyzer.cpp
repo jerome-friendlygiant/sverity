@@ -7,7 +7,10 @@
 #include "sverity/analyzer.h"
 #include "sverity/json.h"
 
+#include <array>
 #include <ctime>
+#include <map>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -170,6 +173,59 @@ static void annotateScopes(const slang::ast::Compilation& compilation, Report& r
     }
 }
 
+void loadLibraryFiles(const std::vector<std::string>& files, Design& loaded, Report& report) {
+    Design* design = &loaded;
+    for (auto& f : files) {
+        std::string text;
+        auto fail = [&](const std::string& why) {
+            Diagnostic d;
+            d.ruleId = "CST-018";
+            d.severity = Severity::Error;
+            d.message = "library file '" + std::filesystem::path(f).filename().string() + "' " + why;
+            d.nextStep = "Fix the library file; its cells are treated as ordinary modules (no synchroniser is recognised through them).";
+            report.add(std::move(d));
+            report.markIncomplete("constraints", "library file '" + std::filesystem::path(f).filename().string() + "' " + why);
+        };
+        if (!readFile(f, text)) { fail("could not be read"); continue; }
+        auto pr = json::parse(text);
+        if (!pr.ok) { fail("is not valid JSON (" + pr.error + ")"); continue; }
+        for (auto& c : pr.value["cells"].asArray()) {
+            LibCell lc;
+            lc.name = c["name"].asString();
+            if (c.find("kind")) lc.kind = c["kind"].asString();
+            lc.clock = c["clock"].asString();
+            lc.input = c["input"].asString();
+            lc.output = c["output"].asString();
+            lc.enable = c["enable"].asString();
+            lc.reset = c["reset"].asString();
+            lc.writeClock = c["write_clock"].asString();
+            lc.readClock = c["read_clock"].asString();
+            if (c.find("stages")) lc.stages = static_cast<int>(c["stages"].asInt(2));
+            if (lc.kind == "flop") lc.stages = 1;
+            if (c.find("edge")) lc.edge = c["edge"].asString() == "negedge" ? 2 : 1;
+            if (c.find("reset_active")) lc.resetActiveLow = c["reset_active"].asString() != "high";
+            if (c.find("reset_value")) lc.resetValue = c["reset_value"].asInt(0) ? '1' : '0';
+            if (c.find("enable_latched")) lc.enableLatched = c["enable_latched"].asBool(false);
+            if (c.find("sync_read")) lc.syncRead = c["sync_read"].asBool(true);
+            if (c.find("ports"))
+                for (auto& p : c["ports"].asArray()) lc.ports.push_back({p["name"].asString(), p["dir"].asString(), p["role"].asString(), p["clock"].asString()});
+            bool ok = !lc.name.empty() && lc.stages >= 1;
+            if (lc.kind == "synchronizer" || lc.kind == "flop") ok = ok && !lc.clock.empty() && !lc.input.empty() && !lc.output.empty();
+            else if (lc.kind == "clock_gate") ok = ok && !lc.clock.empty() && !lc.enable.empty() && !lc.output.empty();
+            else if (lc.kind == "ram") ok = ok && !lc.writeClock.empty() && !lc.readClock.empty() && !lc.ports.empty();
+            else if (lc.kind == "blackbox") ok = ok && !lc.ports.empty();
+            else ok = false;
+            for (auto& p : lc.ports)
+                ok = ok && !p.name.empty() && (p.dir == "in" || p.dir == "out" || p.dir == "inout");
+            if (!ok) {
+                fail("has a cell entry that is incomplete or of an unsupported kind (kinds: synchronizer, flop, clock_gate, ram, blackbox; see LibCell in sverity/frontend.h)");
+                continue;
+            }
+            design->libCells[lc.name] = lc;
+        }
+    }
+}
+
 Report analyze(const AnalyzerOptions& opts) {
     Report report;
     report.setToolInfo(SVERITY_VERSION, slangVersionString(), Catalog::embedded().version());
@@ -202,6 +258,7 @@ Report analyze(const AnalyzerOptions& opts) {
         json::Value options = json::Value::object();
         auto effective = opts.config.ruleOptions;
         effective.try_emplace("CDC-005.min_stages", "2");
+        effective.try_emplace("CDC-015.reach_budget", "100000");
         effective.try_emplace("RDC-006.min_stages", "2");
         effective.try_emplace("LNT-010.empty_output", "info");
         effective.try_emplace("LNT-025.priority_chains", "info");
@@ -212,6 +269,17 @@ Report analyze(const AnalyzerOptions& opts) {
         effective.try_emplace("LNT-061.allow", "");
         for (auto& [key, value] : effective) options.set(key, value);
         report.addInput("rule_options", options);
+        if (!opts.config.boundaryEvents.empty()) {
+            json::Value boundaryEvents = json::Value::array();
+            for (const auto& c : opts.config.boundaryEvents) {
+                json::Value item = json::Value::object();
+                item.set("port", c.port).set("launch_clock", c.launchClock).set("protocol", c.protocol)
+                    .set("duration_value", std::isfinite(c.duration) ? json::Value(c.duration) : json::Value())
+                    .set("duration_unit", c.durationUnit).set("delivery", c.delivery);
+                boundaryEvents.push(std::move(item));
+            }
+            report.addInput("boundary_events", boundaryEvents);
+        }
         json::Value overrides = json::Value::object();
         for (auto& [key, value] : opts.config.severityOverrides) overrides.set(key, toString(value));
         report.addInput("severity_overrides", overrides);
@@ -233,57 +301,7 @@ Report analyze(const AnalyzerOptions& opts) {
         report.add(std::move(d));
         report.markIncomplete("elaboration", "internal failure while loading the design");
     }
-    if (design) {
-        for (auto& f : opts.libraryFiles) {
-            std::string text;
-            auto fail = [&](const std::string& why) {
-                Diagnostic d;
-                d.ruleId = "CST-018";
-                d.severity = Severity::Error;
-                d.message = "library file '" + std::filesystem::path(f).filename().string() + "' " + why;
-                d.nextStep = "Fix the library file; its cells are treated as ordinary modules (no synchroniser is recognised through them).";
-                report.add(std::move(d));
-                report.markIncomplete("constraints", "library file '" + std::filesystem::path(f).filename().string() + "' " + why);
-            };
-            if (!readFile(f, text)) { fail("could not be read"); continue; }
-            auto pr = json::parse(text);
-            if (!pr.ok) { fail("is not valid JSON (" + pr.error + ")"); continue; }
-            for (auto& c : pr.value["cells"].asArray()) {
-                LibCell lc;
-                lc.name = c["name"].asString();
-                if (c.find("kind")) lc.kind = c["kind"].asString();
-                lc.clock = c["clock"].asString();
-                lc.input = c["input"].asString();
-                lc.output = c["output"].asString();
-                lc.enable = c["enable"].asString();
-                lc.reset = c["reset"].asString();
-                lc.writeClock = c["write_clock"].asString();
-                lc.readClock = c["read_clock"].asString();
-                if (c.find("stages")) lc.stages = static_cast<int>(c["stages"].asInt(2));
-                if (lc.kind == "flop") lc.stages = 1;
-                if (c.find("edge")) lc.edge = c["edge"].asString() == "negedge" ? 2 : 1;
-                if (c.find("reset_active")) lc.resetActiveLow = c["reset_active"].asString() != "high";
-                if (c.find("reset_value")) lc.resetValue = c["reset_value"].asInt(0) ? '1' : '0';
-                if (c.find("enable_latched")) lc.enableLatched = c["enable_latched"].asBool(false);
-                if (c.find("sync_read")) lc.syncRead = c["sync_read"].asBool(true);
-                if (c.find("ports"))
-                    for (auto& p : c["ports"].asArray()) lc.ports.push_back({p["name"].asString(), p["dir"].asString(), p["role"].asString(), p["clock"].asString()});
-                bool ok = !lc.name.empty() && lc.stages >= 1;
-                if (lc.kind == "synchronizer" || lc.kind == "flop") ok = ok && !lc.clock.empty() && !lc.input.empty() && !lc.output.empty();
-                else if (lc.kind == "clock_gate") ok = ok && !lc.clock.empty() && !lc.enable.empty() && !lc.output.empty();
-                else if (lc.kind == "ram") ok = ok && !lc.writeClock.empty() && !lc.readClock.empty() && !lc.ports.empty();
-                else if (lc.kind == "blackbox") ok = ok && !lc.ports.empty();
-                else ok = false;
-                for (auto& p : lc.ports)
-                    ok = ok && !p.name.empty() && (p.dir == "in" || p.dir == "out" || p.dir == "inout");
-                if (!ok) {
-                    fail("has a cell entry that is incomplete or of an unsupported kind (kinds: synchronizer, flop, clock_gate, ram, blackbox; see LibCell in sverity/frontend.h)");
-                    continue;
-                }
-                design->libCells[lc.name] = lc;
-            }
-        }
-    }
+    if (design) loadLibraryFiles(opts.libraryFiles, *design, report);
     Config config = opts.config;
     auto reportPath = [&](const std::string& path) {
         auto absolute = std::filesystem::absolute(path).lexically_normal();
@@ -304,6 +322,7 @@ Report analyze(const AnalyzerOptions& opts) {
             d.nextStep = "Fix the path; no constraints from this file were applied.";
             report.add(std::move(d));
             report.markIncomplete("constraints", "constraint file '" + std::filesystem::path(f).filename().string() + "' unreadable");
+            config.constraints.unreadableFiles = true;
             continue;
         }
         config.sdcFiles.push_back(reportPath(f));
@@ -532,6 +551,23 @@ Report analyze(const AnalyzerOptions& opts) {
         report.addInput("elaborated_tops", tops);
     }
     if (measuring) {
+        // Report size per rule: findings, evidence steps and an estimate of the text they hold.
+        std::map<std::string, std::array<uint64_t, 3>> sizes;
+        for (const auto& d : report.diagnostics()) {
+            auto& s = sizes[d.ruleId];
+            s[0]++;
+            s[1] += d.evidence.size();
+            uint64_t bytes = sizeof(Diagnostic) + d.message.size() + d.sourceLine.size() + d.hierarchy.size() + d.nextStep.size();
+            for (const auto& e : d.evidence) bytes += sizeof(e) + e.kind.size() + e.text.size() + e.location.file.size() + e.sourceLine.size();
+            for (const auto& v : {&d.signals, &d.occurrences, &d.groupedSources, &d.identityArguments, &d.alsoRules})
+                for (const auto& x : *v) bytes += sizeof(x) + x.size();
+            s[2] += bytes;
+        }
+        for (const auto& [rule, s] : sizes) {
+            timings.count("report." + rule + ".findings", s[0]);
+            timings.count("report." + rule + ".evidence", s[1]);
+            timings.count("report." + rule + ".bytes_estimate", s[2]);
+        }
         // Measurements are written even for a failed run: that is when they matter most.
         timings.flush();
         if (timings.writeFailed()) report.setExecutionError("could not write timings to '" + opts.timingsFile + "'");

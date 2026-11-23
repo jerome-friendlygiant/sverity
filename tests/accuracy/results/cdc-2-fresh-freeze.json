@@ -1,0 +1,76 @@
+{
+ "batch": "cdc-2-fresh",
+ "cases": {
+  "CDC/broader-b01": {
+   "constraints.sdc": "a92a84a4a99e583d61da1ce4f9c47c1f85718c9a84dc2321af5b9dad86e4603e",
+   "design.sv": "0c65369d72683248d5d4ea23e3e5f16649fa7430ff4b881fe5ede63716e5877e",
+   "label.json": "8d89e87ed711b9397682a3f64cda7d14e6c37da38caeda149ecd183c02e6ecc7"
+  },
+  "CDC/broader-b02": {
+   "constraints.sdc": "7b196255ba9ff2f44a76749af6a9b5912ff3115789773242f1501cdf342ba79c",
+   "design.sv": "4f0cfd914464fe700b76d9e10a4ae8425af03e51ea74522bb98f3420509c3ae4",
+   "label.json": "1049afe3dd1046410a9fa401a78637187d9da7bf060402a93ec2727ac0944184"
+  },
+  "CDC/broader-b04": {
+   "constraints.sdc": "d3304e01dadaf0cdb17bed26e8f76f93d2cb4f8cdf6b199ce9ee5bc09e16d619",
+   "design.sv": "91b46fb122e4d11cc9ed64f6cf7190fb9997fe68b53511f010298f84295639fe",
+   "label.json": "7d5d178c3fee58e67aa579a1c1b6e6cef0ae97bab8480e54f8ea8ead23d1071c"
+  },
+  "CDC/broader-b07": {
+   "constraints.sdc": "a92a84a4a99e583d61da1ce4f9c47c1f85718c9a84dc2321af5b9dad86e4603e",
+   "design.sv": "d55494f209ee33f01531a354c851bd0553528b4580a1f4d8e2b3c53c6a4416ca",
+   "label.json": "a80ec332aaa28924ace172f93146e42f02364ee4ce4940560872727b3a881444"
+  },
+  "CDC/broader-b08": {
+   "constraints.sdc": "1b80b40810aa2acad51b98aaf64a8a824bc026138902288d22889c670827a341",
+   "design.sv": "d6de5e3eb81a0426d7c508536a0cf7d30d390134bdf729bb490d7e9a2c10a2c9",
+   "label.json": "b486a0c02bf4feee898bf8316f89700f9f53ed4243544f273d82531ed2f2edeb"
+  },
+  "CDC/broader-b10": {
+   "constraints.sdc": "5048f7f02797ab21ac5733c0e2e636c11bb71193819a6407b2cfa6b55f8becd6",
+   "design.sv": "8d6490a3968cc471f6e2d2c9d104ddb0941a66ac2625d4c1f27fbcdf59c03fa5",
+   "label.json": "b984815186afe7f650cb2416624a5c06368a32216b923a34d27caa1150e7c5d5"
+  },
+  "CDC/broader-b12": {
+   "constraints.sdc": "85f245eb82152b9f6b8a33d9e99bd555396e26fc205e83d887d2bc9de67be336",
+   "design.sv": "35ab657697585ac0b04fef07951718c48921884cded2ac2d3b5d45faabb3801b",
+   "label.json": "f96d0a2854a9bfa941ad379862e12eeedc8d13e371af8228fd4bf07bbe921265"
+  },
+  "CDC/broader-b14": {
+   "constraints.sdc": "ff1cbbb706a90db9b3b096d1b7d06c9d6a1d297f85617060afe6b891b150e8ee",
+   "design.sv": "4c04a1a49ad3573b98a66525b5d914b7b2fe00c6da31045143c25e92f843fc73",
+   "label.json": "16ed7656eced17fbd9b3148324c5268c4eb2c32e91daeaaf8ed5e989b85315df"
+  },
+  "CDC/broader-b16": {
+   "constraints.sdc": "c4a60cbb85b2403d1c97a531b07a112dcdf68532d263f9df727397ca5a9fd993",
+   "design.sv": "5e1bfe90340ea28c1e1cdbf14fb10448b12ef8aedf02d712a655b468619946fb",
+   "label.json": "ce9c9f0bd19aa2897ccd2cf7ca68238baa1898379498de3a4342f378ec769b3c"
+  },
+  "CDC/broader-b18": {
+   "constraints.sdc": "d050530eb4bd0a5652089d4db5661852d764e9e07aae92b9597c86dc642d0d66",
+   "design.sv": "b23adb684d36cad3e9add1db3c97d5c68f0100e598f625bf7316c79d60d07426",
+   "label.json": "ee70270b113b3c8c3856b5774090b6d316f4e25428e2eea883437680da96544e"
+  },
+  "CDC/broader-b20": {
+   "constraints.sdc": "5067bc7774426ac449bd5fbb00c3074e8d8a75153d87b9075470ad32c6987766",
+   "design.sv": "7666d7cdd84d46e6a473401e8210d9b264e4762c1340ea2e47963d1b97b7fd8e",
+   "label.json": "69856354629bc8ed203e64809526e5d0c8179f3aaebd35aade3af1d0d0f15404"
+  },
+  "CDC/broader-b23": {
+   "constraints.sdc": "74ba65d4d6e9c3f3b66f498208ea357681f745bc5e8f99a84a7273f03a1a75da",
+   "design.sv": "7d2b4b6d79040410b5a07c50e5069afb3c166bc39e1a97a48e59d8dd6d83df51",
+   "label.json": "f8224bdde3a3f09829943e831addbefa086f60f29f2bcff728a222805c9f64ee"
+  },
+  "CDC/broader-b24": {
+   "constraints.sdc": "a92a84a4a99e583d61da1ce4f9c47c1f85718c9a84dc2321af5b9dad86e4603e",
+   "design.sv": "1d02e9808361944c646205b1f9a4cbe63f3aaddacac1bdd22a169c59182c23d1",
+   "label.json": "9ef4c7a71def2066c99b078940eb5ad17a13411e7ad4b21aeaeb00d0ca350a14"
+  },
+  "CDC/broader-b28": {
+   "constraints.sdc": "61c5a17b462d3cae7197f41ee44fefff9153833ed502a4db2ee807ac93477e30",
+   "design.sv": "939459dea44321bf4148d3544cb1552cbcb046ef6acf3767bedce1bbf401aad1",
+   "label.json": "ffff9c0d16fb2212dc356c1a4b4a9eff9dd616bc9bfea1b81dfad49b1ebbc187"
+  }
+ },
+ "schema": "sverity-accuracy-freeze/1"
+}

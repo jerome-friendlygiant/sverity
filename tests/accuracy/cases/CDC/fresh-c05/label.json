@@ -1,0 +1,83 @@
+{
+  "verdict": "unknown",
+  "workflow_class": "Clock intent and inventory",
+  "critical": false,
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 2,
+      "signal": "clk_b"
+    }
+  ],
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-1-fresh",
+  "author": "cdc-author-replacement (GPT-6 Luna)",
+  "author_reading": {
+    "verdict": "unknown",
+    "workflow_class": "Clock intent and inventory",
+    "critical": false,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 2,
+        "signal": "out_b"
+      }
+    ],
+    "rationale": "The design has two roots and a direct transfer, but the clock intent file omits clk_b and its relationship."
+  },
+  "rationale": "The capture clock clk_b has no declaration or relationship to clk_a. The input and output contracts reference clk_a and cannot resolve capture timing. Missing intent requires disclosure; asynchronous transfer failure is not established.",
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "unknown",
+      "workflow_class": "Clock intent and inventory",
+      "critical": false,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 2,
+          "signal": "clk_b"
+        }
+      ],
+      "by": "cdc-replacement-reader-a (GPT-6.1 Sol)",
+      "rationale": "clk_b clocks the only capture register but has no clock declaration or reviewed relation to clk_a. Input and output delays referenced to clk_a cannot establish the clk_b relationship. Missing root intent is definite; crossing safety is unknown until clk_b is specified. This is a fit unknown-intent case."
+    },
+    {
+      "verdict": "unknown",
+      "workflow_class": "Clock intent and inventory",
+      "critical": false,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 2,
+          "signal": "clk_b"
+        },
+        {
+          "file": "constraints.sdc",
+          "line": 1,
+          "signal": "clk_a"
+        }
+      ],
+      "by": "cdc-replacement-reader-b (GPT-6.1 Sol)",
+      "rationale": "clk_b clocks a register but has no root clock or relationship declaration. The clk_a input is captured by this unspecified domain. Missing intent must be disclosed; whether this is an asynchronous unsafe transfer cannot be settled from these files. Fit as a missing-clock-intent case."
+    }
+  ],
+  "settlement": {
+    "verdict": "unknown",
+    "workflow_class": "Clock intent and inventory",
+    "critical": false,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 2,
+        "signal": "clk_b"
+      }
+    ],
+    "by": "cdc-settler-replacement (GPT-6.1 Sol)",
+    "reason": "The capture clock clk_b has no declaration or relationship to clk_a. The input and output contracts reference clk_a and cannot resolve capture timing. Missing intent requires disclosure; asynchronous transfer failure is not established."
+  }
+}

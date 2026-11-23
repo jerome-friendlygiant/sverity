@@ -1,0 +1,109 @@
+{
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Qualified payload and event protocols",
+  "rationale": "The ack return leg crosses clk_b -> clk_a into ack_sync1 (line 8), which immediately feeds the req_toggle next-state comparison: a single-stage, unsynchronised crossing. CDC-005 (the author's rule) cannot trigger, because its predicate needs depth >= 2 below min_stages=2; the defect is CDC-003 (ERROR Established, async), as both readers concluded. The forward req chain is a clean 2 stages. Raw rst_n release, recovery/removal and physical timing remain external obligations outside this label.",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 8,
+      "signal": "ack_sync1"
+    },
+    {
+      "file": "design.sv",
+      "line": 12,
+      "signal": "ack_toggle"
+    }
+  ],
+  "expected_rules": [
+    "CDC-003"
+  ],
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-6-whole-ip-fresh",
+  "author": "cdc-whole-ip-author (GPT-6 Luna)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "author_reading": {
+    "id": "Q017",
+    "workflow_class": "qualified_payload_event_protocols",
+    "case_type": "bad",
+    "expected_rules": [
+      "CDC-005"
+    ],
+    "detection_gap": null,
+    "site": {
+      "signal": "ack_sync1",
+      "file": "design.sv",
+      "line": 4
+    },
+    "rationale": "A two-phase request/acknowledge loop returns ack_toggle through only one source-domain stage; the acknowledgement leg is structurally short.",
+    "premises": {
+      "clocks": "clk_a and clk_b both have 10 ns primary clocks; clock relationships are undeclared for six unknown cases, while the Gray-pointer unknown declares asynchronous groups and lacks a datapath bound",
+      "reset": "common rst_n unless the defect specifically exercises reset roots",
+      "protocol": "event delivery required at the stated minimum assertion duration only where boundary_events.json is supplied",
+      "physical_evidence": "No library, metastability MTBF, placement or bus-skew claim; external implementation evidence remains required"
+    }
+  },
+  "settlement": {
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Qualified payload and event protocols",
+    "rationale": "The ack return leg crosses clk_b -> clk_a into ack_sync1 (line 8), which immediately feeds the req_toggle next-state comparison: a single-stage, unsynchronised crossing. CDC-005 (the author's rule) cannot trigger, because its predicate needs depth >= 2 below min_stages=2; the defect is CDC-003 (ERROR Established, async), as both readers concluded. The forward req chain is a clean 2 stages. Raw rst_n release, recovery/removal and physical timing remain external obligations outside this label.",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 8,
+        "signal": "ack_sync1"
+      },
+      {
+        "file": "design.sv",
+        "line": 12,
+        "signal": "ack_toggle"
+      }
+    ],
+    "by": "cdc-whole-ip-settler (Claude Opus 5.5)",
+    "expected_rules": [
+      "CDC-003"
+    ]
+  },
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Qualified payload and event protocols",
+      "rationale": "The acknowledgment returns from clk_b directly into ack_sync1, which immediately participates in the equality controlling req_toggle. There is no second exact acknowledgment synchronization stage before functional use. The forward request chain does not repair the return leg.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 8,
+          "signal": "ack_sync1"
+        }
+      ],
+      "by": "cdc-whole-ip-reader-a (GPT-6.1 Sol)",
+      "expected_rules": [
+        "CDC-003"
+      ]
+    },
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Qualified payload and event protocols",
+      "rationale": "The reverse acknowledgment is sampled once into ack_sync1, then used combinationally in the request next-state condition. There is no second metastability containment stage before functional use. The request leg is correctly two-stage; that does not repair the return leg.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 8,
+          "signal": "ack_sync1"
+        }
+      ],
+      "by": "cdc-whole-ip-reader-b (GPT-6.1 Sol)",
+      "expected_rules": [
+        "CDC-003"
+      ]
+    }
+  ]
+}

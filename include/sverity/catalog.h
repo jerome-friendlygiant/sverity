@@ -1,6 +1,7 @@
 // Machine-readable rule registry (docs/rules/catalog.json), embedded at build time.
 #pragma once
 #include <map>
+#include <set>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -22,15 +23,18 @@ struct RuleInfo {
     std::string wave;                     // foundation | breadth | advanced (ordering only)
     std::string gap;                      // what a partial rule does not cover (empty if none recorded)
     std::string deck;                     // earliest deck holding the rule: core | domain | 1.0 (decks are cumulative)
+    bool cdcDeck = false;                 // member of the CDC 1.0 workflow deck (--deck cdc)
     std::vector<std::string> classes;     // lint workflow defect classes it covers (docs/rules/LINT_WORKFLOW.md)
     std::vector<ObligationInfo> obligations;   // predicates the rule may emit as obligations; empty = none declared
 };
 
 /// True for a known deck name. Decks are cumulative: core is inside domain, domain is inside 1.0.
-/// The workflow deck `lint` stands apart: the rules covering a defect class of the named lint workflow.
+/// Workflow decks `lint` and `cdc` stand apart: the rules covering a named workflow's frozen scope.
 bool isDeck(std::string_view name);
 /// True when `rule` belongs to `deck`.
 bool inDeck(const RuleInfo& rule, std::string_view deck);
+/// True when `id` belongs to `goals` (empty means all families).
+bool inGoal(std::string_view id, const std::set<std::string>& goals);
 
 /// Offline rule contract and advice, shared by --explain and SARIF.
 std::string ruleHelp(const std::string& id);

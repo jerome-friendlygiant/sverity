@@ -1,0 +1,125 @@
+{
+  "verdict": "good",
+  "critical": false,
+  "workflow_class": "Multi-bit transfer and reconvergence",
+  "whole_ip_good_control": false,
+  "rationale": "One fully synchronised asynchronous influence (a2) is ANDed with dst_mode, which the SDC binds to dst_clk and which is therefore a same-domain declared-synchronous input. This is not a two-source asynchronous reconvergence.",
+  "caveats": [
+    "both is a combinational output with no register and no set_output_delay, so neither CDC-010(a) nor CDC-010(b) applies. Consumer timing is unspecified.",
+    "No whole-IP clean premise. Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+  ],
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 7,
+      "signal": "a2"
+    },
+    {
+      "file": "design.sv",
+      "line": 8,
+      "signal": "both"
+    }
+  ],
+  "family": "CDC",
+  "top": "top_cdc_rfc1_t19",
+  "origin": "authored",
+  "batch": "cdc-5-contract-fresh",
+  "author": "cdc-contract-author (GPT-6 Luna)",
+  "author_reading": {
+    "id": "CDC-RFC1-T19",
+    "kind": "good",
+    "class": "Multi-bit transfer and reconvergence",
+    "title": "Reconvergent inputs synchronized then intentionally independent",
+    "case_files": [
+      "design.sv",
+      "clocks.sdc",
+      "contract.md"
+    ],
+    "boundary_event_config": null,
+    "site_signal": "both",
+    "expected_rules": [
+      "CDC-010"
+    ],
+    "rationale": "src_a is an asynchronous status synchronized into dst_clk; dst_mode is a synchronous destination-domain mode input with an explicit dst_clk input delay. The output combines one asynchronous influence with one synchronous control, not two independently arriving asynchronous sources.",
+    "limitations": [
+      "Structural attribution is a proposal for independent adjudication, not analyzer outcome.",
+      "No SVerity scoring performed.",
+      "Physical timing and metastability requirements remain external."
+    ],
+    "top": "top_cdc_rfc1_t19",
+    "profile": "asic",
+    "sdc": "clocks.sdc"
+  },
+  "sdc": [
+    "clocks.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Multi-bit transfer and reconvergence",
+      "fit": true,
+      "whole_ip_good_control": false,
+      "rationale": "One synchronized asynchronous influence combines with destination-synchronous mode; there is no two-source asynchronous reconvergence.",
+      "caveats": [
+        "Output consumer timing and raw reset release are unspecified; structural good only."
+      ],
+      "sites": [
+        {
+          "signal": "a2",
+          "file": "design.sv",
+          "line": 7
+        },
+        {
+          "signal": "both",
+          "file": "design.sv",
+          "line": 8
+        }
+      ],
+      "by": "cdc-contract-reader-a (GPT-6.1 Sol)"
+    },
+    {
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Multi-bit transfer and reconvergence",
+      "fit": "one asynchronous influence with local control",
+      "whole_ip_good_control": false,
+      "rationale": "a2 is fully synchronized; dst_mode is declared local. There are not two correlated asynchronous influences to reconverge.",
+      "caveats": "Raw rst_n release is not locally synchronized or bounded by a release contract; RDC-003 remains a whole-IP closure confounder. Output consumer timing is not specified. Physical closure is excluded.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 8,
+          "signal": "both"
+        }
+      ],
+      "by": "cdc-contract-reader-b (GPT-6.1 Sol)"
+    }
+  ],
+  "settlement": {
+    "verdict": "good",
+    "critical": false,
+    "workflow_class": "Multi-bit transfer and reconvergence",
+    "fit": true,
+    "whole_ip_good_control": false,
+    "rationale": "One fully synchronised asynchronous influence (a2) is ANDed with dst_mode, which the SDC binds to dst_clk and which is therefore a same-domain declared-synchronous input. This is not a two-source asynchronous reconvergence.",
+    "caveats": [
+      "both is a combinational output with no register and no set_output_delay, so neither CDC-010(a) nor CDC-010(b) applies. Consumer timing is unspecified.",
+      "No whole-IP clean premise. Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 7,
+        "signal": "a2"
+      },
+      {
+        "file": "design.sv",
+        "line": 8,
+        "signal": "both"
+      }
+    ],
+    "by": "cdc-contract-settler (Claude Opus 5.5)",
+    "reason": "One fully synchronised asynchronous influence (a2) is ANDed with dst_mode, which the SDC binds to dst_clk and which is therefore a same-domain declared-synchronous input. This is not a two-source asynchronous reconvergence."
+  }
+}

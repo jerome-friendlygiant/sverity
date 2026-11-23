@@ -11,6 +11,7 @@
 #include <map>
 #include <climits>
 #include <charconv>
+#include <cmath>
 #include <regex>
 #include <sstream>
 
@@ -19,48 +20,6 @@
 #include "sverity/waiver.h"
 
 using namespace sverity;
-
-// CST goal membership: completeness/disclosure and waiver/report integrity
-// apply to all goals; clock, crossing and reset contracts apply to the
-// analyses they describe. The full table is explicit so an added CST rule
-// cannot accidentally disappear from a scoped run.
-static bool inGoal(const std::string& id, const std::set<std::string>& goals) {
-    if (goals.empty()) return true;
-    if (id.rfind("LNT-", 0) == 0) return goals.count("lint");
-    if (id.rfind("CDC-", 0) == 0) return goals.count("cdc");
-    if (id.rfind("RDC-", 0) == 0) return goals.count("rdc");
-    // Bits: 1 lint, 2 CDC, 4 RDC.
-    static const std::map<std::string, unsigned> cst = {
-        {"CST-001",6}, // clock and reset classification
-        {"CST-002",6}, // constraint object resolution
-        {"CST-003",6}, // clock and exception conflicts
-        {"CST-004",6}, // crossing clock relationship
-        {"CST-005",7}, // black-box inventory
-        {"CST-006",7}, // waiver validity
-        {"CST-007",6}, // synchronizer trust models
-        {"CST-008",6}, // timing exceptions and crossing safety
-        {"CST-009",7}, // constraint parser disclosure
-        {"CST-010",7}, // unsupported analysis disclosure
-        {"CST-011",6}, // sequential clock constraint coverage
-        {"CST-012",2}, // IO and IP CDC contracts
-        {"CST-013",6}, // generated clock consistency
-        {"CST-014",6}, // clock modes and exclusivity
-        {"CST-015",7}, // configuration completeness
-        {"CST-016",4}, // reset assumptions
-        {"CST-017",6}, // black-box protocol and reset metadata
-        {"CST-018",7}, // constraint parser completeness
-        {"CST-019",7}, // rule coverage and accounting
-        {"CST-020",6}, // crossing inventory completeness
-        {"CST-021",6}, // clock and reset provenance
-        {"CST-022",7}, // waiver hygiene
-        {"CST-023",7}, // unmodeled and encrypted coverage
-        {"CST-024",6}, // physical CDC/RDC obligations
-    };
-    auto it = cst.find(id);
-    if (it == cst.end()) return true; // unclassified future families remain visible
-    unsigned selected = (goals.count("lint") ? 1u : 0u) | (goals.count("cdc") ? 2u : 0u) | (goals.count("rdc") ? 4u : 0u);
-    return (it->second & selected) != 0;
-}
 
 static const char* kUsage = R"(sverity - native SystemVerilog lint / CDC / RDC analyzer (slang frontend)
 
@@ -86,7 +45,7 @@ sverity options:
   --config <file>          JSON configuration; paths are relative to the file
   --goal <lint|cdc|rdc>    limit rule families (repeatable; union); CLI goals replace config goals
                            goal, file enable/disable, then CLI enable/disable; disabled coverage stays INCOMPLETE
-  --deck <core|domain|1.0|lint> report coverage for a published deck (lint: the lint workflow deck);
+  --deck <core|domain|1.0|lint|cdc> report coverage for a published deck (lint/cdc: workflow decks);
                            other rules still run, as preview
   --option <key=value>     override a rule option from the file (repeatable)
   --severity <pattern=level> override severity for matching rules (repeatable)
@@ -249,7 +208,7 @@ static int runSverity(int argc, char** argv) {
         if (!parsed.value.isObject()) fail("config must be a JSON object");
         file = std::move(parsed.value);
     }
-    const std::set<std::string> keys = {"options", "severity", "enable", "disable", "sdc", "library", "waivers", "goal", "deck"};
+    const std::set<std::string> keys = {"options", "severity", "enable", "disable", "sdc", "library", "waivers", "goal", "deck", "boundary_events"};
     for (auto& [key, value] : file.asObject()) if (!keys.count(key)) fail("unknown config key '" + key + "'");
     auto array = [&](const char* key) {
         std::vector<std::string> values;
@@ -270,7 +229,7 @@ static int runSverity(int argc, char** argv) {
     };
     for (const auto& goal : fileGoals) validGoal(goal);
     for (const auto& goal : cliGoals) validGoal(goal);
-    if (!opts.config.deck.empty() && !isDeck(opts.config.deck)) fail("unknown deck '" + opts.config.deck + "' (core|domain|1.0|lint)");
+    if (!opts.config.deck.empty() && !isDeck(opts.config.deck)) fail("unknown deck '" + opts.config.deck + "' (core|domain|1.0|lint|cdc)");
     if (!cliGoals.empty()) opts.config.goals = cliGoals;
     else opts.config.goals.insert(fileGoals.begin(), fileGoals.end());
     auto applyPaths = [&](const char* key, std::vector<std::string>& target) {
@@ -280,11 +239,39 @@ static int runSverity(int argc, char** argv) {
         for (const auto& item : items) target.push_back((base / item).lexically_normal().string());
     };
     applyPaths("sdc", opts.sdcFiles); applyPaths("library", opts.libraryFiles); applyPaths("waivers", opts.waiverFiles);
+    if (const auto* contracts = file.find("boundary_events")) {
+        if (!contracts->isArray()) fail("config 'boundary_events' must be an array of objects");
+        for (const auto& item : contracts->asArray()) {
+            if (!item.isObject()) fail("each boundary_events entry must be an object");
+            static const std::set<std::string> fields = {"port", "launch_clock", "protocol", "duration", "delivery"};
+            for (const auto& [key, value] : item.asObject()) if (!fields.count(key)) fail("unknown boundary_events field '" + key + "'");
+            auto requiredString = [&](const char* key) {
+                const auto* value = item.find(key);
+                if (!value || !value->isString() || value->asString().empty()) fail(std::string("boundary_events.") + key + " must be a nonempty string");
+                return value->asString();
+            };
+            Config::BoundaryEventContract c;
+            c.port = requiredString("port"); c.launchClock = requiredString("launch_clock");
+            c.protocol = requiredString("protocol"); c.delivery = requiredString("delivery");
+            if (c.protocol != "level" && c.protocol != "event") fail("boundary_events.protocol must be level or event");
+            if (c.delivery != "required" && c.delivery != "best_effort") fail("boundary_events.delivery must be required or best_effort");
+            if (c.port.find_first_of("*?{}") != std::string::npos) fail("boundary_events.port must name one exact port or bit");
+            const auto* duration = item.find("duration");
+            if (!duration || !duration->isObject() || !duration->find("value") || !duration->find("unit")) fail("boundary_events.duration requires value and unit");
+            for (const auto& [key, value] : duration->asObject()) if (key != "value" && key != "unit") fail("unknown boundary_events.duration field '" + key + "'");
+            const auto* value = duration->find("value"); const auto* unit = duration->find("unit");
+            if (!value->isNumber() || !unit->isString()) fail("boundary_events.duration requires a numeric value and string unit");
+            c.duration = value->asDouble(); c.durationUnit = unit->asString();
+            if (!std::isfinite(c.duration) || c.duration <= 0) fail("boundary_events.duration.value must be finite and positive");
+            if (c.durationUnit != "s" && c.durationUnit != "ms" && c.durationUnit != "us" && c.durationUnit != "ns" && c.durationUnit != "ps" && c.durationUnit != "fs" && c.durationUnit != "source_cycles") fail("boundary_events.duration.unit must be s, ms, us, ns, ps, fs, or source_cycles");
+            opts.config.boundaryEvents.push_back(std::move(c));
+        }
+    }
     std::map<std::string, std::string> options;
     if (auto* item = file.find("options")) {
         if (!item->isObject()) fail("config 'options' must be an object");
         for (auto& [key, value] : item->asObject()) {
-            if (key == "CDC-005.min_stages" || key == "RDC-006.min_stages") {
+            if (key == "CDC-005.min_stages" || key == "RDC-006.min_stages" || key == "CDC-015.reach_budget") {
                 if (!value.isInt()) fail("option '" + key + "' must be a JSON integer");
                 options[key] = std::to_string(value.asInt());
             } else if (key == "LNT-036.report_modular" || key == "LNT-006.dynamic_index" || key == "LNT-037.dynamic_divisor") {
@@ -297,10 +284,11 @@ static int runSverity(int argc, char** argv) {
         }
     }
     auto validateOption = [&](const std::string& key, const std::string& value) {
-        if (key == "CDC-005.min_stages" || key == "RDC-006.min_stages") {
+        if (key == "CDC-005.min_stages" || key == "RDC-006.min_stages" || key == "CDC-015.reach_budget") {
             int n = 0; auto [end, error] = std::from_chars(value.data(), value.data() + value.size(), n);
-            if (value.empty() || error != std::errc{} || end != value.data() + value.size() || n < 2)
-                fail("option '" + key + "' must be an integer between 2 and " + std::to_string(INT_MAX));
+            const int minimum = key == "CDC-015.reach_budget" ? 1 : 2;
+            if (value.empty() || error != std::errc{} || end != value.data() + value.size() || n < minimum)
+                fail("option '" + key + "' must be an integer between " + std::to_string(minimum) + " and " + std::to_string(INT_MAX));
         } else if (key == "LNT-010.empty_output") {
             if (value != "info" && value != "warning") fail("option '" + key + "' must be info or warning");
         } else if (key == "LNT-025.priority_chains" || key == "LNT-025.overrides") {
@@ -454,15 +442,26 @@ static int runSverity(int argc, char** argv) {
     const auto failedWrite = [&] { extra = 8; report.setExecutionError("a report could not be written"); };
     if (extra & 8) failedWrite();
     std::map<std::string, bool> written;
+    // A JSON or SARIF file is written as it is serialised: a whole-SoC report is not held a second time as one string.
+    const auto writeKind = [&](const std::string& kind, const std::string& path) {
+        if ((kind != "json" && kind != "sarif") || path == "-") return writeTo(path, reportFor(kind));
+        std::ofstream f(path, std::ios::binary);
+        if (!f) { std::fprintf(stderr, "sverity: cannot write %s\n", path.c_str()); return false; }
+        if (kind == "json") report.writeJson(f);
+        else { report.toSarif().write(f, 2); f << '\n'; }
+        f.flush();
+        if (!f) { std::fprintf(stderr, "sverity: write error on %s\n", path.c_str()); return false; }
+        return true;
+    };
     const auto emit = [&](const std::string& kind, const std::string& path) {
-        written[kind] = writeTo(path, reportFor(kind));
+        written[kind] = writeKind(kind, path);
         if (!written[kind]) failedWrite();
     };
     for (const auto& [kind, path] : outputs) if (!path.empty() && path != "-") emit(kind, path);
     for (const auto& [kind, path] : outputs) if (path == "-") emit(kind, path);
     if (extra & 8)
         for (const auto& [kind, path] : outputs)
-            if (!path.empty() && path != "-" && written[kind]) writeTo(path, reportFor(kind));
+            if (!path.empty() && path != "-" && written[kind]) writeKind(kind, path);
     jsonWritten = written["json"]; sarifWritten = written["sarif"];
     const bool machineStdout = jsonOut == "-" || jsonlOut == "-" || sarifOut == "-";
     const char* noColor = std::getenv("NO_COLOR");

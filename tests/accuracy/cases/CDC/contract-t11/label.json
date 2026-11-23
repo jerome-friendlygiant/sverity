@@ -1,0 +1,142 @@
+{
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Gray pointer FIFO and cross-clock memory",
+  "whole_ip_good_control": false,
+  "rationale": "The 3-bit binary read pointer crosses into the write domain through one register, with no Gray coding and no synchroniser. Carry transitions such as 011 to 100 can be captured as arbitrary incoherent values.",
+  "caveats": [
+    "The analyzer should report CDC-017 (counter, ERROR Heuristic when Async) as the primary finding, with CDC-004 as also_matches. The case is a pointer-observation slice, not a FIFO.",
+    "Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+  ],
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 6,
+      "signal": "rd_bin"
+    },
+    {
+      "file": "design.sv",
+      "line": 7,
+      "signal": "wr_seen_rd"
+    }
+  ],
+  "expected_rules": [
+    "CDC-004",
+    "CDC-017"
+  ],
+  "family": "CDC",
+  "top": "top_cdc_rfc1_t11",
+  "origin": "authored",
+  "batch": "cdc-5-contract-fresh",
+  "author": "cdc-contract-author (GPT-6 Luna)",
+  "author_reading": {
+    "id": "CDC-RFC1-T11",
+    "kind": "bad",
+    "class": "Gray pointer FIFO and cross-clock memory",
+    "title": "FIFO read pointer crosses in binary",
+    "case_files": [
+      "design.sv",
+      "clocks.sdc",
+      "contract.md"
+    ],
+    "boundary_event_config": null,
+    "site_signal": "wr_seen_rd",
+    "expected_rules": [
+      "CDC-017",
+      "CDC-004"
+    ],
+    "rationale": "This is a two-domain FIFO pointer observation: rd_bin is the read pointer, dst_clk is write domain, depth is eight. Pointer must be Gray-coded and synchronized; this intentionally crosses binary pointer directly.",
+    "limitations": [
+      "Structural attribution is a proposal for independent adjudication, not analyzer outcome.",
+      "No SVerity scoring performed.",
+      "Physical timing and metastability requirements remain external."
+    ],
+    "top": "top_cdc_rfc1_t11",
+    "profile": "asic",
+    "sdc": "clocks.sdc"
+  },
+  "sdc": [
+    "clocks.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Gray pointer FIFO and cross-clock memory",
+      "fit": true,
+      "whole_ip_good_control": false,
+      "rationale": "Binary pointer crosses directly without Gray encoding or synchronization; carry transitions can produce incoherent pointers.",
+      "caveats": [
+        "Only pointer observation is implemented, not a complete FIFO."
+      ],
+      "sites": [
+        {
+          "signal": "rd_bin",
+          "file": "design.sv",
+          "line": 6
+        },
+        {
+          "signal": "wr_seen_rd",
+          "file": "design.sv",
+          "line": 7
+        }
+      ],
+      "expected_rules": [
+        "CDC-004",
+        "CDC-017"
+      ],
+      "by": "cdc-contract-reader-a (GPT-6.1 Sol)"
+    },
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Gray pointer FIFO and cross-clock memory",
+      "fit": "binary FIFO pointer crossing",
+      "whole_ip_good_control": false,
+      "rationale": "Binary read counter crosses directly to write domain, exposing metastability and multi-bit carry incoherence.",
+      "caveats": "This is pointer observation, not a complete FIFO. Raw rst_n release is not locally synchronized or bounded by a release contract; RDC-003 remains a whole-IP closure confounder. Output consumer timing is not specified. Physical closure is excluded.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 7,
+          "signal": "wr_seen_rd"
+        }
+      ],
+      "expected_rules": [
+        "CDC-004",
+        "CDC-017"
+      ],
+      "by": "cdc-contract-reader-b (GPT-6.1 Sol)"
+    }
+  ],
+  "settlement": {
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Gray pointer FIFO and cross-clock memory",
+    "fit": true,
+    "whole_ip_good_control": false,
+    "rationale": "The 3-bit binary read pointer crosses into the write domain through one register, with no Gray coding and no synchroniser. Carry transitions such as 011 to 100 can be captured as arbitrary incoherent values.",
+    "caveats": [
+      "The analyzer should report CDC-017 (counter, ERROR Heuristic when Async) as the primary finding, with CDC-004 as also_matches. The case is a pointer-observation slice, not a FIFO.",
+      "Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 6,
+        "signal": "rd_bin"
+      },
+      {
+        "file": "design.sv",
+        "line": 7,
+        "signal": "wr_seen_rd"
+      }
+    ],
+    "expected_rules": [
+      "CDC-004",
+      "CDC-017"
+    ],
+    "by": "cdc-contract-settler (Claude Opus 5.5)",
+    "reason": "The 3-bit binary read pointer crosses into the write domain through one register, with no Gray coding and no synchroniser. Carry transitions such as 011 to 100 can be captured as arbitrary incoherent values."
+  }
+}

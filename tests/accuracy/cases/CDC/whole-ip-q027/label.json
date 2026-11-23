@@ -1,0 +1,109 @@
+{
+  "verdict": "unknown",
+  "critical": false,
+  "workflow_class": "Clock and reset interaction",
+  "rationale": "Both synchroniser stages s1/s2 reset together on mode_i (line 7), while the source src_a and the consumer data_o_r use rst_n, so CDC-026 does not apply. An Icarus witness shows s1=s2=0 under reset, so on release s2 sees D=Q and any s1 metastability is contained. What remains is a reset-dependent activation and compatibility obligation (the output is forced to 0 while mode_i is asserted, and no sequencing contract exists). CDC-041 (different source/output-stage reset roots, WARNING Heuristic) discloses it. The author's 'bad' is not established, and both readers chose unknown. The site moves from src_a alone to s2 plus src_a. Raw rst_n release, recovery/removal and physical timing remain external obligations outside this label.",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 7,
+      "signal": "s2"
+    },
+    {
+      "file": "design.sv",
+      "line": 6,
+      "signal": "src_a"
+    }
+  ],
+  "expected_rules": [
+    "CDC-041"
+  ],
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-6-whole-ip-fresh",
+  "author": "cdc-whole-ip-author (GPT-6 Luna)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "author_reading": {
+    "id": "Q027",
+    "workflow_class": "clock_reset_interaction",
+    "case_type": "bad",
+    "expected_rules": [
+      "CDC-041"
+    ],
+    "detection_gap": null,
+    "site": {
+      "signal": "src_a",
+      "file": "design.sv",
+      "line": 4
+    },
+    "rationale": "A synchronized transfer is activated from a source register reset by rst_n while its final destination stage is reset by mode_i; transfer state has different asynchronous reset roots.",
+    "premises": {
+      "clocks": "clk_a and clk_b both have 10 ns primary clocks; clock relationships are undeclared for six unknown cases, while the Gray-pointer unknown declares asynchronous groups and lacks a datapath bound",
+      "reset": "common rst_n unless the defect specifically exercises reset roots",
+      "protocol": "event delivery required at the stated minimum assertion duration only where boundary_events.json is supplied",
+      "physical_evidence": "No library, metastability MTBF, placement or bus-skew claim; external implementation evidence remains required"
+    }
+  },
+  "settlement": {
+    "verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Clock and reset interaction",
+    "rationale": "Both synchroniser stages s1/s2 reset together on mode_i (line 7), while the source src_a and the consumer data_o_r use rst_n, so CDC-026 does not apply. An Icarus witness shows s1=s2=0 under reset, so on release s2 sees D=Q and any s1 metastability is contained. What remains is a reset-dependent activation and compatibility obligation (the output is forced to 0 while mode_i is asserted, and no sequencing contract exists). CDC-041 (different source/output-stage reset roots, WARNING Heuristic) discloses it. The author's 'bad' is not established, and both readers chose unknown. The site moves from src_a alone to s2 plus src_a. Raw rst_n release, recovery/removal and physical timing remain external obligations outside this label.",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 7,
+        "signal": "s2"
+      },
+      {
+        "file": "design.sv",
+        "line": 6,
+        "signal": "src_a"
+      }
+    ],
+    "by": "cdc-whole-ip-settler (Claude Opus 5.5)",
+    "expected_rules": [
+      "CDC-041"
+    ]
+  },
+  "labels": [
+    {
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Clock and reset interaction",
+      "rationale": "Both synchronization stages consistently use mode_i, so there is no interstage mismatch. The source uses rst_n and the downstream consumer also uses rst_n. Independent reset assertion/release may change transfer behavior; no sequencing, masking or tolerance contract resolves this.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 7,
+          "signal": "s2"
+        }
+      ],
+      "by": "cdc-whole-ip-reader-a (GPT-6.1 Sol)",
+      "expected_rules": [
+        "CDC-041"
+      ]
+    },
+    {
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Clock and reset interaction",
+      "rationale": "s1 and s2 have the same mode_i reset, so the synchronizer stages themselves are consistent. The source resets under rst_n instead, and the output register uses rst_n. This leaves reset-dependent activation/recovery unresolved; different source/destination roots alone do not establish a functional failure.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 7,
+          "signal": "s2"
+        }
+      ],
+      "by": "cdc-whole-ip-reader-b (GPT-6.1 Sol)",
+      "expected_rules": [
+        "CDC-041"
+      ]
+    }
+  ]
+}

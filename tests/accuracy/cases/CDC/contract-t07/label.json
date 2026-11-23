@@ -1,0 +1,148 @@
+{
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Qualified payload and event protocols",
+  "whole_ip_good_control": false,
+  "rationale": "The capture condition r2 && !r1 uses the first synchroniser stage r1 in logic, which is early fan-out that can make the load enable metastable. The capture also fires on the synchronised falling edge of the request, after the source's stated payload-validity window has closed. Both are genuine defects at the same capture.",
+  "caveats": [
+    "The case contains two defects, against the one-defect-per-bad-fixture rule. CDC-007, and CDC-029 if it treats r1 as an under-depth qualifier, detect the early-stage use. No current predicate detects the stability-window violation. CDC-039 is only an obligation and earns no credit. Recommend splitting: a variant using r2 && !r3 with a full chain would isolate the stability-window defect as a bad case with empty expected_rules and a detection_gap.",
+    "A CDC-007 hit is credited as detection of a real defect in this case. It does not show that the stability-window defect was found.",
+    "Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+  ],
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 7,
+      "signal": "r1"
+    },
+    {
+      "file": "design.sv",
+      "line": 7,
+      "signal": "dst_payload"
+    }
+  ],
+  "expected_rules": [
+    "CDC-007",
+    "CDC-029"
+  ],
+  "family": "CDC",
+  "top": "top_cdc_rfc1_t07",
+  "origin": "authored",
+  "batch": "cdc-5-contract-fresh",
+  "author": "cdc-contract-author (GPT-6 Luna)",
+  "author_reading": {
+    "id": "CDC-RFC1-T07",
+    "kind": "bad",
+    "class": "Qualified payload and event protocols",
+    "title": "Request released before data capture",
+    "case_files": [
+      "design.sv",
+      "clocks.sdc",
+      "contract.md"
+    ],
+    "boundary_event_config": null,
+    "site_signal": "dst_payload",
+    "expected_rules": [
+      "CDC-039",
+      "CDC-024"
+    ],
+    "rationale": "Source payload is valid only while src_req is high and until ack; destination samples after the synchronized request falling edge, outside the stability window.",
+    "limitations": [
+      "Structural attribution is a proposal for independent adjudication, not analyzer outcome.",
+      "No SVerity scoring performed.",
+      "Physical timing and metastability requirements remain external."
+    ],
+    "top": "top_cdc_rfc1_t07",
+    "profile": "asic",
+    "sdc": "clocks.sdc"
+  },
+  "sdc": [
+    "clocks.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Qualified payload and event protocols",
+      "fit": true,
+      "whole_ip_good_control": false,
+      "rationale": "Capture uses first-stage r1 and occurs on request falling propagation, after the stated source stability window.",
+      "caveats": [
+        "CDC-007 detects actual use of the metastability-prone first stage; no generic data stability obligation is credited as defect detection."
+      ],
+      "sites": [
+        {
+          "signal": "r1",
+          "file": "design.sv",
+          "line": 7
+        },
+        {
+          "signal": "dst_payload",
+          "file": "design.sv",
+          "line": 7
+        }
+      ],
+      "expected_rules": [
+        "CDC-007",
+        "CDC-029"
+      ],
+      "by": "cdc-contract-reader-a (GPT-6.1 Sol)"
+    },
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Qualified payload and event protocols",
+      "fit": "wrong capture phase and early-stage use",
+      "whole_ip_good_control": false,
+      "rationale": "Capture occurs at request falling detection using first-stage r1, outside the promised payload stability interval and before r1 is safe for functional use.",
+      "caveats": "CDC-007 detects early-stage use, not the stability-window violation itself. CDC-039 cannot establish the latter and must not receive defect credit. No ack exists here. Raw rst_n release is not locally synchronized or bounded by a release contract; RDC-003 remains a whole-IP closure confounder. Output consumer timing is not specified. Physical closure is excluded.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 7,
+          "signal": "r1"
+        },
+        {
+          "file": "design.sv",
+          "line": 7,
+          "signal": "dst_payload"
+        }
+      ],
+      "expected_rules": [
+        "CDC-007"
+      ],
+      "by": "cdc-contract-reader-b (GPT-6.1 Sol)"
+    }
+  ],
+  "settlement": {
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Qualified payload and event protocols",
+    "fit": true,
+    "whole_ip_good_control": false,
+    "rationale": "The capture condition r2 && !r1 uses the first synchroniser stage r1 in logic, which is early fan-out that can make the load enable metastable. The capture also fires on the synchronised falling edge of the request, after the source's stated payload-validity window has closed. Both are genuine defects at the same capture.",
+    "caveats": [
+      "The case contains two defects, against the one-defect-per-bad-fixture rule. CDC-007, and CDC-029 if it treats r1 as an under-depth qualifier, detect the early-stage use. No current predicate detects the stability-window violation. CDC-039 is only an obligation and earns no credit. Recommend splitting: a variant using r2 && !r3 with a full chain would isolate the stability-window defect as a bad case with empty expected_rules and a detection_gap.",
+      "A CDC-007 hit is credited as detection of a real defect in this case. It does not show that the stability-window defect was found.",
+      "Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 7,
+        "signal": "r1"
+      },
+      {
+        "file": "design.sv",
+        "line": 7,
+        "signal": "dst_payload"
+      }
+    ],
+    "expected_rules": [
+      "CDC-007",
+      "CDC-029"
+    ],
+    "by": "cdc-contract-settler (Claude Opus 5.5)",
+    "reason": "The capture condition r2 && !r1 uses the first synchroniser stage r1 in logic, which is early fan-out that can make the load enable metastable. The capture also fires on the synchronised falling edge of the request, after the source's stated payload-validity window has closed. Both are genuine defects at the same capture."
+  }
+}

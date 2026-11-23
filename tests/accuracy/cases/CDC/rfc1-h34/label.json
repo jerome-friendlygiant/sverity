@@ -1,0 +1,54 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": true,
+  "verdict": "good",
+  "critical": false,
+  "workflow_class": "IP and external boundaries",
+  "sites": [],
+  "rationale": "src_stat_q (20 ns) reaches a depth-2 inline chain in dst_clk (8 ns): CDC-013 INFO. err_o is contracted to dst_clk with a Same launch (CST-012 INFO); dst_rst_ni is synchronous and contracted.",
+  "author_reading": {
+    "id": "rfc1-h34",
+    "intended_verdict": "good",
+    "critical": false,
+    "workflow_class": "IP and external boundaries",
+    "expected_rules": [],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 23,
+        "signal": "out_q"
+      },
+      {
+        "file": "intent.sdc",
+        "line": 7,
+        "signal": "err_o"
+      }
+    ],
+    "rationale": "Slow-to-fast registered status bit through a clean depth-2 chain into a dst_clk output register that is output-constrained against dst_clk: boundary launched in the capture clock."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "IP and external boundaries",
+      "sites": [],
+      "rationale": "The two exact stages contain the asynchronous register transfer with no early tap. The launch period exceeds the review margin and err_o is launched in its declared capture domain."
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "IP and external boundaries",
+      "sites": [],
+      "rationale": "Slow-to-fast status bit src_stat_q (src_clk, 20.0 ns) crosses into dst_clk (8.0 ns, ratio 2.5 >= 1.5x) through a clean 2-stage synchronizer (s1_q -> s2_q) and is registered in out_q with synchronous reset dst_rst_ni before driving err_o under complete input/output delay contracts."
+    }
+  ]
+}

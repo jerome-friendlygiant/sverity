@@ -1,0 +1,14 @@
+{
+  "boundary_events": [
+    {
+      "port": "level_i",
+      "launch_clock": "src_clk",
+      "protocol": "level",
+      "duration": {
+        "value": 20,
+        "unit": "ns"
+      },
+      "delivery": "required"
+    }
+  ]
+}

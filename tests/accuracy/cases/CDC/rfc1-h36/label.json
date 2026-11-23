@@ -1,0 +1,110 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "verdict": "unknown",
+  "critical": false,
+  "workflow_class": "Clock intent and inventory",
+  "sites": [
+    {
+      "file": "intent.sdc",
+      "line": 8,
+      "signal": "clk_dst"
+    },
+    {
+      "file": "intent.sdc",
+      "line": 8,
+      "signal": "set_clock_latency"
+    }
+  ],
+  "expected_rules": [
+    "CST-009"
+  ],
+  "rationale": "set_clock_latency is outside the supported SDC subset, so it is recorded but not applied: CST-009 WARNING Unresolved, constraints INCOMPLETE. The crossing itself is a clean asynchronous depth-2 chain. Sites take the union of both readers.",
+  "author_reading": {
+    "id": "rfc1-h36",
+    "intended_verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Clock intent and inventory",
+    "expected_rules": [
+      "CST-009"
+    ],
+    "sites": [
+      {
+        "file": "intent.sdc",
+        "line": 8,
+        "signal": "clk_dst"
+      }
+    ],
+    "rationale": "Otherwise clean async-grouped crossing; the SDC adds set_clock_latency -source, a command outside the supported subset, so part of the intent is disclosed as unapplied."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Clock intent and inventory",
+      "sites": [
+        {
+          "file": "intent.sdc",
+          "line": 8,
+          "signal": "clk_dst"
+        }
+      ],
+      "rationale": "The two-stage structure is recognizable, but set_clock_latency is outside the supported SDC subset. The clk_dst source latency remains unapplied.",
+      "expected_rules": [
+        "CST-009"
+      ]
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Clock intent and inventory",
+      "sites": [
+        {
+          "file": "intent.sdc",
+          "line": 8,
+          "signal": "clk_dst"
+        },
+        {
+          "file": "intent.sdc",
+          "line": 8,
+          "signal": "set_clock_latency"
+        }
+      ],
+      "rationale": "intent.sdc:8 uses set_clock_latency -source 0.5 [get_clocks clk_dst], which is outside SVerity's supported SDC command subset and is disclosed as unapplied (CST-009 WARNING Unresolved, constraints INCOMPLETE).",
+      "expected_rules": [
+        "CST-009"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "cdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Clock intent and inventory",
+    "sites": [
+      {
+        "file": "intent.sdc",
+        "line": 8,
+        "signal": "clk_dst"
+      },
+      {
+        "file": "intent.sdc",
+        "line": 8,
+        "signal": "set_clock_latency"
+      }
+    ],
+    "expected_rules": [
+      "CST-009"
+    ],
+    "rationale": "set_clock_latency is outside the supported SDC subset, so it is recorded but not applied: CST-009 WARNING Unresolved, constraints INCOMPLETE. The crossing itself is a clean asynchronous depth-2 chain. Sites take the union of both readers."
+  }
+}

@@ -1,0 +1,136 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Gray pointer FIFO and cross-clock memory",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 14,
+      "signal": "gray_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 17,
+      "signal": "s1_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 19,
+      "signal": "s2_q[0]"
+    }
+  ],
+  "expected_rules": [
+    "CDC-017"
+  ],
+  "rationale": "gray_q is a Gray conversion of a counter; bits 3:1 have depth-2 chains but bit 0 is captured once into s2_q[0]: Gray not fully synchronized, CDC-017 primary (as CDC-003, ERROR) ahead of CDC-032/CDC-004 per CDC.md order. Reader A's notes (no binary init, no Gray datapath bound) do not apply: CDC-018 is only reached when every bit is synchronized.",
+  "author_reading": {
+    "id": "rfc1-h14",
+    "intended_verdict": "bad",
+    "critical": true,
+    "workflow_class": "Gray pointer FIFO and cross-clock memory",
+    "expected_rules": [
+      "CDC-017"
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 19,
+        "signal": "s2_q[0]"
+      }
+    ],
+    "rationale": "Gray pointer: bits [3:1] have a two-stage chain but bit [0] is captured straight into the stage-2 register, so the pointer is only partly synchronized."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Gray pointer FIFO and cross-clock memory",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 14,
+          "signal": "gray_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 17,
+          "signal": "s1_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 19,
+          "signal": "s2_q"
+        }
+      ],
+      "rationale": "The registered Gray conversion feeds two capture stages on bits 3:1 and a single stage on bit 0. gray_o includes an uncontained bit with different capture latency.",
+      "expected_rules": [
+        "CDC-017"
+      ],
+      "suspected_flaw": "The binary counter lacks startup initialization. The upper lanes also lack a reviewed Gray datapath bound."
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Gray pointer FIFO and cross-clock memory",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 19,
+          "signal": "s2_q[0]"
+        },
+        {
+          "file": "design.sv",
+          "line": 17,
+          "signal": "s1_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 14,
+          "signal": "gray_q"
+        }
+      ],
+      "rationale": "The 4-bit Gray-coded pointer gray_q[3:0] (clk_a, design.sv:14) is only partially synchronized into clk_b: bits [3:1] traverse 2 stages (s1_q[3:1] -> s2_q[3:1]), whereas bit 0 bypasses s1_q and is captured directly into s2_q[0] in a single stage (design.sv:19), leaving bit 0 unsynchronized and skewing pointer coherence (CDC-017 ERROR Established).",
+      "expected_rules": [
+        "CDC-017"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "cdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Gray pointer FIFO and cross-clock memory",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 14,
+        "signal": "gray_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 17,
+        "signal": "s1_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 19,
+        "signal": "s2_q[0]"
+      }
+    ],
+    "expected_rules": [
+      "CDC-017"
+    ],
+    "rationale": "gray_q is a Gray conversion of a counter; bits 3:1 have depth-2 chains but bit 0 is captured once into s2_q[0]: Gray not fully synchronized, CDC-017 primary (as CDC-003, ERROR) ahead of CDC-032/CDC-004 per CDC.md order. Reader A's notes (no binary init, no Gray datapath bound) do not apply: CDC-018 is only reached when every bit is synchronized."
+  }
+}

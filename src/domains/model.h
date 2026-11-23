@@ -7,6 +7,7 @@
 #include <optional>
 #include <string_view>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -20,12 +21,18 @@ class ValueSymbol;
 class ProceduralBlockSymbol;
 class ConditionalStatement;
 class Expression;
+class EvalContext;
 class Statement;
 class Symbol;
 enum class EdgeKind : int;
 } // namespace slang::ast
 
 namespace sverity::model {
+
+/// Selects a call-free procedural condition only when its value is fully known
+/// in this elaborated evaluation context. Runtime and unknown values stay open.
+std::optional<bool> elaboratedCondition(const slang::ast::Expression& expression,
+                                       slang::ast::EvalContext& context);
 
 using NodeId = uint32_t;
 constexpr NodeId kNoNode = 0xFFFFFFFFu;
@@ -158,6 +165,16 @@ struct ProcInfo {
     std::string instancePath;
 };
 
+enum class PairOperator : uint8_t { Equal, NotEqual, Xor, And };
+struct PairOperatorFact {
+    uint32_t proc = 0;
+    const slang::ast::ValueSymbol* left = nullptr;
+    const slang::ast::ValueSymbol* right = nullptr;
+    PairOperator op = PairOperator::Xor;
+    const slang::ast::Expression* rhs = nullptr; // complete continuous-assignment RHS for syntax-level proof
+    const slang::ast::Symbol* anchor = nullptr;  // AST anchor for EvalContext when folding after model build
+};
+
 enum class RootKind : uint8_t { TopPort, Logic, BlackBox, Undriven, Cycle };
 
 struct Root {
@@ -171,6 +188,16 @@ struct ResetInfo {
     bool async = true;
     bool activeLow = false;
     bool fromEdge = true;
+};
+
+struct SyncResetGuard {
+    NodeId node = kNoNode;
+    bool activeLow = false;
+    char forcedValue = '?';
+    friend bool operator==(const SyncResetGuard&, const SyncResetGuard&) = default;
+    friend bool operator<(const SyncResetGuard& a, const SyncResetGuard& b) {
+        return std::tie(a.node, a.activeLow, a.forcedValue) < std::tie(b.node, b.activeLow, b.forcedValue);
+    }
 };
 
 struct Flop {
@@ -192,8 +219,12 @@ struct Flop {
     bool hasSyncResetCandidate = false;                  // heuristic: reset-first conditional or final constant override
     int extraStages = 0;                                 // library synchroniser cell: stages beyond this register
     bool blocking = false;                               // assigned with a blocking assignment (never a synchroniser stage)
+    bool hasIff = false;                                 // sensitivity event list used an `iff` qualifier (including constant `iff`)
     bool syncActiveLow = false;                          // polarity of the synchronous reset candidate (condition is a negation)
     NodeId syncReset = kNoNode;                          // the candidate's signal (control edges from it are ignored for chain recognition)
+    std::vector<NodeId> syncResetGuards;                 // all proven constant forcing guards, per-bit
+    std::vector<SyncResetGuard> syncResetFacts;          // all guards with exact polarity and forced bit value
+    bool syncDataSuppressed = false;                     // a proven unconditional constant NBA overrides normal D
     uint32_t domain = 0;                                 // index into Model::domains (valid if clockResolved)
     std::vector<NodeId> otherClockSignals;               // clocks of further sequential blocks driving this bit (multiSequential)
     std::vector<uint32_t> otherDomains;                  // their domains; rules must weigh all of them, independently of source order
@@ -221,6 +252,8 @@ struct BlackBoxPort {
     PortRole role = PortRole::Unknown;
     std::string clock;                                   // library: name of the clock port this port is synchronous to ("" = not declared)
     std::vector<NodeId> nodes;                           // the actual signal's bits in the instantiating scope
+    bool simpleScalarConnection = false;
+    bool conjunctiveConnection = false;                 // one identifier in the original instance connection
 };
 
 struct BlackBoxInst {
@@ -269,7 +302,7 @@ struct ConstDriver {
 // Boolean syntax facts for qualifier implication. Unknown retains dependencies;
 // it never asserts Boolean structure for a case, call, or unsupported operator.
 struct BoolFact {
-    enum class Kind { Constant, Node, And, Or, Not, Unknown };
+    enum class Kind { Constant, Node, And, Or, Not, Equal, Unknown };
     Kind kind = Kind::Unknown;
     NodeId node = kNoNode;
     bool value = false;
@@ -280,6 +313,30 @@ using BoolFactPtr = std::shared_ptr<const BoolFact>;
 struct GuardCondition {
     BoolFactPtr predicate;
     std::vector<NodeId> dependencies;
+};
+struct QualifierWrite {
+    std::shared_ptr<const std::vector<GuardCondition>> guards;   // shared by every bit the assignment writes; never null
+    std::shared_ptr<const std::vector<NodeId>> dataDependencies;
+    std::shared_ptr<const std::vector<NodeId>> controlDependencies;
+    bool dataApproximate = false;
+    bool controlApproximate = false;
+    bool uncertainCall = false;
+};
+struct CombQualifierArm {
+    std::vector<GuardCondition> guards;
+    std::shared_ptr<const std::vector<NodeId>> dataDependencies;
+    std::shared_ptr<const std::vector<NodeId>> controlDependencies;
+    bool dataApproximate = false;
+    bool controlApproximate = false;
+    bool uncertainCall = false;
+    bool unassigned = false;
+};
+struct CombQualifierSummary {
+    bool supported = false;
+    bool multipleDrivers = false;
+    bool incomplete = false;
+    uint32_t proc = UINT32_MAX;
+    std::vector<CombQualifierArm> arms;
 };
 struct BooleanDriver {
     BoolFactPtr value;
@@ -311,6 +368,7 @@ public:
     std::vector<Node> nodes;
     std::vector<Edge> edges;
     std::vector<ProcInfo> procs;
+    std::vector<PairOperatorFact> pairOperatorFacts;
     std::vector<ProceduralWrite> proceduralWrites;
     std::vector<ProcessRead> processReads;
     std::vector<SystemWrite> systemWrites;
@@ -336,6 +394,7 @@ public:
     uint64_t casePrunedBranches = 0, casePrunedExpressions = 0;
     uint64_t subroutineSummaries = 0, subroutineBodyNodes = 0;
     std::vector<BlackBoxInst> blackBoxes;
+    std::vector<std::string> subInstancePaths;           // elaborated sub-instance hierarchical paths (for get_cells resolution)
     std::vector<LibInstance> libInstances;               // instances of declared library cells (every kind)
     std::unordered_map<NodeId, std::vector<ConstDriver>> constDrivers;   // exact constant drivers per node (X/Z kept)
     std::vector<ClockGateInst> clockGates;
@@ -349,9 +408,11 @@ public:
     std::unordered_map<NodeId, uint32_t> selfComb;       // node -> procedure of a combinational dependency on itself
     std::unordered_set<NodeId> selfCombProven;               // ... that Flow proves is a loop: the variable is read before any write and feeds its own write
     std::unordered_set<NodeId> selfCombApproximate;          // ... that exists only through an assignment with a computed index or a user call
+    std::unordered_set<NodeId> combSelfRewritten;            // combinational nodes rewritten non-trivially from themselves in a procedure
     /// per register bit: for every data-carrying assignment, the (non-reset) control nodes guarding it; an empty list = unguarded.
     std::unordered_map<NodeId, std::vector<std::vector<NodeId>>> guards;
-    std::unordered_map<NodeId, std::vector<std::vector<GuardCondition>>> qualifierGuards;
+    std::unordered_map<NodeId, std::vector<QualifierWrite>> qualifierGuards;
+    std::unordered_map<NodeId, CombQualifierSummary> combQualifierDrivers;
     std::unordered_map<NodeId, std::vector<BooleanDriver>> booleanDrivers;
     std::unordered_set<NodeId> selfExact;                // exact register self-assignment (a hold)
     std::unordered_set<NodeId> multiSequential;          // assigned by several sequential blocks: see Flop::otherDomains
@@ -368,8 +429,16 @@ public:
     /// True when the symbol is wider than the per-bit tracking limit, so the node stands for the whole symbol.
     bool collapsed(NodeId n) const;
     const Flop* flopAt(NodeId q) const {
+        if (flopIndexOfNode.size() == nodes.size() && q < flopIndexOfNode.size())
+            return flopIndexOfNode[q] == UINT32_MAX ? nullptr : &flops[flopIndexOfNode[q]];
         auto it = flopOfQ.find(q);
         return it == flopOfQ.end() ? nullptr : &flops[it->second];
+    }
+    /// flopOfQ as a dense array, built once the model is complete (a hash lookup per visited node is costly on a SoC).
+    std::vector<uint32_t> flopIndexOfNode;
+    void indexFlops() {
+        flopIndexOfNode.assign(nodes.size(), UINT32_MAX);
+        for (const auto& [q, index] : flopOfQ) if (q < nodes.size()) flopIndexOfNode[q] = index;
     }
     /// Follows exact Comb (alias) edges backwards to the driving root.
     Root traceRoot(NodeId n) const;
@@ -377,6 +446,40 @@ public:
     NodeId aliasRoot(NodeId n) const;
     /// The register whose output `n` is a plain alias of, if any (`idx` receives its index in `flops`).
     const Flop* flopBehind(NodeId n, uint32_t* idx = nullptr) const;
+
+    struct DeadEdgeKey {
+        NodeId from = kNoNode, to = kNoNode;
+        uint32_t proc = 0;
+        uint8_t type = 0;
+        bool operator==(const DeadEdgeKey&) const = default;
+    };
+    struct DeadEdgeHash {
+        size_t operator()(const DeadEdgeKey& k) const noexcept {
+            size_t h = std::hash<NodeId>{}(k.from);
+            h ^= std::hash<NodeId>{}(k.to) + 0x9e3779b9u + (h << 6) + (h >> 2);
+            h ^= std::hash<uint32_t>{}(k.proc) + 0x9e3779b9u + (h << 6) + (h >> 2);
+            h ^= std::hash<uint8_t>{}(k.type) + 0x9e3779b9u + (h << 6) + (h >> 2);
+            return h;
+        }
+    };
+    std::unordered_set<DeadEdgeKey, DeadEdgeHash> deadEdges; // edges proved dead by Flow overwrite in the same procedure
+    std::unordered_set<uint32_t> constantProcs;              // continuous procs whose RHS folds identically to a constant
+    std::unordered_map<NodeId, std::vector<ConstDriver>> foldedConstDrivers; // continuous folded constant values (e.g. x ^ x -> '0')
+    struct StuckFlopWrite {
+        enum class Kind : uint8_t { Const, Copy, SelfXor, SelfOr, SelfAnd };
+        Kind kind = Kind::Const;
+        char constVal = '?';
+        NodeId other = kNoNode;
+        bool unconditional = false;
+    };
+    std::unordered_map<NodeId, std::vector<StuckFlopWrite>> stuckCandidates; // cleared in finish()
+    std::unordered_set<NodeId> stuckRejected;                                // cleared in finish()
+    std::unordered_map<NodeId, char> stuckInitValues;                        // cleared in finish()
+    std::unordered_map<NodeId, char> stuckFlopValues;                        // single-bit flops proven stuck at '0' or '1'
+    bool isDeadEdge(const Edge& e) const {
+        return deadEdges.count({e.from, e.to, e.proc, static_cast<uint8_t>(e.type)}) != 0;
+    }
+    bool isConstantProc(uint32_t p) const { return constantProcs.count(p) != 0; }
 
     /// Exact, unconditional combinational literal behind aliases; '?' if not established (X/Z kept).
     char constantValue(NodeId n) const;

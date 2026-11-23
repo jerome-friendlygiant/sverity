@@ -1,0 +1,55 @@
+{
+  "verdict": "bad",
+  "workflow_class": "Clock intent and inventory",
+  "critical": true,
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 2,
+      "signal": "seen"
+    }
+  ],
+  "family": "CDC",
+  "top": "case_ci03",
+  "origin": "authored",
+  "batch": "cdc-2-fresh",
+  "author": "cdc-broader-author (GPT-6 Luna)",
+  "author_reading": {
+    "verdict": "bad",
+    "workflow_class": "Clock intent and inventory"
+  },
+  "rationale": "req is explicitly sourced relative to src_clk while seen captures it on asynchronously grouped dst_clk with no synchronization. The unused src_clk RTL port does not remove the SDC-defined input launch domain.",
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "bad",
+      "workflow_class": "Clock intent and inventory",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 2,
+          "signal": "seen"
+        }
+      ],
+      "by": "cdc-broader-reader-a (GPT-6.1 Sol)",
+      "rationale": "req is explicitly sourced relative to src_clk while seen captures it on asynchronously grouped dst_clk with no synchronization. The unused src_clk RTL port does not remove the SDC-defined input launch domain."
+    },
+    {
+      "verdict": "bad",
+      "workflow_class": "Clock intent and inventory",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 2,
+          "signal": "seen"
+        }
+      ],
+      "by": "cdc-broader-reader-b (GPT-6.1 Sol)",
+      "rationale": "req is explicitly launched relative to src_clk and captured directly by dst_clk; the clocks are explicitly asynchronous. No destination synchronizer intervenes. Root inventory is complete, but the declared relationship exposes this unsafe capture."
+    }
+  ]
+}

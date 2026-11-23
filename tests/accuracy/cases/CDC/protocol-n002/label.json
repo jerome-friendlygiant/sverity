@@ -1,0 +1,81 @@
+{
+  "verdict": "unknown",
+  "workflow_class": "Multi-bit transfer and reconvergence",
+  "critical": false,
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 3,
+      "signal": "p2"
+    }
+  ],
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-3-protocol-fresh",
+  "author": "cdc-protocol-author (GPT-6 Luna)",
+  "author_reading": {
+    "workflow_class": "Multi-bit transfer and reconvergence",
+    "verdict": "bad",
+    "label_scope": "Bad",
+    "rationale": "Related flags are independently sampled and then combined by XOR; the observed relation can be torn."
+  },
+  "rationale": "Independent captures reconverge through XOR after their second stages. Same launch clock does not establish correlation or a required simultaneous observation. Related changes can yield an unintended intermediate XOR, but independent status inputs can legitimately be combined. Correlation and consumer intent are missing. The nine-bit concatenation drops only a leading zero; it does not corrupt the relevant bits. Physical synchronizer implementation and asynchronous reset release/recovery remain external obligations; neither SDC nor sampled digital simulation closes them.",
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "unknown",
+      "workflow_class": "Multi-bit transfer and reconvergence",
+      "critical": false,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 2,
+          "signal": "p1"
+        },
+        {
+          "file": "design.sv",
+          "line": 3,
+          "signal": "p2"
+        }
+      ],
+      "by": "cdc-protocol-reader-a (GPT-6.1 Sol)",
+      "rationale": "Independent two-stage captures reconverge in an XOR. SDC establishes a common launch domain, not correlation or atomicity requirements for x and y. Related transitions can produce an unintended XOR value, but independent levels can legitimately have this structure; functional intent is unclosed. The oversized concatenation discards only a leading zero and does not confound this issue."
+    },
+    {
+      "verdict": "unknown",
+      "workflow_class": "Multi-bit transfer and reconvergence",
+      "critical": false,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 2,
+          "signal": "p1"
+        },
+        {
+          "file": "design.sv",
+          "line": 3,
+          "signal": "p2"
+        }
+      ],
+      "by": "cdc-protocol-reader-b (GPT-6.1 Sol)",
+      "rationale": "Both inputs are timed to clk_a and independently synchronized into clk_b, then explicitly reconverge through XOR. This permits observations from different source cycles; whether that violates behavior depends on the missing correlation and consumer contract. The XOR does not itself bypass either second stage. The nine-bit concatenation truncates a leading zero, which does not confound the crossing judgment."
+    }
+  ],
+  "settlement": {
+    "verdict": "unknown",
+    "workflow_class": "Multi-bit transfer and reconvergence",
+    "critical": false,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 3,
+        "signal": "p2"
+      }
+    ],
+    "by": "cdc-protocol-settler (GPT-6.1 Sol)",
+    "reason": "Independent captures reconverge through XOR after their second stages. Same launch clock does not establish correlation or a required simultaneous observation. Related changes can yield an unintended intermediate XOR, but independent status inputs can legitimately be combined. Correlation and consumer intent are missing. The nine-bit concatenation drops only a leading zero; it does not corrupt the relevant bits. Physical synchronizer implementation and asynchronous reset release/recovery remain external obligations; neither SDC nor sampled digital simulation closes them."
+  }
+}

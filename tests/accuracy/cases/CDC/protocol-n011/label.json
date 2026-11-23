@@ -1,0 +1,71 @@
+{
+  "verdict": "unknown",
+  "workflow_class": "Qualified payload and event protocols",
+  "critical": false,
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 3,
+      "signal": "event_req"
+    }
+  ],
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-3-protocol-fresh",
+  "author": "cdc-protocol-author (GPT-6 Luna)",
+  "author_reading": {
+    "workflow_class": "Qualified payload and event protocols",
+    "verdict": "good",
+    "label_scope": "Good, crossing-local",
+    "rationale": "Source edge-detects requests and toggles only when prior toggle is acknowledged; destination detects toggle change and returns acknowledgment. Requests arriving while busy are ignored."
+  },
+  "rationale": "The toggle and returned acknowledgment serialize accepted events, and destination count increments once per observed toggle. However prev_req advances even while busy, so a rising event_req while busy is discarded, including if held high afterward. No ready output, minimum spacing or accepted-only interface contract decides whether that loss is allowed. The evidence exercises two widely separated pulses and cannot settle other event patterns or reset-in-flight behavior. Physical synchronizer implementation and asynchronous reset release/recovery remain external obligations; neither SDC nor sampled digital simulation closes them.",
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "unknown",
+      "workflow_class": "Qualified payload and event protocols",
+      "critical": false,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 3,
+          "signal": "toggle"
+        }
+      ],
+      "by": "cdc-protocol-reader-a (GPT-6.1 Sol)",
+      "rationale": "The toggle crossing and returned acknowledgment structurally serialize accepted events, and the destination counts each observed toggle once. However prev_req advances while busy, so an event_req rising edge during busy is discarded without backpressure or buffering. No contract restricts event rate or defines such edges as unaccepted; end-to-end event delivery is therefore unresolved. Physical and reset closure are separate."
+    },
+    {
+      "verdict": "unknown",
+      "workflow_class": "Qualified payload and event protocols",
+      "critical": false,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 3,
+          "signal": "event_req"
+        }
+      ],
+      "by": "cdc-protocol-reader-b (GPT-6.1 Sol)",
+      "rationale": "The accepted toggle is held until a two-stage acknowledgment returns, and the destination counts each accepted toggle once. However, prev_req advances while busy: a new event_req rising edge while toggle differs from as[1] is discarded and cannot be retried merely by holding it high. No ready output, event spacing or accepted-only delivery contract is supplied. The internal handshake is structurally sound, but completeness of external event delivery cannot be decided. Reset recovery and physical implementation are orthogonal obligations."
+    }
+  ],
+  "settlement": {
+    "verdict": "unknown",
+    "workflow_class": "Qualified payload and event protocols",
+    "critical": false,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 3,
+        "signal": "event_req"
+      }
+    ],
+    "by": "cdc-protocol-settler (GPT-6.1 Sol)",
+    "reason": "The toggle and returned acknowledgment serialize accepted events, and destination count increments once per observed toggle. However prev_req advances even while busy, so a rising event_req while busy is discarded, including if held high afterward. No ready output, minimum spacing or accepted-only interface contract decides whether that loss is allowed. The evidence exercises two widely separated pulses and cannot settle other event patterns or reset-in-flight behavior. Physical synchronizer implementation and asynchronous reset release/recovery remain external obligations; neither SDC nor sampled digital simulation closes them."
+  }
+}

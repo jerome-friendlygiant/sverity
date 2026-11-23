@@ -1,0 +1,69 @@
+{
+  "verdict": "bad",
+  "workflow_class": "Clock and reset interaction",
+  "critical": true,
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 2,
+      "signal": "clk_sel"
+    }
+  ],
+  "family": "CDC",
+  "top": "case_ci04",
+  "origin": "authored",
+  "batch": "cdc-2-fresh",
+  "author": "cdc-broader-author (GPT-6 Luna)",
+  "author_reading": {
+    "verdict": "unknown",
+    "workflow_class": "Clock intent and inventory"
+  },
+  "rationale": "The combinational gate allows mode to rise after a ref_clk rising edge, creating a late clk_sel edge, or fall during its high phase, truncating the pulse. The 0.1 to 1.5 input delay permits these transitions; neither a low-phase enable latch nor a static-mode contract is present. This is an unsafe clock enable, classified by the clock-control row rather than merely an inventory omission.",
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "bad",
+      "workflow_class": "Clock intent and inventory",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 2,
+          "signal": "clk_sel"
+        }
+      ],
+      "by": "cdc-broader-reader-a (GPT-6.1 Sol)",
+      "rationale": "mode is allowed to change after a ref_clk rising edge by its input timing contract. Combinational gating can therefore create a late rising edge or truncate a high pulse. No low-phase latch, glitch-free gate or static mode constraint is supplied."
+    },
+    {
+      "verdict": "bad",
+      "workflow_class": "Clock intent and inventory",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 2,
+          "signal": "clk_sel"
+        }
+      ],
+      "by": "cdc-broader-reader-b (GPT-6.1 Sol)",
+      "rationale": "mode gates ref_clk combinationally. A permitted mode transition while ref_clk is high creates a rising clk_sel edge unrelated to a ref_clk edge; neither a low-phase enable latch nor a static-mode contract is present. Root declaration alone cannot justify this derived clock."
+    }
+  ],
+  "settlement": {
+    "verdict": "bad",
+    "workflow_class": "Clock and reset interaction",
+    "critical": true,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 2,
+        "signal": "clk_sel"
+      }
+    ],
+    "by": "cdc-broader-settler (GPT-6.1 Sol)",
+    "reason": "The combinational gate allows mode to rise after a ref_clk rising edge, creating a late clk_sel edge, or fall during its high phase, truncating the pulse. The 0.1 to 1.5 input delay permits these transitions; neither a low-phase enable latch nor a static-mode contract is present. This is an unsafe clock enable, classified by the clock-control row rather than merely an inventory omission."
+  }
+}

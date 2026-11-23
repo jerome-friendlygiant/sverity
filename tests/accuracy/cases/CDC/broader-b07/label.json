@@ -1,0 +1,89 @@
+{
+  "verdict": "unknown",
+  "workflow_class": "IP and external boundaries",
+  "critical": false,
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 2,
+      "signal": "x"
+    },
+    {
+      "file": "design.sv",
+      "line": 5,
+      "signal": "opaque_sync"
+    }
+  ],
+  "family": "CDC",
+  "top": "case_ib04",
+  "origin": "authored",
+  "batch": "cdc-2-fresh",
+  "author": "cdc-broader-author (GPT-6 Luna)",
+  "author_reading": {
+    "verdict": "unknown",
+    "workflow_class": "IP and external boundaries"
+  },
+  "rationale": "The blackbox declaration supplies no implementation or reviewed launch/reset/output model for x. Timing din to clk cannot establish how the opaque cell drives x or whether downstream capture is safe. A synchronizer-like cell name is not evidence.",
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "unknown",
+      "workflow_class": "IP and external boundaries",
+      "critical": false,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 2,
+          "signal": "u_sync"
+        },
+        {
+          "file": "design.sv",
+          "line": 5,
+          "signal": "opaque_sync"
+        }
+      ],
+      "by": "cdc-broader-reader-a (GPT-6.1 Sol)",
+      "rationale": "The blackbox has no behavioral or clock/reset transfer model. Input timing does not establish the domain or safety of x. Cannot establish the output contract or that opaque_sync actually synchronizes."
+    },
+    {
+      "verdict": "unknown",
+      "workflow_class": "IP and external boundaries",
+      "critical": false,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 2,
+          "signal": "u_sync"
+        },
+        {
+          "file": "design.sv",
+          "line": 5,
+          "signal": "q"
+        }
+      ],
+      "by": "cdc-broader-reader-b (GPT-6.1 Sol)",
+      "rationale": "opaque_sync has no behavioral or reviewed library model. Its name and clk pin cannot establish output launch domain, synchronization, or reset behavior. The subsequent dout capture cannot be certified; the blackbox disclosure itself is the intended unknown."
+    }
+  ],
+  "settlement": {
+    "verdict": "unknown",
+    "workflow_class": "IP and external boundaries",
+    "critical": false,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 2,
+        "signal": "x"
+      },
+      {
+        "file": "design.sv",
+        "line": 5,
+        "signal": "opaque_sync"
+      }
+    ],
+    "by": "cdc-broader-settler (GPT-6.1 Sol)",
+    "reason": "The blackbox declaration supplies no implementation or reviewed launch/reset/output model for x. Timing din to clk cannot establish how the opaque cell drives x or whether downstream capture is safe. A synchronizer-like cell name is not evidence."
+  }
+}

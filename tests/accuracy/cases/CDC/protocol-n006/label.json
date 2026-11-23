@@ -1,0 +1,75 @@
+{
+  "verdict": "unknown",
+  "workflow_class": "Multi-bit transfer and reconvergence",
+  "critical": false,
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 3,
+      "signal": "out"
+    }
+  ],
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-3-protocol-fresh",
+  "author": "cdc-protocol-author (GPT-6 Luna)",
+  "author_reading": {
+    "workflow_class": "Multi-bit transfer and reconvergence",
+    "verdict": "bad",
+    "label_scope": "Bad",
+    "rationale": "Two unrelated flags are synchronized separately and reconverge in the output word with no shared capture protocol."
+  },
+  "rationale": "Each scalar has two destination stages. Assignment to two-bit registers zero-extends each input; the ten-bit output concatenation loses only leading zeros. The meaningful bits remain independent observations. Concatenation alone proves neither a correlation requirement nor independence. Without a consumer contract this cannot be called an unsafe coherent transfer or a whole-IP good control. Physical synchronizer implementation and asynchronous reset release/recovery remain external obligations; neither SDC nor sampled digital simulation closes them.",
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "good",
+      "workflow_class": "Multi-bit transfer and reconvergence",
+      "critical": false,
+      "sites": [],
+      "by": "cdc-protocol-reader-a (GPT-6.1 Sol)",
+      "rationale": "a and b each pass through a separate two-stage clk_b chain, with no logical reconvergence or specified correlation requirement. The two-bit declarations zero-extend each scalar; output truncation removes leading zeros only. This is structurally suitable for independent level signals. Correlated use, event delivery, physical synchronization and reset recovery would require additional contracts; none is demonstrated as a defect here."
+    },
+    {
+      "verdict": "unknown",
+      "workflow_class": "Multi-bit transfer and reconvergence",
+      "critical": false,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 2,
+          "signal": "a2"
+        },
+        {
+          "file": "design.sv",
+          "line": 2,
+          "signal": "b2"
+        },
+        {
+          "file": "design.sv",
+          "line": 3,
+          "signal": "out"
+        }
+      ],
+      "by": "cdc-protocol-reader-b (GPT-6.1 Sol)",
+      "rationale": "Each scalar input has two destination stages. Zero extension into two-bit registers and output truncation leave the two scalar values visible. Mere concatenation does not prove they require correlation: independent status controls can be safe, correlated controls can produce an invalid combination. The missing independence/coherence contract prevents deciding between them. Physical implementation and reset closure remain separate."
+    }
+  ],
+  "settlement": {
+    "verdict": "unknown",
+    "workflow_class": "Multi-bit transfer and reconvergence",
+    "critical": false,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 3,
+        "signal": "out"
+      }
+    ],
+    "by": "cdc-protocol-settler (GPT-6.1 Sol)",
+    "reason": "Each scalar has two destination stages. Assignment to two-bit registers zero-extends each input; the ten-bit output concatenation loses only leading zeros. The meaningful bits remain independent observations. Concatenation alone proves neither a correlation requirement nor independence. Without a consumer contract this cannot be called an unsafe coherent transfer or a whole-IP good control. Physical synchronizer implementation and asynchronous reset release/recovery remain external obligations; neither SDC nor sampled digital simulation closes them."
+  }
+}

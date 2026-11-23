@@ -1,0 +1,177 @@
+{
+  "verdict": "bad",
+  "workflow_class": "Qualified payload and event protocols",
+  "critical": true,
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 7,
+      "signal": "hold_s"
+    },
+    {
+      "file": "design.sv",
+      "line": 7,
+      "signal": "req_s"
+    },
+    {
+      "file": "design.sv",
+      "line": 7,
+      "signal": "ack_s2"
+    },
+    {
+      "file": "design.sv",
+      "line": 8,
+      "signal": "req_d2"
+    },
+    {
+      "file": "design.sv",
+      "line": 8,
+      "signal": "ack_d"
+    },
+    {
+      "file": "design.sv",
+      "line": 8,
+      "signal": "valid_d"
+    },
+    {
+      "file": "design.sv",
+      "line": 8,
+      "signal": "accept_d"
+    },
+    {
+      "file": "design.sv",
+      "line": 8,
+      "signal": "payload_d"
+    }
+  ],
+  "rationale": "Genuine duplicate-delivery protocol defect, fit as a bad event/handshake case. At the first valid-and-accept edge the old req_d2 != ack_d still sets valid_d to 1 while ack_d updates by NBA. On the next edge the receiver accepts the same item again before valid_d clears. Source holding and request/ack two-stage crossings are otherwise consistent with the stated bundled-data protocol; they do not establish single delivery. Independently instrumenting the supplied bench observed A6 accepted at 135 and 145 ns and 39 at 205 and 215 ns. With the destination period corrected to 11 ns, accept edges are 137.5/148.5 ns and 214.5/225.5 ns.",
+  "caveats": "Not fit as the proposed safe control, but the operating contract explicitly specifies one-cycle item acceptance, so no new intent is required to score it bad under the event-protocol class. Reproduce without changing blind inputs: copy C05/bench.sv to a temporary file, insert before endmodule: always @(posedge clk_d) if (rst_n && valid_d && accept_d) $display(\"ACCEPT %0t %h\", $time, payload_d); compile iverilog -g2012 -s bench -o /tmp/c05-settle C05/case.sv TEMP_BENCH; run vvp /tmp/c05-settle. Repeat replacing always #5 with always #5.5; default %t rounds half ns to whole ns. Both original payload-only benches pass while accepting four times for two sends. Physical bundled-data skew/max-delay and synchronizer closure remain external. This defect would confound a payload-coherence-only experiment, but is directly relevant to whole-IP protocol review.",
+  "whole_ip_good_control": false,
+  "family": "CDC",
+  "top": "c05",
+  "origin": "authored",
+  "batch": "cdc-4-ip-fresh",
+  "author": "cdc-ip-author (GPT-6 Luna)",
+  "author_reading": {
+    "proposed_outcome": "Positive bundled-data handshake/reconvergence control, conditional",
+    "site_or_premise": "`req_s` crosses through `req_d1/req_d2`; `ack_d` returns through `ack_s1/ack_s2`; `hold_s -> payload_d`",
+    "evidence_and_limits": "Two-transaction Icarus bench checks one schedule and payload result. Verify source holds payload until acknowledgment, request/ack toggle semantics, reset ordering, destination valid/accept behavior. Need physical max-delay/skew evidence and metastability analysis; simulation does not prove either."
+  },
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "bad",
+      "workflow_class": "Qualified payload and event protocols",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 8,
+          "signal": "valid_d"
+        },
+        {
+          "file": "design.sv",
+          "line": 8,
+          "signal": "ack_d"
+        },
+        {
+          "file": "design.sv",
+          "line": 8,
+          "signal": "payload_d"
+        }
+      ],
+      "by": "cdc-ip-reader-a (GPT-6.1 Sol)",
+      "rationale": "The receiver regenerates valid_d whenever req_d2 differs from ack_d, including the edge that acknowledges an already-valid item. NBA semantics leave valid_d asserted for the next cycle after acknowledgment. With legal accept_d=valid_d, one launch produces two accepting edges. Independent monitoring of the supplied bench observed A6 accepted at 135 and 145 ns, and 39 at 205 and 215 ns, despite the original payload-only bench passing.",
+      "caveats": "Unfit as a safe held-payload handshake control: duplicate delivery confounds that claim. The internal hold_s does remain stable until acknowledgment returns, so the defect is not demonstrated incoherent payload capture. Fix valid/ack ordering or explicitly specify a different consumption protocol and prove single delivery. Bundled-data max delay and physical metastability evidence also remain external; the supplied bench uses 10 ns destination rather than SDC 11 ns, but duplicate acceptance does not depend on that mismatch.",
+      "fit": false,
+      "whole_ip_good_control": false
+    },
+    {
+      "verdict": "bad",
+      "workflow_class": "Qualified payload and event protocols",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 8,
+          "signal": "valid_d"
+        },
+        {
+          "file": "design.sv",
+          "line": 8,
+          "signal": "accept_d"
+        },
+        {
+          "file": "design.sv",
+          "line": 8,
+          "signal": "ack_d"
+        },
+        {
+          "file": "design.sv",
+          "line": 8,
+          "signal": "payload_d"
+        }
+      ],
+      "by": "cdc-ip-reader-b (GPT-6.1 Sol)",
+      "rationale": "The held payload and two-flop request/ack crossings look safe locally, but destination delivery is duplicated. On first req_d2 != ack_d capture, valid_d becomes 1. On the following edge, old valid_d allows acknowledgment while the same mismatch sets valid_d to 1 again. A receiver using accept_d=valid_d accepts on that edge and the next. Independent simulation with 8/10 ns clocks, reset released at 70 ns and one send at 96 ns observed accepts at 135 ns and 145 ns, both A6. This violates one delivery per request even with the stated immediate receiver acceptance.",
+      "caveats": "Deceptive safe lookalike: bundled-data stability alone misses the event bug elsewhere in the same IP. Supplied bench passes two transactions but never counts acceptances. Bundled-data max-delay/skew and physical synchronizer closure also remain unproved; they are not needed for this counterexample.",
+      "fit": true,
+      "whole_ip_good_control": false
+    }
+  ],
+  "settlement": {
+    "verdict": "bad",
+    "workflow_class": "Qualified payload and event protocols",
+    "critical": true,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 7,
+        "signal": "hold_s"
+      },
+      {
+        "file": "design.sv",
+        "line": 7,
+        "signal": "req_s"
+      },
+      {
+        "file": "design.sv",
+        "line": 7,
+        "signal": "ack_s2"
+      },
+      {
+        "file": "design.sv",
+        "line": 8,
+        "signal": "req_d2"
+      },
+      {
+        "file": "design.sv",
+        "line": 8,
+        "signal": "ack_d"
+      },
+      {
+        "file": "design.sv",
+        "line": 8,
+        "signal": "valid_d"
+      },
+      {
+        "file": "design.sv",
+        "line": 8,
+        "signal": "accept_d"
+      },
+      {
+        "file": "design.sv",
+        "line": 8,
+        "signal": "payload_d"
+      }
+    ],
+    "by": "cdc-ip-settler (GPT-6.1 Sol)",
+    "rationale": "Genuine duplicate-delivery protocol defect, fit as a bad event/handshake case. At the first valid-and-accept edge the old req_d2 != ack_d still sets valid_d to 1 while ack_d updates by NBA. On the next edge the receiver accepts the same item again before valid_d clears. Source holding and request/ack two-stage crossings are otherwise consistent with the stated bundled-data protocol; they do not establish single delivery. Independently instrumenting the supplied bench observed A6 accepted at 135 and 145 ns and 39 at 205 and 215 ns. With the destination period corrected to 11 ns, accept edges are 137.5/148.5 ns and 214.5/225.5 ns.",
+    "caveats": "Not fit as the proposed safe control, but the operating contract explicitly specifies one-cycle item acceptance, so no new intent is required to score it bad under the event-protocol class. Reproduce without changing blind inputs: copy C05/bench.sv to a temporary file, insert before endmodule: always @(posedge clk_d) if (rst_n && valid_d && accept_d) $display(\"ACCEPT %0t %h\", $time, payload_d); compile iverilog -g2012 -s bench -o /tmp/c05-settle C05/case.sv TEMP_BENCH; run vvp /tmp/c05-settle. Repeat replacing always #5 with always #5.5; default %t rounds half ns to whole ns. Both original payload-only benches pass while accepting four times for two sends. Physical bundled-data skew/max-delay and synchronizer closure remain external. This defect would confound a payload-coherence-only experiment, but is directly relevant to whole-IP protocol review.",
+    "fit": true,
+    "whole_ip_good_control": false,
+    "reason": "Genuine duplicate-delivery protocol defect, fit as a bad event/handshake case. At the first valid-and-accept edge the old req_d2 != ack_d still sets valid_d to 1 while ack_d updates by NBA. On the next edge the receiver accepts the same item again before valid_d clears. Source holding and request/ack two-stage crossings are otherwise consistent with the stated bundled-data protocol; they do not establish single delivery. Independently instrumenting the supplied bench observed A6 accepted at 135 and 145 ns and 39 at 205 and 215 ns. With the destination period corrected to 11 ns, accept edges are 137.5/148.5 ns and 214.5/225.5 ns."
+  }
+}

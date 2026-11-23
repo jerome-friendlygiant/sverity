@@ -41,6 +41,60 @@ class AccuracyGate(unittest.TestCase):
         return subprocess.run([sys.executable, str(SCORER), str(BINARY), '--suite', str(self.suite),
                                '--check', *options], capture_output=True, text=True)
 
+    def freeze(self, manifest, *options):
+        return subprocess.run([sys.executable, str(SCORER), '--suite', str(self.suite),
+                               '--freeze-batch', str(manifest), *options], capture_output=True, text=True)
+
+    def test_frozen_boundary_event_config_is_passed_to_analyzer(self):
+        case, label = self.case(verdict='bad', family='CDC')
+        fixtures = SCORER.parents[2] / 'tests/fixtures/CDC-013'
+        (case / 'design.sv').write_bytes((fixtures / 'boundary_input_sync.sv').read_bytes())
+        (case / 'clocks.sdc').write_bytes((fixtures / 'boundary_input_sync.sdc').read_bytes())
+        config = case / 'events.json'
+        config.write_bytes((fixtures / 'boundary_short.json').read_bytes())
+        label.update(batch='events', sdc=['clocks.sdc'], boundary_event_config='events.json',
+                     expected_rules=['CDC-013'], sites=[dict(signal='event_i')],
+                     workflow_class='Qualified payload and event protocols')
+        label['labels'] = [{**{key: label[key] for key in
+                              ('verdict', 'sites', 'critical', 'expected_rules', 'workflow_class')}, 'by': reader}
+                           for reader in ('reader-a', 'reader-b')]
+        (case / 'label.json').write_text(json.dumps(label))
+        manifest = self.suite / 'freeze.json'
+        args = ['--batch', 'events', '--strict-fresh-labels']
+        frozen = self.freeze(manifest, *args)
+        self.assertEqual(frozen.returncode, 0, frozen.stderr)
+        self.assertIn('events.json', json.loads(manifest.read_text())['cases']['CDC/example'])
+        output = self.suite / 'result.json'
+        first = self.run_check(*args, '--verify-freeze', str(manifest), '--first-score', '--json', str(output))
+        self.assertEqual(first.returncode, 0, first.stdout + first.stderr)
+        row = json.loads(output.read_text())['cases'][0]
+        self.assertEqual(row['outcome'], 'detected')
+        self.assertEqual(row['rules'], ['CDC-013'])
+        self.assertEqual(row['boundary_event_config'], 'events.json')
+        original = output.read_bytes()
+        config.write_bytes(config.read_bytes() + b'\n')
+        changed = self.run_check(*args, '--verify-freeze', str(manifest), '--first-score', '--json', str(output))
+        self.assertNotEqual(changed.returncode, 0)
+        self.assertIn('input hashes differ', changed.stderr)
+        self.assertEqual(output.read_bytes(), original)
+
+    def test_boundary_event_config_rejects_other_settings_and_unpinned_paths(self):
+        case, label = self.case(verdict='bad', family='CDC')
+        config = case / 'events.json'
+        for name, contents, error in (
+                ('../events.json', '{}', 'relative path'),
+                ('events.json', '{"boundary_events":[],"sdc":["outside.sdc"]}', 'only a nonempty boundary_events'),
+                ('events.json', '{"boundary_events":[],"boundary_events":[{}]}', 'duplicate JSON keys')):
+            with self.subTest(name=name, contents=contents):
+                label.update(batch='events', boundary_event_config=name)
+                (case / 'label.json').write_text(json.dumps(label))
+                config.write_text(contents)
+                manifest = self.suite / 'freeze.json'
+                result = self.freeze(manifest, '--batch', 'events')
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(error, result.stderr)
+                self.assertFalse(manifest.exists())
+
     def test_missing_reading_cannot_pass(self):
         self.case(readers=1)
         result = self.run_check()
@@ -658,6 +712,190 @@ class ClassContracts(unittest.TestCase):
                 path.write_text(json.dumps({'class_contracts': bad, 'families': {}}))
                 with self.assertRaises(ValueError):
                     scorer.read_budgets(path)
+
+
+class SiteEvidence(unittest.TestCase):
+    def test_only_located_tap_names_identify_downstream_sites(self):
+        scorer = ClassContracts.scorer()
+        site = {'file': 'design.sv', 'line': 15, 'signal': 'req_seen'}
+        tap = {'kind': 'downstream_tap', 'text': 'top.req_seen',
+               'location': {'file': 'design.sv', 'line': 30}}
+        diagnostic = {'signals': ['top.req_async'], 'evidence': [tap]}
+        self.assertTrue(scorer.at_site(diagnostic, [site], {}, {}))
+        for unrelated in (dict(tap, kind='note'), dict(tap, text='top.other'),
+                          dict(tap, location={}), dict(tap, location={'file': 'other.sv', 'line': 30})):
+            self.assertFalse(scorer.at_site(dict(diagnostic, evidence=[unrelated]), [site], {}, {}))
+
+
+class CDCFreshLabels(unittest.TestCase):
+    def test_in_scope_missing_detector_counts_as_a_critical_miss(self):
+        scorer = ClassContracts.scorer()
+        reading = dict(verdict='bad', critical=True, workflow_class='Gray pointer FIFO and cross-clock memory',
+                       sites=[dict(signal='rptr')], expected_rules=[])
+        label = dict(reading, family='CDC', top='top', author='author', detection_gap='Missing FIFO underflow predicate',
+                     labels=[dict(reading, by='reader-a'), dict(reading, by='reader-b')])
+        self.assertEqual(scorer.label_problems('CDC/c001', label), [])
+        self.assertEqual(scorer.strict_label_problems('CDC/c001', label), [])
+        self.assertTrue(scorer.label_problems('CDC/c001', dict(label, detection_gap='')))
+        report = {'diagnostics': [dict(rule_id='CDC-024', severity='WARNING', confidence='heuristic',
+                                      disposition='REVIEW_REQUIRED', signals=['top.rptr'])]}
+        self.assertEqual(scorer.score(label, report, {}, {})['outcome'], 'missed')
+        self.assertTrue(scorer.silent_critical(label, 'missed'))
+
+    def test_expected_rules_disputes_allow_settled_good_or_bad(self):
+        scorer = ClassContracts.scorer()
+        good = dict(verdict='good', critical=False, workflow_class='Synchronizer structure', sites=[])
+        bad = dict(good, verdict='bad', critical=True, expected_rules=['CDC-003'], sites=[dict(signal='q')])
+        meta = dict(family='CDC', top='top', author='author',
+                    labels=[dict(good, by='reader-a'), dict(bad, by='reader-b')])
+        for reading in (good, bad):
+            label = dict(meta, **reading)
+            self.assertTrue(scorer.strict_label_problems('CDC/c001', label))
+            label['settlement'] = dict(reading, by='settler')
+            self.assertEqual(scorer.label_problems('CDC/c001', label), [])
+            self.assertEqual(scorer.strict_label_problems('CDC/c001', label), [])
+
+    def test_defect_matching_requires_frozen_rule_and_signal(self):
+        scorer = ClassContracts.scorer()
+        reading = dict(verdict='bad', critical=True, workflow_class='Clock and reset interaction',
+                       sites=[dict(line=8, signal='reset_n')], expected_rules=['RDC-003'])
+        label = dict(reading, family='CDC', top='top', author='author',
+                     labels=[dict(reading, by='reader-a'), dict(reading, by='reader-b')])
+        self.assertEqual(scorer.label_problems('CDC/c001', label), [])
+        self.assertEqual(scorer.strict_label_problems('CDC/c001', label), [])
+        self.assertTrue(scorer.strict_label_problems('CDC/c001', dict(label, expected_rules=['RDC-005'])))
+        dropped = {k: v for k, v in label.items() if k != 'expected_rules'}
+        self.assertTrue(scorer.strict_label_problems('CDC/c001', dropped))
+        label['labels'][1] = dict(reading, by='reader-b', expected_rules=['CDC-003'])
+        self.assertTrue(scorer.strict_label_problems('CDC/c001', dropped))
+        label['labels'][1] = dict(reading, by='reader-b', expected_rules=['invalid'])
+        self.assertTrue(scorer.label_problems('CDC/c001', label))
+        label['labels'] = [dict(reading, by='reader-a', expected_rules=['RDC-003', 'RDC-005']),
+                           dict(reading, by='reader-b', expected_rules=['RDC-005', 'RDC-003'])]
+        self.assertEqual(scorer.strict_label_problems('CDC/c001', dict(label, expected_rules=['RDC-003', 'RDC-005'])), [])
+        self.assertTrue(scorer.label_problems('CDC/c001', dict(label, sites=[dict(line=8)])))
+        nearby = dict(rule_id='RDC-003', severity='WARNING', confidence='established',
+                      signals=['top.other_reset_n'], location=dict(file='design.sv', line=8))
+        unrelated = dict(nearby, rule_id='CDC-029', signals=['top.reset_n'])
+        hit = dict(nearby, signals=[], crossing=dict(launch=dict(signal='top.reset_n')))
+        self.assertEqual(scorer.score(label, {'diagnostics': [nearby, unrelated]}, {}, {})['outcome'], 'missed')
+        self.assertEqual(scorer.score(label, {'diagnostics': [hit]}, {}, {})['outcome'], 'detected')
+
+    def test_protocol_obligation_discloses_but_does_not_detect(self):
+        scorer = ClassContracts.scorer()
+        label = dict(family='CDC', verdict='bad', critical=True, sites=[dict(signal='req')],
+                     expected_rules=['CDC-018', 'CDC-024'])
+        report = {'diagnostics': [dict(rule_id='CDC-024', severity='WARNING', confidence='heuristic',
+                                      disposition='REVIEW_REQUIRED', signals=['top.req'])]}
+        bad = scorer.score(label, report, {}, {})
+        self.assertEqual(bad['outcome'], 'unresolved')
+        self.assertTrue(scorer.silent_critical(dict(label, **bad), bad['outcome']))
+        self.assertEqual(scorer.score(dict(label, verdict='unknown'), report, {}, {})['outcome'], 'disclosed')
+        for disposition in ('RESOLVED', 'WAIVED'):
+            quiet = {'diagnostics': [dict(report['diagnostics'][0], disposition=disposition)]}
+            self.assertEqual(scorer.score(dict(label, verdict='unknown'), quiet, {}, {})['outcome'], 'silent')
+        invalid = dict(label, expected_rules=['CDC-024'], author='author', top='top', labels=[])
+        self.assertTrue(any('detect the defect' in error for error in scorer.label_problems('CDC/c001', invalid)))
+        legacy = {k: v for k, v in label.items() if k != 'expected_rules'}
+        self.assertEqual(scorer.score(legacy, report, {}, {})['outcome'], 'detected')
+
+    def test_vector_signal_matches_in_both_directions_without_conflating_bits(self):
+        scorer = ClassContracts.scorer()
+        for reported, site, matches in (('top.u.q', 'u.q[3]', True), ('top.u.q[3]', 'u.q', True),
+                                         ('top.u.q[2]', 'u.q[3]', False), ('top.v.q[3]', 'u.q[3]', False)):
+            label = dict(expected_rules=['CDC-009'], sites=[dict(signal=site)])
+            self.assertEqual(scorer.cdc_defect_match(dict(rule_id='CDC-009', signals=[reported]), label), matches)
+
+    def test_typed_site_signal_requires_case_relative_file_and_matching_signal(self):
+        scorer = ClassContracts.scorer()
+        label = dict(expected_rules=['CDC-023'], sites=[dict(file='design.sv', signal='u.a[3]')])
+        def diagnostic(file, signal):
+            return dict(rule_id='CDC-023', signals=['unrelated'], evidence=[
+                dict(kind='site_signal', text=signal, location=dict(file=file, line=8))])
+        self.assertTrue(scorer.cdc_defect_match(diagnostic('design.sv', 'top.u.a[3]'), label))
+        self.assertTrue(scorer.cdc_defect_match(diagnostic('design.sv', 'top.u.a'),
+                                                dict(label, sites=[dict(file='design.sv', signal='u.a[3]')])))
+        self.assertFalse(scorer.cdc_defect_match(diagnostic('other.sv', 'top.u.a[3]'), label))
+        self.assertFalse(scorer.cdc_defect_match(diagnostic('other/design.sv', 'top.u.a[3]'), label))
+        self.assertTrue(scorer.cdc_defect_match(diagnostic('rtl/design.sv', 'top.u.a[3]'),
+                                                dict(label, sites=[dict(file='rtl/design.sv', signal='u.a[3]')])))
+        self.assertFalse(scorer.cdc_defect_match(diagnostic('design.sv', 'top.other.a[3]'), label))
+        self.assertFalse(scorer.cdc_defect_match(diagnostic('design.sv', 'top.u.a[2]'), label))
+
+    def test_typed_site_attribution_does_not_change_legacy_frozen_matching(self):
+        scorer = ClassContracts.scorer()
+        label = dict(expected_rules=['CDC-023'], sites=[dict(signal='u.a[3]')])
+        legacy = dict(rule_id='CDC-023', signals=['top.u.a[3]'])
+        self.assertTrue(scorer.cdc_defect_match(legacy, label))
+
+    def test_requires_known_workflow_class_and_a_distinct_settler_for_disagreement(self):
+        scorer = ClassContracts.scorer()
+        reading = dict(verdict='good', sites=[], critical=False, workflow_class='Synchronizer structure')
+        label = dict(reading, family='CDC', top='top', author='cdc-author',
+                     labels=[dict(reading, by='cdc-reader-a'), dict(reading, by='cdc-reader-b')])
+        case = 'CDC/c001'
+        self.assertEqual(scorer.label_problems(case, label), [])
+        self.assertEqual(scorer.strict_label_problems(case, label), [])
+        self.assertTrue(scorer.label_problems(case, dict(label, workflow_class='Unhandled class')))
+        label['labels'][1]['workflow_class'] = 'IP and external boundaries'
+        self.assertTrue(scorer.strict_label_problems(case, label))
+        self.assertTrue(scorer.strict_label_problems(case, dict(label, settlement=dict(reading, by='cdc-reader-a'))))
+        self.assertEqual(scorer.strict_label_problems(case, dict(label, settlement=dict(reading, by='cdc-settler'))), [])
+
+    def test_cli_analyzer_flags_passthrough_and_provenance(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            case = root / 'cases/CDC/example'
+            case.mkdir(parents=True)
+            (case / 'design.sv').write_text('module top; endmodule\n')
+            label = dict(family='CDC', top='top', verdict='good', sites=[], critical=False,
+                         workflow_class='Synchronizer structure', author='author', batch='fresh',
+                         labels=[dict(by='reader-a', verdict='good', sites=[], critical=False,
+                                      workflow_class='Synchronizer structure'),
+                                 dict(by='reader-b', verdict='good', sites=[], critical=False,
+                                      workflow_class='Synchronizer structure')])
+            (case / 'label.json').write_text(json.dumps(label))
+            seen_invocations = []
+            argv_log = root / 'argv.json'
+            fake = root / 'fake'
+            fake.write_text(f"""#!/usr/bin/env python3
+import json, pathlib, sys
+if '--version' in sys.argv: print('fake 1'); sys.exit(0)
+log = pathlib.Path({repr(str(argv_log))})
+recorded = json.loads(log.read_text()) if log.exists() else []
+recorded.append(sys.argv[1:])
+log.write_text(json.dumps(recorded))
+out = pathlib.Path(sys.argv[sys.argv.index('--json') + 1])
+out.write_text(json.dumps({{'schema':'sverity-report/1','summary':{{'execution_status':'SUCCESS','analysis_coverage':'COMPLETE'}},'diagnostics':[]}}))
+""")
+            fake.chmod(0o755)
+            out_default = root / 'default.json'
+            res_default = subprocess.run([sys.executable, str(SCORER), str(fake), '--suite', str(root),
+                                          '--batch', 'fresh', '--json', str(out_default)],
+                                         capture_output=True, text=True)
+            self.assertEqual(res_default.returncode, 0, res_default.stderr)
+            default_prov = json.loads(out_default.read_text())['provenance']['profile']
+            self.assertNotIn('analyzer_profile', default_prov)
+            self.assertNotIn('analyzer_goals', default_prov)
+            self.assertNotIn('analyzer_deck', default_prov)
+            self.assertEqual(default_prov['analyzer_arguments'][0], '--top')
+
+            out_scoped = root / 'scoped.json'
+            res_scoped = subprocess.run([sys.executable, str(SCORER), str(fake), '--suite', str(root),
+                                         '--batch', 'fresh', '--profile', 'asic', '--goal', 'cdc',
+                                         '--deck', 'cdc', '--json', str(out_scoped)],
+                                        capture_output=True, text=True)
+            self.assertEqual(res_scoped.returncode, 0, res_scoped.stderr)
+            scoped_prov = json.loads(out_scoped.read_text())['provenance']['profile']
+            self.assertEqual(scoped_prov['analyzer_profile'], 'asic')
+            self.assertEqual(scoped_prov['analyzer_goals'], ['cdc'])
+            self.assertEqual(scoped_prov['analyzer_deck'], 'cdc')
+            self.assertEqual(scoped_prov['analyzer_arguments'][:6], ['--profile', 'asic', '--goal', 'cdc', '--deck', 'cdc'])
+
+            seen_invocations = json.loads(argv_log.read_text())
+            self.assertEqual(len(seen_invocations), 2)
+            self.assertEqual(seen_invocations[0][0], '--top')
+            self.assertEqual(seen_invocations[1][:7], ['--profile', 'asic', '--goal', 'cdc', '--deck', 'cdc', '--top'])
 
 
 if __name__ == '__main__':

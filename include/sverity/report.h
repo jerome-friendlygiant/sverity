@@ -3,6 +3,7 @@
 #pragma once
 #include <map>
 #include <set>
+#include <iosfwd>
 #include <string>
 #include <vector>
 
@@ -138,7 +139,13 @@ public:
     // -------- writers
     std::string ruleSummary() const;
     json::Value toJson() const;
+    /// Writes toJson().dump(2) followed by a newline, building one finding's JSON at a time. False on a write error.
+    bool writeJson(std::ostream& out) const;
     json::Value toSarif() const;
+private:
+    json::Value toJson(bool withDiagnostics) const;
+    json::Value diagnosticJson(const Diagnostic& d) const;
+public:
     std::string toJsonl(ExitPolicy policy = ExitPolicy::Gate, int extra = 0) const;
     std::string statistics() const;
     std::string toHtml() const;

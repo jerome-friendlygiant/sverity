@@ -1,0 +1,113 @@
+{
+  "verdict": "unknown",
+  "critical": false,
+  "workflow_class": "Clock intent and inventory",
+  "rationale": "clk_a and clk_b are declared without a clock group, so per ANALYSIS the relation is Unknown; equal periods, prose and the bench phase do not establish one. Every capture_b bit starts a clean depth-2 chain (capture_b -> data_o_r, line 11), so the author's CDC-004 cannot trigger: its predicate needs an unsynchronised destination bit. The source is src_a + data_i[0] (incrementing counter); the spec routes it to CDC-017 (counter heuristic, WARNING Heuristic for a non-async relation). CST-004 discloses the Unknown crossing; a CST-004 per-domain-pair instance names clocks, not this signal, so only its per-crossing instance can match. If the clocks are async, the word can be incoherent; if they are related, the path is timed, hence unknown. The class is clock_intent_inventory, matching both readers. Raw rst_n release, recovery/removal and physical timing remain external obligations outside this label.",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 11,
+      "signal": "capture_b"
+    },
+    {
+      "file": "design.sv",
+      "line": 7,
+      "signal": "src_a"
+    }
+  ],
+  "expected_rules": [
+    "CDC-017",
+    "CST-004"
+  ],
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-6-whole-ip-fresh",
+  "author": "cdc-whole-ip-author (GPT-6 Luna)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "author_reading": {
+    "id": "Q035",
+    "workflow_class": "ip_external_boundaries",
+    "case_type": "unknown",
+    "expected_rules": [
+      "CDC-004"
+    ],
+    "detection_gap": null,
+    "site": {
+      "signal": "capture_b",
+      "file": "design.sv",
+      "line": 4
+    },
+    "rationale": "Raw multi-bit inter-domain capture is visible, but SDC deliberately leaves the relationship between clk_a and clk_b undeclared. Expected unresolved disclosure; no clean claim.",
+    "premises": {
+      "clocks": "clk_a and clk_b both have 10 ns primary clocks; clock relationships are undeclared for six unknown cases, while the Gray-pointer unknown declares asynchronous groups and lacks a datapath bound",
+      "reset": "common rst_n unless the defect specifically exercises reset roots",
+      "protocol": "event delivery required at the stated minimum assertion duration only where boundary_events.json is supplied",
+      "physical_evidence": "No library, metastability MTBF, placement or bus-skew claim; external implementation evidence remains required"
+    }
+  },
+  "settlement": {
+    "verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Clock intent and inventory",
+    "rationale": "clk_a and clk_b are declared without a clock group, so per ANALYSIS the relation is Unknown; equal periods, prose and the bench phase do not establish one. Every capture_b bit starts a clean depth-2 chain (capture_b -> data_o_r, line 11), so the author's CDC-004 cannot trigger: its predicate needs an unsynchronised destination bit. The source is src_a + data_i[0] (incrementing counter); the spec routes it to CDC-017 (counter heuristic, WARNING Heuristic for a non-async relation). CST-004 discloses the Unknown crossing; a CST-004 per-domain-pair instance names clocks, not this signal, so only its per-crossing instance can match. If the clocks are async, the word can be incoherent; if they are related, the path is timed, hence unknown. The class is clock_intent_inventory, matching both readers. Raw rst_n release, recovery/removal and physical timing remain external obligations outside this label.",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 11,
+        "signal": "capture_b"
+      },
+      {
+        "file": "design.sv",
+        "line": 7,
+        "signal": "src_a"
+      }
+    ],
+    "by": "cdc-whole-ip-settler (Claude Opus 5.5)",
+    "expected_rules": [
+      "CDC-017",
+      "CST-004"
+    ]
+  },
+  "labels": [
+    {
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Clock intent and inventory",
+      "rationale": "Distinct named 10 ns clocks have no declared relationship. Equal periods and one bench phase do not prove synchrony or exclusivity. capture_b followed by data_o_r supplies two destination stages per bit, but neither atomic bus transfer nor Gray/protocol qualification is established. The source is an incrementing binary counter, so carry transitions can be incoherently sampled.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 11,
+          "signal": "capture_b"
+        }
+      ],
+      "by": "cdc-whole-ip-reader-a (GPT-6.1 Sol)",
+      "expected_rules": [
+        "CST-004",
+        "CDC-017"
+      ]
+    },
+    {
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Clock intent and inventory",
+      "rationale": "clk_a and clk_b are separately declared with equal periods, but no relationship is declared. capture_b then data_o_r form two exact per-bit stages; this is independent bus synchronization, not a coherent transfer. Missing relationship prevents an established asynchronous defect or safe disposition. If asynchronous, arbitrary multi-bit source updates can yield mixed words. The arithmetic source has counter/carry structure, for which CDC-017 is the more specific published predicate.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 11,
+          "signal": "capture_b"
+        }
+      ],
+      "by": "cdc-whole-ip-reader-b (GPT-6.1 Sol)",
+      "expected_rules": [
+        "CST-004",
+        "CDC-017"
+      ]
+    }
+  ]
+}

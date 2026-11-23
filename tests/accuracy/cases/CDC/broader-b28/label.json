@@ -1,0 +1,69 @@
+{
+  "verdict": "unknown",
+  "workflow_class": "Gray pointer FIFO and cross-clock memory",
+  "critical": false,
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 3,
+      "signal": "g1"
+    }
+  ],
+  "family": "CDC",
+  "top": "case_gf01",
+  "origin": "authored",
+  "batch": "cdc-2-fresh",
+  "author": "cdc-broader-author (GPT-6 Luna)",
+  "author_reading": {
+    "verdict": "good",
+    "workflow_class": "Gray pointer FIFO and cross-clock memory"
+  },
+  "rationale": "The source registers the Gray encoding of successive binary increments and the destination has two stages with matching zero reset. Unlike synchronous pin lookalikes this is a real internal crossing between explicitly asynchronous clocks. No supplied internal skew/delay bound prevents bits from successive source transitions overlapping at the receiver, and startup/release evidence is incomplete. These are legitimate unresolved Gray-pointer obligations, not proof that the RTL is defective.",
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "unknown",
+      "workflow_class": "Gray pointer FIFO and cross-clock memory",
+      "critical": false,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 3,
+          "signal": "g1"
+        }
+      ],
+      "by": "cdc-broader-reader-a (GPT-6.1 Sol)",
+      "rationale": "The source registers a proper increment-by-one Gray encoding and the destination has two stages with matching reset values. Asynchronous clock groups and port delays do not bound internal Gray bus skew/delay. No supplied physical transfer bound proves coherence across repeated source transitions; missing skew evidence prevents treating this as a fully accepted safe control."
+    },
+    {
+      "verdict": "unknown",
+      "workflow_class": "Gray pointer FIFO and cross-clock memory",
+      "critical": false,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 3,
+          "signal": "g1"
+        }
+      ],
+      "by": "cdc-broader-reader-b (GPT-6.1 Sol)",
+      "rationale": "A source-registered Gray increment feeds a two-stage rclk chain. No structural binary-pointer capture defect is visible, but Gray inter-bit skew and common-reset startup/release assumptions are absent. The snippet has no full/empty or memory logic. Unfit as unconditional FIFO safety evidence; pointer-only structural recognition can be reported separately."
+    }
+  ],
+  "settlement": {
+    "verdict": "unknown",
+    "workflow_class": "Gray pointer FIFO and cross-clock memory",
+    "critical": false,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 3,
+        "signal": "g1"
+      }
+    ],
+    "by": "cdc-broader-settler (GPT-6.1 Sol)",
+    "reason": "The source registers the Gray encoding of successive binary increments and the destination has two stages with matching zero reset. Unlike synchronous pin lookalikes this is a real internal crossing between explicitly asynchronous clocks. No supplied internal skew/delay bound prevents bits from successive source transitions overlapping at the receiver, and startup/release evidence is incomplete. These are legitimate unresolved Gray-pointer obligations, not proof that the RTL is defective."
+  }
+}

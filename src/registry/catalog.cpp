@@ -34,6 +34,7 @@ bool Catalog::parse(std::string_view text, Catalog& out, std::string& error) {
         ri.wave = r["wave"].asString();
         ri.gap = r["gap"].asString();
         ri.deck = r["deck"].asString();
+        ri.cdcDeck = r["cdc_deck"].asBool();
         for (const auto& c : r["classes"].asArray()) ri.classes.push_back(c.asString());
         for (const auto& o : r["obligations"].asArray()) {
             ObligationInfo info{o["id"].asString(), o["reason"].asString()};
@@ -77,11 +78,63 @@ const Catalog& Catalog::embedded() {
 }
 
 static int deckOrder(std::string_view deck) { return deck == "core" ? 1 : deck == "domain" ? 2 : deck == "1.0" ? 3 : 0; }
-bool isDeck(std::string_view name) { return deckOrder(name) != 0 || name == "lint"; }
+bool isDeck(std::string_view name) { return deckOrder(name) != 0 || name == "lint" || name == "cdc"; }
 bool inDeck(const RuleInfo& rule, std::string_view deck) {
     if (deck == "lint") return !rule.classes.empty();
+    if (deck == "cdc") return rule.cdcDeck;
     const int order = deckOrder(rule.deck);
     return order != 0 && order <= deckOrder(deck);
+}
+
+// CST goal membership: completeness/disclosure and waiver/report integrity
+// apply to all goals; clock, crossing and reset contracts apply to the
+// analyses they describe. The full table is explicit so an added CST rule
+// cannot accidentally disappear from a scoped run.
+bool inGoal(std::string_view id, const std::set<std::string>& goals) {
+    if (goals.empty()) return true;
+    if (id.rfind("LNT-", 0) == 0) return goals.count("lint");
+    if (id.rfind("CDC-", 0) == 0) return goals.count("cdc");
+    if (id.rfind("RDC-", 0) == 0) {
+        if (goals.count("rdc")) return true;
+        if (goals.count("cdc")) {
+            static const std::set<std::string_view> cdcRdc = {
+                "RDC-002", "RDC-003", "RDC-006", "RDC-007", "RDC-016", "RDC-023", "RDC-024"
+            };
+            return cdcRdc.count(id) != 0;
+        }
+        return false;
+    }
+    // Bits: 1 lint, 2 CDC, 4 RDC.
+    static const std::map<std::string, unsigned, std::less<>> cst = {
+        {"CST-001",6}, // clock and reset classification
+        {"CST-002",6}, // constraint object resolution
+        {"CST-003",6}, // clock and exception conflicts
+        {"CST-004",6}, // crossing clock relationship
+        {"CST-005",7}, // black-box inventory
+        {"CST-006",7}, // waiver validity
+        {"CST-007",6}, // synchronizer trust models
+        {"CST-008",6}, // timing exceptions and crossing safety
+        {"CST-009",7}, // constraint parser disclosure
+        {"CST-010",7}, // unsupported analysis disclosure
+        {"CST-011",6}, // sequential clock constraint coverage
+        {"CST-012",2}, // IO and IP CDC contracts
+        {"CST-013",6}, // generated clock consistency
+        {"CST-014",6}, // clock modes and exclusivity
+        {"CST-015",7}, // configuration completeness
+        {"CST-016",4}, // reset assumptions
+        {"CST-017",6}, // black-box protocol and reset metadata
+        {"CST-018",7}, // constraint parser completeness
+        {"CST-019",7}, // rule coverage and accounting
+        {"CST-020",6}, // crossing inventory completeness
+        {"CST-021",6}, // clock and reset provenance
+        {"CST-022",7}, // waiver hygiene
+        {"CST-023",7}, // unmodeled and encrypted coverage
+        {"CST-024",6}, // physical CDC/RDC obligations
+    };
+    auto it = cst.find(id);
+    if (it == cst.end()) return true; // unclassified future families remain visible
+    unsigned selected = (goals.count("lint") ? 1u : 0u) | (goals.count("cdc") ? 2u : 0u) | (goals.count("rdc") ? 4u : 0u);
+    return (it->second & selected) != 0;
 }
 
 const RuleInfo* Catalog::find(std::string_view id) const {

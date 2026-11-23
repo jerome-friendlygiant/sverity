@@ -1,0 +1,97 @@
+{
+  "verdict": "unknown",
+  "workflow_class": "IP and external boundaries",
+  "critical": false,
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 3,
+      "signal": "async_in"
+    },
+    {
+      "file": "design.sv",
+      "line": 3,
+      "signal": "q"
+    }
+  ],
+  "rationale": "The contract expressly withholds source, launch clock and input timing. Direct sampling may be timing-closed synchronous data or an unsafe asynchronous input; the port name establishes neither.",
+  "caveats": "Obtain integration source/timing/clock relationship, startup/reset and consumer contracts. Fit as a deliberate unknown-premise test despite sharing the direct-sample topology with C02/C13. It must not be scored as a proven asynchronous defect.",
+  "whole_ip_good_control": false,
+  "family": "CDC",
+  "top": "c14",
+  "origin": "authored",
+  "batch": "cdc-4-ip-fresh",
+  "author": "cdc-ip-author (GPT-6 Luna)",
+  "author_reading": {
+    "proposed_outcome": "Unknown boundary launch contract",
+    "site_or_premise": "`async_in -> q/D`; no external source clock/delay",
+    "evidence_and_limits": "Keep unresolved pending integrator source, timing, reset and mode contract. The port name is not evidence."
+  },
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "unknown",
+      "workflow_class": "IP and external boundaries",
+      "critical": false,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 3,
+          "signal": "q"
+        }
+      ],
+      "by": "cdc-ip-reader-a (GPT-6.1 Sol)",
+      "rationale": "A directly captured input is not intrinsically asynchronous. Its launch domain, timing relationship and reset/startup contract are unavailable, so neither a synchronous safe input nor an unsynchronized asynchronous input can be established.",
+      "caveats": "Close with the integration source/launch clock, relationship to clk_d, input timing/stability and startup/reset guarantees, and receiving-use contract. A synchronous timing-closed source can make the site good; an independent changing source with no downstream containment makes it bad. Do not infer a domain from async_in.",
+      "fit": true,
+      "whole_ip_good_control": false
+    },
+    {
+      "verdict": "unknown",
+      "workflow_class": "IP and external boundaries",
+      "critical": false,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 3,
+          "signal": "async_in"
+        },
+        {
+          "file": "design.sv",
+          "line": 3,
+          "signal": "q"
+        }
+      ],
+      "by": "cdc-ip-reader-b (GPT-6.1 Sol)",
+      "rationale": "Contract line 7 expressly withholds source domain and timing. The identical one-flop topology is safe if the input is synchronous and meets timing, unsafe for an unconstrained asynchronous source. Neither is established; async_in naming supplies no evidence.",
+      "caveats": "Source/reset/timing integration facts must be obtained before assigning a safe or unsafe crossing. Duplicates C02/C13 structurally while deliberately changing known boundary premises. No whole-IP clean-control claim is supported.",
+      "fit": true,
+      "whole_ip_good_control": false
+    }
+  ],
+  "settlement": {
+    "verdict": "unknown",
+    "workflow_class": "IP and external boundaries",
+    "critical": false,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 3,
+        "signal": "async_in"
+      },
+      {
+        "file": "design.sv",
+        "line": 3,
+        "signal": "q"
+      }
+    ],
+    "by": "cdc-ip-settler (GPT-6.1 Sol)",
+    "rationale": "The contract expressly withholds source, launch clock and input timing. Direct sampling may be timing-closed synchronous data or an unsafe asynchronous input; the port name establishes neither.",
+    "caveats": "Obtain integration source/timing/clock relationship, startup/reset and consumer contracts. Fit as a deliberate unknown-premise test despite sharing the direct-sample topology with C02/C13. It must not be scored as a proven asynchronous defect.",
+    "fit": true,
+    "whole_ip_good_control": false,
+    "reason": "The contract expressly withholds source, launch clock and input timing. Direct sampling may be timing-closed synchronous data or an unsafe asynchronous input; the port name establishes neither."
+  }
+}

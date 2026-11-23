@@ -21,6 +21,8 @@ public:
     void setFile(std::string path) { file_ = std::move(path); }
     void record(std::string phase, Clock::time_point start);
     void count(std::string name, uint64_t value);
+    /// Update a bounded set of live counters and write one checkpoint, useful when a long phase may fail before it ends.
+    void checkpoint(const std::vector<std::pair<std::string, uint64_t>>& values);
     std::string toJson() const;
     void flush();
     bool writeFailed() const { return writeFailed_; }

@@ -12,6 +12,7 @@ repository; the checkout and every output live in SCRATCH (the same layout as ca
 """
 import argparse
 import collections
+import importlib.util
 import json
 import pathlib
 import re
@@ -19,6 +20,10 @@ import subprocess
 import sys
 
 import capacity
+
+_MG_SPEC = importlib.util.spec_from_file_location("mem_guard", pathlib.Path(__file__).resolve().with_name("mem_guard.py"))
+mem_guard = importlib.util.module_from_spec(_MG_SPEC)
+_MG_SPEC.loader.exec_module(mem_guard)
 
 HERE = pathlib.Path(__file__).resolve().parent
 PIN = json.loads((HERE.parents[1] / "tests/public_projects/lint_reference.json").read_text())
@@ -77,10 +82,20 @@ def replay(binary, ip, scratch, repo, venv, max_gb):
                     "--report", migration, "--config", config, "--owner", "opentitan-verilator-policy"], check=True, capture_output=True)
     report = out / "report.json"
     report.unlink(missing_ok=True)
-    command = (f"ulimit -v {int(max_gb * 1024 * 1024)}; exec timeout 1800 '{binary}' --single-unit --goal lint "
-               f"--top {design['top']} -f '{filelist}' --config '{config}' --waivers '{waivers}' --root '{repo}' --json '{report}' --max-console 1")
-    done = subprocess.run(["bash", "-c", command], capture_output=True, text=True)
-    row = {"ip": ip, "top": design["top"], "exit": done.returncode, "configs": len(design["configs"])}
+    mem_max = f"{max(1, int(round(max_gb * 1024)))}M"
+    command, unit = mem_guard.build_command(
+        ["timeout", "--kill-after=5s", "1800", str(binary), "--single-unit", "--goal", "lint", "--top", design["top"],
+         "-f", str(filelist), "--config", str(config), "--waivers", str(waivers), "--root", str(repo),
+         "--json", str(report), "--max-console", "1"],
+        profile="capacity", label=f"ref-lint-{ip}", mem_max=mem_max, exec_mode=True,
+    )
+    done = subprocess.run(command, capture_output=True, text=True)
+    oom, detail = mem_guard.inspect_oom(unit, done.stderr, done.returncode,
+                                        profile="capacity", label=f"ref-lint-{ip}", mem_max=mem_max)
+    row = {"ip": ip, "top": design["top"], "exit": 137 if oom else done.returncode, "configs": len(design["configs"])}
+    if oom:
+        row["execution"] = f"MEMORY LIMIT: {detail}"
+        return row
     if not report.exists():
         row["execution"] = "NO REPORT: the run was stopped before it wrote one"
         return row

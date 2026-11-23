@@ -1,0 +1,106 @@
+{
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Clock and reset interaction",
+  "rationale": "clk_a is ANDed with unlatched primary input mode_i (line 4); an enable change while clk_a is high creates a spurious edge. CDC-045(a) (no low-phase enable latch, WARNING Heuristic) and CDC-020 (primary-input enable, WARNING Unresolved) both diagnose it. CDC-002 is dropped because it is not defect-specific. The class follows the workflow table (clock gates are Clock and reset interaction). Caveat: the gated sink is unobserved and the bench holds mode_i low. Raw rst_n release, recovery/removal and physical timing remain external obligations outside this label.",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 4,
+      "signal": "gated_clk"
+    }
+  ],
+  "expected_rules": [
+    "CDC-045",
+    "CDC-020"
+  ],
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-6-whole-ip-fresh",
+  "author": "cdc-whole-ip-author (GPT-6 Luna)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "author_reading": {
+    "id": "Q002",
+    "workflow_class": "clock_intent_inventory",
+    "case_type": "bad",
+    "expected_rules": [
+      "CDC-020",
+      "CDC-002"
+    ],
+    "detection_gap": null,
+    "site": {
+      "signal": "gated_clk",
+      "file": "design.sv",
+      "line": 4
+    },
+    "rationale": "Primary-input mode_i gates clk_a directly; it is an unsafe primary-input clock enable.",
+    "premises": {
+      "clocks": "clk_a and clk_b both have 10 ns primary clocks; clock relationships are undeclared for six unknown cases, while the Gray-pointer unknown declares asynchronous groups and lacks a datapath bound",
+      "reset": "common rst_n unless the defect specifically exercises reset roots",
+      "protocol": "event delivery required at the stated minimum assertion duration only where boundary_events.json is supplied",
+      "physical_evidence": "No library, metastability MTBF, placement or bus-skew claim; external implementation evidence remains required"
+    }
+  },
+  "settlement": {
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Clock and reset interaction",
+    "rationale": "clk_a is ANDed with unlatched primary input mode_i (line 4); an enable change while clk_a is high creates a spurious edge. CDC-045(a) (no low-phase enable latch, WARNING Heuristic) and CDC-020 (primary-input enable, WARNING Unresolved) both diagnose it. CDC-002 is dropped because it is not defect-specific. The class follows the workflow table (clock gates are Clock and reset interaction). Caveat: the gated sink is unobserved and the bench holds mode_i low. Raw rst_n release, recovery/removal and physical timing remain external obligations outside this label.",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 4,
+        "signal": "gated_clk"
+      }
+    ],
+    "by": "cdc-whole-ip-settler (Claude Opus 5.5)",
+    "expected_rules": [
+      "CDC-045",
+      "CDC-020"
+    ]
+  },
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Clock and reset interaction",
+      "rationale": "Raw mode_i gates clk_a without low-phase storage. A mode transition during the high phase can create a runt or extra clock edge.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "gated_clk"
+        }
+      ],
+      "by": "cdc-whole-ip-reader-a (GPT-6.1 Sol)",
+      "expected_rules": [
+        "CDC-045",
+        "CDC-020",
+        "CDC-002"
+      ]
+    },
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Clock and reset interaction",
+      "rationale": "Unlatched unconstrained primary-input mode_i ANDs clk_a. A rising enable during the high phase creates a spurious clock edge. No low-phase latch or enable timing contract exists.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "gated_clk"
+        }
+      ],
+      "by": "cdc-whole-ip-reader-b (GPT-6.1 Sol)",
+      "expected_rules": [
+        "CDC-045",
+        "CDC-020",
+        "CDC-002"
+      ]
+    }
+  ]
+}

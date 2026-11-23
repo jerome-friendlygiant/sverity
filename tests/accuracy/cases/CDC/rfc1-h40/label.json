@@ -1,0 +1,200 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "verdict": "unknown",
+  "critical": false,
+  "workflow_class": "Qualified payload and event protocols",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 27,
+      "signal": "req_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 28,
+      "signal": "tx_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 35,
+      "signal": "a1_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 40,
+      "signal": "r1_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 49,
+      "signal": "ack_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 50,
+      "signal": "rx_q"
+    }
+  ],
+  "expected_rules": [
+    "CDC-024",
+    "CDC-039",
+    "RDC-023"
+  ],
+  "rationale": "A unique reciprocal 4-phase handshake (req_q<-a2_q, ack_q<-r2_q) gives CDC-015 INFO plus a CDC-024 obligation; rx_q captures tx_q under synchronized r2_q, giving a CDC-039 stability obligation. RDC-023(b) is WARNING Unresolved for every recognized handshake whatever the reset kind, so the synchronous src_rst_ni/dst_rst_ni resets still produce it. Reader A's ack_q reset-during-request note is exactly the open RDC-023 reset-release obligation, so the case stays unknown.",
+  "author_reading": {
+    "id": "rfc1-h40",
+    "intended_verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Qualified payload and event protocols",
+    "expected_rules": [
+      "CDC-024",
+      "CDC-039"
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 50,
+        "signal": "tx_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 27,
+        "signal": "req_q"
+      }
+    ],
+    "rationale": "Four-phase request/acknowledge with a bundled payload: structure is recognizable but RTL cannot prove protocol sequencing or payload stability, so protocol obligations stay open."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Qualified payload and event protocols",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 27,
+          "signal": "req_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 35,
+          "signal": "a1_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 40,
+          "signal": "r1_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 49,
+          "signal": "ack_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 50,
+          "signal": "rx_q"
+        }
+      ],
+      "rationale": "The request and acknowledge have reciprocal synchronized dependencies, and capture of tx_q requires r2_q. Payload stability, delivery, and reset coordination remain open.",
+      "expected_rules": [
+        "CDC-024",
+        "CDC-039",
+        "RDC-023"
+      ],
+      "suspected_flaw": "Resetting ack_q during an in-flight request while r2_q remains asserted can replay a capture. The contract does not specify whether that reset sequence is permitted."
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Qualified payload and event protocols",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 50,
+          "signal": "rx_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 25,
+          "signal": "req_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 46,
+          "signal": "ack_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 40,
+          "signal": "r1_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 35,
+          "signal": "a1_q"
+        }
+      ],
+      "rationale": "Structurally recognized 4-phase request/acknowledge handshake (req_q -> r1_q -> r2_q and ack_q -> a1_q -> a2_q) with synchronized-qualifier payload capture (rx_q <= tx_q under r2_q && !ack_q at design.sv:50). Structural analysis recognizes the handshake and qualifier necessity but leaves functional protocol correctness (CDC-024), payload stability during capture (CDC-039), and cross-domain reset release sequencing (RDC-023) as unproved obligations.",
+      "expected_rules": [
+        "CDC-024",
+        "CDC-039",
+        "RDC-023"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "cdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Qualified payload and event protocols",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 27,
+        "signal": "req_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 28,
+        "signal": "tx_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 35,
+        "signal": "a1_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 40,
+        "signal": "r1_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 49,
+        "signal": "ack_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 50,
+        "signal": "rx_q"
+      }
+    ],
+    "expected_rules": [
+      "CDC-024",
+      "CDC-039",
+      "RDC-023"
+    ],
+    "rationale": "A unique reciprocal 4-phase handshake (req_q<-a2_q, ack_q<-r2_q) gives CDC-015 INFO plus a CDC-024 obligation; rx_q captures tx_q under synchronized r2_q, giving a CDC-039 stability obligation. RDC-023(b) is WARNING Unresolved for every recognized handshake whatever the reset kind, so the synchronous src_rst_ni/dst_rst_ni resets still produce it. Reader A's ack_q reset-during-request note is exactly the open RDC-023 reset-release obligation, so the case stays unknown."
+  }
+}

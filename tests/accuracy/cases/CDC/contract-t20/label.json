@@ -1,0 +1,127 @@
+{
+  "verdict": "good",
+  "critical": false,
+  "workflow_class": "Qualified payload and event protocols",
+  "whole_ip_good_control": false,
+  "rationale": "A required 28 ns event against a 14 ns sampling interval is captured by a full two-stage synchroniser into sticky evidence. The contract keeps a second event out until the first is acknowledged through an external mechanism.",
+  "caveats": [
+    "Expect CDC-013(c) INFO Heuristic (the duration is at least one sampling interval). The RTL proves no exactly-once delivery and cannot re-arm. It retains evidence only within one reset or acknowledgment epoch.",
+    "No whole-IP clean premise. Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+  ],
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 6,
+      "signal": "event_in"
+    },
+    {
+      "file": "design.sv",
+      "line": 6,
+      "signal": "event_seen"
+    }
+  ],
+  "family": "CDC",
+  "top": "top_cdc_rfc1_t20",
+  "origin": "authored",
+  "batch": "cdc-5-contract-fresh",
+  "author": "cdc-contract-author (GPT-6 Luna)",
+  "author_reading": {
+    "id": "CDC-RFC1-T20",
+    "kind": "good",
+    "class": "Qualified payload and event protocols",
+    "title": "Input event persistent long enough for required sampling",
+    "case_files": [
+      "design.sv",
+      "clocks.sdc",
+      "contract.md",
+      "config.json"
+    ],
+    "boundary_event_config": "config.json",
+    "site_signal": "event_in",
+    "expected_rules": [
+      "CDC-013"
+    ],
+    "rationale": "External event remains asserted at least two dst_clk periods and has no second event until the first is acknowledged through a separate system-level mechanism. RTL only retains evidence; no exactly-once proof.",
+    "limitations": [
+      "Structural attribution is a proposal for independent adjudication, not analyzer outcome.",
+      "No SVerity scoring performed.",
+      "Physical timing and metastability requirements remain external."
+    ],
+    "top": "top_cdc_rfc1_t20",
+    "profile": "asic",
+    "sdc": "clocks.sdc"
+  },
+  "sdc": [
+    "clocks.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Qualified payload and event protocols",
+      "fit": true,
+      "whole_ip_good_control": false,
+      "rationale": "28 ns required assertion spans two destination periods; synchronized sticky evidence meets the stated retention intent.",
+      "caveats": [
+        "System-level acknowledgment and reset episode assumptions are external; no exactly-once guarantee inferred."
+      ],
+      "sites": [
+        {
+          "signal": "event_in",
+          "file": "design.sv",
+          "line": 6
+        },
+        {
+          "signal": "event_seen",
+          "file": "design.sv",
+          "line": 6
+        }
+      ],
+      "by": "cdc-contract-reader-a (GPT-6.1 Sol)"
+    },
+    {
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Qualified payload and event protocols",
+      "fit": "stretched event evidence control",
+      "whole_ip_good_control": false,
+      "rationale": "Minimum 28 ns assertion exceeds one 14 ns sampling interval; serialized system-level acknowledgment permits retained evidence without counting concurrent events.",
+      "caveats": "No exactly-once proof or rearm mechanism is in RTL; this is sticky evidence within an acknowledgment/reset epoch, not a reusable event counter. Raw rst_n release is not locally synchronized or bounded by a release contract; RDC-003 remains a whole-IP closure confounder. Output consumer timing is not specified. Physical closure is excluded.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 6,
+          "signal": "event_seen"
+        }
+      ],
+      "by": "cdc-contract-reader-b (GPT-6.1 Sol)"
+    }
+  ],
+  "settlement": {
+    "verdict": "good",
+    "critical": false,
+    "workflow_class": "Qualified payload and event protocols",
+    "fit": true,
+    "whole_ip_good_control": false,
+    "rationale": "A required 28 ns event against a 14 ns sampling interval is captured by a full two-stage synchroniser into sticky evidence. The contract keeps a second event out until the first is acknowledged through an external mechanism.",
+    "caveats": [
+      "Expect CDC-013(c) INFO Heuristic (the duration is at least one sampling interval). The RTL proves no exactly-once delivery and cannot re-arm. It retains evidence only within one reset or acknowledgment epoch.",
+      "No whole-IP clean premise. Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 6,
+        "signal": "event_in"
+      },
+      {
+        "file": "design.sv",
+        "line": 6,
+        "signal": "event_seen"
+      }
+    ],
+    "by": "cdc-contract-settler (Claude Opus 5.5)",
+    "reason": "A required 28 ns event against a 14 ns sampling interval is captured by a full two-stage synchroniser into sticky evidence. The contract keeps a second event out until the first is acknowledged through an external mechanism."
+  },
+  "boundary_event_config": "config.json"
+}

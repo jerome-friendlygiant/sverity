@@ -1,0 +1,57 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": true,
+  "verdict": "good",
+  "critical": false,
+  "workflow_class": "Clock intent and inventory",
+  "sites": [],
+  "rationale": "Single clk_a reaches stage_b through the local exact alias clk_alias; the reset is synchronous and contracted and all ports are clk_a. No crossing exists once the alias resolves. Class settled to Clock intent and inventory (Reader A): the case exercises clock-alias inventory resolution, like h21.",
+  "author_reading": {
+    "id": "rfc1-h25",
+    "intended_verdict": "good",
+    "critical": false,
+    "workflow_class": "Multi-bit transfer and reconvergence",
+    "expected_rules": [],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 16,
+        "signal": "clk_alias"
+      }
+    ],
+    "rationale": "Same-clock 8-bit pipeline across two submodules where the second takes the clock through a local alias wire; all registers are in one domain so nothing crosses."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Clock intent and inventory",
+      "sites": [],
+      "rationale": "The second module clock is an exact alias of the first module clock. Data, synchronous reset, and output have same-clock timing contracts."
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Multi-bit transfer and reconvergence",
+      "sites": [],
+      "rationale": "The 8-bit pipeline transfer between u_a (stage_a) and u_b (stage_b, using exact wire alias clk_alias = clk_a) operates entirely within a single clock domain clk_a with synchronous reset rst_ni and complete input/output delay constraints."
+    }
+  ],
+  "settlement": {
+    "by": "cdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "good",
+    "critical": false,
+    "workflow_class": "Clock intent and inventory",
+    "sites": [],
+    "rationale": "Single clk_a reaches stage_b through the local exact alias clk_alias; the reset is synchronous and contracted and all ports are clk_a. No crossing exists once the alias resolves. Class settled to Clock intent and inventory (Reader A): the case exercises clock-alias inventory resolution, like h21."
+  }
+}

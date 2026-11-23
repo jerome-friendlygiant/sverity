@@ -1,4 +1,6 @@
 #include "sverity/report.h"
+#include <ostream>
+#include <unordered_map>
 #include <fstream>
 
 #include <algorithm>
@@ -123,7 +125,8 @@ static void relativizeEmbeddedPaths(std::string& text, const std::string& root) 
 // source library, design unit, procedure ordinal and target. Everything else
 // stays at its diagnostic identity.
 // Absolute checkout paths, severity, disposition and visit order are excluded.
-static std::string rootCauseOf(const Diagnostic& d, const std::map<std::string, std::string>& fileIds) {
+template<class Normal>
+static std::string rootCauseOf(const Diagnostic& d, const std::map<std::string, std::string>& fileIds, Normal&& normal) {
     std::string key;
     auto part = [&](const std::string& value) { key += std::to_string(value.size()) + ":" + value; };
     part(d.ruleId);
@@ -132,8 +135,8 @@ static std::string rootCauseOf(const Diagnostic& d, const std::map<std::string, 
         part("procedure-target"); part(d.groupingUnit); part(std::to_string(d.groupingProcedureOrdinal)); part(d.signals[0]);
     } else {
         part("finding");
-        auto fileId = [&](const std::filesystem::path& path) {
-            auto normalized = path.lexically_normal().generic_string();
+        auto fileId = [&](const std::string& path) {
+            const std::string& normalized = normal(path);
             auto it = fileIds.find(normalized);
             return it == fileIds.end() ? normalized : it->second;
         };
@@ -185,25 +188,32 @@ void Report::finalize() {
         d.sourceLine = sourceLineAt(d.location);
         for (auto& e : d.evidence) e.sourceLine = sourceLineAt(e.location);
     }
-    // 1. Normalize paths (reports must not leak or depend on the build machine's absolute paths).
+    // 1. Normalize paths (reports must not leak or depend on the build machine's absolute paths). A SoC report names a few
+    // thousand files in millions of places: each distinct path is relativized and normalised once.
+    std::unordered_map<std::string, std::string> relatives;
+    const auto relative = [&](const std::string& path) -> const std::string& {
+        auto [it, fresh] = relatives.try_emplace(path);
+        if (fresh) it->second = relativize(path);
+        return it->second;
+    };
     for (auto& d : diags_) {
         if (!d.groupingOriginCaptured) {
             d.originalFile = d.location.file; d.originalMessage = d.message;
             d.originalIdentityArguments = d.identityArguments;
-            for (const auto& e : d.evidence) { d.originalEvidence.push_back(e.text); d.originalEvidenceFiles.push_back(e.location.file); }
+            for (const auto& e : d.evidence) d.originalEvidenceFiles.push_back(e.location.file);
             d.groupingOriginCaptured = true;
         }
-        d.location.file = relativize(d.location.file);
+        d.location.file = relative(d.location.file);
         if (d.crossing) {
-            d.crossing->launch.location.file = relativize(d.crossing->launch.location.file);
-            d.crossing->capture.location.file = relativize(d.crossing->capture.location.file);
+            d.crossing->launch.location.file = relative(d.crossing->launch.location.file);
+            d.crossing->capture.location.file = relative(d.crossing->capture.location.file);
         }
         // $error, $warning and the like carry the design's own text, which is not a path to rewrite.
         if (d.message.rfind('$', 0) != 0) relativizeEmbeddedPaths(d.message, pathRoot_);
         for (auto& arg : d.identityArguments) relativizeEmbeddedPaths(arg, pathRoot_);
         relativizeEmbeddedPaths(d.nextStep, pathRoot_);
         for (auto& e : d.evidence) {
-            e.location.file = relativize(e.location.file);
+            e.location.file = relative(e.location.file);
             relativizeEmbeddedPaths(e.text, pathRoot_);
         }
     }
@@ -225,8 +235,10 @@ void Report::finalize() {
                           d.reviewerComment + "\x1f" + d.identityKey + "\x1f" + d.groupingUnit + "\x1f" +
                           std::to_string(d.groupingProcedureOrdinal);
         for (const auto& arg : d.identityArguments) key += "\x1c" + arg;
-        for (auto& e : d.evidence)
+        for (auto& e : d.evidence) {
+            if (e.kind == "site_signal") continue;
             key += "\x1e" + e.kind + "\x1f" + e.text + "\x1f" + e.location.file + ":" + std::to_string(e.location.line) + ":" + std::to_string(e.location.column);
+        }
         for (auto& sgn : d.signals) key += "\x1d" + sgn;
         auto it = seen.find(key);
         if (it == seen.end()) {
@@ -238,6 +250,15 @@ void Report::finalize() {
             for (auto& o : d.occurrences)
                 if (!o.empty() && std::find(g.occurrences.begin(), g.occurrences.end(), o) == g.occurrences.end())
                     g.occurrences.push_back(std::move(o));
+            for (size_t i = 0; i < d.evidence.size(); ++i) {
+                auto& site = d.evidence[i];
+                if (site.kind != "site_signal") continue;
+                if (std::any_of(g.evidence.begin(), g.evidence.end(), [&](const Evidence& existing) {
+                    return existing.kind == site.kind && existing.text == site.text && existing.location == site.location;
+                })) continue;
+                g.originalEvidenceFiles.push_back(std::move(d.originalEvidenceFiles[i]));
+                g.evidence.push_back(std::move(site));
+            }
         }
     }
     diags_ = std::move(grouped);
@@ -250,15 +271,26 @@ void Report::finalize() {
     });
     // Give each source the shortest distinguishing suffix among the files
     // observed in this report. This does not use --root or a checkout prefix.
+    std::unordered_map<std::string, std::pair<bool, std::string>> normals;   // path -> (absolute, lexically normal form)
+    const auto normalForm = [&](const std::string& path) -> const std::pair<bool, std::string>& {
+        auto [it, fresh] = normals.try_emplace(path);
+        if (fresh) {
+            const std::filesystem::path p(path);
+            it->second = {p.is_absolute(), p.lexically_normal().generic_string()};
+        }
+        return it->second;
+    };
+    const auto normal = [&](const std::string& path) -> const std::string& { return normalForm(path).second; };
     std::set<std::string> paths;
-    auto includePath = [&](const std::filesystem::path& path) {
-        if (path.is_absolute()) paths.insert(path.lexically_normal().generic_string());
+    auto includePath = [&](const std::string& path) {
+        if (const auto& [absolute, form] = normalForm(path); absolute) paths.insert(form);
     };
     for (const auto& file : identityFiles_) includePath(file);
     for (const auto& d : diags_) {
         includePath(d.originalFile);
         for (const auto& arg : d.originalIdentityArguments) includePath(arg);
-        for (const auto& file : d.originalEvidenceFiles) includePath(file);
+        for (size_t i = 0; i < d.evidence.size(); ++i)
+            if (d.evidence[i].kind != "site_signal") includePath(d.originalEvidenceFiles[i]);
     }
     std::map<std::string, size_t> suffixCounts;
     for (const auto& original : paths) {
@@ -283,7 +315,7 @@ void Report::finalize() {
     auto identityOf = [&](const Diagnostic& d) {
         Diagnostic identity = d;
         auto canonicalFile = [&](const std::string& original, const std::string& relative) {
-            auto it = fileIds.find(std::filesystem::path(original).lexically_normal().generic_string());
+            auto it = fileIds.find(normal(original));
             return it == fileIds.end() ? relative : it->second;
         };
         identity.location.file = canonicalFile(d.originalFile, d.location.file);
@@ -296,7 +328,7 @@ void Report::finalize() {
     for (auto& d : diags_) {
         std::sort(d.occurrences.begin(), d.occurrences.end());
         d.fingerprint = computeFingerprint(identityOf(d));
-        d.rootCause = rootCauseOf(d, fileIds);
+        d.rootCause = rootCauseOf(d, fileIds, normal);
     }
     // Findings that survived exact-duplicate grouping are different findings, so one fingerprint-only
     // waiver must not cover both (for example one line under two parameter values). Separate them by
@@ -311,7 +343,8 @@ void Report::finalize() {
                 for (const auto& occurrence : d->occurrences) identity.identityKey += "\x1f" + occurrence;
                 if (useMessage) {
                     identity.identityKey += "\x1e" + d->message;
-                    for (const auto& e : d->evidence) identity.identityKey += "\x1d" + e.text;
+                    for (const auto& e : d->evidence)
+                        if (e.kind != "site_signal") identity.identityKey += "\x1d" + e.text;
                 }
                 d->fingerprint = computeFingerprint(identity);
             }
@@ -556,7 +589,56 @@ static json::Value crossingJson(const Crossing& c) {
     return value;
 }
 
-json::Value Report::toJson() const {
+json::Value Report::diagnosticJson(const Diagnostic& d) const {
+    json::Value o = json::Value::object();
+    o.set("fingerprint", d.fingerprint).set("rule_id", d.ruleId).set("severity", toString(d.severity))
+        .set("root_cause", d.rootCause).set("message", d.message).set("location", locJson(d.location)).set("hierarchy", d.hierarchy)
+        .set("confidence", toString(d.confidence)).set("proof_state", toString(d.proofState))
+        .set("disposition", toString(d.disposition)).set("origin", d.origin);
+    if (!d.scope.empty()) o.set("scope", d.scope);
+    if (d.unresolvedKind != UnresolvedKind::None) o.set("unresolved_kind", toString(d.unresolvedKind));
+    if (hasBaseline_ && nonGating(d)) o.set("new_against_baseline", newAgainstBaseline(d));
+    if (hasBaseline_ && d.disposition != Disposition::Waived && d.disposition != Disposition::Resolved) {
+        o.set("baseline", d.baselined ? "BASELINED" : "NEW");
+        if (d.baselined) o.set("baseline_match", d.baselineBasis);
+    }
+    if (!d.obligation.empty()) o.set("obligation", d.obligation);
+    if (d.originalSeverity) o.set("original_severity", toString(*d.originalSeverity));
+    if (d.requestedSeverity) o.set("requested_severity", toString(*d.requestedSeverity));
+    if (!d.severityOverrideReason.empty()) o.set("severity_override_reason", d.severityOverrideReason);
+    if (!d.upstreamCode.empty()) o.set("upstream_code", d.upstreamCode);
+    if (!d.upstreamSeverity.empty()) o.set("upstream_severity", d.upstreamSeverity);
+    json::Value ev = json::Value::array();
+    for (auto& e : d.evidence) {
+        json::Value x = json::Value::object();
+        x.set("kind", e.kind).set("text", e.text).set("location", locJson(e.location));
+        if (!e.sourceLine.empty()) x.set("source_line", e.sourceLine);
+        ev.push(x);
+    }
+    o.set("evidence", ev);
+    if (d.crossing) o.set("crossing", crossingJson(*d.crossing));
+    if (!d.sourceLine.empty()) o.set("source_line", d.sourceLine);
+    json::Value sg = json::Value::array();
+    for (auto& s : d.signals) sg.push(s);
+    o.set("signals", sg);
+    o.set("next_step", d.nextStep);
+    o.set("count", d.count);
+    json::Value oc = json::Value::array();
+    for (auto& h : d.occurrences) oc.push(h);
+    o.set("occurrences", oc);
+    if (!d.reviewerDecision.empty()) o.set("reviewer_decision", d.reviewerDecision);
+    if (!d.reviewerComment.empty()) o.set("reviewer_comment", d.reviewerComment);
+    if (d.waiver) {
+        json::Value w = json::Value::object();
+        w.set("id", d.waiver->waiverId).set("reason", d.waiver->reason).set("owner", d.waiver->owner)
+            .set("expires", d.waiver->expires).set("scope", d.waiver->scope)
+            .set("source_location", locJson(d.waiver->sourceLocation));
+        o.set("waiver", w);
+    }
+    return o;
+}
+
+json::Value Report::toJson(bool withDiagnostics) const {
     json::Value root = json::Value::object();
     root.set("schema", "sverity-report/1");
     json::Value tool = json::Value::object();
@@ -662,56 +744,31 @@ json::Value Report::toJson() const {
     root.set("waivers", ws);
 
     json::Value ds = json::Value::array();
-    for (auto& d : diags_) {
-        json::Value o = json::Value::object();
-        o.set("fingerprint", d.fingerprint).set("rule_id", d.ruleId).set("severity", toString(d.severity))
-            .set("root_cause", d.rootCause).set("message", d.message).set("location", locJson(d.location)).set("hierarchy", d.hierarchy)
-            .set("confidence", toString(d.confidence)).set("proof_state", toString(d.proofState))
-            .set("disposition", toString(d.disposition)).set("origin", d.origin);
-        if (!d.scope.empty()) o.set("scope", d.scope);
-        if (d.unresolvedKind != UnresolvedKind::None) o.set("unresolved_kind", toString(d.unresolvedKind));
-        if (hasBaseline_ && nonGating(d)) o.set("new_against_baseline", newAgainstBaseline(d));
-        if (hasBaseline_ && d.disposition != Disposition::Waived && d.disposition != Disposition::Resolved) {
-            o.set("baseline", d.baselined ? "BASELINED" : "NEW");
-            if (d.baselined) o.set("baseline_match", d.baselineBasis);
-        }
-        if (!d.obligation.empty()) o.set("obligation", d.obligation);
-        if (d.originalSeverity) o.set("original_severity", toString(*d.originalSeverity));
-        if (d.requestedSeverity) o.set("requested_severity", toString(*d.requestedSeverity));
-        if (!d.severityOverrideReason.empty()) o.set("severity_override_reason", d.severityOverrideReason);
-        if (!d.upstreamCode.empty()) o.set("upstream_code", d.upstreamCode);
-        if (!d.upstreamSeverity.empty()) o.set("upstream_severity", d.upstreamSeverity);
-        json::Value ev = json::Value::array();
-        for (auto& e : d.evidence) {
-            json::Value x = json::Value::object();
-            x.set("kind", e.kind).set("text", e.text).set("location", locJson(e.location));
-            if (!e.sourceLine.empty()) x.set("source_line", e.sourceLine);
-            ev.push(x);
-        }
-        o.set("evidence", ev);
-        if (d.crossing) o.set("crossing", crossingJson(*d.crossing));
-        if (!d.sourceLine.empty()) o.set("source_line", d.sourceLine);
-        json::Value sg = json::Value::array();
-        for (auto& s : d.signals) sg.push(s);
-        o.set("signals", sg);
-        o.set("next_step", d.nextStep);
-        o.set("count", d.count);
-        json::Value oc = json::Value::array();
-        for (auto& h : d.occurrences) oc.push(h);
-        o.set("occurrences", oc);
-        if (!d.reviewerDecision.empty()) o.set("reviewer_decision", d.reviewerDecision);
-        if (!d.reviewerComment.empty()) o.set("reviewer_comment", d.reviewerComment);
-        if (d.waiver) {
-            json::Value w = json::Value::object();
-            w.set("id", d.waiver->waiverId).set("reason", d.waiver->reason).set("owner", d.waiver->owner)
-                .set("expires", d.waiver->expires).set("scope", d.waiver->scope)
-                .set("source_location", locJson(d.waiver->sourceLocation));
-            o.set("waiver", w);
-        }
-        ds.push(o);
-    }
-    root.set("diagnostics", ds);
+    if (withDiagnostics)
+        for (auto& d : diags_) ds.push(diagnosticJson(d));
+    if (withDiagnostics) root.set("diagnostics", ds);
     return root;
+}
+
+json::Value Report::toJson() const { return toJson(true); }
+
+// The same bytes as toJson().dump(2): "diagnostics" is the last member of the root object, so the root is written without
+// it and the findings follow one at a time.
+bool Report::writeJson(std::ostream& out) const {
+    std::string head = toJson(false).dump(2);
+    head.resize(head.size() - 2);   // the closing "\n}"
+    out << head << ",\n  \"diagnostics\": ";
+    if (diags_.empty()) out << "[]";
+    else {
+        out << '[';
+        for (size_t i = 0; i < diags_.size(); ++i) {
+            out << (i ? ",\n    " : "\n    ");
+            diagnosticJson(diags_[i]).write(out, 2, 2);
+        }
+        out << "\n  ]";
+    }
+    out << "\n}\n";
+    return static_cast<bool>(out);
 }
 
 // The canonical serializer owns finding fields and accounting; events never duplicate it.

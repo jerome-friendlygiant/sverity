@@ -1,0 +1,147 @@
+{
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Qualified payload and event protocols",
+  "whole_ip_good_control": false,
+  "rationale": "dst_payload samples the changing asynchronous src_payload bus on every dst_clk edge with no qualification. The consumer uses dst_payload as a transaction when v2 is high, but the capture can be metastable or incoherent across bits at that time. The synchronised valid does not gate the capture.",
+  "caveats": [
+    "CDC-029(a) is the precise predicate: an asynchronous input-delay contract with precise unsynchronised captures gives ERROR Established.",
+    "CDC-016 (unguarded payload despite a synchronised control in the same scope) and CDC-004 describe the same defect if their crossing-group predicates include delay-bound primary inputs. If they do not, CDC-029 alone carries the case.",
+    "CDC-039 is an obligation and cannot earn credit.",
+    "Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+  ],
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 8,
+      "signal": "src_payload"
+    },
+    {
+      "file": "design.sv",
+      "line": 8,
+      "signal": "dst_payload"
+    }
+  ],
+  "expected_rules": [
+    "CDC-004",
+    "CDC-016",
+    "CDC-029"
+  ],
+  "family": "CDC",
+  "top": "top_cdc_rfc1_t05",
+  "origin": "authored",
+  "batch": "cdc-5-contract-fresh",
+  "author": "cdc-contract-author (GPT-6 Luna)",
+  "author_reading": {
+    "id": "CDC-RFC1-T05",
+    "kind": "bad",
+    "class": "Qualified payload and event protocols",
+    "title": "Payload captured without synchronized valid qualification",
+    "case_files": [
+      "design.sv",
+      "clocks.sdc",
+      "contract.md"
+    ],
+    "boundary_event_config": null,
+    "site_signal": "dst_payload",
+    "expected_rules": [
+      "CDC-004",
+      "CDC-016",
+      "CDC-029"
+    ],
+    "rationale": "src_payload is a changing multi-bit bus. Valid is synchronized but does not qualify the capture; consumer treats dst_payload as a valid transaction when v2 is high.",
+    "limitations": [
+      "Structural attribution is a proposal for independent adjudication, not analyzer outcome.",
+      "No SVerity scoring performed.",
+      "Physical timing and metastability requirements remain external."
+    ],
+    "top": "top_cdc_rfc1_t05",
+    "profile": "asic",
+    "sdc": "clocks.sdc"
+  },
+  "sdc": [
+    "clocks.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Qualified payload and event protocols",
+      "fit": true,
+      "whole_ip_good_control": false,
+      "rationale": "Changing asynchronous payload is captured unconditionally; synchronized valid does not protect the data capture.",
+      "caveats": [
+        "Primary-input CDC-029 is the precise boundary predicate; register-only payload rules need not apply."
+      ],
+      "sites": [
+        {
+          "signal": "src_payload",
+          "file": "design.sv",
+          "line": 8
+        },
+        {
+          "signal": "dst_payload",
+          "file": "design.sv",
+          "line": 8
+        }
+      ],
+      "expected_rules": [
+        "CDC-029"
+      ],
+      "by": "cdc-contract-reader-a (GPT-6.1 Sol)"
+    },
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Qualified payload and event protocols",
+      "fit": "unqualified asynchronous payload",
+      "whole_ip_good_control": false,
+      "rationale": "Changing asynchronous payload is captured unconditionally; synchronized valid neither gates capture nor ensures the transaction data is coherent.",
+      "caveats": "CDC-039 generic stability obligation is not detection credit for this defect. Raw rst_n release is not locally synchronized or bounded by a release contract; RDC-003 remains a whole-IP closure confounder. Output consumer timing is not specified. Physical closure is excluded.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 8,
+          "signal": "dst_payload"
+        }
+      ],
+      "expected_rules": [
+        "CDC-029"
+      ],
+      "by": "cdc-contract-reader-b (GPT-6.1 Sol)"
+    }
+  ],
+  "settlement": {
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Qualified payload and event protocols",
+    "fit": true,
+    "whole_ip_good_control": false,
+    "rationale": "dst_payload samples the changing asynchronous src_payload bus on every dst_clk edge with no qualification. The consumer uses dst_payload as a transaction when v2 is high, but the capture can be metastable or incoherent across bits at that time. The synchronised valid does not gate the capture.",
+    "caveats": [
+      "CDC-029(a) is the precise predicate: an asynchronous input-delay contract with precise unsynchronised captures gives ERROR Established.",
+      "CDC-016 (unguarded payload despite a synchronised control in the same scope) and CDC-004 describe the same defect if their crossing-group predicates include delay-bound primary inputs. If they do not, CDC-029 alone carries the case.",
+      "CDC-039 is an obligation and cannot earn credit.",
+      "Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 8,
+        "signal": "src_payload"
+      },
+      {
+        "file": "design.sv",
+        "line": 8,
+        "signal": "dst_payload"
+      }
+    ],
+    "expected_rules": [
+      "CDC-004",
+      "CDC-016",
+      "CDC-029"
+    ],
+    "by": "cdc-contract-settler (Claude Opus 5.5)",
+    "reason": "dst_payload samples the changing asynchronous src_payload bus on every dst_clk edge with no qualification. The consumer uses dst_payload as a transaction when v2 is high, but the capture can be metastable or incoherent across bits at that time. The synchronised valid does not gate the capture."
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": true,
+  "verdict": "good",
+  "critical": false,
+  "workflow_class": "Clock intent and inventory",
+  "sites": [],
+  "rationale": "Single clk_sys reaches both bus_stage instances through the exact alias clk_buf; reset is synchronous with a set_input_delay, all inputs and outputs are contracted to clk_sys. Only INFO inventory (CDC-001, CST-001, CDC-029 declared synchronous, CST-012 Same) is expected.",
+  "author_reading": {
+    "id": "rfc1-h21",
+    "intended_verdict": "good",
+    "critical": false,
+    "workflow_class": "Clock intent and inventory",
+    "expected_rules": [],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 20,
+        "signal": "clk_buf"
+      }
+    ],
+    "rationale": "Single clock clk_sys through a buffered alias into two hierarchical stages with synchronous reset constrained by set_input_delay; no crossing and complete I/O delays."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Clock intent and inventory",
+      "sites": [],
+      "rationale": "Both pipeline stages trace through the exact clk_buf alias to clk_sys. Their synchronous reset, data input, and output are timed to that clock."
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Clock intent and inventory",
+      "sites": [],
+      "rationale": "Both bus_stage instances u_s0 and u_s1 are clocked by exact wire alias clk_buf = clk_sys, with synchronous reset sync_rst_n and all input/output ports completely constrained to clk_sys in intent.sdc, yielding a single-domain design with no CDC, RDC, or CST defects or obligations."
+    }
+  ]
+}

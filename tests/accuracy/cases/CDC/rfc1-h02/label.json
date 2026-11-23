@@ -1,0 +1,150 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "verdict": "bad",
+  "critical": false,
+  "workflow_class": "Clock intent and inventory",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 13,
+      "signal": "src_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 16,
+      "signal": "s1_q"
+    },
+    {
+      "file": "intent.sdc",
+      "line": 4,
+      "signal": "clk_a"
+    },
+    {
+      "file": "intent.sdc",
+      "line": 4,
+      "signal": "clk_b"
+    }
+  ],
+  "expected_rules": [
+    "CDC-037"
+  ],
+  "rationale": "clk_a and clk_b are declared -logically_exclusive, yet src_q (clk_a) reaches s1_q, which starts a depth-2 clk_b chain: CDC-037(a) WARNING Established. Settled sites are the union of both readers (crossing endpoints plus the clock-group declaration).",
+  "author_reading": {
+    "id": "rfc1-h02",
+    "intended_verdict": "bad",
+    "critical": false,
+    "workflow_class": "Clock intent and inventory",
+    "expected_rules": [
+      "CDC-037"
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 16,
+        "signal": "s1_q"
+      },
+      {
+        "file": "intent.sdc",
+        "line": 4,
+        "signal": "clk_a/clk_b"
+      }
+    ],
+    "rationale": "SDC declares clk_a and clk_b logically exclusive, yet RTL carries a full two-stage synchronizer between them: the declared relationship contradicts the observed structure."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": false,
+      "workflow_class": "Clock intent and inventory",
+      "sites": [
+        {
+          "file": "intent.sdc",
+          "line": 4,
+          "signal": "clk_a"
+        },
+        {
+          "file": "intent.sdc",
+          "line": 4,
+          "signal": "clk_b"
+        },
+        {
+          "file": "design.sv",
+          "line": 13,
+          "signal": "src_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 16,
+          "signal": "s1_q"
+        }
+      ],
+      "rationale": "SDC declares logical exclusivity, but src_q feeds a two-stage clk_a-to-clk_b synchronizer that reaches the consumer. This is the observed structure the exclusivity rule treats as contradictory.",
+      "expected_rules": [
+        "CDC-037"
+      ]
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "bad",
+      "critical": false,
+      "workflow_class": "Clock intent and inventory",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 16,
+          "signal": "s1_q"
+        },
+        {
+          "file": "intent.sdc",
+          "line": 4,
+          "signal": "clk_b"
+        }
+      ],
+      "rationale": "intent.sdc:4 declares clk_a and clk_b logically exclusive via set_clock_groups -logically_exclusive, asserting that the two clocks never operate concurrently, yet design.sv:16-17 implements a 2-stage synchronizer (s1_q -> s2_q) crossing from src_q (clk_a) into clk_b (CDC-037 WARNING Established contradiction).",
+      "expected_rules": [
+        "CDC-037"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "cdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "bad",
+    "critical": false,
+    "workflow_class": "Clock intent and inventory",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 13,
+        "signal": "src_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 16,
+        "signal": "s1_q"
+      },
+      {
+        "file": "intent.sdc",
+        "line": 4,
+        "signal": "clk_a"
+      },
+      {
+        "file": "intent.sdc",
+        "line": 4,
+        "signal": "clk_b"
+      }
+    ],
+    "expected_rules": [
+      "CDC-037"
+    ],
+    "rationale": "clk_a and clk_b are declared -logically_exclusive, yet src_q (clk_a) reaches s1_q, which starts a depth-2 clk_b chain: CDC-037(a) WARNING Established. Settled sites are the union of both readers (crossing endpoints plus the clock-group declaration)."
+  }
+}

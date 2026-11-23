@@ -1,6 +1,8 @@
 // sverity-args: --top top --library @DIR@/cells.json
 // the read clock is an undriven internal net: it does not resolve to a clock root, so the crossing is unresolved (never safe)
 // expect: CDC-035 WARNING
+// expect-unresolved: CDC-035
+// expect-coverage: clock-extraction INCOMPLETE
 module DPRAM(input logic WCLK, RCLK, WD, output logic RD);
   assign RD = WD;
 endmodule

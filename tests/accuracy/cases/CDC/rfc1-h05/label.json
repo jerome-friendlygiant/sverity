@@ -1,0 +1,114 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Synchronizer structure",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 19,
+      "signal": "s1_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 23,
+      "signal": "fast_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 25,
+      "signal": "early_o"
+    }
+  ],
+  "expected_rules": [
+    "CDC-007"
+  ],
+  "rationale": "Stage-1 s1_q drives early_o and fast_q in addition to s2_q before min_stages=2: CDC-007 ERROR. Reader A's CDC-013 note is correct (10 ns source < 1.5 x 8 ns) and CDC-013(a) will also warn on src_q->s1_q; that is a real additional finding on a bad case, not a case flaw, and is not credited as the seeded defect.",
+  "author_reading": {
+    "id": "rfc1-h05",
+    "intended_verdict": "bad",
+    "critical": true,
+    "workflow_class": "Synchronizer structure",
+    "expected_rules": [
+      "CDC-007"
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 25,
+        "signal": "s1_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 23,
+        "signal": "s1_q"
+      }
+    ],
+    "rationale": "Stage 1 of the two-stage synchronizer also drives a top-level output and destination logic, not only stage 2."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Synchronizer structure",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 19,
+          "signal": "s1_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 23,
+          "signal": "fast_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 25,
+          "signal": "early_o"
+        }
+      ],
+      "rationale": "The first destination stage drives s2_q, early_o directly, and the mode-gated fast_q cone. The latter two paths observe s1_q before containment.",
+      "expected_rules": [
+        "CDC-007"
+      ],
+      "suspected_flaw": "The nominal synchronized path also has a 10 ns source period below the 12 ns CDC-013 review margin."
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Synchronizer structure",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 19,
+          "signal": "s1_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 23,
+          "signal": "fast_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 25,
+          "signal": "early_o"
+        }
+      ],
+      "rationale": "The first synchronizer stage s1_q (design.sv:19, depth 1 < min_stages 2) fans out not only to second stage s2_q (design.sv:20) but also to combinational logic feeding fast_q (design.sv:23) and directly to primary output early_o (design.sv:25), propagating potentially metastable stage-1 state (CDC-007 ERROR Established).",
+      "expected_rules": [
+        "CDC-007"
+      ]
+    }
+  ]
+}

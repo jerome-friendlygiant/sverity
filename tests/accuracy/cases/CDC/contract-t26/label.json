@@ -1,0 +1,144 @@
+{
+  "verdict": "good",
+  "critical": false,
+  "workflow_class": "IP and external boundaries",
+  "whole_ip_good_control": false,
+  "rationale": "The SDC binds src_data to src_clk as an asynchronous source, and a full two-stage synchroniser contains it. The contract calls it a free-running level and states no requirement to deliver every transition or to hold a minimum duration, so sampled-level aliasing is acceptable.",
+  "caveats": [
+    "CST-011(b) does not apply because src_data is named by set_input_delay. CDC-013(a) is register-launched, (b) needs an output delay and (c) needs boundary_events, so no CDC-013 finding is expected despite the contract's 'may remain'. Expect only CDC-029 INFO.",
+    "This is a boundary-intent control with weak semantics. If the maintainer reads 'free-running' as an implied delivery need, regrade it to unknown.",
+    "No whole-IP clean premise. Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+  ],
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 6,
+      "signal": "src_data"
+    },
+    {
+      "file": "design.sv",
+      "line": 6,
+      "signal": "d1"
+    },
+    {
+      "file": "design.sv",
+      "line": 6,
+      "signal": "d2"
+    }
+  ],
+  "family": "CDC",
+  "top": "top_cdc_rfc1_t26",
+  "origin": "authored",
+  "batch": "cdc-5-contract-fresh",
+  "author": "cdc-contract-author (GPT-6 Luna)",
+  "author_reading": {
+    "id": "CDC-RFC1-T26",
+    "kind": "good",
+    "class": "IP and external boundaries",
+    "title": "Input data has explicit source-clock delay binding",
+    "case_files": [
+      "design.sv",
+      "clocks.sdc",
+      "contract.md"
+    ],
+    "boundary_event_config": null,
+    "site_signal": "src_data",
+    "expected_rules": [
+      "CST-011",
+      "CDC-029"
+    ],
+    "rationale": "src_data is a free-running source-domain level; SDC binds it to src_clk with min/max input delays. Since it can transition frequently, this control is boundary intent only and CDC-013 event-rate disclosure may remain.",
+    "limitations": [
+      "Structural attribution is a proposal for independent adjudication, not analyzer outcome.",
+      "No SVerity scoring performed.",
+      "Physical timing and metastability requirements remain external."
+    ],
+    "top": "top_cdc_rfc1_t26",
+    "profile": "asic",
+    "sdc": "clocks.sdc"
+  },
+  "sdc": [
+    "clocks.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "IP and external boundaries",
+      "fit": true,
+      "whole_ip_good_control": false,
+      "rationale": "SDC identifies asynchronous input launch; two stages contain a free-running level. No contract requires every source transition to be delivered.",
+      "caveats": [
+        "This is boundary intent control only; event preservation is not proved, raw reset release and external consumer timing are open."
+      ],
+      "sites": [
+        {
+          "signal": "src_data",
+          "file": "design.sv",
+          "line": 6
+        },
+        {
+          "signal": "d2",
+          "file": "design.sv",
+          "line": 6
+        }
+      ],
+      "by": "cdc-contract-reader-a (GPT-6.1 Sol)"
+    },
+    {
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "IP and external boundaries",
+      "fit": "insufficient boundary delivery intent",
+      "whole_ip_good_control": false,
+      "rationale": "Two-stage synchronization contains metastability, but free-running level intent provides no minimum duration or tolerance for missed intermediate states. Boundary binding alone cannot settle delivery suitability.",
+      "caveats": "CDC-013(a) is register-launched; (b) requires matched output delay; (c) requires boundary_events. None applies to this input as supplied. No published matching delivery-disclosure predicate is established here; do not credit generic boundary obligations or the contract suggestion that CDC-013 may remain. Raw rst_n release is not locally synchronized or bounded by a release contract; RDC-003 remains a whole-IP closure confounder. Output consumer timing is not specified. Physical closure is excluded.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 6,
+          "signal": "d1"
+        },
+        {
+          "file": "design.sv",
+          "line": 7,
+          "signal": "dst_data"
+        }
+      ],
+      "expected_rules": [],
+      "by": "cdc-contract-reader-b (GPT-6.1 Sol)"
+    }
+  ],
+  "settlement": {
+    "verdict": "good",
+    "critical": false,
+    "workflow_class": "IP and external boundaries",
+    "fit": true,
+    "whole_ip_good_control": false,
+    "rationale": "The SDC binds src_data to src_clk as an asynchronous source, and a full two-stage synchroniser contains it. The contract calls it a free-running level and states no requirement to deliver every transition or to hold a minimum duration, so sampled-level aliasing is acceptable.",
+    "caveats": [
+      "CST-011(b) does not apply because src_data is named by set_input_delay. CDC-013(a) is register-launched, (b) needs an output delay and (c) needs boundary_events, so no CDC-013 finding is expected despite the contract's 'may remain'. Expect only CDC-029 INFO.",
+      "This is a boundary-intent control with weak semantics. If the maintainer reads 'free-running' as an implied delivery need, regrade it to unknown.",
+      "No whole-IP clean premise. Raw rst_n asynchronously resets every register with no local release synchroniser and no SDC reset exception; RDC-003 (WARNING Unresolved), RDC-002 (WARNING Unresolved) and RDC-013 (physical obligation) are expected if RDC rules run. The contract states only asynchronous assertion, so this is a whole-IP premise gap, not a defect of the labelled crossing."
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 6,
+        "signal": "src_data"
+      },
+      {
+        "file": "design.sv",
+        "line": 6,
+        "signal": "d1"
+      },
+      {
+        "file": "design.sv",
+        "line": 6,
+        "signal": "d2"
+      }
+    ],
+    "by": "cdc-contract-settler (Claude Opus 5.5)",
+    "reason": "The SDC binds src_data to src_clk as an asynchronous source, and a full two-stage synchroniser contains it. The contract calls it a free-running level and states no requirement to deliver every transition or to hold a minimum duration, so sampled-level aliasing is acceptable."
+  }
+}

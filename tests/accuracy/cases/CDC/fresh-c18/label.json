@@ -1,0 +1,64 @@
+{
+  "verdict": "bad",
+  "workflow_class": "Synchronizer structure",
+  "critical": true,
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 4,
+      "signal": "bit_b"
+    }
+  ],
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-1-fresh",
+  "author": "cdc-author-replacement (GPT-6 Luna)",
+  "author_reading": {
+    "verdict": "bad",
+    "workflow_class": "Synchronizer structure",
+    "critical": true,
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 4,
+        "signal": "bit_b"
+      }
+    ],
+    "rationale": "A single destination flop is the only capture stage for an asynchronous single-bit register crossing. The input is timed to clk_a; both clocks are declared asynchronous."
+  },
+  "rationale": "A clk_a-launched bit feeds a single clk_b register directly exposed as the output. No second containment stage exists. A level-versus-event contract could add delivery obligations but does not remove the missing metastability containment stage.",
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "bad",
+      "workflow_class": "Synchronizer structure",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "bit_b"
+        }
+      ],
+      "by": "cdc-replacement-reader-a (GPT-6.1 Sol)",
+      "rationale": "A clk_a-launched bit feeds a single clk_b register directly exposed as the output. No second containment stage exists. A level-versus-event contract could add delivery obligations but does not remove the missing metastability containment stage."
+    },
+    {
+      "verdict": "bad",
+      "workflow_class": "Synchronizer structure",
+      "critical": true,
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 4,
+          "signal": "bit_b"
+        }
+      ],
+      "by": "cdc-replacement-reader-b (GPT-6.1 Sol)",
+      "rationale": "The asynchronous source register is sampled into only one destination register and that first stage is the output. There is no second destination stage to contain metastability."
+    }
+  ]
+}

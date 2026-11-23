@@ -1,0 +1,78 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "verdict": "bad",
+  "critical": false,
+  "workflow_class": "Multi-bit transfer and reconvergence",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 29,
+      "signal": "both_q"
+    }
+  ],
+  "expected_rules": [
+    "CDC-010"
+  ],
+  "rationale": "both_q combines outputs of two separately synchronized asynchronous sources (a_s2_q & b_s2_q): CDC-010(a) WARNING Heuristic reconvergence.",
+  "author_reading": {
+    "id": "rfc1-h08",
+    "intended_verdict": "bad",
+    "critical": false,
+    "workflow_class": "Multi-bit transfer and reconvergence",
+    "expected_rules": [
+      "CDC-010"
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 29,
+        "signal": "both_q"
+      }
+    ],
+    "rationale": "Two independently synchronized source-domain bits are combined in one destination flop (reconvergence)."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": false,
+      "workflow_class": "Multi-bit transfer and reconvergence",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 29,
+          "signal": "both_q"
+        }
+      ],
+      "rationale": "Independent chains can resolve the two related bits in different destination cycles. both_q can combine a pair of values that was never active together in the source domain.",
+      "expected_rules": [
+        "CDC-010"
+      ]
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "bad",
+      "critical": false,
+      "workflow_class": "Multi-bit transfer and reconvergence",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 29,
+          "signal": "both_q"
+        }
+      ],
+      "rationale": "Two separately synchronized signals a_s2_q and b_s2_q (from a_src_q and b_src_q in src_clk) reconverge through combinational AND logic into destination register both_q (both_q <= a_s2_q & b_s2_q at design.sv:29), losing relative cycle correlation across the independent synchronizer chains (CDC-010 WARNING Heuristic).",
+      "expected_rules": [
+        "CDC-010"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,113 @@
+{
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Synchronizer structure",
+  "rationale": "Stage 1 (s1) resets on rst_n, while stage 2 (s2, line 8) resets on unconstrained primary input mode_i, so the synchroniser stages have different async reset roots. An Icarus witness with mode_i held low shows s1=1 while s2=0. Releasing mode_i asynchronously therefore presents D != Q at s2, which can go metastable and feed data_o_r directly. CDC-026 diagnoses it, and CDC-041 (source/output-stage reset roots differ) also applies. The class is synchronizer_structure ('inconsistent clock or reset'), as both readers concluded. RDC-005/003 would apply under --goal rdc but are disabled under --goal cdc, so they are not pinned. Raw rst_n release, recovery/removal and physical timing remain external obligations outside this label.",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 8,
+      "signal": "s2"
+    },
+    {
+      "file": "design.sv",
+      "line": 7,
+      "signal": "s1"
+    }
+  ],
+  "expected_rules": [
+    "CDC-026",
+    "CDC-041"
+  ],
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-6-whole-ip-fresh",
+  "author": "cdc-whole-ip-author (GPT-6 Luna)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "author_reading": {
+    "id": "Q026",
+    "workflow_class": "clock_reset_interaction",
+    "case_type": "bad",
+    "expected_rules": [
+      "CDC-026"
+    ],
+    "detection_gap": null,
+    "site": {
+      "signal": "s2",
+      "file": "design.sv",
+      "line": 4
+    },
+    "rationale": "The first and second synchronizer stages have different asynchronous reset roots, so the synchronizer chain is structurally inconsistent.",
+    "premises": {
+      "clocks": "clk_a and clk_b both have 10 ns primary clocks; clock relationships are undeclared for six unknown cases, while the Gray-pointer unknown declares asynchronous groups and lacks a datapath bound",
+      "reset": "common rst_n unless the defect specifically exercises reset roots",
+      "protocol": "event delivery required at the stated minimum assertion duration only where boundary_events.json is supplied",
+      "physical_evidence": "No library, metastability MTBF, placement or bus-skew claim; external implementation evidence remains required"
+    }
+  },
+  "settlement": {
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Synchronizer structure",
+    "rationale": "Stage 1 (s1) resets on rst_n, while stage 2 (s2, line 8) resets on unconstrained primary input mode_i, so the synchroniser stages have different async reset roots. An Icarus witness with mode_i held low shows s1=1 while s2=0. Releasing mode_i asynchronously therefore presents D != Q at s2, which can go metastable and feed data_o_r directly. CDC-026 diagnoses it, and CDC-041 (source/output-stage reset roots differ) also applies. The class is synchronizer_structure ('inconsistent clock or reset'), as both readers concluded. RDC-005/003 would apply under --goal rdc but are disabled under --goal cdc, so they are not pinned. Raw rst_n release, recovery/removal and physical timing remain external obligations outside this label.",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 8,
+        "signal": "s2"
+      },
+      {
+        "file": "design.sv",
+        "line": 7,
+        "signal": "s1"
+      }
+    ],
+    "by": "cdc-whole-ip-settler (Claude Opus 5.5)",
+    "expected_rules": [
+      "CDC-026",
+      "CDC-041"
+    ]
+  },
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Synchronizer structure",
+      "rationale": "s1 uses rst_n but the second required stage s2 uses independent mode_i as asynchronous reset. The synchronization stages have inconsistent reset roots, and source/endpoint reset activation is not coordinated.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 8,
+          "signal": "s2"
+        }
+      ],
+      "by": "cdc-whole-ip-reader-a (GPT-6.1 Sol)",
+      "expected_rules": [
+        "CDC-026",
+        "CDC-041"
+      ]
+    },
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Synchronizer structure",
+      "rationale": "The first synchronizer stage resets with rst_n and the second with unrelated unconstrained mode_i. The chain has inconsistent asynchronous reset roots; mode_i may release/reset stage two independently of source and stage one.",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 8,
+          "signal": "s2"
+        }
+      ],
+      "by": "cdc-whole-ip-reader-b (GPT-6.1 Sol)",
+      "expected_rules": [
+        "CDC-026",
+        "CDC-041"
+      ]
+    }
+  ]
+}

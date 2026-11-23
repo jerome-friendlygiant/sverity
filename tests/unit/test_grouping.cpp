@@ -176,6 +176,23 @@ TEST(finding_identity_ignores_presentation_wording) {
     CHECK_EQ(left.diagnostics()[0].rootCause,right.diagnostics()[0].rootCause);
 }
 
+TEST(finding_identity_ignores_typed_site_attribution) {
+    auto a=finding("CDC-045",Severity::Warning,2,"clock gate");
+    a.identityKey="gate-root";
+    a.location.file="/design/top.sv";
+    auto b=a;
+    a.evidence.push_back({"site_signal","top.gclk",{"design.sv",5,1}});
+    b.evidence.push_back({"site_signal","renamed.gclk",{"/other/top.sv",8,1}});
+    CHECK_EQ(computeFingerprint(a),computeFingerprint(b));
+    Report left,right; left.add(a); right.add(b); left.finalize(); right.finalize();
+    CHECK_EQ(left.diagnostics()[0].fingerprint,right.diagnostics()[0].fingerprint);
+    Report grouped; grouped.add(a); grouped.add(b); grouped.finalize();
+    CHECK_EQ(grouped.diagnostics().size(),1u);
+    CHECK_EQ(grouped.diagnostics()[0].count,2u);
+    CHECK_EQ(grouped.diagnostics()[0].evidence.size(),3u);
+    CHECK_EQ(grouped.diagnostics()[0].fingerprint,left.diagnostics()[0].fingerprint);
+}
+
 TEST(finding_identity_distinguishes_signals_on_one_line) {
     auto a=finding("CDC-003",Severity::Error,2,"crossing");
     auto b=a; b.signals={"other_target"};

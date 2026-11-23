@@ -1,0 +1,14 @@
+[
+  {
+    "case": "N004",
+    "reason": "EXCLUDE from whole-IP good/noise scoring: crossing-local structural recognition only; acceptance, physical bundled-data timing and reset operating context are not closed. N004 and N010 are identical RTL/SDC and must not be treated as independent coverage."
+  },
+  {
+    "case": "N008",
+    "reason": "EXCLUDE from advertised qualified-payload/event-protocol scoring: a simpler missing-synchronizer defect confounds attribution. Retain the confirmed bad verdict for synchronizer structure."
+  },
+  {
+    "case": "N010",
+    "reason": "EXCLUDE from whole-IP good/noise scoring: crossing-local structural recognition only; acceptance, physical bundled-data timing and reset operating context are not closed. N004 and N010 are identical RTL/SDC and must not be treated as independent coverage."
+  }
+]

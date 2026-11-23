@@ -1,0 +1,37 @@
+{
+  "verdict": "good",
+  "workflow_class": "IP and external boundaries",
+  "critical": false,
+  "sites": [],
+  "family": "CDC",
+  "top": "case_ib02",
+  "origin": "authored",
+  "batch": "cdc-2-fresh",
+  "author": "cdc-broader-author (GPT-6 Luna)",
+  "author_reading": {
+    "verdict": "good",
+    "workflow_class": "IP and external boundaries"
+  },
+  "rationale": "din and rst_n have min/max timing contracts relative to the sole capture clock; q and dout are ordinary same-clock pipeline registers.",
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "good",
+      "workflow_class": "IP and external boundaries",
+      "critical": false,
+      "sites": [],
+      "by": "cdc-broader-reader-a (GPT-6.1 Sol)",
+      "rationale": "din and rst_n have min/max timing contracts relative to the sole capture clock; q and dout are ordinary same-clock pipeline registers."
+    },
+    {
+      "verdict": "good",
+      "workflow_class": "IP and external boundaries",
+      "critical": false,
+      "sites": [],
+      "by": "cdc-broader-reader-b (GPT-6.1 Sol)",
+      "rationale": "The supplied min/max input and output delays establish clk-relative boundary timing. The two-register bus pipeline stays in that domain."
+    }
+  ]
+}

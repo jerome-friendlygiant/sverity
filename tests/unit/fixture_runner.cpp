@@ -17,10 +17,13 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <iterator>
+#include <stdexcept>
 #include <sstream>
 #include <set>
 
 #include "sverity/analyzer.h"
+#include "sverity/json.h"
 
 namespace fs = std::filesystem;
 using namespace sverity;
@@ -34,13 +37,32 @@ static std::vector<std::string> split(const std::string& s) {
 
 static AnalyzerOptions optionsFromArgs(const std::vector<std::string>& args) {
     AnalyzerOptions o;
+    std::set<std::string> explicitEnable, explicitDisable;
     for (size_t i = 0; i < args.size(); i++) {
         const std::string& a = args[i];
         if (a == "--slang-default-warnings") o.frontend.enableAllUpstreamWarnings = false;   // SVerity options
         else if (a == "--sdc" && i + 1 < args.size()) o.sdcFiles.push_back(args[++i]);
         else if (a == "--profile" && i + 1 < args.size()) o.config.profile = args[++i];
         else if (a == "--library" && i + 1 < args.size()) o.libraryFiles.push_back(args[++i]);
-        else if (a == "--disable-rule" && i + 1 < args.size()) o.config.disabledRules.insert(args[++i]);
+        else if (a == "--config" && i + 1 < args.size()) {
+            std::ifstream configFile(args[++i]);
+            std::string source((std::istreambuf_iterator<char>(configFile)), {});
+            const auto parsed = json::parse(source);
+            if (!parsed.ok) throw std::runtime_error("invalid fixture config: " + parsed.error);
+            for (const auto& event : parsed.value["boundary_events"].asArray()) {
+                Config::BoundaryEventContract contract;
+                contract.port = event["port"].asString();
+                contract.launchClock = event["launch_clock"].asString();
+                contract.protocol = event["protocol"].asString();
+                contract.delivery = event["delivery"].asString();
+                contract.duration = event["duration"]["value"].asDouble();
+                contract.durationUnit = event["duration"]["unit"].asString();
+                o.config.boundaryEvents.push_back(std::move(contract));
+            }
+        }
+        else if (a == "--disable-rule" && i + 1 < args.size()) explicitDisable.insert(args[++i]);
+        else if (a == "--enable-rule" && i + 1 < args.size()) explicitEnable.insert(args[++i]);
+        else if (a == "--goal" && i + 1 < args.size()) o.config.goals.insert(args[++i]);
         else if (a == "--option" && i + 1 < args.size()) {                                    // --option KEY=VALUE
             auto kv = args[++i];
             auto eq = kv.find('=');
@@ -48,6 +70,13 @@ static AnalyzerOptions optionsFromArgs(const std::vector<std::string>& args) {
         }
         else o.frontend.slangArgs.push_back(a);
     }
+    if (!o.config.goals.empty()) {
+        for (const auto& rule : Catalog::embedded().rules()) {
+            if (!inGoal(rule.id, o.config.goals)) o.config.disabledRules.insert(rule.id);
+        }
+    }
+    for (const auto& id : explicitEnable) o.config.disabledRules.erase(id);
+    for (const auto& id : explicitDisable) o.config.disabledRules.insert(id);
     return o;
 }
 

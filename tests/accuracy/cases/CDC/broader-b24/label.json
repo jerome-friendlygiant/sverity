@@ -1,0 +1,37 @@
+{
+  "verdict": "good",
+  "workflow_class": "Synchronizer structure",
+  "critical": false,
+  "sites": [],
+  "family": "CDC",
+  "top": "case_ss01",
+  "origin": "authored",
+  "batch": "cdc-2-fresh",
+  "author": "cdc-broader-author (GPT-6 Luna)",
+  "author_reading": {
+    "verdict": "good",
+    "workflow_class": "Synchronizer structure"
+  },
+  "rationale": "s1,s2 and dout form a clean same-clock/reset chain; ASYNC_REG marks the first two stages. Supplied din timing is synchronous as well. Placement and metastability MTBF remain external physical obligations.",
+  "sdc": [
+    "constraints.sdc"
+  ],
+  "labels": [
+    {
+      "verdict": "good",
+      "workflow_class": "Synchronizer structure",
+      "critical": false,
+      "sites": [],
+      "by": "cdc-broader-reader-a (GPT-6.1 Sol)",
+      "rationale": "s1,s2 and dout form a clean same-clock/reset chain; ASYNC_REG marks the first two stages. Supplied din timing is synchronous as well. Placement and metastability MTBF remain external physical obligations."
+    },
+    {
+      "verdict": "good",
+      "workflow_class": "Synchronizer structure",
+      "critical": false,
+      "sites": [],
+      "by": "cdc-broader-reader-b (GPT-6.1 Sol)",
+      "rationale": "The attributed s1/s2 chain has a common clock/reset, direct stage connections, and no early-stage functional consumer. dout consumes the completed chain. Input timing is also supplied."
+    }
+  ]
+}

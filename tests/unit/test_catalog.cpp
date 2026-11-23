@@ -90,3 +90,31 @@ TEST(catalog_lint_deck_is_its_classes) {
     CHECK(lint > 0);
     CHECK(!inDeck(*c.find("LNT-071"), "lint"));            // an obligation, excluded in LINT_WORKFLOW.md
 }
+
+TEST(catalog_cdc_deck_membership_and_goal_rdc_dependencies) {
+    auto& c = Catalog::embedded();
+    CHECK(isDeck("cdc"));
+    size_t cdc = 0, cdcFam = 0, cstFam = 0, rdcFam = 0;
+    for (auto& r : c.rules()) {
+        if (!inDeck(r, "cdc")) continue;
+        cdc++;
+        if (r.category == "CDC") cdcFam++;
+        else if (r.category == "CST") cstFam++;
+        else if (r.category == "RDC") rdcFam++;
+        else CHECK(false);
+    }
+    CHECK_EQ(cdc, 60u);
+    CHECK_EQ(cdcFam, 38u);
+    CHECK_EQ(cstFam, 15u);
+    CHECK_EQ(rdcFam, 7u);
+    CHECK(!inDeck(*c.find("CDC-012"), "cdc"));             // pre-freeze excluded (preview)
+    CHECK(!inDeck(*c.find("CST-007"), "cdc"));             // pre-freeze excluded
+    CHECK(inDeck(*c.find("CST-013"), "cdc"));              // retained generated-clock consistency
+    const std::set<std::string> cdcGoal = {"cdc"};
+    for (const char* id : {"RDC-002", "RDC-003", "RDC-006", "RDC-007", "RDC-016", "RDC-023", "RDC-024"}) {
+        CHECK(inDeck(*c.find(id), "cdc"));
+        CHECK(inGoal(id, cdcGoal));
+    }
+    CHECK(!inDeck(*c.find("RDC-004"), "cdc"));
+    CHECK(!inGoal("RDC-004", cdcGoal));
+}

@@ -36,9 +36,26 @@ namespace sverity::model {
 using namespace slang;
 using namespace slang::ast;
 
+std::optional<bool> elaboratedCondition(const Expression& expression, EvalContext& context) {
+    struct Calls : ASTVisitor<Calls, VisitFlags::AllGood> {
+        bool found = false;
+        void handle(const CallExpression&) { found = true; }
+    } calls;
+    expression.visit(calls);
+    if (calls.found) return std::nullopt;
+    const auto value = expression.eval(context);
+    if (!value.isInteger() || value.hasUnknown()) return std::nullopt;
+    return value.isTrue();
+}
+
 namespace {
 
 constexpr uint32_t kMaxBits = 16384;         // wider symbols are collapsed to one node (recorded fallback); exact bit moves stay linear
+constexpr uint32_t kMaxPackedBits = 131072;  // ... except a packed vector or struct, which is sliced by constant selects and stays per bit
+
+// A packed (integral) value is assembled and taken apart by constant part-selects, so per-bit tracking costs one node per bit used.
+// An unpacked array is a memory, indexed at run time: past kMaxBits it is one node.
+bool tooWide(const Type& type, uint64_t width) { return width > (type.isIntegral() ? kMaxPackedBits : kMaxBits); }
 constexpr uint64_t kMaxEdgesPerAssign = 1u << 22;
 constexpr uint64_t kHubEdgeThreshold = 1u << 10;
 constexpr size_t kCompactEdgesFrom = size_t{1} << 24;
@@ -77,6 +94,11 @@ bool isModuleLevel(const Symbol& s) {
     if (!sc) return false;
     SymbolKind k = sc->asSymbol().kind;
     return k == SymbolKind::InstanceBody || k == SymbolKind::GenerateBlock;
+}
+
+bool isPackageState(const Symbol& s) {
+    const auto* scope = s.getParentScope();
+    return scope && scope->asSymbol().kind == SymbolKind::Package;
 }
 
 SourceLocation toLoc(const SourceManager& sm, slang::SourceLocation l) {
@@ -213,6 +235,7 @@ struct BitRef {
 };
 
 struct Assign {
+    const AssignmentExpression* asg = nullptr;
     std::vector<std::tuple<SourceLocation, std::vector<Path>, std::string, bool>> calledConditions;
     std::vector<std::pair<SourceLocation, std::vector<Path>>> conditions;
     std::vector<Path> targets;
@@ -222,6 +245,7 @@ struct Assign {
     bool nonBlocking = false;
     bool called = false;
     bool unattributedWrite = false;
+    bool afterPossibleExit = false;
     bool pairsValid = false;       // dataReads are fully described by exact bit pairs below
     bool flipPairsValid = false;   // the same pairs, each source bit reaching its target inverted (`~x`)
     std::vector<std::pair<BitRef, BitRef>> pairs;   // (target bit, source bit or constant)
@@ -235,6 +259,7 @@ struct Assign {
     SourceLocation loc;
     BoolFactPtr booleanValue;
     std::vector<GuardCondition> booleanGuards;
+    std::vector<std::pair<NodeId, std::vector<CombQualifierArm>>> qualifierArms;
     std::vector<uint32_t> uncertainCalls;
 };
 
@@ -245,6 +270,7 @@ struct JumpFinder : ASTVisitor<JumpFinder, VisitFlags::AllGood> {
     bool found = false;
     void handle(const ReturnStatement&) { found = true; }
     void handle(const DisableStatement&) { found = true; }
+    void handle(const DisableForkStatement&) { found = true; }
     void handle(const BreakStatement&) { if (!loops) found = true; }
     void handle(const ContinueStatement&) { if (!loops) found = true; }
     template<class T> void handle(const T& node) {
@@ -254,6 +280,127 @@ struct JumpFinder : ASTVisitor<JumpFinder, VisitFlags::AllGood> {
         if constexpr (loop) ++loops;
         visitDefault(node);
         if constexpr (loop) --loops;
+    }
+};
+
+/// Whitelist of synthesizable statements and pure/non-suspending calls permitted
+/// inside a procedure whose registers may be proven constant-stuck (or whose
+/// combinational aliases may skip execution barriers).
+struct StuckBodyChecker : ASTVisitor<StuckBodyChecker, VisitFlags::AllGood> {
+    const Statement* outerTimed = nullptr;
+    bool unsafe = false;
+    unsigned callDepth = 0;
+    size_t callExpansions = 0;
+    std::set<const SubroutineSymbol*> visiting;
+    static bool isPureSystemCall(const CallExpression& c) {
+        if (!c.isSystemCall()) return false;
+        const auto& name = std::get<CallExpression::SystemCallInfo>(c.subroutine).subroutine->name;
+        static const std::set<std::string_view> pure = {
+            "$clog2", "$signed", "$unsigned", "$countones", "$onehot", "$onehot0", "$isunknown",
+            "$bits", "$typename", "$size", "$high", "$low", "$left", "$right", "$increment", "$dimensions"
+        };
+        return pure.count(name) != 0;
+    }
+    static bool isNonEmptyStmt(const Statement* s) {
+        return s && s->kind != StatementKind::Empty;
+    }
+    void handle(const NewClassExpression&) { unsafe = true; }
+    void handle(const NewArrayExpression&) { unsafe = true; }
+    void handle(const NewCovergroupExpression&) { unsafe = true; }
+    void handle(const CopyClassExpression&) { unsafe = true; }
+    void handle(const ClockingEventExpression&) { unsafe = true; }
+    void handle(const AssertionInstanceExpression&) { unsafe = true; }
+    void handle(const AssignmentExpression& a) {
+        if (a.timingControl) unsafe = true;
+        visitDefault(a);
+    }
+    void handle(const CallExpression& c) {
+        if (c.isSystemCall()) {
+            if (!isPureSystemCall(c)) unsafe = true;
+        } else if (c.thisClass()) {
+            unsafe = true;
+        } else {
+            const auto* sub = std::get<const SubroutineSymbol*>(c.subroutine);
+            bool ok = sub && sub->subroutineKind == SubroutineKind::Function &&
+                      !sub->isVirtual() &&
+                      !sub->flags.has(MethodFlags::DPIImport | MethodFlags::InterfaceExtern) &&
+                      !sub->getBody().bad() &&
+                      callDepth < 32 && callExpansions < 256 &&
+                      !visiting.count(sub);
+            if (ok) {
+                for (const auto* arg : sub->getArguments()) {
+                    if (arg->direction != ArgumentDirection::In) { ok = false; break; }
+                }
+            }
+            if (!ok) {
+                unsafe = true;
+            } else {
+                ++callExpansions;
+                visiting.insert(sub);
+                ++callDepth;
+                sub->getBody().visit(*this);
+                --callDepth;
+                visiting.erase(sub);
+            }
+        }
+        visitDefault(c);
+    }
+    template <typename T>
+        requires(std::is_base_of_v<Statement, T> && !std::is_same_v<T, Statement>)
+    void handle(const T& s) {
+        switch (s.kind) {
+            case StatementKind::Empty:
+            case StatementKind::List:
+            case StatementKind::ExpressionStatement:
+            case StatementKind::Conditional:
+            case StatementKind::Case:
+            case StatementKind::WhileLoop:
+            case StatementKind::DoWhileLoop:
+            case StatementKind::RepeatLoop:
+            case StatementKind::ForeachLoop:
+            case StatementKind::Return:
+            case StatementKind::Break:
+            case StatementKind::Continue:
+                break;
+            case StatementKind::Disable:
+                if (callDepth > 0) unsafe = true;
+                break;
+            case StatementKind::VariableDeclaration:
+                if constexpr (std::is_same_v<T, VariableDeclStatement>) {
+                    if (const auto* init = s.symbol.getInitializer()) init->visit(*this);
+                }
+                break;
+            case StatementKind::ForLoop:
+                if constexpr (std::is_same_v<T, ForLoopStatement>) {
+                    for (const auto* var : s.loopVars)
+                        if (const auto* init = var->getInitializer()) init->visit(*this);
+                }
+                break;
+            case StatementKind::Block:
+                if constexpr (std::is_same_v<T, BlockStatement>) {
+                    if (s.blockKind != StatementBlockKind::Sequential) unsafe = true;
+                }
+                break;
+            case StatementKind::Timed:
+                if (&s != outerTimed) unsafe = true;
+                break;
+            case StatementKind::ImmediateAssertion:
+                if constexpr (std::is_same_v<T, ImmediateAssertionStatement>) {
+                    if (isNonEmptyStmt(s.ifTrue) || isNonEmptyStmt(s.ifFalse)) unsafe = true;
+                }
+                break;
+            case StatementKind::ConcurrentAssertion:
+                if constexpr (std::is_same_v<T, ConcurrentAssertionStatement>) {
+                    if (s.assertionKind == AssertionKind::Expect ||
+                        isNonEmptyStmt(s.ifTrue) || isNonEmptyStmt(s.ifFalse))
+                        unsafe = true;
+                }
+                break;
+            default:
+                unsafe = true;
+                break;
+        }
+        visitDefault(s);
     }
 };
 
@@ -346,10 +493,11 @@ private:
 
     // ---------------------------------------------------------------- nodes
     uint32_t collapse(const ValueSymbol& s, uint64_t w) {
-        if (w > kMaxBits) {
-            if (wideReported.insert(&s).second)
+        if (tooWide(s.getType(), w)) {
+            if (wideReported.insert(&s).second) {
                 fallback("wide-symbol", "'" + std::string(s.name) + "' is " + std::to_string(w) +
                          " bits wide; tracked as a single node (bit precision lost)", s.location);
+            }
             return 1;   // collapsed
         }
         return 0;
@@ -378,6 +526,11 @@ private:
     }
 
     const InstanceSymbol* ownerOf(const ValueSymbol& s, const InstanceSymbol* ctx) {
+        // Package state is one design-wide object, not a copy per module
+        // instance. Keep it localizable so an opaque call that writes a
+        // package variable does not poison every register in the design.
+        for (auto scope = s.getParentScope(); scope; scope = scope->asSymbol().getParentScope())
+            if (scope->asSymbol().kind == SymbolKind::Package) return nullptr;
         const InstanceBodySymbol* b = bodyOf(s);
         if (!b || !ctx || b == &ctx->body) return ctx;
         auto it = bodyInstances.find(b);
@@ -389,6 +542,235 @@ private:
     }
 
     // ---------------------------------------------------------------- paths
+    static bool hasAnyCall(const Expression& expr) {
+        struct Calls : ASTVisitor<Calls, VisitFlags::AllGood> {
+            bool found = false;
+            void handle(const CallExpression&) { found = true; }
+        } calls;
+        expr.visit(calls);
+        return calls.found;
+    }
+    static const Expression& stripWidthConversions(const Expression& expr) {
+        const Expression* x = &expr;
+        while (x->kind == ExpressionKind::Conversion) {
+            const auto& c = x->as<ConversionExpression>();
+            if (!c.type || !c.operand().type ||
+                c.type->getBitstreamWidth() != c.operand().type->getBitstreamWidth()) break;
+            x = &c.operand();
+        }
+        return *x;
+    }
+    static bool samePureExpr(const Expression& rawA, const Expression& rawB) {
+        const Expression& a = stripWidthConversions(rawA);
+        const Expression& b = stripWidthConversions(rawB);
+        if (a.kind != b.kind) return false;
+        switch (a.kind) {
+            case ExpressionKind::NamedValue:
+            case ExpressionKind::HierarchicalValue:
+                return a.getSymbolReference() && a.getSymbolReference() == b.getSymbolReference();
+            case ExpressionKind::IntegerLiteral:
+                return exactlyEqual(a.as<IntegerLiteral>().getValue(), b.as<IntegerLiteral>().getValue());
+            case ExpressionKind::ElementSelect: {
+                const auto& sa = a.as<ElementSelectExpression>();
+                const auto& sb = b.as<ElementSelectExpression>();
+                if (!samePureExpr(sa.value(), sb.value())) return false;
+                const auto* ca = sa.selector().getConstant();
+                const auto* cb = sb.selector().getConstant();
+                return ca && cb && ca->isInteger() && cb->isInteger() &&
+                       !ca->integer().hasUnknown() && !cb->integer().hasUnknown() &&
+                       exactlyEqual(ca->integer(), cb->integer());
+            }
+            case ExpressionKind::RangeSelect: {
+                const auto& ra = a.as<RangeSelectExpression>();
+                const auto& rb = b.as<RangeSelectExpression>();
+                if (ra.getSelectionKind() != rb.getSelectionKind() || !samePureExpr(ra.value(), rb.value())) return false;
+                const auto* la = ra.left().getConstant();
+                const auto* lb = rb.left().getConstant();
+                const auto* rca = ra.right().getConstant();
+                const auto* rcb = rb.right().getConstant();
+                return la && lb && rca && rcb && la->isInteger() && lb->isInteger() &&
+                       rca->isInteger() && rcb->isInteger() &&
+                       !la->integer().hasUnknown() && !lb->integer().hasUnknown() &&
+                       !rca->integer().hasUnknown() && !rcb->integer().hasUnknown() &&
+                       exactlyEqual(la->integer(), lb->integer()) &&
+                       exactlyEqual(rca->integer(), rcb->integer());
+            }
+            case ExpressionKind::MemberAccess: {
+                const auto& ma = a.as<MemberAccessExpression>();
+                const auto& mb = b.as<MemberAccessExpression>();
+                return &ma.member == &mb.member && samePureExpr(ma.value(), mb.value());
+            }
+            case ExpressionKind::UnaryOp: {
+                const auto& ua = a.as<UnaryExpression>();
+                const auto& ub = b.as<UnaryExpression>();
+                return ua.op == ub.op && samePureExpr(ua.operand(), ub.operand());
+            }
+            case ExpressionKind::BinaryOp: {
+                const auto& ba = a.as<BinaryExpression>();
+                const auto& bb = b.as<BinaryExpression>();
+                if (ba.op != bb.op) return false;
+                if (samePureExpr(ba.left(), bb.left()) && samePureExpr(ba.right(), bb.right())) return true;
+                switch (ba.op) {
+                    case BinaryOperator::BinaryXor:
+                    case BinaryOperator::BinaryXnor:
+                    case BinaryOperator::BinaryAnd:
+                    case BinaryOperator::BinaryOr:
+                    case BinaryOperator::LogicalAnd:
+                    case BinaryOperator::LogicalOr:
+                    case BinaryOperator::Equality:
+                    case BinaryOperator::Inequality:
+                    case BinaryOperator::CaseEquality:
+                    case BinaryOperator::CaseInequality:
+                        return samePureExpr(ba.left(), bb.right()) && samePureExpr(ba.right(), bb.left());
+                    default:
+                        return false;
+                }
+            }
+            default:
+                return false;
+        }
+    }
+public:
+    enum class ConstFold { None, Zero, AllOnes, OneBitTrue, OtherConst };
+    static ConstFold foldConstantExpr(const Expression& expr, EvalContext& ec, bool checkedCalls = false,
+                                      const Model* model = nullptr,
+                                      const std::unordered_map<const ValueSymbol*, std::vector<NodeId>>* symNodes = nullptr) {
+        if (!checkedCalls && hasAnyCall(expr)) return ConstFold::None;
+        if (auto cv = expr.eval(ec); cv.isInteger() && !cv.integer().hasUnknown()) {
+            if (cv.integer() == 0) return ConstFold::Zero;
+            if (cv.integer().countOnes() == cv.integer().getBitWidth()) return ConstFold::AllOnes;
+            if (cv.isTrue()) return ConstFold::OneBitTrue;
+            return ConstFold::OtherConst;
+        }
+        if (model && symNodes) {
+            if (expr.kind == ExpressionKind::NamedValue || expr.kind == ExpressionKind::HierarchicalValue) {
+                const auto* ref = expr.getSymbolReference();
+                const auto* vs = ref ? ref->as_if<ValueSymbol>() : nullptr;
+                if (vs) {
+                    if (auto it = symNodes->find(vs); it != symNodes->end() && !it->second.empty()) {
+                        bool allZero = true, allOne = true;
+                        for (NodeId n : it->second) {
+                            const char cv = model->constantValue(n);
+                            if (cv != '0') allZero = false;
+                            if (cv != '1') allOne = false;
+                        }
+                        if (allZero) return ConstFold::Zero;
+                        if (allOne) return ConstFold::AllOnes;
+                    }
+                }
+            } else if (expr.kind == ExpressionKind::ElementSelect) {
+                const auto& sel = expr.as<ElementSelectExpression>();
+                const auto* ref = stripWidthConversions(sel.value()).getSymbolReference();
+                const auto* vs = ref ? ref->as_if<ValueSymbol>() : nullptr;
+                if (vs) {
+                    auto idx = sel.selector().eval(ec);
+                    if (idx.isInteger() && !idx.integer().hasUnknown()) {
+                        if (auto iv = idx.integer().as<int64_t>(); iv && *iv >= 0) {
+                            if (auto it = symNodes->find(vs); it != symNodes->end()) {
+                                for (NodeId n : it->second) {
+                                    if (n < model->nodes.size() && model->nodes[n].bit == static_cast<uint32_t>(*iv)) {
+                                        const char cv = model->constantValue(n);
+                                        if (cv == '0') return ConstFold::Zero;
+                                        if (cv == '1') return ConstFold::AllOnes;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (expr.kind == ExpressionKind::Conversion) {
+            const auto& c = expr.as<ConversionExpression>();
+            const auto inner = foldConstantExpr(c.operand(), ec, true, model, symNodes);
+            if (inner == ConstFold::None) return ConstFold::None;
+            if (c.type && c.operand().type) {
+                const uint64_t toW = c.type->getBitstreamWidth();
+                const uint64_t fromW = c.operand().type->getBitstreamWidth();
+                if (toW == fromW) return inner;
+                if (toW > fromW && inner == ConstFold::Zero && !c.operand().type->isSigned())
+                    return ConstFold::Zero;
+            }
+            return ConstFold::None;
+        }
+        if (expr.kind == ExpressionKind::UnaryOp) {
+            const auto& u = expr.as<UnaryExpression>();
+            const auto inner = foldConstantExpr(u.operand(), ec, true, model, symNodes);
+            if (inner == ConstFold::None) return ConstFold::None;
+            if (u.op == UnaryOperator::LogicalNot)
+                return inner == ConstFold::Zero ? ConstFold::OneBitTrue : ConstFold::Zero;
+            if (u.op == UnaryOperator::BitwiseNot)
+                return inner == ConstFold::Zero ? ConstFold::AllOnes :
+                       inner == ConstFold::AllOnes ? ConstFold::Zero : ConstFold::OtherConst;
+            return ConstFold::None;
+        }
+        if (expr.kind == ExpressionKind::BinaryOp) {
+            const auto& b = expr.as<BinaryExpression>();
+            const auto lf = foldConstantExpr(b.left(), ec, true, model, symNodes);
+            const auto rf = foldConstantExpr(b.right(), ec, true, model, symNodes);
+            if (b.op == BinaryOperator::LogicalAnd) {
+                if (lf == ConstFold::Zero || rf == ConstFold::Zero) return ConstFold::Zero;
+                if (lf != ConstFold::None && rf != ConstFold::None) return ConstFold::OneBitTrue;
+            }
+            if (b.op == BinaryOperator::LogicalOr) {
+                if ((lf != ConstFold::None && lf != ConstFold::Zero) ||
+                    (rf != ConstFold::None && rf != ConstFold::Zero)) return ConstFold::OneBitTrue;
+                if (lf == ConstFold::Zero && rf == ConstFold::Zero) return ConstFold::Zero;
+            }
+            if (b.op == BinaryOperator::BinaryAnd && (lf == ConstFold::Zero || rf == ConstFold::Zero))
+                return ConstFold::Zero;
+            if (b.op == BinaryOperator::BinaryOr && (lf == ConstFold::AllOnes || rf == ConstFold::AllOnes))
+                return ConstFold::AllOnes;
+            if (samePureExpr(b.left(), b.right())) {
+                switch (b.op) {
+                    case BinaryOperator::BinaryXor:
+                    case BinaryOperator::Subtract:
+                    case BinaryOperator::Inequality:
+                    case BinaryOperator::CaseInequality:
+                    case BinaryOperator::LessThan:
+                    case BinaryOperator::GreaterThan:
+                        return ConstFold::Zero;
+                    case BinaryOperator::BinaryXnor:
+                        return ConstFold::AllOnes;
+                    case BinaryOperator::Equality:
+                    case BinaryOperator::CaseEquality:
+                    case BinaryOperator::LessThanEqual:
+                    case BinaryOperator::GreaterThanEqual:
+                        return ConstFold::OneBitTrue;
+                    default: break;
+                }
+            }
+            auto complementary = [&](const Expression& lhs, const Expression& rhs) {
+                const Expression& x = stripWidthConversions(lhs);
+                if (x.kind != ExpressionKind::UnaryOp) return false;
+                const auto& u = x.as<UnaryExpression>();
+                if (u.op != UnaryOperator::BitwiseNot && u.op != UnaryOperator::LogicalNot) return false;
+                if (u.op == UnaryOperator::LogicalNot &&
+                    (!rhs.type || rhs.type->getBitstreamWidth() != 1 ||
+                     !u.operand().type || u.operand().type->getBitstreamWidth() != 1))
+                    return false;
+                return samePureExpr(u.operand(), rhs);
+            };
+            if (complementary(b.left(), b.right()) || complementary(b.right(), b.left())) {
+                switch (b.op) {
+                    case BinaryOperator::BinaryAnd:
+                    case BinaryOperator::LogicalAnd:
+                    case BinaryOperator::BinaryXnor:
+                        return ConstFold::Zero;
+                    case BinaryOperator::BinaryOr:
+                    case BinaryOperator::BinaryXor:
+                        return ConstFold::AllOnes;
+                    case BinaryOperator::LogicalOr:
+                        return ConstFold::OneBitTrue;
+                    default: break;
+                }
+            }
+        }
+        return ConstFold::None;
+    }
+private:
+
     // The reads of an expression that can reach its value: the dead arm of a `?:`, and the operand of `&&` / `||` that a constant
     // left operand short-circuits, are not read (a bound loop variable makes `i > 0 ? fb[i-1] : 0` constant per iteration).
     struct LivePaths : ASTVisitor<LivePaths, VisitFlags::AllGood> {
@@ -497,28 +879,157 @@ private:
             default: return false;
         }
     }
-    /// A return value built piece by piece (`f[7] = a; f[6] = b; ...`) is established when the unconditional statements of the body
-    /// write constant selects of it that together cover every bit.
+    /// Collects static locals of `sub` that act solely as bounded `for`-loop induction variables:
+    /// initialized on loop entry, never declared with an initializer, never written in the loop body,
+    /// and never referenced outside an enclosing unrollable `for` loop that initializes them.
+    std::set<const VariableSymbol*> collectPureLoopInductionLocals(const SubroutineSymbol& sub) {
+        static constexpr size_t kMaxScanWalks = 2048;
+        std::set<const VariableSymbol*> initialized, disqualified;
+        struct Scan : ASTVisitor<Scan, VisitFlags::AllGood> {
+            Builder& b;
+            const SubroutineSymbol& sub;
+            EvalContext& ec;
+            std::set<const VariableSymbol*>& initialized;
+            std::set<const VariableSymbol*>& disqualified;
+            std::vector<const VariableSymbol*> active;
+            size_t walkBudget = 0;
+            bool budgetExceeded = false;
+            Scan(Builder& builder, const SubroutineSymbol& routine, EvalContext& ctx,
+                 std::set<const VariableSymbol*>& init, std::set<const VariableSymbol*>& bad)
+                : b(builder), sub(routine), ec(ctx), initialized(init), disqualified(bad) {}
+            bool candidate(const Symbol* s, const VariableSymbol*& out) const {
+                if (!s || s->kind == SymbolKind::FormalArgument) return false;
+                const auto* var = s->as_if<VariableSymbol>();
+                if (!var || var == sub.returnValVar || !localTo(*var, sub)) return false;
+                if (var->lifetime == VariableLifetime::Automatic) return false;
+                out = var;
+                return true;
+            }
+            bool isActive(const VariableSymbol* v) const {
+                return std::find(active.rbegin(), active.rend(), v) != active.rend();
+            }
+            void handle(const VariableDeclStatement& decl) {
+                if (const VariableSymbol* v = nullptr; candidate(&decl.symbol, v) && decl.symbol.getInitializer())
+                    disqualified.insert(v);
+                if (const auto* init = decl.symbol.getInitializer()) init->visit(*this);
+            }
+            void handle(const NamedValueExpression& expr) {
+                if (const VariableSymbol* v = nullptr; candidate(&expr.symbol, v) && !isActive(v))
+                    disqualified.insert(v);
+            }
+            void handle(const HierarchicalValueExpression& expr) {
+                if (const VariableSymbol* v = nullptr; candidate(expr.getSymbolReference(), v) && !isActive(v))
+                    disqualified.insert(v);
+            }
+            void handle(const ForLoopStatement& loop) {
+                std::vector<LoopBinding> iterations;
+                const bool unrolls = b.unrollForLoop(loop, ec, iterations) && !iterations.empty();
+                std::vector<const VariableSymbol*> mine;
+                if (unrolls) {
+                    for (auto* init : loop.initializers) {
+                        const auto* asg = init->as_if<AssignmentExpression>();
+                        const auto* nv = asg && !asg->isCompound() ? asg->left().as_if<NamedValueExpression>() : nullptr;
+                        const VariableSymbol* v = nullptr;
+                        if (nv && candidate(&nv->symbol, v) && !v->getInitializer()) {
+                            mine.push_back(v);
+                            initialized.insert(v);
+                        }
+                    }
+                }
+                const size_t saved = active.size();
+                active.insert(active.end(), mine.begin(), mine.end());
+                for (auto* init : loop.initializers) init->visit(*this);
+                if (loop.stopExpr) loop.stopExpr->visit(*this);
+                if (unrolls && !iterations.empty()) {
+                    if (budgetExceeded || walkBudget + iterations.size() > kMaxScanWalks) {
+                        budgetExceeded = true;
+                        for (auto* v : mine) disqualified.insert(v);
+                        loop.body.visit(*this);
+                    } else {
+                        walkBudget += iterations.size();
+                        const auto savedLoops = b.boundLoops;
+                        for (const auto& binding : iterations) {
+                            for (size_t k = savedLoops.size(); k < binding.size(); ++k)
+                                ec.createLocal(binding[k].first, binding[k].second);
+                            b.boundLoops = binding;
+                            loop.body.visit(*this);
+                            for (size_t k = savedLoops.size(); k < binding.size(); ++k)
+                                ec.deleteLocal(binding[k].first);
+                        }
+                        b.boundLoops = savedLoops;
+                    }
+                } else {
+                    loop.body.visit(*this);
+                }
+                for (auto* step : loop.steps) step->visit(*this);
+                active.resize(saved);
+            }
+        };
+        EvalContext ec(sub);
+        Scan scan(*this, sub, ec, initialized, disqualified);
+        sub.getBody().visit(scan);
+        if (scan.budgetExceeded) initialized.clear();
+        for (const auto* bad : disqualified) initialized.erase(bad);
+        return initialized;
+    }
+
+    /// A return value built piece by piece (`f[7] = a; f[6] = b; ...` or an unconditional constant-bounded
+    /// `for` loop filling `f[i]`) is established when unconditional statements cover every bit.
     bool returnAssembled(const SubroutineSymbol& sub) {
         if (!sub.returnValVar) return false;
-        std::vector<const Statement*> top;
-        std::function<void(const Statement&)> flatten = [&](const Statement& st) {
-            if (st.kind == StatementKind::Block) flatten(st.as<BlockStatement>().body);
-            else if (st.kind == StatementKind::List) for (const auto* inner : st.as<StatementList>().list) flatten(*inner);
-            else top.push_back(&st);
-        };
-        flatten(sub.getBody());
         EvalContext ec(sub);
         std::vector<std::pair<uint64_t, uint64_t>> covered;
-        for (const auto* st : top) {
-            if (st->kind != StatementKind::ExpressionStatement) continue;
-            const auto& expr = st->as<ExpressionStatement>().expr;
-            if (expr.kind != ExpressionKind::Assignment || expr.as<AssignmentExpression>().isCompound()) continue;
+        size_t walkBudget = 0;
+        size_t walkFactor = 1;
+        bool aborted = false;
+        static constexpr size_t kMaxReturnUnrollWalks = 2048;
+        std::function<void(const Statement&)> collect = [&](const Statement& st) {
+            if (aborted) return;
+            if (st.kind == StatementKind::Block) {
+                collect(st.as<BlockStatement>().body);
+                return;
+            }
+            if (st.kind == StatementKind::List) {
+                for (const auto* inner : st.as<StatementList>().list) {
+                    collect(*inner);
+                    if (aborted) return;
+                }
+                return;
+            }
+            if (st.kind == StatementKind::ForLoop) {
+                const auto& loop = st.as<ForLoopStatement>();
+                std::vector<LoopBinding> iterations;
+                if (!unrollForLoop(loop, ec, iterations) || iterations.empty() ||
+                    iterations.size() * walkFactor + walkBudget > kMaxReturnUnrollWalks) {
+                    aborted = true;
+                    return;
+                }
+                walkBudget += iterations.size() * walkFactor;
+                const size_t savedFactor = walkFactor;
+                walkFactor *= iterations.size();
+                const auto savedLoops = boundLoops;
+                for (const auto& binding : iterations) {
+                    for (size_t k = savedLoops.size(); k < binding.size(); ++k)
+                        ec.createLocal(binding[k].first, binding[k].second);
+                    boundLoops = binding;
+                    collect(loop.body);
+                    for (size_t k = savedLoops.size(); k < binding.size(); ++k)
+                        ec.deleteLocal(binding[k].first);
+                    if (aborted) break;
+                }
+                boundLoops = savedLoops;
+                walkFactor = savedFactor;
+                return;
+            }
+            if (st.kind != StatementKind::ExpressionStatement) return;
+            const auto& expr = st.as<ExpressionStatement>().expr;
+            if (expr.kind != ExpressionKind::Assignment || expr.as<AssignmentExpression>().isCompound()) return;
             const auto& left = expr.as<AssignmentExpression>().left();
-            if (left.getSymbolReference() != sub.returnValVar) continue;
-            for (const auto& path : rawPathsOf(left, ec, false, true))
+            if (left.getSymbolReference() != sub.returnValVar) return;
+            for (const auto& path : rawPathsOf(left, ec, true, true))
                 if (path.sym == sub.returnValVar) covered.emplace_back(path.lo, path.hi);
-        }
+        };
+        collect(sub.getBody());
         const uint64_t width = widthOf(*sub.returnValVar);
         if (!width || covered.empty()) return false;
         std::sort(covered.begin(), covered.end());
@@ -533,10 +1044,12 @@ private:
         Builder& b;
         const SubroutineSymbol& sub;
         CallSummary& result;
+        const std::set<const VariableSymbol*>& loopInductionLocals;
         EvalContext ec;
         size_t visited = 0;
-        SummaryVisitor(Builder& builder, const SubroutineSymbol& routine, CallSummary& summary)
-            : b(builder), sub(routine), result(summary), ec(routine) {}
+        SummaryVisitor(Builder& builder, const SubroutineSymbol& routine, CallSummary& summary,
+                       const std::set<const VariableSymbol*>& pureLoops)
+            : b(builder), sub(routine), result(summary), loopInductionLocals(pureLoops), ec(routine) {}
         bool tick() {
             ++b.m.subroutineBodyNodes;
             if (++visited <= 4096) return true;
@@ -549,10 +1062,10 @@ private:
                         if (!write) result.unknown.insert("function return state is read before its value is established");
                     } else if (path.sym->kind != SymbolKind::FormalArgument) {
                         // An automatic local holds nothing between calls, and every read it could copy is already in this
-                        // summary. A static local can carry state from an earlier call.
+                        // summary. A static local can carry state from an earlier call, unless it is solely an initialized loop induction variable.
                         // A local read before it is assigned has no signal behind it: no dependency is lost (LNT-044 reports the read).
                         const auto* local = path.sym->as_if<VariableSymbol>();
-                        if (!local || local->lifetime != VariableLifetime::Automatic)
+                        if (!local || (local->lifetime != VariableLifetime::Automatic && !loopInductionLocals.count(local)))
                             result.unknown.insert("static subroutine-local state is not expanded");
                     }
                     continue;
@@ -589,7 +1102,8 @@ private:
         void handle(const VariableDeclStatement& declaration) {
             if (!tick()) return;
             if (auto* initializer = declaration.symbol.getInitializer()) initializer->visit(*this);
-            if (declaration.symbol.lifetime != VariableLifetime::Automatic)
+            if (declaration.symbol.lifetime != VariableLifetime::Automatic &&
+                !loopInductionLocals.count(&declaration.symbol))
                 result.unknown.insert("static subroutine-local state is not expanded");
         }
         void handle(const UnaryExpression& expr) {
@@ -683,9 +1197,15 @@ private:
         auto& result = callSummaries[&sub];
         ++m.subroutineSummaries;
         if (sub.flags.has(MethodFlags::DPIImport | MethodFlags::InterfaceExtern) || sub.isVirtual()) {
-            result.unknown.insert("external or virtual subroutine has no resolved body"); result.unboundedWrites = true;
+            result.unknown.insert("external or virtual subroutine has no resolved body");
+            // A non-context DPI import can only observe and affect its
+            // arguments. Context imports, interface externs and virtual
+            // dispatch may also access state outside the call.
+            result.unboundedWrites = !sub.flags.has(MethodFlags::DPIImport) ||
+                                     sub.flags.has(MethodFlags::DPIContext | MethodFlags::InterfaceExtern) || sub.isVirtual();
         } else {
-            SummaryVisitor visitor(*this, sub, result);
+            const auto pureLoopLocals = collectPureLoopInductionLocals(sub);
+            SummaryVisitor visitor(*this, sub, result, pureLoopLocals);
             sub.getBody().visit(visitor);
             if (sub.subroutineKind == SubroutineKind::Function && !returnsValue(sub.getBody(), sub) && !returnAssembled(sub))
                 result.unknown.insert("a return value is not established on every path");
@@ -696,8 +1216,10 @@ private:
         return result;
     }
     bool callPathResolved(const Path& path) const {
+        for (auto scope = path.sym->getParentScope(); scope; scope = scope->asSymbol().getParentScope())
+            if (scope->asSymbol().kind == SymbolKind::Package) return true;
         const auto* body = bodyOf(*path.sym);
-        if (!isModuleLevel(*path.sym) || !body) return false; // package state and nonlocal subroutine state need a state model
+        if (!isModuleLevel(*path.sym) || !body) return false; // non-package local/nonlocal state needs an explicit state model
         // A summary stores symbols, not a hierarchical instance selection.
         // Shared bodies need that extra ownership fact before their state can be attached.
         auto it = bodyInstances.find(body);
@@ -1235,6 +1757,7 @@ private:
             addEdge(source, hub, EdgeType::Comb, proc, false);
         }
         for (auto target : targets) {
+            if (type == EdgeType::Comb) noteCombTarget(target, proc);
             Edge e;
             e.from = hub; e.to = target; e.proc = proc; e.type = type; e.ctrl = ctrl; e.approximate = curApproximate;
             e.op = Op::Other;
@@ -1244,12 +1767,17 @@ private:
     }
 
     bool curShared = false;   // the assignment being emitted is conditional or mixes signals (Edge::shared)
+    bool curDeadWrite = false;
+    std::unordered_set<Model::DeadEdgeKey, Model::DeadEdgeHash>* curLiveProcEdges = nullptr;
     void addEdge(NodeId from, NodeId to, EdgeType t, uint32_t proc, bool exact, bool ctrl = false, bool flip = false) {
+        if (t == EdgeType::Comb) noteCombTarget(to, proc);
         if (from == to) {
             if (t == EdgeType::Seq && !ctrl) {
                 if (exact) m.selfExact.insert(from);
                 else m.selfLogic.insert(from);
             }
+            if (t == EdgeType::Comb && !exact && !curDeadWrite)
+                m.combSelfRewritten.insert(to);
             if (t == EdgeType::Comb && !exact && !readsOwnWrite(from) && !(m.nodes[from].sym && m.loopVariables.count(m.nodes[from].sym))) {
                 if (m.selfComb.emplace(from, proc).second && curApproximate) m.selfCombApproximate.insert(from);
                 else if (!curApproximate) m.selfCombApproximate.erase(from);
@@ -1269,6 +1797,13 @@ private:
                 e.inv = it->second.inv;
                 e.branch = it->second.br;
             }
+        }
+        const Model::DeadEdgeKey dk{from, to, proc, static_cast<uint8_t>(t)};
+        if (curDeadWrite) {
+            if (!curLiveProcEdges || !curLiveProcEdges->count(dk)) m.deadEdges.insert(dk);
+        } else {
+            if (curLiveProcEdges) curLiveProcEdges->insert(dk);
+            m.deadEdges.erase(dk);
         }
         pushEdge(e);
     }
@@ -1345,7 +1880,7 @@ private:
         {   // conditional, or built from several signals: not a plain copy of any one of them
             std::set<const ValueSymbol*> sources;
             for (const auto& read : a.dataReads) sources.insert(read.sym);
-            curShared = !a.conditions.empty() || !a.calledConditions.empty() || !a.ctrlReads.empty() || !a.booleanGuards.empty() || sources.size() > 1;
+            curShared = a.afterPossibleExit || !a.conditions.empty() || !a.calledConditions.empty() || !a.ctrlReads.empty() || !a.booleanGuards.empty() || sources.size() > 1;
         }
         struct Reset { Builder& b; ~Reset() { b.curData = b.curCtrl = nullptr; b.curApproximate = false; b.curShared = false; } } reset{*this};
         if (a.pairsValid) {
@@ -1353,7 +1888,11 @@ private:
                 if (!src.sym && t.sym) {   // a constant bit; its value is '?' when this analysis could not read it (a struct default)
                     bool sel = false;
                     for (auto& tp : targets) if (tp.sym == t.sym) sel = true;
-                    if (sel) m.constDrivers[nodeForBit(ctx, t)].push_back({src.value ? src.value : '?', type, proc});
+                    if (sel && !curDeadWrite) {
+                        const NodeId tn = nodeForBit(ctx, t);
+                        if (type == EdgeType::Comb) noteCombTarget(tn, proc);
+                        m.constDrivers[tn].push_back({src.value ? src.value : '?', type, proc});
+                    }
                     continue;
                 }
                 if (!src.sym || !t.sym) continue;
@@ -1380,7 +1919,10 @@ private:
                 const auto& [t, reads] = a.bitDeps[index];
                 if (std::none_of(targets.begin(), targets.end(), [&](const Path& tp) { return tp.sym == t.sym; })) continue;
                 const NodeId target = nodeForBit(ctx, t);
-                if (reads.empty()) m.constDrivers[target].push_back({'?', type, proc});   // e.g. a literal padding bit
+                if (reads.empty() && !curDeadWrite) {
+                    if (type == EdgeType::Comb) noteCombTarget(target, proc);
+                    m.constDrivers[target].push_back({'?', type, proc});   // e.g. a literal padding bit
+                }
                 uint64_t readBits = 0;
                 for (const auto& read : reads) readBits += read.hi - read.lo + 1;
                 if (readBits >= kHubReadSet) { sharedReads[reads].push_back(target); continue; }
@@ -1415,9 +1957,12 @@ private:
             connect(ctx, data, ctx, targets, type, proc, loc);
             // An assignment that reads nothing writes a constant (`x.f = 1'b1`, `v = '{default: C}`): a symbol too wide to track bit by bit
             // has no exact pairs to record that, and without it a node driven only by constants would read as undriven.
-            if (a.dataReads.empty() && !a.pairsValid && !a.bitDepsValid)
+            if (a.dataReads.empty() && !a.pairsValid && !a.bitDepsValid && !curDeadWrite)
                 for (const auto& target : targets)
-                    for (auto node : nodesFor(ctx, target)) m.constDrivers[node].push_back({'?', type, proc});
+                    for (auto node : nodesFor(ctx, target)) {
+                        if (type == EdgeType::Comb) noteCombTarget(node, proc);
+                        m.constDrivers[node].push_back({'?', type, proc});
+                    }
         }
         if (!a.preciseBits.empty()) {
             curApproximate = false;
@@ -1441,7 +1986,7 @@ private:
         connect(ctx, ctrl, ctx, targets, type, proc, loc, true);
         if (type == EdgeType::Comb) {
             for (const auto& target : targets) for (auto node : nodesFor(ctx, target))
-                m.booleanDrivers[node].push_back({a.booleanValue, a.booleanGuards.empty() && a.ctrlReads.empty()});
+                m.booleanDrivers[node].push_back({a.booleanValue, !a.afterPossibleExit && a.booleanGuards.empty() && a.ctrlReads.empty()});
         }
         if (type == EdgeType::Seq) {
             bool hasData = false;
@@ -1457,8 +2002,80 @@ private:
                         std::all_of(guard.dependencies.begin(), guard.dependencies.end(), [&](NodeId n) { return skipReads->count(n); });
                     if (!resetOnly) conditions.push_back(guard);
                 }
-                for (const auto& target : targets) for (auto node : nodesFor(ctx, target))
-                    m.qualifierGuards[node].push_back(conditions);
+                auto dependencyNodes = [&](const std::vector<Path>& paths) {
+                    auto nodes = std::make_shared<std::vector<NodeId>>();
+                    for (const auto& path : paths)
+                        for (auto source : nodesFor(ctx, path))
+                            if (!skipReads || !skipReads->count(source)) nodes->push_back(source);
+                    std::sort(nodes->begin(), nodes->end());
+                    nodes->erase(std::unique(nodes->begin(), nodes->end()), nodes->end());
+                    return nodes;
+                };
+                const auto controlDependencies = dependencyNodes(ctrl);
+                auto filterGuards = [&](const std::vector<GuardCondition>& rawGuards) {
+                    std::vector<GuardCondition> out;
+                    for (const auto& guard : rawGuards) {
+                        bool resetOnly = skipReads && !guard.dependencies.empty() &&
+                            std::all_of(guard.dependencies.begin(), guard.dependencies.end(), [&](NodeId n) { return skipReads->count(n); });
+                        if (!resetOnly) out.push_back(guard);
+                    }
+                    return out;
+                };
+                if (!a.qualifierArms.empty()) {
+                    for (const auto& [target, arms] : a.qualifierArms) {
+                        for (const auto& arm : arms) {
+                            const bool hasArmData = (arm.dataDependencies && !arm.dataDependencies->empty()) ||
+                                                    arm.dataApproximate || arm.uncertainCall || !a.uncertainCalls.empty();
+                            if (!hasArmData) continue;
+                            std::vector<GuardCondition> mergedGuards = conditions;
+                            auto armGuards = filterGuards(arm.guards);
+                            mergedGuards.insert(mergedGuards.end(), armGuards.begin(), armGuards.end());
+                            auto mergedCtrl = std::make_shared<std::vector<NodeId>>(*controlDependencies);
+                            if (arm.controlDependencies) {
+                                for (auto n : *arm.controlDependencies)
+                                    if (!skipReads || !skipReads->count(n)) mergedCtrl->push_back(n);
+                                std::sort(mergedCtrl->begin(), mergedCtrl->end());
+                                mergedCtrl->erase(std::unique(mergedCtrl->begin(), mergedCtrl->end()), mergedCtrl->end());
+                            }
+                            auto armData = std::make_shared<std::vector<NodeId>>();
+                            if (arm.dataDependencies) {
+                                for (auto n : *arm.dataDependencies)
+                                    if (!skipReads || !skipReads->count(n)) armData->push_back(n);
+                            }
+                            if (armData->empty() && !arm.dataApproximate && !arm.uncertainCall && a.uncertainCalls.empty()) continue;
+                            m.qualifierGuards[target].push_back({std::make_shared<const std::vector<GuardCondition>>(std::move(mergedGuards)),
+                                                                 std::move(armData), std::move(mergedCtrl),
+                                                                 a.approximate || arm.dataApproximate,
+                                                                 arm.controlApproximate,
+                                                                 !a.uncertainCalls.empty() || arm.uncertainCall});
+                        }
+                    }
+                } else {
+                    const bool perBit = a.pairsValid || a.flipPairsValid || a.bitDepsValid;
+                    const auto sharedConditions = std::make_shared<const std::vector<GuardCondition>>(conditions);
+                    auto record = [&](NodeId target, std::shared_ptr<const std::vector<NodeId>> dataDependencies) {
+                        m.qualifierGuards[target].push_back({sharedConditions, std::move(dataDependencies), controlDependencies,
+                                                             a.approximate, !a.uncertainCalls.empty(), !a.uncertainCalls.empty()});
+                    };
+                    if (perBit) {
+                        auto selected = [&](const BitRef& bit) {
+                            return bit.sym && std::any_of(targets.begin(), targets.end(),
+                                [&](const Path& target) { return target.sym == bit.sym; });
+                        };
+                        for (const auto& [target, source] : a.pairs) {
+                            if (!selected(target) || !source.sym) continue;
+                            const auto src = nodeForBit(ctx, source);
+                            if (skipReads && skipReads->count(src)) continue;
+                            record(nodeForBit(ctx, target), std::make_shared<const std::vector<NodeId>>(1, src));
+                        }
+                        for (const auto& [target, reads] : a.bitDeps)
+                            if (selected(target) && !reads.empty()) record(nodeForBit(ctx, target), dependencyNodes(reads));
+                    } else {
+                        const auto dataDependencies = dependencyNodes(a.dataReads);
+                        for (const auto& target : targets)
+                            for (auto node : nodesFor(ctx, target)) record(node, dataDependencies);
+                    }
+                }
             }
         }
     }
@@ -1750,6 +2367,346 @@ private:
         return none;
     }
 
+    // ---------------------------------------------------------------- straight-line function calls
+    // A call whose callee is a straight-line value function (automatic locals, blocking assignments to constant selects of them,
+    // one final return) is expanded bit by bit: each result bit gets the exact set of actual-argument bits it can depend on, and
+    // whether it is a plain move of one of them. Anything outside that subset is left to the coarse call model.
+    struct CallBit {
+        std::vector<Path> reads;   // the argument bits this result bit can depend on (sorted, merged)
+        BitRef move;               // sym set: the bit is a copy (kind 1) or the inverse (kind 2) of that one source bit
+        char kind = 0;
+    };
+    using CallBits = std::vector<CallBit>;   // most significant bit first
+    using CallArgBits = std::function<bool(const Expression&, CallBits&)>;
+    static constexpr uint64_t kCallExpansionWork = uint64_t{1} << 24;
+    static constexpr unsigned kCallExpansionDepth = 6;
+
+    struct CallFrame {
+        const SubroutineSymbol& sub;
+        EvalContext ec;
+        std::map<const ValueSymbol*, CallBits> env;   // the bits of each formal and automatic local
+        CallBits lvalue;                              // the target of the compound assignment being evaluated
+        uint64_t& work;
+        unsigned depth;
+        bool returned = false;
+        CallBits result;
+        CallFrame(const SubroutineSymbol& s, uint64_t& w, unsigned d) : sub(s), ec(s), work(w), depth(d) {}
+    };
+    std::set<const SubroutineSymbol*> expandingCalls;
+
+    static void mergePaths(std::vector<Path>& v) {
+        std::sort(v.begin(), v.end());
+        size_t n = 0;
+        for (size_t i = 0; i < v.size(); i++) {
+            if (n && v[n - 1].sym == v[i].sym && v[i].lo <= v[n - 1].hi + 1) v[n - 1].hi = std::max(v[n - 1].hi, v[i].hi);
+            else v[n++] = v[i];
+        }
+        v.resize(n);
+    }
+
+    CallBits* callSlot(CallFrame& f, const ValueSymbol& s) {
+        if (auto it = f.env.find(&s); it != f.env.end()) return &it->second;
+        if (!localTo(s, f.sub) || s.kind != SymbolKind::Variable) return nullptr;
+        const auto& var = s.as<VariableSymbol>();
+        if (&var != f.sub.returnValVar && var.lifetime != VariableLifetime::Automatic) return nullptr;
+        const Type& type = var.getType();
+        const uint64_t width = type.isIntegral() ? type.getBitstreamWidth() : 0;
+        if (!width || width > kMaxPackedBits) return nullptr;
+        return &(f.env[&s] = CallBits(width));
+    }
+
+    /// The bit range [lo, hi] a fully static select of a local covers, and the slot it lives in.
+    CallBits* callStaticSelect(const Expression& e, CallFrame& f, uint64_t& lo, uint64_t& hi) {
+        ValuePath vp(e, f.ec);
+        const ValueSymbol* root = vp.rootSymbol();
+        if (!root || !localTo(*root, f.sub) || !vp.lsp || !vp.isFullyStatic()) return nullptr;
+        CallBits* slot = callSlot(f, *root);
+        if (!slot) return nullptr;
+        lo = vp.lspBounds.first; hi = vp.lspBounds.second;
+        if (lo > hi) std::swap(lo, hi);
+        const uint64_t width = e.type && e.type->isIntegral() ? e.type->getBitstreamWidth() : 0;
+        if (hi >= slot->size() || hi - lo + 1 != width) return nullptr;
+        return slot;
+    }
+
+    bool callLeaf(const std::vector<const Expression*>& operands, CallFrame& f, uint64_t width, CallBits& out) {
+        std::vector<Path> all;
+        for (const auto* operand : operands) {
+            CallBits part;
+            if (!callExprBits(*operand, f, part)) return false;
+            for (const auto& bit : part) all.insert(all.end(), bit.reads.begin(), bit.reads.end());
+            mergePaths(all);
+        }
+        f.work += width * (all.size() + 1);
+        if (f.work > kCallExpansionWork) return false;
+        CallBit bit;
+        bit.reads = std::move(all);
+        out.assign(width, bit);
+        return true;
+    }
+
+    bool callExprBits(const Expression& e, CallFrame& f, CallBits& out) {
+        out.clear();
+        const uint64_t width = e.type && e.type->isIntegral() ? e.type->getBitstreamWidth() : 0;
+        if (!width || width > kMaxPackedBits) return false;
+        f.work += width;
+        if (f.work > kCallExpansionWork) return false;
+        switch (e.kind) {
+            case ExpressionKind::NamedValue:
+            case ExpressionKind::ElementSelect:
+            case ExpressionKind::RangeSelect:
+            case ExpressionKind::MemberAccess: {
+                ValuePath vp(e, f.ec);
+                const ValueSymbol* root = vp.rootSymbol();
+                if (root && localTo(*root, f.sub)) {
+                    uint64_t lo = 0, hi = 0;
+                    const CallBits* slot = callStaticSelect(e, f, lo, hi);
+                    if (!slot) return false;
+                    const uint64_t total = slot->size();
+                    out.assign(slot->begin() + static_cast<std::ptrdiff_t>(total - 1 - hi), slot->begin() + static_cast<std::ptrdiff_t>(total - lo));
+                    return true;
+                }
+                break;
+            }
+            case ExpressionKind::LValueReference:
+                out = f.lvalue;
+                return out.size() == width;
+            default: break;
+        }
+        ConstantValue cv;
+        if (e.kind == ExpressionKind::Call) { if (const auto* c = e.getConstant()) cv = *c; }
+        else { EvalContext tmp(f.sub); cv = e.eval(tmp); }
+        if (cv.isInteger() && cv.integer().getBitWidth() == width) {
+            out.assign(width, CallBit{});
+            for (uint64_t i = 0; i < width; i++) {
+                const logic_t bit = cv.integer()[static_cast<int32_t>(width - 1 - i)];
+                out[i].move.value = bit.value == 0 ? '0' : bit.value == 1 ? '1' : bit.value == logic_t::z.value ? 'z' : 'x';
+            }
+            return true;
+        }
+        const auto flip = [](CallBits& bits) { for (auto& bit : bits) if (bit.kind) bit.kind = static_cast<char>(3 - bit.kind); };
+        switch (e.kind) {
+            case ExpressionKind::Concatenation:
+                for (const auto* operand : e.as<ConcatenationExpression>().operands()) {
+                    CallBits part;
+                    if (!callExprBits(*operand, f, part)) return false;
+                    out.insert(out.end(), part.begin(), part.end());
+                }
+                return out.size() == width;
+            case ExpressionKind::Replication: {
+                const auto& r = e.as<ReplicationExpression>();
+                EvalContext tmp(f.sub);
+                const auto count = r.count().eval(tmp);
+                if (!count.isInteger()) return false;
+                const auto n = count.integer().as<uint32_t>();
+                CallBits part;
+                if (!n || !*n || !callExprBits(r.concat(), f, part)) return false;
+                for (uint32_t k = 0; k < *n && out.size() <= width; k++) out.insert(out.end(), part.begin(), part.end());
+                return out.size() == width;
+            }
+            case ExpressionKind::Conversion: {
+                const Expression& operand = e.as<ConversionExpression>().operand();
+                if (!operand.type || !operand.type->isIntegral()) return false;
+                CallBits a;
+                if (!callExprBits(operand, f, a)) return false;
+                if (a.size() >= width) { out.assign(a.end() - static_cast<std::ptrdiff_t>(width), a.end()); return true; }
+                out.assign(width - a.size(), operand.type->isSigned() ? a.front() : CallBit{});
+                out.insert(out.end(), a.begin(), a.end());
+                return true;
+            }
+            case ExpressionKind::SimpleAssignmentPattern:
+            case ExpressionKind::StructuredAssignmentPattern:
+                if (!isBitwisePattern(e)) return false;
+                for (const auto* element : patternElements(e)) {
+                    CallBits part;
+                    if (!callExprBits(*element, f, part)) return false;
+                    out.insert(out.end(), part.begin(), part.end());
+                }
+                return out.size() == width;
+            case ExpressionKind::UnaryOp: {
+                const auto& u = e.as<UnaryExpression>();
+                switch (u.op) {
+                    case UnaryOperator::Plus: case UnaryOperator::Minus: case UnaryOperator::BitwiseNot:
+                    case UnaryOperator::BitwiseAnd: case UnaryOperator::BitwiseOr: case UnaryOperator::BitwiseXor:
+                    case UnaryOperator::BitwiseNand: case UnaryOperator::BitwiseNor: case UnaryOperator::BitwiseXnor:
+                    case UnaryOperator::LogicalNot: break;
+                    default: return false;
+                }
+                const uint64_t from = u.operand().type && u.operand().type->isIntegral() ? u.operand().type->getBitstreamWidth() : 0;
+                const bool keeps = (u.op == UnaryOperator::BitwiseNot && from == width) || (u.op == UnaryOperator::LogicalNot && from == 1 && width == 1);
+                if (keeps) {
+                    if (!callExprBits(u.operand(), f, out)) return false;
+                    flip(out);
+                    return out.size() == width;
+                }
+                if (u.op == UnaryOperator::Plus && from == width) return callExprBits(u.operand(), f, out) && out.size() == width;
+                return callLeaf({&u.operand()}, f, width, out);
+            }
+            case ExpressionKind::BinaryOp: {
+                const auto& o = e.as<BinaryExpression>();
+                const bool bitwise = o.op == BinaryOperator::BinaryAnd || o.op == BinaryOperator::BinaryOr ||
+                                     o.op == BinaryOperator::BinaryXor || o.op == BinaryOperator::BinaryXnor;
+                const auto widthOfOperand = [](const Expression& x) { return x.type && x.type->isIntegral() ? x.type->getBitstreamWidth() : uint64_t{0}; };
+                if (bitwise && widthOfOperand(o.left()) == width && widthOfOperand(o.right()) == width) {
+                    CallBits a, b2;
+                    if (!callExprBits(o.left(), f, a) || !callExprBits(o.right(), f, b2) || a.size() != width || b2.size() != width) return false;
+                    out.assign(width, CallBit{});
+                    for (uint64_t i = 0; i < width; i++) {
+                        out[i].reads = std::move(a[i].reads);
+                        out[i].reads.insert(out[i].reads.end(), b2[i].reads.begin(), b2[i].reads.end());
+                        mergePaths(out[i].reads);
+                    }
+                    return true;
+                }
+                return callLeaf({&o.left(), &o.right()}, f, width, out);
+            }
+            case ExpressionKind::ConditionalOp: {
+                const auto& c = e.as<ConditionalExpression>();
+                if (c.conditions.size() != 1 || c.conditions[0].pattern) return false;
+                return callLeaf({c.conditions[0].expr, &c.left(), &c.right()}, f, width, out);
+            }
+            case ExpressionKind::Call: {
+                const auto& call = e.as<CallExpression>();
+                if (call.hasOutputArgs()) return false;
+                if (call.isSystemCall()) {
+                    static const std::set<std::string_view> pure = {"$clog2", "$signed", "$unsigned", "$countones", "$onehot", "$onehot0",
+                                                                     "$isunknown", "$bits", "$size", "$high", "$low", "$left", "$right",
+                                                                     "$increment", "$dimensions"};
+                    if (!pure.count(call.getSubroutineName())) return false;
+                    std::vector<const Expression*> args(call.arguments().begin(), call.arguments().end());
+                    return callLeaf(args, f, width, out);
+                }
+                const CallArgBits nested = [&](const Expression& actual, CallBits& bits) { return callExprBits(actual, f, bits); };
+                if (expandCall(call, nested, out, f.work, f.depth) && out.size() == width) return true;
+                // Not straight-line, but a pure function of its arguments: every result bit depends on all of them.
+                const auto* sub = std::get<const SubroutineSymbol*>(call.subroutine);
+                if (!sub || call.thisClass()) return false;
+                const auto& summary = summarize(*sub);
+                if (!summary.unknown.empty() || !summary.reads.empty() || !summary.writes.empty() || summary.unboundedWrites) return false;
+                std::vector<const Expression*> args(call.arguments().begin(), call.arguments().end());
+                return callLeaf(args, f, width, out);
+            }
+            default: return false;
+        }
+    }
+
+    bool callAssign(const AssignmentExpression& a, CallFrame& f) {
+        if (a.timingControl || a.isNonBlocking()) return false;
+        uint64_t lo = 0, hi = 0;
+        CallBits* slot = callStaticSelect(a.left(), f, lo, hi);
+        if (!slot) return false;
+        const uint64_t width = hi - lo + 1;
+        const uint64_t total = slot->size();
+        f.lvalue.assign(slot->begin() + static_cast<std::ptrdiff_t>(total - 1 - hi), slot->begin() + static_cast<std::ptrdiff_t>(total - lo));
+        CallBits value;
+        if (!callExprBits(a.right(), f, value) || value.size() != width) return false;
+        std::copy(value.begin(), value.end(), slot->begin() + static_cast<std::ptrdiff_t>(total - 1 - hi));
+        return true;
+    }
+
+    bool callStatement(const Statement& s, CallFrame& f) {
+        if (f.returned) return false;
+        if (++f.work > kCallExpansionWork) return false;
+        switch (s.kind) {
+            case StatementKind::Empty: return true;
+            case StatementKind::List:
+                for (const auto* child : s.as<StatementList>().list)
+                    if (!callStatement(*child, f)) return false;
+                return true;
+            case StatementKind::Block:
+                return s.as<BlockStatement>().blockKind == StatementBlockKind::Sequential && callStatement(s.as<BlockStatement>().body, f);
+            case StatementKind::VariableDeclaration: {
+                const auto& var = s.as<VariableDeclStatement>().symbol;
+                f.env.erase(&var);
+                CallBits* slot = callSlot(f, var);
+                if (!slot) return false;
+                if (const auto* init = var.getInitializer()) {
+                    CallBits value;
+                    if (!callExprBits(*init, f, value) || value.size() != slot->size()) return false;
+                    f.env[&var] = std::move(value);
+                }
+                return true;
+            }
+            case StatementKind::ExpressionStatement: {
+                const auto& expr = s.as<ExpressionStatement>().expr;
+                return expr.kind == ExpressionKind::Assignment && callAssign(expr.as<AssignmentExpression>(), f);
+            }
+            case StatementKind::Return: {
+                const auto* expr = s.as<ReturnStatement>().expr;
+                if (!expr || !callExprBits(*expr, f, f.result)) return false;
+                f.returned = true;
+                return true;
+            }
+            default: return false;
+        }
+    }
+
+    /// The per-bit result of `call`, with `argBits` giving the bits of each actual argument. False outside the supported subset.
+    bool expandCall(const CallExpression& call, const CallArgBits& argBits, CallBits& out, uint64_t& work, unsigned depth) {
+        if (call.isSystemCall() || call.thisClass() || depth >= kCallExpansionDepth || call.hasOutputArgs()) return false;
+        const auto* sub = std::get<const SubroutineSymbol*>(call.subroutine);
+        if (!sub || sub->subroutineKind != SubroutineKind::Function || sub->defaultLifetime != VariableLifetime::Automatic ||
+            sub->flags.has(MethodFlags::DPIImport | MethodFlags::InterfaceExtern) || sub->isVirtual() || sub->hasOutputArgs() ||
+            !sub->returnValVar || expandingCalls.count(sub))
+            return false;
+        const Type& returnType = sub->getReturnType();
+        const uint64_t resultWidth = returnType.isIntegral() ? returnType.getBitstreamWidth() : 0;
+        auto formals = sub->getArguments();
+        auto actuals = call.arguments();
+        if (!resultWidth || resultWidth > kMaxPackedBits || formals.size() != actuals.size()) return false;
+        const auto& summary = summarize(*sub);
+        if (!summary.unknown.empty() || !summary.reads.empty() || !summary.writes.empty() || summary.unboundedWrites) return false;
+        for (const auto* formal : formals)
+            if (formal->direction != ArgumentDirection::In || !formal->getType().isIntegral()) return false;
+        expandingCalls.insert(sub);
+        struct Done { Builder& b; const SubroutineSymbol* s; ~Done() { b.expandingCalls.erase(s); } } done{*this, sub};
+        CallFrame f(*sub, work, depth + 1);
+        for (size_t i = 0; i < formals.size(); i++) {
+            CallBits bits;
+            const uint64_t width = formals[i]->getType().getBitstreamWidth();
+            if (!width || !argBits(*actuals[i], bits) || bits.size() != width) return false;
+            f.env[formals[i]] = std::move(bits);
+        }
+        if (!callStatement(sub->getBody(), f)) return false;
+        if (f.returned) out = std::move(f.result);
+        else if (const CallBits* slot = callSlot(f, *sub->returnValVar)) out = *slot;
+        else return false;
+        return out.size() == resultWidth;
+    }
+
+    /// The per-bit result when `rhs` is, up to same-width conversions, one call of a straight-line value function.
+    bool expandWholeCall(const Expression& rhs, EvalContext& ec, CallBits& out) {
+        const Expression* x = &modeExpr(rhs, ec);
+        while (x->kind == ExpressionKind::Conversion) {
+            const Expression& operand = x->as<ConversionExpression>().operand();
+            if (!x->type || !operand.type || !x->type->isIntegral() || !operand.type->isIntegral() ||
+                x->type->getBitstreamWidth() != operand.type->getBitstreamWidth())
+                return false;
+            x = &operand;
+        }
+        if (x->kind != ExpressionKind::Call || x->as<CallExpression>().isSystemCall()) return false;
+        uint64_t work = 0;
+        const CallArgBits caller = [&](const Expression& actual, CallBits& bits) {
+            const uint64_t width = actual.type && actual.type->isIntegral() ? actual.type->getBitstreamWidth() : 0;
+            if (!width || width > kMaxPackedBits) return false;
+            std::vector<std::vector<Path>> deps;
+            uint64_t budget = kMaxEdgesPerAssign;
+            if (!bitwiseDeps(actual, ec, deps, budget) || deps.size() != width) return false;
+            auto moves = bitMoves(actual, ec, width);
+            bits.assign(width, CallBit{});
+            for (uint64_t i = 0; i < width; i++) {
+                bits[i].reads = std::move(deps[i]);
+                bits[i].move = moves[i].first;
+                bits[i].kind = moves[i].second;
+                if (bits[i].kind && bits[i].move.sym) bits[i].reads = {Path{bits[i].move.sym, bits[i].move.bit, bits[i].move.bit}};
+                else bits[i].kind = 0;
+                mergePaths(bits[i].reads);
+            }
+            return true;
+        };
+        return expandCall(x->as<CallExpression>(), caller, out, work, 0);
+    }
+
     BoolFactPtr boolFact(BoolFact::Kind kind, std::vector<BoolFactPtr> args = {}, NodeId node = kNoNode,
                          bool value = false, bool opaque = false) {
         auto result = std::make_shared<BoolFact>();
@@ -1807,11 +2764,35 @@ private:
         }
         if (expr.kind == ExpressionKind::BinaryOp) {
             const auto& op = expr.as<BinaryExpression>();
-            bool scalar = op.left().type->getBitstreamWidth() == 1 && op.right().type->getBitstreamWidth() == 1;
+            auto zeroOrOne = [&](const Expression& operand) {
+                auto constant = operand.eval(ec);
+                if (!constant.isInteger() || constant.integer().hasUnknown()) return false;
+                const auto& integer = constant.integer();
+                for (uint32_t bit = 1; bit < integer.getBitWidth(); bit++)
+                    if (integer[static_cast<int32_t>(bit)].value != 0) return false;
+                return true;
+            };
+            bool scalar = (op.left().type->getBitstreamWidth() == 1 && op.right().type->getBitstreamWidth() == 1) ||
+                          (op.left().type->getBitstreamWidth() == 1 && zeroOrOne(op.right())) ||
+                          (op.right().type->getBitstreamWidth() == 1 && zeroOrOne(op.left()));
             if (op.op == BinaryOperator::LogicalAnd || (scalar && op.op == BinaryOperator::BinaryAnd))
                 return boolFact(BoolFact::Kind::And, {booleanOf(op.left(), ec, ctx), booleanOf(op.right(), ec, ctx)});
             if (op.op == BinaryOperator::LogicalOr || (scalar && op.op == BinaryOperator::BinaryOr))
                 return boolFact(BoolFact::Kind::Or, {booleanOf(op.left(), ec, ctx), booleanOf(op.right(), ec, ctx)});
+            if (scalar && (op.op == BinaryOperator::Equality || op.op == BinaryOperator::Inequality)) {
+                auto left = booleanOf(op.left(), ec, ctx);
+                auto right = booleanOf(op.right(), ec, ctx);
+                // Compare exact scalar operands only. Keep opaque or more
+                // complex operands under the existing uncertainty policy.
+                auto exact = [](const BoolFactPtr& fact) {
+                    return fact->kind == BoolFact::Kind::Node || fact->kind == BoolFact::Kind::Constant;
+                };
+                if (exact(left) && exact(right) && !(left->kind == BoolFact::Kind::Node && right->kind == BoolFact::Kind::Node &&
+                                                     left->node == right->node)) {
+                    auto equal = boolFact(BoolFact::Kind::Equal, {left, right});
+                    return op.op == BinaryOperator::Equality ? equal : boolFact(BoolFact::Kind::Not, {equal});
+                }
+            }
         }
         return unknownBoolean(expr, ec, ctx);
     }
@@ -1913,6 +2894,282 @@ private:
         sub->getBody().visit(visitor);
     }
 
+    static constexpr size_t kMaxQualifierArmsPerBit = 16;
+    static constexpr unsigned kMaxQualifierArmDepth = 8;
+    std::unordered_map<NodeId, uint32_t> combDriverProc;
+
+    std::vector<NodeId> nodesOfExpr(const Expression& expr, EvalContext& ec, const InstanceSymbol* ctx) {
+        std::vector<NodeId> nodes;
+        for (const auto& path : pathsOf(expr, ec, false))
+            for (auto n : nodesFor(ctx, path)) nodes.push_back(n);
+        std::sort(nodes.begin(), nodes.end());
+        nodes.erase(std::unique(nodes.begin(), nodes.end()), nodes.end());
+        return nodes;
+    }
+
+    bool hasDecomposableMux(const Expression& expr, EvalContext& ec) {
+        const Expression* x = &modeExpr(expr, ec);
+        while (x->kind == ExpressionKind::Conversion) {
+            const auto& conv = x->as<ConversionExpression>();
+            if (!x->type || !conv.operand().type ||
+                x->type->getBitstreamWidth() != conv.operand().type->getBitstreamWidth()) break;
+            x = &modeExpr(conv.operand(), ec);
+        }
+        if (x->kind == ExpressionKind::ConditionalOp) return true;
+        if (x->kind == ExpressionKind::Concatenation) {
+            for (const auto* op : x->as<ConcatenationExpression>().operands())
+                if (hasDecomposableMux(*op, ec)) return true;
+        }
+        if (isBitwisePattern(*x)) {
+            for (const auto* el : patternElements(*x))
+                if (hasDecomposableMux(*el, ec)) return true;
+        }
+        return false;
+    }
+
+    std::vector<std::vector<CombQualifierArm>> decomposeExprArms(const Expression& expr, EvalContext& ec,
+                                                                 const InstanceSymbol* ctx, size_t width,
+                                                                 unsigned depth = 0) {
+        std::vector<std::vector<CombQualifierArm>> out(width);
+        if (!width) return out;
+        const Expression* x = &modeExpr(expr, ec);
+        while (x->kind == ExpressionKind::Conversion) {
+            const auto& conv = x->as<ConversionExpression>();
+            if (!x->type || !conv.operand().type ||
+                x->type->getBitstreamWidth() != conv.operand().type->getBitstreamWidth()) break;
+            x = &modeExpr(conv.operand(), ec);
+        }
+        if (depth < kMaxQualifierArmDepth) {
+            if (x->kind == ExpressionKind::ConditionalOp) {
+                const auto& c = x->as<ConditionalExpression>();
+                if (c.conditions.size() == 1 && !c.conditions[0].pattern &&
+                    c.left().type && c.right().type &&
+                    c.left().type->getBitstreamWidth() == width &&
+                    c.right().type->getBitstreamWidth() == width) {
+                    const Expression& condExpr = *c.conditions[0].expr;
+                    GuardCondition trueGuard{booleanOf(condExpr, ec, ctx), nodesOfExpr(condExpr, ec, ctx)};
+                    GuardCondition falseGuard{boolFact(BoolFact::Kind::Not, {trueGuard.predicate}), trueGuard.dependencies};
+                    const bool condApprox = hasDynamicSelect(condExpr, ec) || !callsIn(condExpr).empty();
+                    const bool condUncertain = !callIssues(condExpr, ctx).empty();
+                    auto leftBits = decomposeExprArms(c.left(), ec, ctx, width, depth + 1);
+                    auto rightBits = decomposeExprArms(c.right(), ec, ctx, width, depth + 1);
+                    bool fits = true;
+                    for (size_t i = 0; i < width; ++i)
+                        if (leftBits[i].size() + rightBits[i].size() > kMaxQualifierArmsPerBit) { fits = false; break; }
+                    if (fits) {
+                        auto attach = [&](CombQualifierArm arm, const GuardCondition& guard) {
+                            arm.guards.insert(arm.guards.begin(), guard);
+                            auto ctrl = std::make_shared<std::vector<NodeId>>(guard.dependencies);
+                            if (arm.controlDependencies)
+                                ctrl->insert(ctrl->end(), arm.controlDependencies->begin(), arm.controlDependencies->end());
+                            std::sort(ctrl->begin(), ctrl->end());
+                            ctrl->erase(std::unique(ctrl->begin(), ctrl->end()), ctrl->end());
+                            arm.controlDependencies = std::move(ctrl);
+                            arm.controlApproximate |= condApprox;
+                            arm.uncertainCall |= condUncertain;
+                            return arm;
+                        };
+                        for (size_t i = 0; i < width; ++i) {
+                            for (auto& arm : leftBits[i]) out[i].push_back(attach(std::move(arm), trueGuard));
+                            for (auto& arm : rightBits[i]) out[i].push_back(attach(std::move(arm), falseGuard));
+                        }
+                        return out;
+                    }
+                }
+            } else if (x->kind == ExpressionKind::Concatenation || isBitwisePattern(*x)) {
+                std::vector<const Expression*> parts;
+                if (x->kind == ExpressionKind::Concatenation) {
+                    for (const auto* op : x->as<ConcatenationExpression>().operands()) parts.push_back(op);
+                } else {
+                    for (const auto* el : patternElements(*x)) parts.push_back(el);
+                }
+                size_t totalWidth = 0;
+                bool widthsOk = !parts.empty();
+                for (const auto* part : parts) {
+                    const size_t pw = part->type ? part->type->getBitstreamWidth() : 0;
+                    if (!pw) { widthsOk = false; break; }
+                    totalWidth += pw;
+                }
+                if (widthsOk && totalWidth == width) {
+                    size_t idx = 0;
+                    for (const auto* part : parts) {
+                        const size_t pw = part->type->getBitstreamWidth();
+                        auto partArms = decomposeExprArms(*part, ec, ctx, pw, depth + 1);
+                        for (size_t j = 0; j < pw; ++j) out[idx++] = std::move(partArms[j]);
+                    }
+                    return out;
+                }
+            }
+        }
+        // Leaf expression: extract per-bit dependencies once.
+        const bool leafApprox = hasDynamicSelect(*x, ec) || !callsIn(*x).empty();
+        const bool leafUncertain = !callIssues(*x, ctx).empty();
+        const auto emptyDeps = std::make_shared<const std::vector<NodeId>>();
+        std::vector<BitRef> exactBits, invBits;
+        std::vector<std::vector<Path>> bitDeps;
+        uint64_t budget = kMaxEdgesPerAssign;
+        if (bitList(*x, ec, exactBits) && exactBits.size() == width) {
+            for (size_t i = 0; i < width; ++i) {
+                auto deps = exactBits[i].sym ? std::make_shared<const std::vector<NodeId>>(1, nodeForBit(ctx, exactBits[i])) : emptyDeps;
+                out[i].push_back({{}, std::move(deps), emptyDeps, leafApprox, false, leafUncertain, false});
+            }
+            return out;
+        }
+        if (invertedBitMove(*x, ec, invBits) && invBits.size() == width) {
+            for (size_t i = 0; i < width; ++i) {
+                auto deps = std::make_shared<const std::vector<NodeId>>(1, nodeForBit(ctx, invBits[i]));
+                out[i].push_back({{}, std::move(deps), emptyDeps, leafApprox, false, leafUncertain, false});
+            }
+            return out;
+        }
+        if (bitwiseDeps(*x, ec, bitDeps, budget) && bitDeps.size() == width) {
+            for (size_t i = 0; i < width; ++i) {
+                auto deps = std::make_shared<std::vector<NodeId>>();
+                for (const auto& p : bitDeps[i])
+                    for (auto n : nodesFor(ctx, p)) deps->push_back(n);
+                std::sort(deps->begin(), deps->end());
+                deps->erase(std::unique(deps->begin(), deps->end()), deps->end());
+                out[i].push_back({{}, std::move(deps), emptyDeps, leafApprox, false, leafUncertain, false});
+            }
+            return out;
+        }
+        auto sharedDeps = std::make_shared<const std::vector<NodeId>>(nodesOfExpr(*x, ec, ctx));
+        for (size_t i = 0; i < width; ++i)
+            out[i].push_back({{}, sharedDeps, emptyDeps, leafApprox, false, leafUncertain, false});
+        return out;
+    }
+
+    void noteCombTarget(NodeId target, uint32_t proc) {
+        if (target == kNoNode || target >= m.nodes.size() || !m.nodes[target].sym) return;
+        auto [it, inserted] = combDriverProc.emplace(target, proc);
+        if (!inserted && it->second != proc) {
+            auto cit = m.combQualifierDrivers.find(target);
+            if (cit != m.combQualifierDrivers.end()) {
+                cit->second.supported = false;
+                cit->second.multipleDrivers = true;
+                cit->second.arms.clear();
+            }
+        }
+    }
+
+    void recordCombDriver(NodeId target, uint32_t proc, CombQualifierSummary summary) {
+        auto [it, inserted] = combDriverProc.emplace(target, proc);
+        if (!inserted && it->second != proc) {
+            auto& existing = m.combQualifierDrivers[target];
+            existing.supported = false;
+            existing.multipleDrivers = true;
+            existing.arms.clear();
+            return;
+        }
+        summary.proc = proc;
+        m.combQualifierDrivers[target] = std::move(summary);
+    }
+
+    bool alwaysFalseExpr(const Expression& expr, EvalContext& ec) {
+        struct Calls : ASTVisitor<Calls, VisitFlags::AllGood> {
+            bool found = false;
+            void handle(const CallExpression&) { found = true; }
+        } calls;
+        expr.visit(calls);
+        if (calls.found) return false;
+        if (design.hasCaseMode() && modeValue(expr, ec) == 0) return true;
+        auto value = expr.eval(ec);
+        if (!value.bad() && value.isInteger() && !value.hasUnknown()) return value.isFalse();
+        if (expr.kind == ExpressionKind::Conversion)
+            return alwaysFalseExpr(expr.as<ConversionExpression>().operand(), ec);
+        if (expr.kind == ExpressionKind::BinaryOp) {
+            const auto& op = expr.as<BinaryExpression>();
+            if (op.op == BinaryOperator::LogicalAnd)
+                return alwaysFalseExpr(op.left(), ec) || alwaysFalseExpr(op.right(), ec);
+        }
+        return false;
+    }
+
+    using LoopBinding = std::vector<std::pair<const ValueSymbol*, ConstantValue>>;
+    static void lvalueRootsOf(const Expression& e, std::vector<const Symbol*>& out) {
+        switch (e.kind) {
+            case ExpressionKind::Concatenation:
+                for (auto* op : e.as<ConcatenationExpression>().operands()) lvalueRootsOf(*op, out);
+                return;
+            case ExpressionKind::ElementSelect: lvalueRootsOf(e.as<ElementSelectExpression>().value(), out); return;
+            case ExpressionKind::RangeSelect: lvalueRootsOf(e.as<RangeSelectExpression>().value(), out); return;
+            case ExpressionKind::MemberAccess: lvalueRootsOf(e.as<MemberAccessExpression>().value(), out); return;
+            case ExpressionKind::Conversion: lvalueRootsOf(e.as<ConversionExpression>().operand(), out); return;
+            default: if (const auto* sym = e.getSymbolReference()) out.push_back(sym);
+        }
+    }
+    bool unrollForLoop(const ForLoopStatement& s, EvalContext& ec, std::vector<LoopBinding>& iterations) {
+        static constexpr size_t kMaxUnrolled = 256;
+        if (!s.stopExpr || s.steps.empty()) return false;
+        EvalContext tmp(ec.astCtx);
+        for (const auto& [v, c] : boundLoops) tmp.createLocal(v, c);
+        std::vector<const ValueSymbol*> vars;
+        for (const auto* v : s.loopVars) {
+            const auto* init = v->getInitializer();
+            if (!init) return false;
+            auto value = init->eval(tmp);
+            if (value.bad()) return false;
+            tmp.createLocal(v, std::move(value));
+            vars.push_back(v);
+        }
+        for (auto* i : s.initializers) {
+            const auto* a = i->as_if<AssignmentExpression>();
+            const auto* n = a && !a->isCompound() ? a->left().as_if<NamedValueExpression>() : nullptr;
+            const auto* v = n ? n->symbol.as_if<VariableSymbol>() : nullptr;
+            if (!v) return false;
+            if (!tmp.findLocal(v)) { tmp.createLocal(v, ConstantValue()); vars.push_back(v); }
+            if (i->eval(tmp).bad()) return false;
+        }
+        if (vars.empty()) return false;
+        struct Body : ASTVisitor<Body, VisitFlags::AllGood> {
+            std::set<const Symbol*> vars;
+            bool ok = true;
+            void handle(const BreakStatement&) { ok = false; }
+            void handle(const ContinueStatement&) { ok = false; }
+            void handle(const ReturnStatement&) { ok = false; }
+            void handle(const DisableStatement&) { ok = false; }
+            void handle(const DisableForkStatement&) { ok = false; }
+            void handle(const TimedStatement&) { ok = false; }
+            void handle(const WaitStatement&) { ok = false; }
+            void handle(const WaitForkStatement&) { ok = false; }
+            void handle(const WaitOrderStatement&) { ok = false; }
+            void handle(const ConcurrentAssertionStatement& s) {
+                if (s.assertionKind == AssertionKind::Expect) ok = false;
+                visitDefault(s);
+            }
+            void handle(const CallExpression& c) { if (!c.isSystemCall()) ok = false; visitDefault(c); }
+            void written(const Expression& e) {
+                std::vector<const Symbol*> roots;
+                lvalueRootsOf(e, roots);
+                for (const auto* r : roots) ok = ok && !vars.count(r);
+            }
+            void handle(const AssignmentExpression& a) { written(a.left()); visitDefault(a); }
+            void handle(const UnaryExpression& u) {
+                if (u.op == UnaryOperator::Preincrement || u.op == UnaryOperator::Predecrement || u.op == UnaryOperator::Postincrement ||
+                    u.op == UnaryOperator::Postdecrement) written(u.operand());
+                visitDefault(u);
+            }
+        } body;
+        body.vars.insert(vars.begin(), vars.end());
+        s.body.visit(body);
+        if (!body.ok) return false;
+        for (;;) {
+            if (iterations.size() >= kMaxUnrolled) return false;
+            const auto go = s.stopExpr->eval(tmp);
+            if (go.bad()) return false;
+            if (!go.isTrue()) return true;
+            LoopBinding now = boundLoops;
+            for (const auto* v : vars) {
+                const auto* local = tmp.findLocal(v);
+                if (!local || local->bad()) return false;
+                now.push_back({v, *local});
+            }
+            iterations.push_back(std::move(now));
+            for (auto* st : s.steps)
+                if (st->eval(tmp).bad()) return false;
+        }
+    }
+
     // ---------------------------------------------------------------- statement walking
     struct ConditionalReads : ASTVisitor<ConditionalReads, VisitFlags::AllGood> {
         Builder& b;
@@ -1963,34 +3220,20 @@ private:
             control.back().predicate = boolean ? b.booleanOf(e, ec, ctx) : b.unknownBoolean(e, ec, ctx);
         }
 
-        // A constant-false conjunct cannot enable a branch, even when the
-        // other operand is not constant. Do not invent a control edge for it.
-        bool alwaysFalse(const Expression& expr) {
-            // A call in the condition still runs, whatever the branch does, so its effects stay in the model.
-            struct Calls : ASTVisitor<Calls, VisitFlags::AllGood> {
-                bool found = false;
-                void handle(const CallExpression&) { found = true; }
-            } calls;
-            expr.visit(calls);
-            if (calls.found) return false;
-            if (b.design.hasCaseMode() && b.modeValue(expr, ec) == 0) return true;
-            auto value = expr.eval(ec);
-            if (!value.bad() && value.isInteger() && !value.hasUnknown()) return value.isFalse();
-            if (expr.kind == ExpressionKind::Conversion)
-                return alwaysFalse(expr.as<ConversionExpression>().operand());
-            if (expr.kind == ExpressionKind::BinaryOp) {
-                const auto& op = expr.as<BinaryExpression>();
-                if (op.op == BinaryOperator::LogicalAnd)
-                    return alwaysFalse(op.left()) || alwaysFalse(op.right());
-            }
-            return false;
-        }
+        bool alwaysFalse(const Expression& expr) { return b.alwaysFalseExpr(expr, ec); }
         void handle(const ConditionalStatement& s) {
             if (b.design.hasCaseMode() && s.conditions.size() == 1 && !s.conditions[0].pattern) {
                 int v = b.modeValue(*s.conditions[0].expr, ec);
                 if (v >= 0) {
                     ++b.m.casePrunedBranches;
                     if (v) s.ifTrue.visit(*this);
+                    else if (s.ifFalse) s.ifFalse->visit(*this);
+                    return;
+                }
+            }
+            if (s.conditions.size() == 1 && !s.conditions[0].pattern) {
+                if (auto value = model::elaboratedCondition(*s.conditions[0].expr, ec)) {
+                    if (*value) s.ifTrue.visit(*this);
                     else if (s.ifFalse) s.ifFalse->visit(*this);
                     return;
                 }
@@ -2029,85 +3272,14 @@ private:
         // kMaxUnrolledIterations iterations), found by running the header in the constant evaluator. A loop is not unrolled when its body
         // can leave it early, writes its variables or calls a user subroutine: it is then walked once with the variables unknown, and the
         // dependencies it makes stay approximate.
-        using LoopBinding = std::vector<std::pair<const ValueSymbol*, ConstantValue>>;
+        using LoopBinding = Builder::LoopBinding;
         static constexpr size_t kMaxUnrolledIterations = 256;
         // Over one procedure, the body walks of all its unrolled loops, nested ones counted once per enclosing iteration (an inner
         // loop of 64 under an outer one of 64 costs 4096): beyond it a loop is walked once (approximate), as one too long is.
         static constexpr size_t kUnrollWalkBudget = 2048;
         size_t unrollWalks = 0, unrollFactor = 1;
-        static void lvalueRoots(const Expression& e, std::vector<const Symbol*>& out) {
-            switch (e.kind) {
-                case ExpressionKind::Concatenation:
-                    for (auto* op : e.as<ConcatenationExpression>().operands()) lvalueRoots(*op, out);
-                    return;
-                case ExpressionKind::ElementSelect: lvalueRoots(e.as<ElementSelectExpression>().value(), out); return;
-                case ExpressionKind::RangeSelect: lvalueRoots(e.as<RangeSelectExpression>().value(), out); return;
-                case ExpressionKind::MemberAccess: lvalueRoots(e.as<MemberAccessExpression>().value(), out); return;
-                case ExpressionKind::Conversion: lvalueRoots(e.as<ConversionExpression>().operand(), out); return;
-                default: if (const auto* sym = e.getSymbolReference()) out.push_back(sym);
-            }
-        }
         bool unrollIterations(const ForLoopStatement& s, std::vector<LoopBinding>& iterations) {
-            if (!s.stopExpr || s.steps.empty()) return false;
-            EvalContext tmp(ec.astCtx);
-            for (const auto& [v, c] : b.boundLoops) tmp.createLocal(v, c);
-            std::vector<const ValueSymbol*> vars;
-            for (const auto* v : s.loopVars) {
-                const auto* init = v->getInitializer();
-                if (!init) return false;
-                auto value = init->eval(tmp);
-                if (value.bad()) return false;
-                tmp.createLocal(v, std::move(value));
-                vars.push_back(v);
-            }
-            for (auto* i : s.initializers) {
-                const auto* a = i->as_if<AssignmentExpression>();
-                const auto* n = a && !a->isCompound() ? a->left().as_if<NamedValueExpression>() : nullptr;
-                const auto* v = n ? n->symbol.as_if<VariableSymbol>() : nullptr;
-                if (!v) return false;
-                if (!tmp.findLocal(v)) { tmp.createLocal(v, ConstantValue()); vars.push_back(v); }
-                if (i->eval(tmp).bad()) return false;
-            }
-            if (vars.empty()) return false;
-            struct Body : ASTVisitor<Body, VisitFlags::AllGood> {
-                std::set<const Symbol*> vars;
-                bool ok = true;
-                void handle(const BreakStatement&) { ok = false; }
-                void handle(const ContinueStatement&) { ok = false; }
-                void handle(const ReturnStatement&) { ok = false; }
-                void handle(const DisableStatement&) { ok = false; }
-                void handle(const DisableForkStatement&) { ok = false; }
-                void handle(const CallExpression& c) { if (!c.isSystemCall()) ok = false; visitDefault(c); }
-                void written(const Expression& e) {
-                    std::vector<const Symbol*> roots;
-                    lvalueRoots(e, roots);
-                    for (const auto* r : roots) ok = ok && !vars.count(r);
-                }
-                void handle(const AssignmentExpression& a) { written(a.left()); visitDefault(a); }
-                void handle(const UnaryExpression& u) {
-                    if (u.op == UnaryOperator::Preincrement || u.op == UnaryOperator::Predecrement || u.op == UnaryOperator::Postincrement ||
-                        u.op == UnaryOperator::Postdecrement) written(u.operand());
-                    visitDefault(u);
-                }
-            } body;
-            body.vars.insert(vars.begin(), vars.end());
-            s.body.visit(body);
-            if (!body.ok) return false;
-            for (;;) {
-                if (iterations.size() >= kMaxUnrolledIterations) return false;
-                const auto go = s.stopExpr->eval(tmp);
-                if (go.bad()) return false;
-                if (!go.isTrue()) return true;
-                LoopBinding now = b.boundLoops;
-                for (const auto* v : vars) {
-                    const auto* local = tmp.findLocal(v);
-                    if (!local || local->bad()) return false;
-                    now.push_back({v, *local});
-                }
-                iterations.push_back(std::move(now));
-                for (auto* st : s.steps)
-                    if (st->eval(tmp).bad()) return false;
-            }
+            return b.unrollForLoop(s, ec, iterations);
         }
         void handle(const ForLoopStatement& s) {
             size_t depth = control.size();
@@ -2149,6 +3321,110 @@ private:
             pushControl(s.cond, Branch::None, false);
             s.body.visit(*this);
             control.resize(depth);
+        }
+        unsigned jumpGuardDepth = 0;
+        const Statement* outerTimed = nullptr;
+        bool hasBodyTiming = false;
+        void handle(const StatementList& list) {
+            unsigned added = 0;
+            for (auto* child : list.list) {
+                child->visit(*this);
+                JumpFinder jumps;
+                child->visit(jumps);
+                StuckBodyChecker unsupported;
+                unsupported.outerTimed = outerTimed;
+                child->visit(unsupported);
+                if (jumps.found || unsupported.unsafe) {
+                    ++jumpGuardDepth;
+                    ++added;
+                }
+            }
+            jumpGuardDepth -= added;
+        }
+        void handle(const TimedStatement& s) {
+            if (&s != outerTimed) {
+                hasBodyTiming = true;
+                ++jumpGuardDepth;
+                visitDefault(s);
+                --jumpGuardDepth;
+                return;
+            }
+            visitDefault(s);
+        }
+        void handle(const WaitStatement& s) {
+            hasBodyTiming = true;
+            ++jumpGuardDepth;
+            visitDefault(s);
+            --jumpGuardDepth;
+        }
+        void handle(const WaitForkStatement& s) {
+            hasBodyTiming = true;
+            ++jumpGuardDepth;
+            visitDefault(s);
+            --jumpGuardDepth;
+        }
+        void handle(const WaitOrderStatement& s) {
+            hasBodyTiming = true;
+            ++jumpGuardDepth;
+            visitDefault(s);
+            --jumpGuardDepth;
+        }
+        void handle(const ConcurrentAssertionStatement& s) {
+            if (s.assertionKind == AssertionKind::Expect) hasBodyTiming = true;
+            ++jumpGuardDepth;
+            visitDefault(s);
+            --jumpGuardDepth;
+        }
+        void handle(const ImmediateAssertionStatement& s) {
+            s.cond.visit(*this);
+            if (s.ifTrue || s.ifFalse) {
+                ++jumpGuardDepth;
+                if (s.ifTrue) s.ifTrue->visit(*this);
+                if (s.ifFalse) s.ifFalse->visit(*this);
+                --jumpGuardDepth;
+            }
+        }
+        void handle(const PatternCaseStatement& s) {
+            hasBodyTiming = true;
+            ++jumpGuardDepth;
+            visitDefault(s);
+            --jumpGuardDepth;
+        }
+        void handle(const RandCaseStatement& s) {
+            hasBodyTiming = true;
+            ++jumpGuardDepth;
+            visitDefault(s);
+            --jumpGuardDepth;
+        }
+        void handle(const ForeverLoopStatement& s) {
+            hasBodyTiming = true;
+            ++jumpGuardDepth;
+            visitDefault(s);
+            --jumpGuardDepth;
+        }
+        void handle(const BlockStatement& s) {
+            if (s.blockKind != StatementBlockKind::Sequential) {
+                hasBodyTiming = true;
+                ++jumpGuardDepth;
+                visitDefault(s);
+                --jumpGuardDepth;
+                return;
+            }
+            visitDefault(s);
+        }
+        void handle(const RepeatLoopStatement& s) {
+            size_t depth = control.size();
+            stepsIn(s.count);
+            pushControl(s.count, Branch::None, false);
+            ++jumpGuardDepth;
+            s.body.visit(*this);
+            --jumpGuardDepth;
+            control.resize(depth);
+        }
+        void handle(const ForeachLoopStatement& s) {
+            ++jumpGuardDepth;
+            visitDefault(s);
+            --jumpGuardDepth;
         }
         void callEffects(const CallExpression& c) {
             if (!c.isSystemCall()) {
@@ -2232,6 +3508,7 @@ private:
                 // x++ is x = x + 1: it reads the bits it writes
                 Assign as;
                 as.loc = toLoc(*b.sm, u.sourceRange.start());
+                as.afterPossibleExit = jumpGuardDepth > 0;
                 as.targets = b.pathsOf(u.operand(), ec, true);
                 as.approximate = b.hasDynamicSelect(u.operand(), ec);
                 as.booleanValue = b.unknownBoolean(u.operand(), ec, ctx);
@@ -2260,68 +3537,117 @@ private:
                 if (!as.targets.empty()) out.push_back(std::move(as));
             }
         }
-        void handle(const AssignmentExpression& a) {
-            for (const auto* call : b.callsIn(a.left())) callEffects(*call);
+        void recordAssign(const Expression* lhs, std::vector<Path> targets, std::vector<BitRef> lhsBits,
+                          const Expression& rhs, SourceLocation loc, bool nonBlocking, bool compound,
+                          bool lhsIntegral, uint64_t lhsWidth, const AssignmentExpression* asg = nullptr) {
             Assign as;
-            as.loc = toLoc(*b.sm, a.sourceRange.start());
-            as.nonBlocking = a.isNonBlocking();
-            as.approximate = b.hasDynamicSelect(a.left(), ec) || b.hasDynamicSelect(a.right(), ec) || !b.callsIn(a.right()).empty();
-            as.booleanValue = b.booleanOf(a.right(), ec, ctx);
-            as.uncertainCalls = b.callIssues(a.right(), ctx);
-            auto selectorCalls = b.callIssues(a.left(), ctx);
-            as.uncertainCalls.insert(as.uncertainCalls.end(), selectorCalls.begin(), selectorCalls.end());
-            as.targets = b.pathsOf(a.left(), ec, true);
+            as.asg = asg;
+            as.loc = loc;
+            as.nonBlocking = nonBlocking;
+            const bool hasIntraTiming = asg && asg->timingControl != nullptr;
+            if (hasIntraTiming) hasBodyTiming = true;
+            as.afterPossibleExit = jumpGuardDepth > 0 || hasIntraTiming;
+            const bool lhsDynamic = lhs && b.hasDynamicSelect(*lhs, ec);
+            const bool lhsNoCalls = !lhs || b.callsIn(*lhs).empty();
+            as.approximate = lhsDynamic || b.hasDynamicSelect(rhs, ec) || !b.callsIn(rhs).empty();
+            as.booleanValue = b.booleanOf(rhs, ec, ctx);
+            as.uncertainCalls = b.callIssues(rhs, ctx);
+            if (lhs) {
+                auto selectorCalls = b.callIssues(*lhs, ctx);
+                as.uncertainCalls.insert(as.uncertainCalls.end(), selectorCalls.begin(), selectorCalls.end());
+            }
+            as.targets = std::move(targets);
             ConditionalReads conditions(b, ec, as);
-            a.right().visit(conditions);
-            // selector reads on the LHS (e.g. mem[addr] <= d) influence the write
-            // A constant selector reads nothing at run time, even if it names a signal inside $bits.
-            std::vector<Path> all;
-            if (as.approximate || b.hasDynamicSelect(a.left(), ec)) all = b.pathsOf(a.left(), ec, false);
-            for (auto& p : all)
-                if (!std::binary_search(as.targets.begin(), as.targets.end(), p)) as.ctrlReads.push_back(p);
-            for (auto& p : b.pathsOf(a.right(), ec, false)) as.dataReads.push_back(p);
-            // A computed index makes every bit of its vector a possible source, but a plain static read beside it is still a certain
-            // one: `y = a[i] | a[0]` depends on a[0] whatever i is. Only for a one-bit result, where every such read reaches the bit.
-            if (as.approximate && !a.isCompound() && b.callsIn(a.right()).empty() && !b.hasDynamicSelect(a.left(), ec) &&
-                a.left().type && a.left().type->getBitstreamWidth() == 1)
-                as.preciseReads = b.rawPathsOf(b.modeExpr(a.right(), ec), ec, false, true);
-            // `x = f(a[i]) ^ x`: whatever the computed index does inside one operand, a plain operand of a chain of bitwise operators of
-            // the target's own width reaches the target bit for bit. Those reads are certain, so a loop they close is not approximate.
-            if (as.approximate && !a.isCompound() && b.callsIn(a.right()).empty() && !b.hasDynamicSelect(a.left(), ec) && a.left().type &&
-                a.left().type->isIntegral()) {
-                std::vector<BitRef> L;
-                if (b.bitList(a.left(), ec, L) && !L.empty() && std::all_of(L.begin(), L.end(), [](const BitRef& r) { return r.sym != nullptr; })) {
-                    std::vector<const Expression*> leaves;
-                    std::function<void(const Expression&)> chain = [&](const Expression& x0) {
-                        const Expression& x = x0.unwrapImplicitConversions();
-                        if (x.kind == ExpressionKind::BinaryOp) {
-                            const auto op = x.as<BinaryExpression>().op;
-                            if (op == BinaryOperator::BinaryXor || op == BinaryOperator::BinaryXnor || op == BinaryOperator::BinaryAnd || op == BinaryOperator::BinaryOr) {
-                                chain(x.as<BinaryExpression>().left());
-                                chain(x.as<BinaryExpression>().right());
-                            }
-                        }
-                        else if (x.kind == ExpressionKind::UnaryOp && x.as<UnaryExpression>().op == UnaryOperator::BitwiseNot) chain(x.as<UnaryExpression>().operand());
-                        else if (x.kind == ExpressionKind::NamedValue) leaves.push_back(&x);
+            rhs.visit(conditions);
+            // A ternary is a procedural hold only when one complete data arm
+            // is the exact target itself. Preserve its selector as a guard so
+            // payload qualification can reason about the data-moving arm.
+            const Expression* ternary = &rhs;
+            while (ternary->kind == ExpressionKind::Conversion) {
+                const auto& conversion = ternary->as<ConversionExpression>();
+                if (!conversion.type || !conversion.operand().type ||
+                    conversion.type->getBitstreamWidth() != conversion.operand().type->getBitstreamWidth()) break;
+                ternary = &conversion.operand();
+            }
+            if (!compound && !lhsDynamic && lhsNoCalls && b.hasDecomposableMux(rhs, ec) &&
+                !lhsBits.empty() &&
+                std::all_of(lhsBits.begin(), lhsBits.end(), [](const BitRef& bit) { return bit.sym != nullptr && !bit.sym->getType().isUnpackedArray(); }) &&
+                !b.collapse(*lhsBits.front().sym, widthOf(*lhsBits.front().sym))) {
+                auto arms = b.decomposeExprArms(rhs, ec, ctx, lhsBits.size());
+                if (arms.size() == lhsBits.size()) {
+                    for (size_t i = 0; i < lhsBits.size(); ++i)
+                        as.qualifierArms.emplace_back(b.nodeForBit(ctx, lhsBits[i]), std::move(arms[i]));
+                }
+            }
+            if (as.qualifierArms.empty() && !compound && ternary->kind == ExpressionKind::ConditionalOp) {
+                const auto& conditional = ternary->as<ConditionalExpression>();
+                if (conditional.conditions.size() == 1 && !conditional.conditions[0].pattern && as.targets.size() == 1) {
+                    auto sameTarget = [&](const Expression& arm) {
+                        std::vector<BitRef> armBits;
+                        return !lhsBits.empty() && b.bitList(arm, ec, armBits) &&
+                               armBits.size() == lhsBits.size() &&
+                               std::equal(lhsBits.begin(), lhsBits.end(), armBits.begin(),
+                                          [](const BitRef& target, const BitRef& value) {
+                                              return target.sym && target.sym == value.sym && target.bit == value.bit;
+                                          });
                     };
-                    chain(a.right());
-                    for (const auto* leaf : leaves) {
-                        if (b.hasDynamicSelect(*leaf, ec) || !leaf->type || leaf->type->getBitstreamWidth() != L.size()) continue;
-                        std::vector<BitRef> R;
-                        if (b.bitList(*leaf, ec, R) && R.size() == L.size())
-                            for (size_t i = 0; i < L.size(); i++)
-                                if (R[i].sym) as.preciseBits.push_back({L[i], R[i]});
+                    const bool leftHolds = sameTarget(conditional.left());
+                    const bool rightHolds = sameTarget(conditional.right());
+                    if (leftHolds != rightHolds) {
+                        GuardCondition guard;
+                        guard.predicate = b.booleanOf(*conditional.conditions[0].expr, ec, ctx);
+                        if (leftHolds) guard.predicate = b.boolFact(BoolFact::Kind::Not, {guard.predicate});
+                        for (const auto& path : b.pathsOf(*conditional.conditions[0].expr, ec, false))
+                            for (auto node : b.nodesFor(ctx, path)) guard.dependencies.push_back(node);
+                        as.booleanGuards.push_back(std::move(guard));
                     }
                 }
             }
-            classify(b.modeExpr(a.right(), ec), Op::None, 0, as.dataOps);
-            if (a.isCompound())
+            // selector reads on the LHS (e.g. mem[addr] <= d) influence the write
+            // A constant selector reads nothing at run time, even if it names a signal inside $bits.
+            std::vector<Path> all;
+            if (lhs && (as.approximate || lhsDynamic)) all = b.pathsOf(*lhs, ec, false);
+            for (auto& p : all)
+                if (!std::binary_search(as.targets.begin(), as.targets.end(), p)) as.ctrlReads.push_back(p);
+            for (auto& p : b.pathsOf(rhs, ec, false)) as.dataReads.push_back(p);
+            // A computed index makes every bit of its vector a possible source, but a plain static read beside it is still a certain
+            // one: `y = a[i] | a[0]` depends on a[0] whatever i is. Only for a one-bit result, where every such read reaches the bit.
+            if (as.approximate && !compound && b.callsIn(rhs).empty() && !lhsDynamic && lhsWidth == 1)
+                as.preciseReads = b.rawPathsOf(b.modeExpr(rhs, ec), ec, false, true);
+            // `x = f(a[i]) ^ x`: whatever the computed index does inside one operand, a plain operand of a chain of bitwise operators of
+            // the target's own width reaches the target bit for bit. Those reads are certain, so a loop they close is not approximate.
+            if (as.approximate && !compound && b.callsIn(rhs).empty() && !lhsDynamic && lhsIntegral &&
+                !lhsBits.empty() && std::all_of(lhsBits.begin(), lhsBits.end(), [](const BitRef& r) { return r.sym != nullptr; })) {
+                std::vector<const Expression*> leaves;
+                std::function<void(const Expression&)> chain = [&](const Expression& x0) {
+                    const Expression& x = x0.unwrapImplicitConversions();
+                    if (x.kind == ExpressionKind::BinaryOp) {
+                        const auto op = x.as<BinaryExpression>().op;
+                        if (op == BinaryOperator::BinaryXor || op == BinaryOperator::BinaryXnor || op == BinaryOperator::BinaryAnd || op == BinaryOperator::BinaryOr) {
+                            chain(x.as<BinaryExpression>().left());
+                            chain(x.as<BinaryExpression>().right());
+                        }
+                    }
+                    else if (x.kind == ExpressionKind::UnaryOp && x.as<UnaryExpression>().op == UnaryOperator::BitwiseNot) chain(x.as<UnaryExpression>().operand());
+                    else if (x.kind == ExpressionKind::NamedValue) leaves.push_back(&x);
+                };
+                chain(rhs);
+                for (const auto* leaf : leaves) {
+                    if (b.hasDynamicSelect(*leaf, ec) || !leaf->type || leaf->type->getBitstreamWidth() != lhsBits.size()) continue;
+                    std::vector<BitRef> R;
+                    if (b.bitList(*leaf, ec, R) && R.size() == lhsBits.size())
+                        for (size_t i = 0; i < lhsBits.size(); i++)
+                            if (R[i].sym) as.preciseBits.push_back({lhsBits[i], R[i]});
+                }
+            }
+            classify(b.modeExpr(rhs, ec), Op::None, 0, as.dataOps);
+            if (compound)
                 for (auto& t : as.targets) { as.dataReads.push_back(t); noteOp(as.dataOps, t.sym, Op::Arith, 2); }
             for (auto& p : as.ctrlReads) noteOp(as.ctrlOps, p.sym, Op::Select, 2);   // selector reads on the left-hand side
-            if (!as.ctrlReads.empty()) {
-                as.conditions.push_back({toLoc(*b.sm, a.left().sourceRange.start()), as.ctrlReads});
+            if (lhs && !as.ctrlReads.empty()) {
+                as.conditions.push_back({toLoc(*b.sm, lhs->sourceRange.start()), as.ctrlReads});
                 GuardCondition selector;
-                selector.predicate = b.unknownBoolean(a.left(), ec, ctx);
+                selector.predicate = b.unknownBoolean(*lhs, ec, ctx);
                 for (const auto& path : as.ctrlReads)
                     for (auto node : b.nodesFor(ctx, path)) selector.dependencies.push_back(node);
                 as.booleanGuards.push_back(std::move(selector));
@@ -2337,23 +3663,31 @@ private:
                 for (auto& p : c.paths) as.ctrlReads.push_back(p);
                 for (auto& [sym, oi] : c.ops) noteOp(as.ctrlOps, sym, oi.op, oi.inv, c.br);
             }
-            if (!a.isCompound()) {
-                std::vector<BitRef> L, R;
-                if (b.bitList(a.left(), ec, L) && b.bitList(a.right(), ec, R) && L.size() == R.size() && !L.empty()) {
+            if (!compound) {
+                std::vector<BitRef> R;
+                if (!lhsBits.empty() && b.bitList(rhs, ec, R) && lhsBits.size() == R.size()) {
                     as.pairsValid = true;
-                    for (size_t i = 0; i < L.size(); i++) as.pairs.push_back({L[i], R[i]});
-                } else if (std::vector<BitRef> I; b.invertedBitMove(a.right(), ec, I) && I.size() == L.size() && !L.empty() &&
-                           std::all_of(L.begin(), L.end(), [](const BitRef& bit) { return bit.sym != nullptr; })) {
+                    for (size_t i = 0; i < lhsBits.size(); i++) as.pairs.push_back({lhsBits[i], R[i]});
+                } else if (std::vector<BitRef> I; !lhsBits.empty() && b.invertedBitMove(rhs, ec, I) && I.size() == lhsBits.size() &&
+                           std::all_of(lhsBits.begin(), lhsBits.end(), [](const BitRef& bit) { return bit.sym != nullptr; })) {
                     as.flipPairsValid = true;
-                    for (size_t i = 0; i < L.size(); i++) as.pairs.push_back({L[i], I[i]});
-                } else if (L.size() > 1 && std::all_of(L.begin(), L.end(), [](const BitRef& bit) { return bit.sym != nullptr; })) {
+                    for (size_t i = 0; i < lhsBits.size(); i++) as.pairs.push_back({lhsBits[i], I[i]});
+                } else if (lhsBits.size() > 1 && std::all_of(lhsBits.begin(), lhsBits.end(), [](const BitRef& bit) { return bit.sym != nullptr; })) {
                     std::vector<std::vector<Path>> deps;
                     uint64_t budget = kMaxEdgesPerAssign;
-                    if (b.bitwiseDeps(a.right(), ec, deps, budget) && deps.size() == L.size()) {
+                    if (Builder::CallBits bits; b.expandWholeCall(rhs, ec, bits) && bits.size() == lhsBits.size()) {
+                        // A straight-line function: each target bit depends on the argument bits it was built from.
                         as.bitDepsValid = true;
-                        as.bitDepExact = b.exactBitsOf(a.right(), ec, L.size());
-                        as.bitMoves = b.bitMoves(a.right(), ec, L.size());
-                        for (size_t i = 0; i < L.size(); i++) as.bitDeps.push_back({L[i], std::move(deps[i])});
+                        for (size_t i = 0; i < lhsBits.size(); i++) {
+                            as.bitMoves.push_back({bits[i].move, bits[i].kind});
+                            as.bitDeps.push_back({lhsBits[i], std::move(bits[i].reads)});
+                        }
+                        if (b.callsIn(rhs).size() == 1 && !b.hasDynamicSelect(rhs, ec)) as.approximate = lhsDynamic;
+                    } else if (b.bitwiseDeps(rhs, ec, deps, budget) && deps.size() == lhsBits.size()) {
+                        as.bitDepsValid = true;
+                        as.bitDepExact = b.exactBitsOf(rhs, ec, lhsBits.size());
+                        as.bitMoves = b.bitMoves(rhs, ec, lhsBits.size());
+                        for (size_t i = 0; i < lhsBits.size(); i++) as.bitDeps.push_back({lhsBits[i], std::move(deps[i])});
                     }
                 }
             }
@@ -2362,7 +3696,34 @@ private:
                 v->erase(std::unique(v->begin(), v->end()), v->end());
             }
             if (!as.targets.empty()) out.push_back(std::move(as));
-            a.right().visit(*this);   // nested assignments / calls on the RHS
+            rhs.visit(*this);   // nested assignments / calls on the RHS
+        }
+        void handle(const VariableDeclStatement& vd) {
+            const auto& sym = vd.symbol;
+            if (!isGraphSymbol(sym)) return;
+            const Expression* init = sym.getInitializer();
+            if (!init) return;
+            const uint64_t w = widthOf(sym);
+            std::vector<BitRef> targetBits;
+            if (w && !sym.getType().isUnpackedArray() && !b.collapse(sym, w)) {
+                targetBits.reserve(w);
+                for (uint64_t bit = w; bit-- > 0;)
+                    targetBits.push_back({&sym, static_cast<uint32_t>(bit)});
+            }
+            const Path wholePath{&sym, 0, w ? w - 1 : 0};
+            recordAssign(nullptr, {wholePath}, std::move(targetBits), *init,
+                         toLoc(*b.sm, vd.sourceRange.start()), false, false,
+                         sym.getType().isIntegral(), w);
+        }
+        void handle(const AssignmentExpression& a) {
+            for (const auto* call : b.callsIn(a.left())) callEffects(*call);
+            std::vector<BitRef> lhsBits;
+            b.bitList(a.left(), ec, lhsBits);
+            const bool lhsIntegral = a.left().type && a.left().type->isIntegral();
+            const uint64_t lhsWidth = a.left().type ? a.left().type->getBitstreamWidth() : 0;
+            recordAssign(&a.left(), b.pathsOf(a.left(), ec, true), std::move(lhsBits), a.right(),
+                         toLoc(*b.sm, a.sourceRange.start()), a.isNonBlocking(), a.isCompound(),
+                         lhsIntegral, lhsWidth, &a);
         }
     };
 
@@ -2382,12 +3743,12 @@ private:
         return nullptr;
     }
 
-    struct Event { int edge; Path path; bool ok; slang::SourceLocation loc; std::vector<Path> iff; std::vector<uint32_t> uncertainCalls; };
+    struct Event { int edge; Path path; bool ok; slang::SourceLocation loc; std::vector<Path> iff; bool hasIff; std::vector<uint32_t> uncertainCalls; const Expression* expression; };
 
     void collectEvents(const TimingControl& t, EvalContext& ec, std::vector<Event>& out, const InstanceSymbol* ctx) {
         if (t.kind == TimingControlKind::SignalEvent) {
             auto& se = t.as<SignalEventControl>();
-            Event e{0, {}, false, t.sourceRange.start(), {}, {}};
+            Event e{0, {}, false, t.sourceRange.start(), {}, se.iffCondition != nullptr, {}, &se.expr};
             if (se.iffCondition) e.uncertainCalls = callIssues(*se.iffCondition, ctx);
             if (se.iffCondition) e.iff = pathsOf(*se.iffCondition, ec, false);
             e.edge = se.edge == EdgeKind::PosEdge ? 1 : se.edge == EdgeKind::NegEdge ? 2 : se.edge == EdgeKind::BothEdges ? 3 : 0;
@@ -2943,7 +4304,7 @@ private:
         std::vector<Assign> assigns;
         noteLoopCounters(body);
         curDominated.clear();
-        if (pk != ProceduralBlockKind::AlwaysLatch) {
+        if (pb.procedureKind != ProceduralBlockKind::AlwaysLatch) {
             const auto reads = analysis::readsOf(body);
             // what a called subroutine reads before it writes is a read of the caller's value too
             std::set<const ValueSymbol*> viaCalls;
@@ -2969,6 +4330,12 @@ private:
         }
         StmtVisitor v(*this, ec, assigns, ctx);
         v.modelSteps = !sequential;
+        const bool outerEventSensitivity = first && first->kind == StatementKind::Timed &&
+            (sequential ||
+             first->as<TimedStatement>().timing.kind == TimingControlKind::ImplicitEvent ||
+             first->as<TimedStatement>().timing.kind == TimingControlKind::SignalEvent ||
+             first->as<TimedStatement>().timing.kind == TimingControlKind::EventList);
+        v.outerTimed = outerEventSensitivity ? first : nullptr;
         body.visit(v);
         inventoryWrites(pb, ctx, assigns);
         inventoryReads(pb, ctx, pb.getBody());
@@ -2985,16 +4352,692 @@ private:
                       : pk == ProceduralBlockKind::AlwaysLatch ? ProcKind::Latch : ProcKind::Comb;
         uint32_t proc = addProc(kind, pb.location, ctx);
         if (!sequential) {
-            for (auto& a : assigns) emitAssign(ctx, a, a.targets, EdgeType::Comb, proc, pb.location);
+            std::unique_ptr<flow::Flow> procFlow;
+            bool exactProcFlow = false;
+            if (pk != ProceduralBlockKind::AlwaysLatch) {
+                std::unordered_set<const ValueSymbol*> writtenOnce;
+                bool hasMultiWrite = false;
+                for (const auto& a : assigns) {
+                    if (!a.asg) continue;
+                    for (const auto& t : a.targets) {
+                        if (!writtenOnce.insert(t.sym).second) { hasMultiWrite = true; break; }
+                    }
+                    if (hasMultiWrite) break;
+                }
+                if (hasMultiWrite) {
+                    procFlow = std::make_unique<flow::Flow>(pb);
+                    exactProcFlow = !procFlow->bad && !procFlow->approximated && !procFlow->opaque &&
+                                    !procFlow->timing && !procFlow->walkedOnce;
+                }
+            }
+            if (!exactProcFlow) {
+                for (auto& a : assigns) emitAssign(ctx, a, a.targets, EdgeType::Comb, proc, pb.location);
+                if (kind == ProcKind::Comb) analyseCombProcedure(pb, ctx, ec, proc);
+                return;
+            }
+            auto isDeadWrite = [&](const Assign& a, const Path& t) -> bool {
+                if (!a.asg || !t.sym) return false;
+                bool sawMatch = false;
+                for (const auto& acc : procFlow->accesses) {
+                    if (!acc.write || acc.asg != a.asg || acc.sym != t.sym) continue;
+                    if (acc.range.second < t.lo || acc.range.first > t.hi) continue;
+                    sawMatch = true;
+                    if (!acc.exact || acc.live || acc.used || acc.observed || acc.exposed) return false;
+                }
+                return sawMatch;
+            };
+            std::unordered_set<Model::DeadEdgeKey, Model::DeadEdgeHash> procLiveEdges;
+            curLiveProcEdges = &procLiveEdges;
+            struct LiveEdgesGuard { Builder& b; ~LiveEdgesGuard() { b.curLiveProcEdges = nullptr; b.curDeadWrite = false; } } liveGuard{*this};
+            std::vector<std::pair<const Assign*, std::vector<Path>>> deferredDead;
+            curDeadWrite = false;
+            for (auto& a : assigns) {
+                std::vector<Path> liveTargets, deadTargets;
+                for (auto& t : a.targets) {
+                    if (isDeadWrite(a, t)) deadTargets.push_back(t);
+                    else liveTargets.push_back(t);
+                }
+                if (!liveTargets.empty()) emitAssign(ctx, a, liveTargets, EdgeType::Comb, proc, pb.location);
+                if (!deadTargets.empty()) deferredDead.push_back({&a, std::move(deadTargets)});
+            }
+            curDeadWrite = true;
+            for (const auto& [a, deadTargets] : deferredDead)
+                emitAssign(ctx, *a, deadTargets, EdgeType::Comb, proc, pb.location);
+            curDeadWrite = false;
+            if (kind == ProcKind::Comb) analyseCombProcedure(pb, ctx, ec, proc);
             return;
         }
         m.numSeqProcedures++;
-        analyseSequential(pb, ctx, ec, events, first, assigns, proc);
+        StuckBodyChecker stuckCheck;
+        stuckCheck.outerTimed = v.outerTimed;
+        body.visit(stuckCheck);
+        analyseSequential(pb, ctx, ec, events, first, assigns, proc, v.hasBodyTiming || stuckCheck.unsafe);
+    }
+
+    void analyseCombProcedure(const ProceduralBlockSymbol& pb, const InstanceSymbol* ctx, EvalContext& ec, uint32_t proc) {
+        using ArmList = std::vector<CombQualifierArm>;
+        using CombState = std::unordered_map<NodeId, ArmList>;
+        constexpr size_t kCombUnrollBudget = 2048;
+        struct CombWalker : ASTVisitor<CombWalker, VisitFlags::AllGood> {
+            Builder& b;
+            EvalContext& ec;
+            const InstanceSymbol* ctx;
+            CombState state;
+            std::unordered_set<NodeId> guardReads;
+            std::unordered_set<NodeId> anyReads;
+            std::unordered_set<NodeId> staleNodes;
+            bool aborted = false;
+            bool staleGuardRead = false;
+            bool incompleteTiming = false;
+            size_t unrollWalks = 0, unrollFactor = 1;
+
+            CombWalker(Builder& b, EvalContext& ec, const InstanceSymbol* ctx) : b(b), ec(ec), ctx(ctx) {}
+
+            void noteDataReads(const std::vector<NodeId>& deps) {
+                for (NodeId d : deps) {
+                    anyReads.insert(d);
+                    if (auto it = state.find(d); it != state.end()) {
+                        for (const auto& a : it->second)
+                            if (a.unassigned) staleNodes.insert(d);
+                    }
+                }
+            }
+
+            void noteGuardDeps(const std::vector<NodeId>& deps) {
+                for (NodeId d : deps) {
+                    anyReads.insert(d);
+                    guardReads.insert(d);
+                    if (staleNodes.count(d)) staleGuardRead = true;
+                    if (auto it = state.find(d); it != state.end()) {
+                        for (const auto& a : it->second) {
+                            if (a.unassigned) staleGuardRead = true;
+                            if (a.dataDependencies) {
+                                for (NodeId sd : *a.dataDependencies) {
+                                    guardReads.insert(sd);
+                                    if (staleNodes.count(sd)) staleGuardRead = true;
+                                }
+                            }
+                            if (a.controlDependencies) {
+                                for (NodeId sc : *a.controlDependencies) {
+                                    guardReads.insert(sc);
+                                    if (staleNodes.count(sc)) staleGuardRead = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            void assignState(NodeId n, ArmList arms) {
+                if (guardReads.count(n)) staleGuardRead = true;
+                if (anyReads.count(n)) staleNodes.insert(n);
+                state[n] = std::move(arms);
+            }
+
+            static CombQualifierArm unassignedArm() {
+                CombQualifierArm arm;
+                arm.unassigned = true;
+                arm.dataDependencies = std::make_shared<const std::vector<NodeId>>();
+                arm.controlDependencies = std::make_shared<const std::vector<NodeId>>();
+                return arm;
+            }
+
+            // Both lists are usually sorted already (every result of this is): merge them in linear time instead of sorting again.
+            static void mergeUnique(std::vector<NodeId>& dst, const std::vector<NodeId>& src) {
+                const auto mid = static_cast<std::ptrdiff_t>(dst.size());
+                dst.insert(dst.end(), src.begin(), src.end());
+                if (std::is_sorted(dst.begin(), dst.begin() + mid) && std::is_sorted(dst.begin() + mid, dst.end()))
+                    std::inplace_merge(dst.begin(), dst.begin() + mid, dst.end());
+                else
+                    std::sort(dst.begin(), dst.end());
+                dst.erase(std::unique(dst.begin(), dst.end()), dst.end());
+            }
+
+            static ArmList attachGuard(const ArmList& arms, const GuardCondition& guard,
+                                       bool condApprox, bool condUncertain) {
+                ArmList out;
+                out.reserve(arms.size());
+                for (auto arm : arms) {
+                    arm.guards.insert(arm.guards.begin(), guard);
+                    auto ctrl = std::make_shared<std::vector<NodeId>>(guard.dependencies);
+                    if (arm.controlDependencies) mergeUnique(*ctrl, *arm.controlDependencies);
+                    arm.controlDependencies = std::move(ctrl);
+                    arm.controlApproximate |= condApprox;
+                    arm.uncertainCall |= condUncertain;
+                    out.push_back(std::move(arm));
+                }
+                return out;
+            }
+
+            static ArmList capArms(ArmList arms, bool& collapsed) {
+                if (arms.size() <= kMaxQualifierArmsPerBit) return arms;
+                collapsed = true;
+                CombQualifierArm fallback;
+                auto data = std::make_shared<std::vector<NodeId>>();
+                auto ctrl = std::make_shared<std::vector<NodeId>>();
+                for (const auto& arm : arms) {
+                    if (arm.dataDependencies) mergeUnique(*data, *arm.dataDependencies);
+                    if (arm.controlDependencies) mergeUnique(*ctrl, *arm.controlDependencies);
+                    fallback.dataApproximate |= arm.dataApproximate;
+                    fallback.controlApproximate |= arm.controlApproximate;
+                    fallback.uncertainCall |= arm.uncertainCall;
+                    fallback.unassigned |= arm.unassigned;
+                }
+                fallback.dataApproximate = true;
+                fallback.dataDependencies = std::move(data);
+                fallback.controlDependencies = std::move(ctrl);
+                if (!fallback.controlDependencies->empty()) {
+                    std::vector<BoolFactPtr> refs;
+                    for (NodeId n : *fallback.controlDependencies)
+                        refs.push_back(std::make_shared<BoolFact>(BoolFact{BoolFact::Kind::Node, n, false, false, {}}));
+                    fallback.guards.push_back({std::make_shared<BoolFact>(BoolFact{BoolFact::Kind::Unknown, kNoNode, false, fallback.uncertainCall, std::move(refs)}),
+                                               *fallback.controlDependencies});
+                }
+                return {std::move(fallback)};
+            }
+
+            ArmList resolveArmAgainstState(const CombQualifierArm& arm, const CombState& snapshot) {
+                if (!arm.dataDependencies || arm.dataDependencies->empty()) return {arm};
+                std::vector<NodeId> stateDeps;
+                for (NodeId d : *arm.dataDependencies)
+                    if (snapshot.count(d)) stateDeps.push_back(d);
+                if (stateDeps.empty()) return {arm};
+                if (arm.dataDependencies->size() == 1 && stateDeps.size() == 1) {
+                    const auto& srcArms = snapshot.at(stateDeps[0]);
+                    ArmList out;
+                    for (const auto& srcArm : srcArms) {
+                        CombQualifierArm merged = arm;
+                        merged.guards.insert(merged.guards.end(), srcArm.guards.begin(), srcArm.guards.end());
+                        auto ctrl = std::make_shared<std::vector<NodeId>>();
+                        if (arm.controlDependencies) mergeUnique(*ctrl, *arm.controlDependencies);
+                        if (srcArm.controlDependencies) mergeUnique(*ctrl, *srcArm.controlDependencies);
+                        merged.controlDependencies = std::move(ctrl);
+                        merged.dataDependencies = srcArm.dataDependencies;
+                        merged.dataApproximate |= srcArm.dataApproximate;
+                        merged.controlApproximate |= srcArm.controlApproximate;
+                        merged.uncertainCall |= srcArm.uncertainCall;
+                        merged.unassigned |= srcArm.unassigned;
+                        out.push_back(std::move(merged));
+                    }
+                    bool dummy = false;
+                    return capArms(std::move(out), dummy);
+                }
+                // Multiple data reads where at least one was already assigned in this procedure.
+                ArmList cur{arm};
+                for (NodeId sd : stateDeps) {
+                    const auto& srcArms = snapshot.at(sd);
+                    if (cur.size() * srcArms.size() > kMaxQualifierArmsPerBit) {
+                        // Conservative union of dependencies for this read.
+                        for (auto& c : cur) {
+                            auto data = std::make_shared<std::vector<NodeId>>();
+                            if (c.dataDependencies) {
+                                for (NodeId d : *c.dataDependencies)
+                                    if (d != sd) data->push_back(d);
+                            }
+                            auto ctrl = std::make_shared<std::vector<NodeId>>();
+                            if (c.controlDependencies) mergeUnique(*ctrl, *c.controlDependencies);
+                            for (const auto& sa : srcArms) {
+                                if (sa.dataDependencies) mergeUnique(*data, *sa.dataDependencies);
+                                if (sa.controlDependencies) mergeUnique(*ctrl, *sa.controlDependencies);
+                                c.dataApproximate |= sa.dataApproximate;
+                                c.controlApproximate |= sa.controlApproximate;
+                                c.uncertainCall |= sa.uncertainCall;
+                                c.unassigned |= sa.unassigned;
+                            }
+                            std::sort(data->begin(), data->end());
+                            data->erase(std::unique(data->begin(), data->end()), data->end());
+                            c.dataDependencies = std::move(data);
+                            c.controlDependencies = std::move(ctrl);
+                            c.dataApproximate = true;
+                        }
+                        continue;
+                    }
+                    ArmList next;
+                    for (const auto& c : cur) {
+                        for (const auto& sa : srcArms) {
+                            CombQualifierArm merged = c;
+                            merged.guards.insert(merged.guards.end(), sa.guards.begin(), sa.guards.end());
+                            auto data = std::make_shared<std::vector<NodeId>>();
+                            if (c.dataDependencies) {
+                                for (NodeId d : *c.dataDependencies)
+                                    if (d != sd) data->push_back(d);
+                            }
+                            if (sa.dataDependencies) mergeUnique(*data, *sa.dataDependencies);
+                            auto ctrl = std::make_shared<std::vector<NodeId>>();
+                            if (c.controlDependencies) mergeUnique(*ctrl, *c.controlDependencies);
+                            if (sa.controlDependencies) mergeUnique(*ctrl, *sa.controlDependencies);
+                            merged.dataDependencies = std::move(data);
+                            merged.controlDependencies = std::move(ctrl);
+                            merged.dataApproximate |= sa.dataApproximate;
+                            merged.controlApproximate |= sa.controlApproximate;
+                            merged.uncertainCall |= sa.uncertainCall;
+                            merged.unassigned |= sa.unassigned;
+                            next.push_back(std::move(merged));
+                        }
+                    }
+                    cur = std::move(next);
+                }
+                bool dummy = false;
+                return capArms(std::move(cur), dummy);
+            }
+
+            void markFallbackTargets(const Expression& lhs, const Expression& rhs) {
+                auto data = std::make_shared<const std::vector<NodeId>>(b.nodesOfExpr(rhs, ec, ctx));
+                auto ctrl = std::make_shared<const std::vector<NodeId>>();
+                bool approx = true;
+                bool uncertain = !b.callIssues(rhs, ctx).empty() || !b.callIssues(lhs, ctx).empty();
+                CombQualifierArm arm{{}, data, ctrl, approx, approx, uncertain, false};
+                for (const auto& p : b.pathsOf(lhs, ec, true)) {
+                    for (NodeId n : b.nodesFor(ctx, p)) {
+                        assignState(n, resolveArmAgainstState(arm, state));
+                    }
+                }
+            }
+
+            void handle(const TimedStatement& t) {
+                if (t.timing.kind != TimingControlKind::ImplicitEvent) incompleteTiming = true;
+                t.stmt.visit(*this);
+            }
+            void handle(const BlockStatement& blk) {
+                if (blk.blockKind != StatementBlockKind::Sequential) {
+                    aborted = true;
+                    return;
+                }
+                blk.body.visit(*this);
+            }
+            void handle(const VariableDeclStatement& vd) {
+                const auto& sym = vd.symbol;
+                if (!isGraphSymbol(sym) || sym.getType().isUnpackedArray()) return;
+                const auto* init = sym.getInitializer();
+                if (!init) return;
+                init->visit(*this);
+                uint64_t w = widthOf(sym);
+                if (!w || b.collapse(sym, w)) return;
+                auto arms = b.decomposeExprArms(*init, ec, ctx, w);
+                const CombState snapshot = state;
+                for (size_t i = 0; i < w; ++i) {
+                    NodeId n = b.nodeForBit(ctx, {&sym, static_cast<uint32_t>(w - 1 - i)});
+                    ArmList resolved;
+                    for (const auto& arm : arms[i]) {
+                        if (arm.dataDependencies) noteDataReads(*arm.dataDependencies);
+                        for (const auto& g : arm.guards) noteGuardDeps(g.dependencies);
+                        auto expanded = resolveArmAgainstState(arm, snapshot);
+                        resolved.insert(resolved.end(), std::make_move_iterator(expanded.begin()), std::make_move_iterator(expanded.end()));
+                    }
+                    bool dummy = false;
+                    assignState(n, capArms(std::move(resolved), dummy));
+                }
+            }
+            void handle(const CallExpression& c) {
+                if (c.isSystemCall()) {
+                    const auto& name = std::get<CallExpression::SystemCallInfo>(c.subroutine).subroutine->name;
+                    static const std::set<std::string_view> mutating = {
+                        "delete", "push_back", "push_front", "pop_back", "pop_front",
+                        "insert", "shuffle", "reverse", "sort", "rsort", "putc", "randomize"};
+                    if (c.hasOutputArgs() || mutating.count(name)) aborted = true;
+                    visitDefault(c);
+                    return;
+                }
+                const auto& summary = b.summaryFor(c);
+                const auto* sub = std::get<const SubroutineSymbol*>(c.subroutine);
+                const bool hasOutFormal = sub && std::any_of(sub->getArguments().begin(), sub->getArguments().end(),
+                    [](const auto* arg) { return arg->direction != ArgumentDirection::In; });
+                if (!summary.writes.empty() || summary.unboundedWrites || c.thisClass() || c.hasOutputArgs() || hasOutFormal)
+                    aborted = true;
+                visitDefault(c);
+            }
+            void handle(const UnaryExpression& u) {
+                if (u.op == UnaryOperator::Preincrement || u.op == UnaryOperator::Postincrement ||
+                    u.op == UnaryOperator::Predecrement || u.op == UnaryOperator::Postdecrement) {
+                    markFallbackTargets(u.operand(), u.operand());
+                }
+                visitDefault(u);
+            }
+            void handle(const AssignmentExpression& a) {
+                if (a.isLValueArg()) {
+                    visitDefault(a);
+                    return;
+                }
+                a.left().visit(*this);
+                a.right().visit(*this);
+                if (a.isNonBlocking() || a.isCompound() || !b.callsIn(a.left()).empty() || b.hasDynamicSelect(a.left(), ec)) {
+                    markFallbackTargets(a.left(), a.right());
+                    return;
+                }
+                std::vector<BitRef> targetBits;
+                if (!b.bitList(a.left(), ec, targetBits) || targetBits.empty() ||
+                    !std::all_of(targetBits.begin(), targetBits.end(), [](const BitRef& bit) { return bit.sym != nullptr && !bit.sym->getType().isUnpackedArray(); }) ||
+                    b.collapse(*targetBits.front().sym, widthOf(*targetBits.front().sym))) {
+                    markFallbackTargets(a.left(), a.right());
+                    return;
+                }
+                auto arms = b.decomposeExprArms(a.right(), ec, ctx, targetBits.size());
+                if (arms.size() != targetBits.size()) {
+                    markFallbackTargets(a.left(), a.right());
+                    return;
+                }
+                const CombState snapshot = state;
+                for (size_t i = 0; i < targetBits.size(); ++i) {
+                    NodeId targetNode = b.nodeForBit(ctx, targetBits[i]);
+                    ArmList resolved;
+                    for (const auto& arm : arms[i]) {
+                        if (arm.dataDependencies) noteDataReads(*arm.dataDependencies);
+                        for (const auto& g : arm.guards) noteGuardDeps(g.dependencies);
+                        auto expanded = resolveArmAgainstState(arm, snapshot);
+                        resolved.insert(resolved.end(), std::make_move_iterator(expanded.begin()), std::make_move_iterator(expanded.end()));
+                    }
+                    bool dummy = false;
+                    assignState(targetNode, capArms(std::move(resolved), dummy));
+                }
+            }
+            static bool sameBoolFact(const BoolFactPtr& a, const BoolFactPtr& b) {
+                if (a.get() == b.get()) return a != nullptr;
+                if (!a || !b || a->kind != b->kind) return false;
+                if (a->kind == BoolFact::Kind::Unknown) return false;
+                if (a->node != b->node || a->value != b->value || a->opaque != b->opaque ||
+                    a->args.size() != b->args.size())
+                    return false;
+                for (size_t i = 0; i < a->args.size(); ++i)
+                    if (!sameBoolFact(a->args[i], b->args[i])) return false;
+                return true;
+            }
+            static bool sameGuard(const GuardCondition& a, const GuardCondition& b) {
+                return a.dependencies == b.dependencies && sameBoolFact(a.predicate, b.predicate);
+            }
+            static bool sameArms(const ArmList& a, const ArmList& c) {
+                if (a.size() != c.size()) return false;
+                for (size_t i = 0; i < a.size(); ++i) {
+                    if (a[i].unassigned != c[i].unassigned ||
+                        a[i].dataApproximate != c[i].dataApproximate ||
+                        a[i].controlApproximate != c[i].controlApproximate ||
+                        a[i].uncertainCall != c[i].uncertainCall ||
+                        a[i].guards.size() != c[i].guards.size())
+                        return false;
+                    const bool sameData = a[i].dataDependencies == c[i].dataDependencies ||
+                        (a[i].dataDependencies && c[i].dataDependencies && *a[i].dataDependencies == *c[i].dataDependencies);
+                    if (!sameData) return false;
+                    const bool sameCtrl = a[i].controlDependencies == c[i].controlDependencies ||
+                        (a[i].controlDependencies && c[i].controlDependencies && *a[i].controlDependencies == *c[i].controlDependencies);
+                    if (!sameCtrl) return false;
+                    for (size_t j = 0; j < a[i].guards.size(); ++j)
+                        if (!sameGuard(a[i].guards[j], c[i].guards[j])) return false;
+                }
+                return true;
+            }
+            void handle(const ConditionalStatement& s) {
+                if (b.design.hasCaseMode() && s.conditions.size() == 1 && !s.conditions[0].pattern) {
+                    int v = b.modeValue(*s.conditions[0].expr, ec);
+                    if (v >= 0) {
+                        if (v) s.ifTrue.visit(*this);
+                        else if (s.ifFalse) s.ifFalse->visit(*this);
+                        return;
+                    }
+                }
+                if (s.conditions.size() == 1 && !s.conditions[0].pattern) {
+                    if (auto value = model::elaboratedCondition(*s.conditions[0].expr, ec)) {
+                        if (*value) s.ifTrue.visit(*this);
+                        else if (s.ifFalse) s.ifFalse->visit(*this);
+                        return;
+                    }
+                }
+                if (s.conditions.size() == 1 && !s.conditions[0].pattern && b.alwaysFalseExpr(*s.conditions[0].expr, ec)) {
+                    if (s.ifFalse) s.ifFalse->visit(*this);
+                    return;
+                }
+                for (const auto& c : s.conditions) c.expr->visit(*this);
+                if (s.conditions.size() != 1 || s.conditions[0].pattern) {
+                    // Unsupported condition pattern: conservatively merge under Unknown guard.
+                    std::vector<NodeId> deps;
+                    BoolFactPtr pred = b.unknownBoolean(*s.conditions[0].expr, ec, ctx);
+                    for (const auto& c : s.conditions) mergeUnique(deps, b.nodesOfExpr(*c.expr, ec, ctx));
+                    GuardCondition g{pred, deps};
+                    noteGuardDeps(g.dependencies);
+                    const CombState entry = state;
+                    CombWalker trueW(b, ec, ctx), falseW(b, ec, ctx);
+                    trueW.state = entry; falseW.state = entry;
+                    trueW.guardReads = guardReads; falseW.guardReads = guardReads;
+                    trueW.anyReads = anyReads; falseW.anyReads = anyReads;
+                    trueW.staleNodes = staleNodes; falseW.staleNodes = staleNodes;
+                    s.ifTrue.visit(trueW);
+                    if (s.ifFalse) s.ifFalse->visit(falseW);
+                    aborted |= trueW.aborted || falseW.aborted;
+                    staleGuardRead |= trueW.staleGuardRead || falseW.staleGuardRead;
+                    incompleteTiming |= trueW.incompleteTiming || falseW.incompleteTiming;
+                    guardReads.insert(trueW.guardReads.begin(), trueW.guardReads.end());
+                    guardReads.insert(falseW.guardReads.begin(), falseW.guardReads.end());
+                    anyReads.insert(trueW.anyReads.begin(), trueW.anyReads.end());
+                    anyReads.insert(falseW.anyReads.begin(), falseW.anyReads.end());
+                    staleNodes.insert(trueW.staleNodes.begin(), trueW.staleNodes.end());
+                    staleNodes.insert(falseW.staleNodes.begin(), falseW.staleNodes.end());
+                    std::unordered_set<NodeId> touched;
+                    for (const auto& [n, arms] : trueW.state) {
+                        auto eit = entry.find(n);
+                        if (eit == entry.end() || !sameArms(arms, eit->second)) touched.insert(n);
+                    }
+                    for (const auto& [n, arms] : falseW.state) {
+                        auto eit = entry.find(n);
+                        if (eit == entry.end() || !sameArms(arms, eit->second)) touched.insert(n);
+                    }
+                    for (NodeId n : touched) {
+                        ArmList merged;
+                        auto tIt = trueW.state.find(n);
+                        ArmList tArms = tIt != trueW.state.end() ? tIt->second : ArmList{unassignedArm()};
+                        auto fIt = falseW.state.find(n);
+                        ArmList fArms = fIt != falseW.state.end() ? fIt->second : ArmList{unassignedArm()};
+                        for (auto& a : attachGuard(tArms, g, false, false)) merged.push_back(std::move(a));
+                        for (auto& a : attachGuard(fArms, g, false, false)) merged.push_back(std::move(a));
+                        bool dummy = false;
+                        state[n] = capArms(std::move(merged), dummy);
+                    }
+                    return;
+                }
+                const Expression& condExpr = *s.conditions[0].expr;
+                GuardCondition trueGuard{b.booleanOf(condExpr, ec, ctx), b.nodesOfExpr(condExpr, ec, ctx)};
+                GuardCondition falseGuard{b.boolFact(BoolFact::Kind::Not, {trueGuard.predicate}), trueGuard.dependencies};
+                noteGuardDeps(trueGuard.dependencies);
+                const bool condApprox = b.hasDynamicSelect(condExpr, ec) || !b.callsIn(condExpr).empty();
+                const bool condUncertain = !b.callIssues(condExpr, ctx).empty();
+                const CombState entry = state;
+                CombWalker trueW(b, ec, ctx);
+                trueW.state = entry;
+                trueW.guardReads = guardReads;
+                trueW.anyReads = anyReads;
+                trueW.staleNodes = staleNodes;
+                trueW.unrollWalks = unrollWalks;
+                trueW.unrollFactor = unrollFactor;
+                s.ifTrue.visit(trueW);
+                CombState falseState = entry;
+                if (s.ifFalse) {
+                    CombWalker falseW(b, ec, ctx);
+                    falseW.state = entry;
+                    falseW.guardReads = guardReads;
+                    falseW.anyReads = anyReads;
+                    falseW.staleNodes = staleNodes;
+                    falseW.unrollWalks = trueW.unrollWalks;
+                    falseW.unrollFactor = unrollFactor;
+                    s.ifFalse->visit(falseW);
+                    falseState = std::move(falseW.state);
+                    aborted |= falseW.aborted;
+                    staleGuardRead |= falseW.staleGuardRead;
+                    incompleteTiming |= falseW.incompleteTiming;
+                    guardReads.insert(falseW.guardReads.begin(), falseW.guardReads.end());
+                    anyReads.insert(falseW.anyReads.begin(), falseW.anyReads.end());
+                    staleNodes.insert(falseW.staleNodes.begin(), falseW.staleNodes.end());
+                    unrollWalks = falseW.unrollWalks;
+                } else {
+                    unrollWalks = trueW.unrollWalks;
+                }
+                aborted |= trueW.aborted;
+                staleGuardRead |= trueW.staleGuardRead;
+                incompleteTiming |= trueW.incompleteTiming;
+                guardReads.insert(trueW.guardReads.begin(), trueW.guardReads.end());
+                anyReads.insert(trueW.anyReads.begin(), trueW.anyReads.end());
+                staleNodes.insert(trueW.staleNodes.begin(), trueW.staleNodes.end());
+                std::unordered_set<NodeId> touched;
+                for (const auto& [n, arms] : trueW.state) {
+                    auto eit = entry.find(n);
+                    if (eit == entry.end() || !sameArms(arms, eit->second)) touched.insert(n);
+                }
+                for (const auto& [n, arms] : falseState) {
+                    auto eit = entry.find(n);
+                    if (eit == entry.end() || !sameArms(arms, eit->second)) touched.insert(n);
+                }
+                for (NodeId n : touched) {
+                    ArmList merged;
+                    auto tIt = trueW.state.find(n);
+                    ArmList tArms = tIt != trueW.state.end() ? tIt->second : ArmList{unassignedArm()};
+                    auto fIt = falseState.find(n);
+                    ArmList fArms = fIt != falseState.end() ? fIt->second : ArmList{unassignedArm()};
+                    for (auto& a : attachGuard(tArms, trueGuard, condApprox, condUncertain)) merged.push_back(std::move(a));
+                    for (auto& a : attachGuard(fArms, falseGuard, condApprox, condUncertain)) merged.push_back(std::move(a));
+                    bool dummy = false;
+                    state[n] = capArms(std::move(merged), dummy);
+                }
+            }
+            void handle(const CaseStatement& s) {
+                s.expr.visit(*this);
+                std::vector<NodeId> caseDeps = b.nodesOfExpr(s.expr, ec, ctx);
+                bool caseUncertain = !b.callIssues(s.expr, ctx).empty();
+                bool caseApprox = b.hasDynamicSelect(s.expr, ec) || !b.callsIn(s.expr).empty();
+                for (const auto& g : s.items)
+                    for (const auto* e : g.expressions) {
+                        e->visit(*this);
+                        mergeUnique(caseDeps, b.nodesOfExpr(*e, ec, ctx));
+                        caseUncertain |= !b.callIssues(*e, ctx).empty();
+                        caseApprox |= b.hasDynamicSelect(*e, ec) || !b.callsIn(*e).empty();
+                    }
+                GuardCondition caseGuard{b.unknownBoolean(s.expr, ec, ctx), caseDeps};
+                noteGuardDeps(caseGuard.dependencies);
+                const CombState entry = state;
+                std::vector<CombState> armStates;
+                for (const auto& g : s.items) {
+                    CombWalker w(b, ec, ctx);
+                    w.state = entry;
+                    w.guardReads = guardReads;
+                    w.anyReads = anyReads;
+                    w.staleNodes = staleNodes;
+                    g.stmt->visit(w);
+                    aborted |= w.aborted;
+                    staleGuardRead |= w.staleGuardRead;
+                    incompleteTiming |= w.incompleteTiming;
+                    guardReads.insert(w.guardReads.begin(), w.guardReads.end());
+                    anyReads.insert(w.anyReads.begin(), w.anyReads.end());
+                    staleNodes.insert(w.staleNodes.begin(), w.staleNodes.end());
+                    armStates.push_back(std::move(w.state));
+                }
+                if (s.defaultCase) {
+                    CombWalker w(b, ec, ctx);
+                    w.state = entry;
+                    w.guardReads = guardReads;
+                    w.anyReads = anyReads;
+                    w.staleNodes = staleNodes;
+                    s.defaultCase->visit(w);
+                    aborted |= w.aborted;
+                    staleGuardRead |= w.staleGuardRead;
+                    incompleteTiming |= w.incompleteTiming;
+                    guardReads.insert(w.guardReads.begin(), w.guardReads.end());
+                    anyReads.insert(w.anyReads.begin(), w.anyReads.end());
+                    staleNodes.insert(w.staleNodes.begin(), w.staleNodes.end());
+                    armStates.push_back(std::move(w.state));
+                } else {
+                    armStates.push_back(entry);
+                }
+                std::unordered_set<NodeId> touched;
+                for (const auto& as : armStates)
+                    for (const auto& [n, _] : as) touched.insert(n);
+                for (NodeId n : touched) {
+                    ArmList merged;
+                    for (const auto& as : armStates) {
+                        auto it = as.find(n);
+                        ArmList arms = it != as.end() ? it->second : ArmList{unassignedArm()};
+                        for (auto& a : attachGuard(arms, caseGuard, caseApprox, caseUncertain)) merged.push_back(std::move(a));
+                    }
+                    bool dummy = false;
+                    state[n] = capArms(std::move(merged), dummy);
+                }
+            }
+            void handle(const ForLoopStatement& s) {
+                std::vector<LoopBinding> iterations;
+                if (b.unrollForLoop(s, ec, iterations) && iterations.size() * unrollFactor + unrollWalks <= kCombUnrollBudget) {
+                    unrollWalks += iterations.size() * unrollFactor;
+                    const size_t savedFactor = unrollFactor;
+                    unrollFactor *= std::max<size_t>(1, iterations.size());
+                    const auto saved = b.boundLoops;
+                    for (const auto& binding : iterations) {
+                        for (size_t k = saved.size(); k < binding.size(); ++k) ec.createLocal(binding[k].first, binding[k].second);
+                        b.boundLoops = binding;
+                        s.body.visit(*this);
+                        for (size_t k = saved.size(); k < binding.size(); ++k) ec.deleteLocal(binding[k].first);
+                    }
+                    b.boundLoops = saved;
+                    unrollFactor = savedFactor;
+                    return;
+                }
+                aborted = true;
+            }
+            void handle(const WhileLoopStatement&) { aborted = true; }
+            void handle(const DoWhileLoopStatement&) { aborted = true; }
+            void handle(const ReturnStatement&) { aborted = true; }
+            void handle(const DisableStatement&) { aborted = true; }
+            void handle(const BreakStatement&) { aborted = true; }
+            void handle(const ContinueStatement&) { aborted = true; }
+        };
+
+        JumpFinder jumps;
+        pb.getBody().visit(jumps);
+        CombWalker walker(*this, ec, ctx);
+        pb.getBody().visit(walker);
+        if (jumps.found || walker.aborted || walker.staleGuardRead) {
+            // Unstructured control flow / un-unrolled loop: mark all written targets incomplete/unsupported.
+            std::vector<Assign> raw;
+            StmtVisitor sv(*this, ec, raw, ctx);
+            sv.modelSteps = true;
+            pb.getBody().visit(sv);
+            for (const auto& a : raw) {
+                for (const auto& t : a.targets)
+                    for (NodeId n : nodesFor(ctx, t)) {
+                        m.booleanDrivers[n] = {BooleanDriver{boolFact(BoolFact::Kind::Unknown, {}), true}};
+                        CombQualifierSummary s;
+                        s.supported = false;
+                        s.incomplete = true;
+                        recordCombDriver(n, proc, std::move(s));
+                    }
+            }
+            return;
+        }
+        auto dependsOnStale = [&](const CombQualifierArm& arm) {
+            if (arm.dataDependencies)
+                for (NodeId d : *arm.dataDependencies)
+                    if (walker.staleNodes.count(d)) return true;
+            if (arm.controlDependencies)
+                for (NodeId c : *arm.controlDependencies)
+                    if (walker.staleNodes.count(c)) return true;
+            return false;
+        };
+        for (auto& [node, arms] : walker.state) {
+            bool staleValue = walker.staleNodes.count(node) != 0;
+            CombQualifierSummary summary;
+            summary.supported = true;
+            summary.incomplete = walker.incompleteTiming;
+            for (auto& arm : arms) {
+                if (dependsOnStale(arm)) staleValue = true;
+                if (arm.unassigned) {
+                    summary.incomplete = true;
+                    staleValue = true;
+                } else summary.arms.push_back(std::move(arm));
+            }
+            if (staleValue) {
+                m.booleanDrivers[node] = {BooleanDriver{boolFact(BoolFact::Kind::Unknown, {}), true}};
+                summary.supported = false;
+                summary.incomplete = true;
+            }
+            recordCombDriver(node, proc, std::move(summary));
+        }
     }
 
     void analyseSequential(const ProceduralBlockSymbol& pb, const InstanceSymbol* ctx, EvalContext& ec,
                            const std::vector<Event>& events, const Statement* first, std::vector<Assign>& assigns,
-                           uint32_t proc) {
+                           uint32_t proc, bool procHasBodyTiming = false) {
         // --- identify clock and asynchronous resets among the edge events
         std::vector<const Event*> edgeEvents;
         for (auto& e : events) if (e.edge) edgeEvents.push_back(&e);
@@ -3012,6 +5055,7 @@ private:
             }
         }
         const Event* clk = nullptr;
+        bool dualEdge = false;
         std::vector<const Event*> rsts;
         if (edgeEvents.size() == 1) {
             clk = edgeEvents[0];
@@ -3021,7 +5065,20 @@ private:
                 if (e->ok && topCond.count(e->path)) rsts.push_back(e); else nonReset.push_back(e);
             }
             if (nonReset.size() == 1) clk = nonReset[0];
-            else rsts.clear();   // ambiguous: cannot tell which is the clock
+            else if (nonReset.size() == 2) {
+                const auto* a = nonReset[0];
+                const auto* b = nonReset[1];
+                std::vector<BitRef> aBits, bBits;
+                const bool opposite = (a->edge == 1 && b->edge == 2) || (a->edge == 2 && b->edge == 1);
+                if (a->ok && b->ok && opposite && a->path == b->path &&
+                    bitList(*a->expression, ec, aBits) && bitList(*b->expression, ec, bBits) &&
+                    aBits.size() == 1 && bBits.size() == 1 && aBits[0].sym &&
+                    aBits[0].sym == bBits[0].sym && aBits[0].bit == bBits[0].bit) {
+                    clk = a;
+                    dualEdge = true;
+                }
+            }
+            if (!clk) rsts.clear();   // ambiguous: cannot tell which is the clock
         }
         NodeId clockNode = kNoNode;
         int clockEdge = 0;
@@ -3029,7 +5086,7 @@ private:
         if (clockOk) {
             auto ns = nodesFor(ctx, clk->path);
             clockNode = ns.empty() ? kNoNode : ns[0];
-            clockEdge = clk->edge;
+            clockEdge = dualEdge ? 3 : clk->edge;
             if (clk->path.hi != clk->path.lo && widthOf(*clk->path.sym) > 1 && ns.size() != 1) clockOk = false;
         }
         if (!clockOk) {
@@ -3095,12 +5152,45 @@ private:
             }
             cur = c.ifFalse ? firstMeaningful(c.ifFalse) : nullptr;
         }
-        // heuristic synchronous reset candidate: top-level if on one signal, then-branch assigns constants
+        // Guard formulas are deliberately small: a conjunction of known-true
+        // constants and 1-bit signal literals. Negation applies to the next
+        // literal; negated conjunctions (disjunctions) remain unknown.
+        const auto collectResetGuards = [&](const Expression& expression, std::map<NodeId, bool>& guards) {
+            std::function<bool(const Expression&, bool)> collect = [&](const Expression& expr, bool negated) {
+                const Expression* term = &expr;
+                while (term->kind == ExpressionKind::Conversion) term = &term->as<ConversionExpression>().operand();
+                if (term->kind == ExpressionKind::UnaryOp) {
+                    const auto& unary = term->as<UnaryExpression>();
+                    if (unary.op != UnaryOperator::LogicalNot && unary.op != UnaryOperator::BitwiseNot) return false;
+                    return collect(unary.operand(), !negated);
+                }
+                if (term->kind == ExpressionKind::BinaryOp && term->as<BinaryExpression>().op == BinaryOperator::LogicalAnd) {
+                    if (negated) return false;
+                    const auto& binary = term->as<BinaryExpression>();
+                    return collect(binary.left(), false) && collect(binary.right(), false);
+                }
+                auto cv = term->eval(ec);
+                if (cv.isInteger() && !cv.hasUnknown()) return cv.isTrue() != negated;
+                if (term->kind != ExpressionKind::NamedValue) return false;
+                auto paths = pathsOf(*term, ec, false);
+                if (paths.size() != 1 || pathWidth(paths[0]) != 1) return false;
+                auto nodes = nodesFor(ctx, paths[0]);
+                if (nodes.size() != 1) return false;
+                auto [it, inserted] = guards.emplace(nodes[0], negated);
+                return inserted || it->second == negated;
+            };
+            return collect(expression, false) && !guards.empty();
+        };
+
+        // heuristic synchronous reset candidate: top-level supported guard, then-branch assigns constants
         bool syncCand = false, syncLow = false;
-        NodeId syncSig = kNoNode;
+        std::map<NodeId, bool> syncGuardPolarity;
+        std::map<NodeId, char> syncResetValues;
         if (resets.empty() && topIf && topIf->conditions.size() == 1) {
-            auto cp = pathsOf(*topIf->conditions[0].expr, ec, false);
-            if (cp.size() == 1 && pathWidth(cp[0]) == 1) {
+            const Expression& test = *topIf->conditions[0].expr;
+            auto whole = test.eval(ec);
+            const bool constantCondition = whole.isInteger() && !whole.hasUnknown();
+            if (!constantCondition && collectResetGuards(test, syncGuardPolarity)) {
                 std::vector<Assign> tmp;
                 StmtVisitor tv(*this, ec, tmp, ctx);
                 topIf->ifTrue.visit(tv);
@@ -3109,25 +5199,23 @@ private:
                 for (auto& a : tmp) if (!a.dataReads.empty()) allConst = false;
                 syncCand = allConst;
                 if (syncCand) {
-                    auto ns = nodesFor(ctx, cp[0]);
-                    if (!ns.empty()) syncSig = ns[0];
-                    const Expression* ce = topIf->conditions[0].expr;
-                    while (ce->kind == ExpressionKind::Conversion) ce = &ce->as<ConversionExpression>().operand();
-                    if (ce->kind == ExpressionKind::UnaryOp) {
-                        auto op = ce->as<UnaryExpression>().op;
-                        syncLow = op == UnaryOperator::LogicalNot || op == UnaryOperator::BitwiseNot;
+                    for (const auto& a : tmp) if (a.pairsValid) for (const auto& [target, source] : a.pairs) {
+                        if (!target.sym || source.sym) continue;
+                        const NodeId bit = nodeForBit(ctx, target);
+                        auto [it, inserted] = syncResetValues.emplace(bit, source.value);
+                        if (!inserted && it->second != source.value) it->second = '?';
                     }
+                    syncLow = syncGuardPolarity.begin()->second;
                 }
             }
         }
 
-        // A final, else-free constant override is equivalent to a reset-first branch, but only
-        // for bits with one unconditional exact nonblocking data write earlier in the block.
+        // A trailing suffix of else-free constant overrides can be equivalent to a
+        // reset-first branch, but only for bits with one unconditional exact or inverted NBA earlier.
         // Keep the control edges: a reset driven from another domain is still a crossing.
-        std::set<NodeId> trailingResetBits;
-        NodeId trailingReset = kNoNode;
-        bool trailingLow = false;
-        bool unqualifiedClock = std::all_of(events.begin(), events.end(), [](const Event& e) { return e.iff.empty(); });
+        std::map<NodeId, std::map<std::pair<NodeId, bool>, char>> trailingResetGuards;
+        std::set<NodeId> unconditionalOverrideBits;
+        bool unqualifiedClock = std::all_of(events.begin(), events.end(), [](const Event& e) { return !e.hasIff && e.iff.empty(); });
         if (resets.empty() && unqualifiedClock && first && first->kind == StatementKind::Timed) {
             auto statements = [](const Statement* stmt) {
                 std::vector<const Statement*> result;
@@ -3140,67 +5228,172 @@ private:
             };
             auto list = statements(&first->as<TimedStatement>().stmt);
             if (list.size() >= 2 && list.back()->kind == StatementKind::Conditional) {
-                const auto& last = list.back()->as<ConditionalStatement>();
-                if (!last.ifFalse && last.conditions.size() == 1 && !last.conditions[0].pattern) {
-                    const Expression* cond = last.conditions[0].expr;
-                    while (cond->kind == ExpressionKind::Conversion) cond = &cond->as<ConversionExpression>().operand();
-                    if (cond->kind == ExpressionKind::UnaryOp) {
-                        const auto& unary = cond->as<UnaryExpression>();
-                        if (unary.op == UnaryOperator::LogicalNot || unary.op == UnaryOperator::BitwiseNot) {
-                            trailingLow = true;
-                            cond = &unary.operand();
-                            while (cond->kind == ExpressionKind::Conversion) cond = &cond->as<ConversionExpression>().operand();
+                // A suffix of else-free constant overrides is one effective reset
+                // candidate only when every overlapping write agrees. Earlier writes remain the normal D.
+                size_t suffix = list.size();
+                std::map<NodeId, char> forced;
+                std::map<NodeId, std::map<NodeId, bool>> forcingGuards;
+                bool suffixValid = true;
+                while (suffix > 0 && list[suffix - 1]->kind == StatementKind::Conditional) {
+                    const auto& c = list[suffix - 1]->as<ConditionalStatement>();
+                    if (c.ifFalse || c.conditions.size() != 1 || c.conditions[0].pattern) break;
+                    const Expression* test = c.conditions[0].expr;
+                    auto whole = test->eval(ec);
+                    if (whole.isInteger() && !whole.hasUnknown()) {
+                        if (!whole.isTrue()) { --suffix; continue; } // provably dead write
+                        auto branch = statements(&c.ifTrue);
+                        std::vector<std::vector<BitRef>> writes;
+                        bool allUnconditionalConstants = !branch.empty();
+                        for (const auto* stmt : branch) {
+                            if (stmt->kind != StatementKind::ExpressionStatement ||
+                                stmt->as<ExpressionStatement>().expr.kind != ExpressionKind::Assignment) {
+                                allUnconditionalConstants = false; break;
+                            }
+                            const auto& assignment = stmt->as<ExpressionStatement>().expr.as<AssignmentExpression>();
+                            auto value = assignment.right().eval(ec);
+                            std::vector<BitRef> targets;
+                            if (!assignment.isNonBlocking() || assignment.isCompound() || !value.isInteger() ||
+                                !bitList(assignment.left(), ec, targets) || targets.empty() ||
+                                std::any_of(targets.begin(), targets.end(), [](const BitRef& target) { return target.sym == nullptr; })) {
+                                allUnconditionalConstants = false; break;
+                            }
+                            writes.push_back(std::move(targets));
                         }
+                        if (allUnconditionalConstants)
+                            for (const auto& targets : writes) for (const auto& target : targets)
+                                unconditionalOverrideBits.insert(nodeForBit(ctx, target));
+                        suffixValid = false; break; // unconditional override is not a reset candidate
                     }
-                    auto cp = pathsOf(*last.conditions[0].expr, ec, false);
-                    if (cond->kind == ExpressionKind::NamedValue && cp.size() == 1 && pathWidth(cp[0]) == 1) {
-                        auto guards = nodesFor(ctx, cp[0]);
+                    std::map<NodeId, bool> conditionGuards;
+                    if (!collectResetGuards(*test, conditionGuards)) { suffixValid = false; break; }
+                    auto branch = statements(&c.ifTrue);
+                    if (branch.empty()) { suffixValid = false; break; }
+                    for (const auto* stmt : branch) {
+                        if (stmt->kind != StatementKind::ExpressionStatement) { suffixValid = false; break; }
+                        const auto& expr = stmt->as<ExpressionStatement>().expr;
+                        if (expr.kind != ExpressionKind::Assignment) { suffixValid = false; break; }
+                        const auto& assignment = expr.as<AssignmentExpression>();
+                        std::vector<Assign> parsed;
+                        StmtVisitor visitor(*this, ec, parsed, ctx);
+                        stmt->visit(visitor);
+                        std::vector<BitRef> targets;
+                        auto value = assignment.right().eval(ec);
+                        if (!assignment.isNonBlocking() || assignment.isCompound() || !value.isInteger() || value.integer().hasUnknown() ||
+                            parsed.size() != 1 || !parsed[0].ctrlReads.empty() || !bitList(assignment.left(), ec, targets) || targets.empty()) {
+                            suffixValid = false; break;
+                        }
+                        const auto bits = value.integer();
+                        for (size_t targetIndex = 0; targetIndex < targets.size(); ++targetIndex) {
+                            const auto& target = targets[targetIndex];
+                            if (!target.sym) { suffixValid = false; break; }
+                            const NodeId bit = nodeForBit(ctx, target);
+                            const auto valueIndex = bits.getBitWidth() - 1 - targetIndex;
+                            const char force = bits[static_cast<int32_t>(valueIndex)] ? '1' : '0';
+                            auto [it, inserted] = forced.emplace(bit, force);
+                            if (!inserted && it->second != force) { suffixValid = false; break; }
+                            for (const auto& [guard, low] : conditionGuards) {
+                                auto [guardIt, guardInserted] = forcingGuards[bit].emplace(guard, low);
+                                if (!guardInserted && guardIt->second != low) { suffixValid = false; break; }
+                            }
+                        }
+                        if (!suffixValid) break;
+                    }
+                    if (!suffixValid) break;
+                    --suffix;
+                }
+                if (suffix == list.size() || forcingGuards.empty()) suffixValid = false;
+                if (suffixValid) {
+                    std::map<NodeId, unsigned> priorWrites;
+                    std::set<NodeId> exactData;
+                    std::map<NodeId, NodeId> dataSource;
+                    for (size_t i = 0; i < suffix; ++i) {
+                        std::vector<Assign> prior;
+                        StmtVisitor visitor(*this, ec, prior, ctx);
+                        list[i]->visit(visitor);
+                        for (const auto& a : prior) for (const auto& target : a.targets)
+                            for (auto bit : nodesFor(ctx, target)) ++priorWrites[bit];
+                        if (list[i]->kind != StatementKind::ExpressionStatement || prior.size() != 1) continue;
+                        const auto& a = prior[0];
+                        if (!a.nonBlocking || !(a.pairsValid || a.flipPairsValid) || !a.ctrlReads.empty() || a.afterPossibleExit) continue;
+                        for (const auto& [target, source] : a.pairs)
+                            if (target.sym && source.sym) {
+                                const NodeId targetBit = nodeForBit(ctx, target);
+                                exactData.insert(targetBit);
+                                dataSource[targetBit] = nodeForBit(ctx, source);
+                            }
+                    }
+                    for (const auto& [bit, force] : forced) {
+                        const auto& guards = forcingGuards[bit];
+                        bool aliasesData = false;
+                        for (const auto& [guard, low] : guards) aliasesData |= dataSource[bit] == guard;
+                        if (priorWrites[bit] == 1 && exactData.count(bit) && !aliasesData && !guards.empty())
+                            for (const auto& [guard, low] : guards)
+                                trailingResetGuards[bit][{guard, low}] = force;
+                    }
+                }
+                // Keep the established single-final-override path for older
+                // supported forms whose surrounding block syntax is not a
+                // suffix of simple conditionals (for example, unrelated writes
+                // in the same process).
+                if (trailingResetGuards.empty()) {
+                    const auto& last = list.back()->as<ConditionalStatement>();
+                    if (!last.ifFalse && last.conditions.size() == 1 && !last.conditions[0].pattern) {
+                        const Expression* cond = last.conditions[0].expr;
+                        while (cond->kind == ExpressionKind::Conversion) cond = &cond->as<ConversionExpression>().operand();
+                        bool low = false;
+                        if (cond->kind == ExpressionKind::UnaryOp) {
+                            const auto& unary = cond->as<UnaryExpression>();
+                            if (unary.op == UnaryOperator::LogicalNot || unary.op == UnaryOperator::BitwiseNot) {
+                                low = true; cond = &unary.operand();
+                                while (cond->kind == ExpressionKind::Conversion) cond = &cond->as<ConversionExpression>().operand();
+                            }
+                        }
+                        auto paths = pathsOf(*cond, ec, false);
+                        auto guards = paths.size() == 1 && pathWidth(paths[0]) == 1 ? nodesFor(ctx, paths[0]) : std::vector<NodeId>{};
                         auto branch = statements(&last.ifTrue);
                         std::set<NodeId> overrides, exactData;
+                        std::map<NodeId, char> overrideValues;
                         std::map<NodeId, NodeId> dataSource;
                         std::map<NodeId, unsigned> priorWrites;
-                        bool valid = guards.size() == 1 && !branch.empty();
-                        for (auto* stmt : branch) {
-                            if (stmt->kind != StatementKind::ExpressionStatement) { valid = false; break; }
-                            const auto& expr = stmt->as<ExpressionStatement>().expr;
-                            if (expr.kind != ExpressionKind::Assignment) { valid = false; break; }
-                            const auto& assignment = expr.as<AssignmentExpression>();
-                            std::vector<Assign> a;
-                            StmtVisitor visitor(*this, ec, a, ctx);
+                        bool valid = cond->kind == ExpressionKind::NamedValue && guards.size() == 1 && !branch.empty();
+                        for (const auto* stmt : branch) {
+                            if (stmt->kind != StatementKind::ExpressionStatement || stmt->as<ExpressionStatement>().expr.kind != ExpressionKind::Assignment) { valid = false; break; }
+                            const auto& assignment = stmt->as<ExpressionStatement>().expr.as<AssignmentExpression>();
+                            std::vector<Assign> parsed;
+                            StmtVisitor visitor(*this, ec, parsed, ctx);
                             stmt->visit(visitor);
                             std::vector<BitRef> targets;
                             auto value = assignment.right().eval(ec);
-                            if (!assignment.isNonBlocking() || assignment.isCompound() || !value.isInteger() ||
-                                a.size() != 1 || !a[0].ctrlReads.empty() ||
-                                !bitList(assignment.left(), ec, targets) || targets.empty()) { valid = false; break; }
-                            for (const auto& target : targets) {
-                                if (!target.sym) { valid = false; break; }
-                                overrides.insert(nodeForBit(ctx, target));
+                            if (!assignment.isNonBlocking() || assignment.isCompound() || !value.isInteger() || value.integer().hasUnknown() ||
+                                parsed.size() != 1 || !parsed[0].ctrlReads.empty() || !bitList(assignment.left(), ec, targets) || targets.empty()) { valid = false; break; }
+                            for (size_t targetIndex = 0; targetIndex < targets.size(); ++targetIndex) {
+                                const auto& target = targets[targetIndex];
+                                if (target.sym) {
+                                const NodeId bit = nodeForBit(ctx, target);
+                                overrides.insert(bit);
+                                auto bits = value.integer();
+                                const auto valueIndex = bits.getBitWidth() - 1 - targetIndex;
+                                overrideValues[bit] = bits[static_cast<int32_t>(valueIndex)] ? '1' : '0';
+                                } else valid = false;
                             }
                         }
-                        for (size_t i = 0; valid && i + 1 < list.size(); ++i) {
+                        for (size_t i = 0; i + 1 < list.size(); ++i) {
                             std::vector<Assign> prior;
                             StmtVisitor visitor(*this, ec, prior, ctx);
                             list[i]->visit(visitor);
-                            for (const auto& a : prior)
-                                for (const auto& target : a.targets)
-                                    for (auto bit : nodesFor(ctx, target)) ++priorWrites[bit];
+                            for (const auto& a : prior) for (const auto& target : a.targets)
+                                for (auto bit : nodesFor(ctx, target)) ++priorWrites[bit];
                             if (list[i]->kind != StatementKind::ExpressionStatement || prior.size() != 1) continue;
                             const auto& a = prior[0];
-                            if (!a.nonBlocking || !a.pairsValid || !a.ctrlReads.empty()) continue;
-                            for (const auto& [target, source] : a.pairs)
-                                if (target.sym && source.sym) {
-                                    NodeId targetBit = nodeForBit(ctx, target);
-                                    exactData.insert(targetBit);
-                                    dataSource[targetBit] = nodeForBit(ctx, source);
-                                }
+                            if (!a.nonBlocking || !(a.pairsValid || a.flipPairsValid) || !a.ctrlReads.empty() || a.afterPossibleExit) continue;
+                            for (const auto& [target, source] : a.pairs) if (target.sym && source.sym) {
+                                const NodeId bit = nodeForBit(ctx, target);
+                                exactData.insert(bit); dataSource[bit] = nodeForBit(ctx, source);
+                            }
                         }
-                        if (valid) {
-                            trailingReset = guards[0];
-                            for (auto bit : overrides)
-                                if (priorWrites[bit] == 1 && exactData.count(bit) && dataSource[bit] != trailingReset)
-                                    trailingResetBits.insert(bit);
-                        }
+                        if (valid) for (auto bit : overrides)
+                            if (priorWrites[bit] == 1 && exactData.count(bit) && dataSource[bit] != guards[0])
+                                trailingResetGuards[bit][{guards[0], low}] = overrideValues[bit];
                     }
                 }
             }
@@ -3255,7 +5448,11 @@ private:
         const Statement* sole = only(only, &pb.getBody());
         if (sole && sole->kind == StatementKind::Timed) sole = only(only, &sole->as<TimedStatement>().stmt);
         bool plainEvents = true;
-        for (const auto& e : events) if (!e.iff.empty() || !e.uncertainCalls.empty()) plainEvents = false;
+        bool anyEventHasIff = false;
+        for (const auto& e : events) {
+            if (e.hasIff || !e.iff.empty()) anyEventHasIff = true;
+            if (e.hasIff || !e.iff.empty() || !e.uncertainCalls.empty()) plainEvents = false;
+        }
         if (plainEvents && sole == topIf && resets.size() == 1 && topIf && topIf->ifFalse &&
             topIf->conditions.size() == 1 && !topIf->conditions[0].pattern &&
             straight(straight, topIf->ifTrue) && straight(straight, *topIf->ifFalse)) {
@@ -3296,35 +5493,74 @@ private:
         }
 
         // --- edges and flops
+        // Filter out dead writes that Flow proves are completely overwritten
+        // in the same procedure before any read, observation, or exposure.
+        std::unique_ptr<flow::Flow> procFlow;
+        bool exactProcFlow = false;
+        if (pb.procedureKind != ProceduralBlockKind::AlwaysLatch) {
+            std::unordered_set<const ValueSymbol*> writtenOnce;
+            bool hasMultiWrite = false;
+            for (const auto& a : assigns) {
+                if (!a.asg) continue;
+                for (const auto& t : a.targets) {
+                    if (!writtenOnce.insert(t.sym).second) { hasMultiWrite = true; break; }
+                }
+                if (hasMultiWrite) break;
+            }
+            if (hasMultiWrite) {
+                procFlow = std::make_unique<flow::Flow>(pb);
+                exactProcFlow = !procFlow->bad && !procFlow->approximated && !procFlow->opaque &&
+                                !procFlow->timing && !procFlow->walkedOnce;
+            }
+        }
+        auto isDeadWrite = [&](const Assign& a, const Path& t) -> bool {
+            if (!exactProcFlow || !a.asg || !t.sym) return false;
+            bool sawMatch = false;
+            for (const auto& acc : procFlow->accesses) {
+                if (!acc.write || acc.asg != a.asg || acc.sym != t.sym) continue;
+                if (acc.range.second < t.lo || acc.range.first > t.hi) continue;
+                sawMatch = true;
+                if (!acc.exact || acc.live || acc.used || acc.observed || acc.exposed) return false;
+            }
+            return sawMatch;
+        };
         std::set<NodeId> qs;
         // Decide once per symbol: later conditional writes can make an earlier
         // blocking assignment stateful. Mixing Comb and Seq for the same symbol
         // would hide the first assignment from the register's fan-in cone.
         std::set<const ValueSymbol*> blockingState;
         std::set<const ValueSymbol*> readSoFar;
+        auto isOutputPort = [](const ValueSymbol& sym) {
+            for (const auto* backref = sym.getFirstPortBackref(); backref; backref = backref->getNextBackreference()) {
+                if (backref->port && (backref->port->direction == ArgumentDirection::Out ||
+                                      backref->port->direction == ArgumentDirection::InOut))
+                    return true;
+            }
+            return false;
+        };
         for (const auto& a : assigns) {
             for (auto* v : {&a.dataReads, &a.ctrlReads})
                 for (auto& r : *v) readSoFar.insert(r.sym);
             if (a.nonBlocking) continue;
             for (auto& t : a.targets)
-                if (isModuleLevel(*t.sym) &&
-                    (!a.uncertainCalls.empty() || !a.ctrlReads.empty() || readSoFar.count(t.sym) || readByOther(t.sym, &pb)))
+                if (isPackageState(*t.sym) || (isModuleLevel(*t.sym) &&
+                    (!a.uncertainCalls.empty() || !a.ctrlReads.empty() || readSoFar.count(t.sym) ||
+                     readByOther(t.sym, &pb) || isOutputPort(*t.sym))))
                     blockingState.insert(t.sym);
         }
         for (auto* sym : blockingState)
             fallback("blocking-assignment-register",
                      "'" + std::string(sym->name) + "' is assigned with a blocking assignment in a clocked "
                      "block and keeps state; treated as a register but never as a synchroniser stage", pb.location);
-        for (auto& a : assigns) {
-            std::vector<Path> moduleTargets, localTargets;
-            for (auto& t : a.targets) {
-                bool modLevel = isModuleLevel(*t.sym);
-                if (modLevel && !a.nonBlocking && !blockingState.count(t.sym)) modLevel = false;
-                (modLevel ? moduleTargets : localTargets).push_back(t);
-            }
-            if (!localTargets.empty()) emitAssign(ctx, a, localTargets, EdgeType::Comb, proc, pb.location);
-            if (moduleTargets.empty()) continue;
-            emitAssign(ctx, a, moduleTargets, EdgeType::Seq, proc, pb.location, &resetNodes);
+        std::unordered_set<Model::DeadEdgeKey, Model::DeadEdgeHash> procLiveEdges;
+        curLiveProcEdges = exactProcFlow ? &procLiveEdges : nullptr;
+        struct LiveEdgesGuard { Builder& b; ~LiveEdgesGuard() { b.curLiveProcEdges = nullptr; b.curDeadWrite = false; } } liveGuard{*this};
+        struct DeferredDead {
+            const Assign* a = nullptr;
+            std::vector<Path> localTargets, moduleTargets;
+        };
+        std::vector<DeferredDead> deferredDead;
+        auto emitModuleExtras = [&](const Assign& a, const std::vector<Path>& moduleTargets) {
             std::vector<Path> asyncReads;
             for (auto* v : {&a.ctrlReads, &a.dataReads})
                 for (auto& r : *v)
@@ -3333,8 +5569,163 @@ private:
             if (!asyncReads.empty()) connect(ctx, asyncReads, ctx, moduleTargets, EdgeType::AsyncCtl, proc, pb.location);
             for (auto& t : moduleTargets)
                 for (auto n : nodesFor(ctx, t)) qs.insert(n);
+        };
+        curDeadWrite = false;
+        auto rejectPaths = [&](const std::vector<Path>& ps) {
+            for (const auto& t : ps)
+                for (NodeId n : nodesFor(ctx, t)) m.stuckRejected.insert(n);
+        };
+        bool procHasUnattributedWrite = false;
+        for (const auto& a : assigns) {
+            if (a.unattributedWrite) { procHasUnattributedWrite = true; break; }
         }
+        for (auto& a : assigns) {
+            std::vector<Path> liveLocal, liveModule, deadLocal, deadModule;
+            for (auto& t : a.targets) {
+                const bool state = (isModuleLevel(*t.sym) || isPackageState(*t.sym)) &&
+                    (a.nonBlocking || blockingState.count(t.sym));
+                if (isDeadWrite(a, t)) (state ? deadModule : deadLocal).push_back(t);
+                else (state ? liveModule : liveLocal).push_back(t);
+            }
+            if (!liveLocal.empty()) emitAssign(ctx, a, liveLocal, EdgeType::Comb, proc, pb.location);
+            if (!liveModule.empty()) {
+                emitAssign(ctx, a, liveModule, EdgeType::Seq, proc, pb.location, &resetNodes);
+                emitModuleExtras(a, liveModule);
+                const bool uncondWrite = !a.afterPossibleExit && a.ctrlReads.empty() && a.booleanGuards.empty();
+                if (procHasUnattributedWrite || procHasBodyTiming || (a.asg && a.asg->timingControl != nullptr) ||
+                    a.called || a.approximate || a.unattributedWrite || !a.uncertainCalls.empty() || !a.nonBlocking) {
+                    rejectPaths(liveModule);
+                } else if (a.pairsValid) {
+                    for (const auto& [t, src] : a.pairs) {
+                        if (!t.sym) continue;
+                        const bool live = std::any_of(liveModule.begin(), liveModule.end(), [&](const Path& p) {
+                            return p.sym == t.sym && t.bit >= p.lo && t.bit <= p.hi;
+                        });
+                        if (!live) continue;
+                        const NodeId tn = nodeForBit(ctx, t);
+                        if (m.collapsed(tn)) { m.stuckRejected.insert(tn); continue; }
+                        if (!src.sym) {
+                            if (src.value == '0' || src.value == '1')
+                                m.stuckCandidates[tn].push_back({Model::StuckFlopWrite::Kind::Const, src.value, kNoNode, uncondWrite});
+                            else
+                                m.stuckRejected.insert(tn);
+                        } else {
+                            const NodeId sn = nodeForBit(ctx, src);
+                            m.stuckCandidates[tn].push_back({Model::StuckFlopWrite::Kind::Copy, '?', sn, uncondWrite});
+                        }
+                    }
+                } else {
+                    bool handled = false;
+                    if (a.asg && !a.asg->isCompound() && liveModule.size() == 1 && a.targets.size() == 1 &&
+                        widthOf(*liveModule[0].sym) == 1 &&
+                        (a.asg->left().kind == ExpressionKind::NamedValue || a.asg->left().kind == ExpressionKind::HierarchicalValue) &&
+                        a.asg->left().getSymbolReference() == liveModule[0].sym) {
+                        auto strip1 = [](const Expression& e) -> const Expression& {
+                            const Expression* x = &e;
+                            while (x->kind == ExpressionKind::Conversion && x->type && x->as<ConversionExpression>().operand().type &&
+                                   x->type->getBitstreamWidth() == 1 && x->as<ConversionExpression>().operand().type->getBitstreamWidth() == 1)
+                                x = &x->as<ConversionExpression>().operand();
+                            return *x;
+                        };
+                        const Expression& rhs = strip1(a.asg->right());
+                        if (rhs.kind == ExpressionKind::BinaryOp && rhs.type && rhs.type->isIntegral() && rhs.type->getBitstreamWidth() == 1) {
+                            const auto& bin = rhs.as<BinaryExpression>();
+                            using Kind = Model::StuckFlopWrite::Kind;
+                            std::optional<Kind> kind;
+                            if (bin.op == BinaryOperator::BinaryXor) kind = Kind::SelfXor;
+                            else if (bin.op == BinaryOperator::BinaryOr || bin.op == BinaryOperator::LogicalOr) kind = Kind::SelfOr;
+                            else if (bin.op == BinaryOperator::BinaryAnd || bin.op == BinaryOperator::LogicalAnd) kind = Kind::SelfAnd;
+                            if (kind) {
+                                const Expression& l = strip1(bin.left());
+                                const Expression& r = strip1(bin.right());
+                                auto isSelfWhole = [&](const Expression& e) {
+                                    return (e.kind == ExpressionKind::NamedValue || e.kind == ExpressionKind::HierarchicalValue) &&
+                                           e.getSymbolReference() == liveModule[0].sym;
+                                };
+                                const bool lSelf = isSelfWhole(l);
+                                const bool rSelf = isSelfWhole(r);
+                                if (lSelf != rSelf) {
+                                    const Expression& otherExpr = lSelf ? r : l;
+                                    const NodeId tn = nodeForBit(ctx, BitRef{liveModule[0].sym, static_cast<uint32_t>(liveModule[0].lo), 0});
+                                    auto recordConstOther = [&](char cvBit) {
+                                        if (*kind == Kind::SelfXor) {
+                                            if (cvBit == '0') { m.stuckCandidates[tn].push_back({Kind::Copy, '?', tn, uncondWrite}); return true; }
+                                            return false;
+                                        }
+                                        if (*kind == Kind::SelfOr) {
+                                            m.stuckCandidates[tn].push_back(cvBit == '0'
+                                                ? Model::StuckFlopWrite{Kind::Copy, '?', tn, uncondWrite}
+                                                : Model::StuckFlopWrite{Kind::Const, '1', kNoNode, uncondWrite});
+                                            return true;
+                                        }
+                                        // SelfAnd
+                                        m.stuckCandidates[tn].push_back(cvBit == '1'
+                                            ? Model::StuckFlopWrite{Kind::Copy, '?', tn, uncondWrite}
+                                            : Model::StuckFlopWrite{Kind::Const, '0', kNoNode, uncondWrite});
+                                        return true;
+                                    };
+                                    if (!m.collapsed(tn) && callsIn(otherExpr).empty()) {
+                                        const auto cv = otherExpr.eval(ec);
+                                        if (cv.isInteger() && !cv.hasUnknown() && cv.integer().getBitWidth() >= 1) {
+                                            handled = recordConstOther(cv.isTrue() ? '1' : '0');
+                                        } else if ((otherExpr.kind == ExpressionKind::NamedValue || otherExpr.kind == ExpressionKind::HierarchicalValue) &&
+                                                   otherExpr.type && otherExpr.type->getBitstreamWidth() == 1) {
+                                            auto ps = pathsOf(otherExpr, ec, false);
+                                            if (ps.size() == 1 && pathWidth(ps[0]) == 1) {
+                                                auto ns = nodesFor(ctx, ps[0]);
+                                                if (ns.size() == 1 && !m.collapsed(ns[0]) && ns[0] != tn) {
+                                                    m.stuckCandidates[tn].push_back({*kind, '?', ns[0], uncondWrite});
+                                                    handled = true;
+                                                }
+                                            } else if (ps.empty() && design.hasCaseMode()) {
+                                                const int mv = modeValue(otherExpr, ec);
+                                                if (mv == 0 || mv == 1) handled = recordConstOther(mv ? '1' : '0');
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (!handled) rejectPaths(liveModule);
+                }
+            }
+            if (!deadLocal.empty() || !deadModule.empty())
+                deferredDead.push_back({&a, std::move(deadLocal), std::move(deadModule)});
+        }
+        curDeadWrite = true;
+        for (const auto& d : deferredDead) {
+            if (!d.localTargets.empty()) emitAssign(ctx, *d.a, d.localTargets, EdgeType::Comb, proc, pb.location);
+            if (!d.moduleTargets.empty()) {
+                emitAssign(ctx, *d.a, d.moduleTargets, EdgeType::Seq, proc, pb.location, &resetNodes);
+                emitModuleExtras(*d.a, d.moduleTargets);
+            }
+        }
+        curDeadWrite = false;
         for (NodeId q : qs) {
+            const auto* sym = m.nodes[q].sym;
+            if (procHasUnattributedWrite || procHasBodyTiming || !sym || m.collapsed(q) || blockingState.count(sym) || anyEventHasIff || m.flopOfQ.count(q))
+                m.stuckRejected.insert(q);
+            else if (const auto* var = sym->as_if<VariableSymbol>()) {
+                const auto* init = [&]() -> const Expression* {
+                    if (const auto* i = var->getInitializer()) return i;
+                    if (const auto* scope = var->getParentScope(); scope && scope->asSymbol().kind == SymbolKind::InstanceBody)
+                        for (const auto* symbol : scope->asSymbol().as<InstanceBodySymbol>().getPortList())
+                            if (const auto* port = symbol->as_if<PortSymbol>(); port && port->isAnsiPort &&
+                                port->direction == ArgumentDirection::Out && port->internalSymbol == var)
+                                return port->getInitializer();
+                    return nullptr;
+                }();
+                if (init) {
+                    const ConstantValue cv = var->getParentScope()
+                        ? [&] { EvalContext initEc(*var); return init->eval(initEc); }()
+                        : init->eval(ec);
+                    if (!cv.isInteger() || cv.hasUnknown() || m.nodes[q].bit >= cv.integer().getBitWidth())
+                        m.stuckRejected.insert(q);
+                    else
+                        m.stuckInitValues[q] = cv.integer()[static_cast<int32_t>(m.nodes[q].bit)] ? '1' : '0';
+                }
+            }
             if (m.flopOfQ.count(q)) {
                 m.multiSequential.insert(q);
                 if (clockOk && clockNode != kNoNode) m.flops[m.flopOfQ.at(q)].otherClockSignals.push_back(clockNode);
@@ -3349,6 +5740,7 @@ private:
             f.clockSignal = clockOk ? clockNode : kNoNode;
             f.clockResolved = clockOk && clockNode != kNoNode;
             f.edge = clockEdge;
+            f.hasIff = anyEventHasIff;
             f.resets = resets;
             for (size_t ri = 0; ri < resets.size(); ri++) {
                 auto it = controlKinds[ri].find(m.nodes[q].sym);
@@ -3374,10 +5766,26 @@ private:
                 if (src.sym) f.releasedSource = nodeForBit(ctx, src);
                 else f.releasedValue = src.value;
             }
-            bool trailing = trailingResetBits.count(q) != 0;
-            f.hasSyncResetCandidate = syncCand || trailing;
-            f.syncActiveLow = trailing ? trailingLow : syncLow;
-            f.syncReset = trailing ? trailingReset : syncSig;
+            auto trailing = trailingResetGuards.find(q);
+            auto syncForce = syncResetValues.find(q);
+            bool syncBit = syncCand && syncForce != syncResetValues.end() &&
+                (syncForce->second == '0' || syncForce->second == '1');
+            std::vector<SyncResetGuard> facts;
+            if (trailing != trailingResetGuards.end()) {
+                for (const auto& [guardPolarity, forced] : trailing->second) {
+                    facts.push_back({guardPolarity.first, guardPolarity.second, forced});
+                }
+            }
+            if (syncBit) for (const auto& [guard, low] : syncGuardPolarity)
+                facts.push_back({guard, low, syncForce->second});
+            std::sort(facts.begin(), facts.end());
+            facts.erase(std::unique(facts.begin(), facts.end()), facts.end());
+            f.hasSyncResetCandidate = !facts.empty();
+            f.syncResetFacts = facts;
+            for (const auto& fact : facts) f.syncResetGuards.push_back(fact.node);
+            f.syncReset = facts.empty() ? kNoNode : facts.front().node;
+            f.syncActiveLow = facts.empty() ? syncLow : facts.front().activeLow;
+            f.syncDataSuppressed = unconditionalOverrideBits.count(q) != 0;
             f.blocking = blockingState.count(m.nodes[q].sym) > 0;
             m.flopOfQ[q] = static_cast<uint32_t>(m.flops.size());
             m.flops.push_back(std::move(f));
@@ -3392,18 +5800,80 @@ private:
         StmtVisitor v(*this, ec, as, ctx);
         e.visit(v);
         uint32_t proc = addProc(ProcKind::Continuous, loc, ctx);
-        for (auto& a : as) emitAssign(ctx, a, a.targets, EdgeType::Comb, proc, loc);
+        struct PairFacts : ASTVisitor<PairFacts, VisitFlags::AllGood> {
+            Model& model;
+            uint32_t proc;
+            explicit PairFacts(Model& model, uint32_t proc) : model(model), proc(proc) {}
+            void handle(const BinaryExpression& b) {
+                PairOperator op;
+                switch (b.op) {
+                    case BinaryOperator::Equality: op = PairOperator::Equal; break;
+                    case BinaryOperator::Inequality: op = PairOperator::NotEqual; break;
+                    case BinaryOperator::BinaryXor: op = PairOperator::Xor; break;
+                    case BinaryOperator::BinaryAnd: op = PairOperator::And; break;
+                    default: visitDefault(b); return;
+                }
+                const auto ref = [](const Expression& x) -> const ValueSymbol* {
+                    if (x.kind != ExpressionKind::NamedValue && x.kind != ExpressionKind::HierarchicalValue) return nullptr;
+                    auto* s = x.getSymbolReference();
+                    return s && s->isValue() && widthOf(s->as<ValueSymbol>()) == 1 ? &s->as<ValueSymbol>() : nullptr;
+                };
+                auto* left = ref(b.left()); auto* right = ref(b.right());
+                if (left && right && left != right) model.pairOperatorFacts.push_back({proc, left, right, op});
+                visitDefault(b);
+            }
+        } pairs(m, proc);
+        e.visit(pairs);
+        const Expression* rhs = &e.as<AssignmentExpression>().right();
+        const auto cf = foldConstantExpr(*rhs, ec);
+        if (cf == ConstFold::None)
+            m.pairOperatorFacts.push_back({proc, nullptr, nullptr, PairOperator::And, rhs, &anchor});
+        else {
+            m.constantProcs.insert(proc);
+            if (cf == ConstFold::Zero || cf == ConstFold::AllOnes || cf == ConstFold::OneBitTrue) {
+                const char bitVal = (cf == ConstFold::Zero) ? '0' : '1';
+                for (const auto& a : as) {
+                    for (const auto& t : a.targets) {
+                        auto targetNodes = nodesFor(ctx, t);
+                        if (cf == ConstFold::OneBitTrue && targetNodes.size() != 1) continue;
+                        for (auto tn : targetNodes)
+                            m.foldedConstDrivers[tn].push_back({bitVal, EdgeType::Comb, proc});
+                    }
+                }
+            }
+        }
+        for (auto& a : as) {
+            emitAssign(ctx, a, a.targets, EdgeType::Comb, proc, loc);
+        }
+        const auto& ca = e.as<AssignmentExpression>();
+        if (!ca.isCompound() && !hasDynamicSelect(ca.left(), ec) && callsIn(ca.left()).empty()) {
+            std::vector<BitRef> targetBits;
+            if (bitList(ca.left(), ec, targetBits) && !targetBits.empty() &&
+                std::all_of(targetBits.begin(), targetBits.end(), [](const BitRef& bit) { return bit.sym != nullptr && !bit.sym->getType().isUnpackedArray(); }) &&
+                !collapse(*targetBits.front().sym, widthOf(*targetBits.front().sym))) {
+                auto arms = decomposeExprArms(ca.right(), ec, ctx, targetBits.size());
+                if (arms.size() == targetBits.size()) {
+                    for (size_t i = 0; i < targetBits.size(); ++i) {
+                        CombQualifierSummary summary;
+                        summary.supported = true;
+                        summary.arms = std::move(arms[i]);
+                        recordCombDriver(nodeForBit(ctx, targetBits[i]), proc, std::move(summary));
+                    }
+                }
+            }
+        }
     }
 
     // ---------------------------------------------------------------- hierarchy
-    void collectInstances(const InstanceSymbol& inst) {
+    void collectInstances(const InstanceSymbol& inst, bool isTop = true) {
+        if (!isTop) m.subInstancePaths.push_back(inst.getHierarchicalPath());
         bodyInstances[&inst.body].push_back(&inst);
         collectScope(inst.body);
     }
     void collectScope(const Scope& sc) {
         for (auto& mem : sc.members()) {
             switch (mem.kind) {
-                case SymbolKind::Instance: collectInstances(mem.as<InstanceSymbol>()); break;
+                case SymbolKind::Instance: collectInstances(mem.as<InstanceSymbol>(), false); break;
                 case SymbolKind::InstanceArray: collectArray(mem.as<InstanceArraySymbol>()); break;
                 case SymbolKind::GenerateBlock:
                     if (!mem.as<GenerateBlockSymbol>().isUninstantiated) collectScope(mem.as<GenerateBlockSymbol>());
@@ -3418,7 +5888,7 @@ private:
     }
     void collectArray(const InstanceArraySymbol& arr) {
         for (auto* e : arr.elements) {
-            if (e->kind == SymbolKind::Instance) collectInstances(e->as<InstanceSymbol>());
+            if (e->kind == SymbolKind::Instance) collectInstances(e->as<InstanceSymbol>(), false);
             else if (e->kind == SymbolKind::InstanceArray) collectArray(e->as<InstanceArraySymbol>());
         }
     }
@@ -3476,6 +5946,28 @@ private:
                             for (uint64_t i = 0; i < w; i++) as.pairs.push_back({{&net, static_cast<uint32_t>(w - 1 - i)}, I[i]});
                         }
                         emitAssign(ctx, as, as.targets, EdgeType::Comb, proc, net.location);
+                        const auto cf = foldConstantExpr(*init, ec);
+                        if (cf == ConstFold::None)
+                            m.pairOperatorFacts.push_back({proc, nullptr, nullptr, PairOperator::And, init, &net});
+                        else {
+                            m.constantProcs.insert(proc);
+                            if (cf == ConstFold::Zero || cf == ConstFold::AllOnes || (cf == ConstFold::OneBitTrue && w == 1)) {
+                                const char bitVal = (cf == ConstFold::Zero) ? '0' : '1';
+                                for (auto tn : nodesFor(ctx, t))
+                                    m.foldedConstDrivers[tn].push_back({bitVal, EdgeType::Comb, proc});
+                            }
+                        }
+                        if (w && !net.getType().isUnpackedArray() && !collapse(net, w)) {
+                            auto arms = decomposeExprArms(*init, ec, ctx, w);
+                            if (arms.size() == w) {
+                                for (uint64_t i = 0; i < w; ++i) {
+                                    CombQualifierSummary summary;
+                                    summary.supported = true;
+                                    summary.arms = std::move(arms[i]);
+                                    recordCombDriver(nodeForBit(ctx, {&net, static_cast<uint32_t>(w - 1 - i)}), proc, std::move(summary));
+                                }
+                            }
+                        }
                     }
                     break;
                 }
@@ -3580,11 +6072,20 @@ private:
         };
         std::vector<uint32_t> connectionIssues;
         std::map<std::string, std::vector<NodeId>> conn;
+        std::set<std::string> simpleScalarConnections, conjunctiveConnections;
         for (auto* pc : ci.getPortConnections()) {
             if (!pc || !pc->getExpression()) continue;
             auto issues = callIssues(*pc->getExpression(), ctx);
             connectionIssues.insert(connectionIssues.end(), issues.begin(), issues.end());
             std::string pn(pc->port.name);
+            const auto& expr = pc->getExpression()->unwrapImplicitConversions();
+            if (expr.kind == ExpressionKind::NamedValue && expr.type->getBitstreamWidth() == 1)
+                simpleScalarConnections.insert(pn);
+            if (expr.kind == ExpressionKind::BinaryOp && expr.type->getBitstreamWidth() == 1) {
+                const auto op = expr.as<BinaryExpression>().op;
+                if (op == BinaryOperator::BinaryAnd || op == BinaryOperator::LogicalAnd)
+                    conjunctiveConnections.insert(pn);
+            }
             for (auto& p : pathsOf(*pc->getExpression(), ec, declaredOut(pn)))
                 for (auto n : nodesFor(ctx, p)) conn[pn].push_back(n);
         }
@@ -3616,7 +6117,11 @@ private:
         bool ok = true;
         if (kind == "synchronizer" || kind == "flop") ok = !get(cell.input).empty() && !get(cell.output).empty() && !get(cell.clock).empty();
         else if (kind == "clock_gate") ok = !get(cell.clock).empty() && !get(cell.enable).empty() && !get(cell.output).empty();
-        else if (kind == "ram") { ok = true; for (auto& p : cell.ports) ok = ok && !get(p.name).empty(); }
+        else if (kind == "ram") {
+            // Empty connections are meaningful CDC-035 evidence. Retain the
+            // RAM so missing clocks and other connected port crossings survive.
+            ok = true;
+        }
         if (!ok) {
             fallback("library-cell", "library cell '" + cell.name + "' instance '" + std::string(ci.name) + "' lacks a connection for a declared port; treated as a black box", ci.location);
             return false;
@@ -3676,6 +6181,8 @@ private:
             r.loc = toLoc(*sm, ci.location);
             for (auto& p : cell.ports) {
                 addPort(p.name, dirOf(p.dir), roleOf(p.role), p.clock);
+                ports.back().simpleScalarConnection = simpleScalarConnections.count(p.name) && get(p.name).size() == 1;
+                ports.back().conjunctiveConnection = conjunctiveConnections.count(p.name);
                 if (p.dir != "in" && roleOf(p.role) == PortRole::DataOut)
                     for (auto n : get(p.name)) pendingFlags.push_back({n, 5});
             }
@@ -3855,7 +6362,11 @@ private:
         }
         if (as.pairsValid) {
             for (auto& [t, src] : as.pairs) {
-                if (!src.sym && t.sym && src.value) m.constDrivers[nodeForBit(tgtCtx, t)].push_back({src.value, EdgeType::Comb, proc});
+                if (!src.sym && t.sym && src.value) {
+                    const NodeId tn = nodeForBit(tgtCtx, t);
+                    noteCombTarget(tn, proc);
+                    m.constDrivers[tn].push_back({src.value, EdgeType::Comb, proc});
+                }
                 if (!src.sym || !t.sym) continue;
                 addEdge(nodeForBit(srcCtx, src), nodeForBit(tgtCtx, t), EdgeType::Comb, proc, true);
             }
@@ -3867,7 +6378,10 @@ private:
         } else if (as.bitDepsValid) {
             for (const auto& [t, reads] : as.bitDeps) {
                 const NodeId target = nodeForBit(tgtCtx, t);
-                if (reads.empty()) m.constDrivers[target].push_back({'?', EdgeType::Comb, proc});
+                if (reads.empty()) {
+                    noteCombTarget(target, proc);
+                    m.constDrivers[target].push_back({'?', EdgeType::Comb, proc});
+                }
                 for (const auto& read : reads)
                     for (auto source : nodesFor(srcCtx, read)) addEdge(source, target, EdgeType::Comb, proc, false);
             }
@@ -3929,7 +6443,7 @@ std::string Model::nameOf(NodeId id) const {
     for (auto it = rel.rbegin(); it != rel.rend(); ++it) { s += "."; s += std::string(*it); }
     s += "." + std::string(n.sym->name);
     uint64_t w = n.sym->getType().isFixedSize() ? n.sym->getType().getBitstreamWidth() : 0;
-    if (w > 1 && w <= kMaxBits) s += "[" + std::to_string(n.bit) + "]";
+    if (w > 1 && !tooWide(n.sym->getType(), w)) s += "[" + std::to_string(n.bit) + "]";
     return s;
 }
 
@@ -3940,8 +6454,8 @@ uint64_t Model::symbolWidth(NodeId id) const {
 }
 bool Model::collapsed(NodeId id) const {
     if (id != kNoNode && id < nodes.size() && !nodes[id].sym) return false;   // a logic hub stands for no signal
-    uint64_t w = symbolWidth(id);
-    return w == 0 || w > kMaxBits;
+    const uint64_t w = symbolWidth(id);
+    return w == 0 || tooWide(nodes[id].sym->getType(), w);
 }
 
 Root Model::traceRoot(NodeId start) const {
@@ -3952,7 +6466,22 @@ Root Model::traceRoot(NodeId start) const {
         if (cur < blackBoxDriven.size() && blackBoxDriven[cur]) return {cur, RootKind::BlackBox};
         const auto& ie = in[cur];
         if (ie.empty()) return {cur, cur < topInput.size() && topInput[cur] ? RootKind::TopPort : RootKind::Undriven};
-        if (ie.size() == 1 && edges[ie[0]].type == EdgeType::Comb && edges[ie[0]].exact) { cur = edges[ie[0]].from; continue; }
+        // A net with a constant driver beside its one edge (a wired net held by `1'b0`, say) is not a plain copy of the other driver.
+        if (ie.size() == 1 && edges[ie[0]].type == EdgeType::Comb && edges[ie[0]].exact && !constDrivers.count(cur)) { cur = edges[ie[0]].from; continue; }
+        // `~~x` is `x`: a net whose only driver inverts one bit of a net whose only driver inverts one bit is a plain copy (the
+        // generic clock buffer `inv = ~clk_i; clk_o = ~inv`). One inversion alone is a different signal and stays a root.
+        // A collapsed node stands for every bit of its symbol: its single driver may invert a different bit than the one read.
+        const auto inversion = [&](NodeId n) -> NodeId {
+            if (collapsed(n)) return kNoNode;
+            if (n < blackBoxDriven.size() && blackBoxDriven[n]) return kNoNode;
+            if (n < unresolvedDriven.size() && unresolvedDriven[n]) return kNoNode;
+            const auto& drivers = in[n];
+            if (drivers.size() != 1 || constDrivers.count(n)) return kNoNode;
+            const Edge& e = edges[drivers[0]];
+            return e.type == EdgeType::Comb && e.flip && !e.exact && !e.ctrl && !e.approximate && !e.shared ? e.from : kNoNode;
+        };
+        if (const NodeId mid = inversion(cur); mid != kNoNode && !seen.count(mid))
+            if (const NodeId source = inversion(mid); source != kNoNode) { seen.insert(mid); cur = source; continue; }
         return {cur, RootKind::Logic};
     }
 }
@@ -3991,6 +6520,326 @@ void Model::finish() {
     edges.shrink_to_fit();
     out.build(nodes.size(), edges.size(), [&](size_t e) { return edges[e].from; });
     in.build(nodes.size(), edges.size(), [&](size_t e) { return edges[e].to; });
+    // Propagate named constant-0/all-ones continuous drivers into constantProcs
+    // so expressions like `(s2 ^ s3) & zer` (where `wire zer = 1'b0;` or `en ^ en`)
+    // fold regardless of declaration order, while respecting competing drivers.
+    if (!pairOperatorFacts.empty() && (!constDrivers.empty() || !foldedConstDrivers.empty() || !modeConstants.empty())) {
+        std::unordered_map<const ValueSymbol*, std::vector<NodeId>> symNodes;
+        for (NodeId n = 0; n < nodes.size(); ++n) {
+            if (nodes[n].sym) symNodes[nodes[n].sym].push_back(n);
+        }
+        std::unordered_set<uint32_t> candidateProcs;
+        for (const auto& fact : pairOperatorFacts)
+            if (fact.rhs && fact.anchor && !constantProcs.count(fact.proc))
+                candidateProcs.insert(fact.proc);
+        std::unordered_map<uint32_t, std::vector<NodeId>> procTargets;
+        if (!candidateProcs.empty()) {
+            for (const auto& e : edges) {
+                if (e.type == EdgeType::Comb && candidateProcs.count(e.proc))
+                    procTargets[e.proc].push_back(e.to);
+            }
+            for (auto& [p, vec] : procTargets) {
+                std::sort(vec.begin(), vec.end());
+                vec.erase(std::unique(vec.begin(), vec.end()), vec.end());
+            }
+            for (int iter = 0; iter < 8; ++iter) {
+                bool changed = false;
+                for (const auto& fact : pairOperatorFacts) {
+                    if (!fact.rhs || !fact.anchor || constantProcs.count(fact.proc)) continue;
+                    EvalContext ec(*fact.anchor);
+                    const auto cf = Builder::foldConstantExpr(*fact.rhs, ec, false, this, &symNodes);
+                    if (cf == Builder::ConstFold::None) continue;
+                    constantProcs.insert(fact.proc);
+                    changed = true;
+                    if (cf == Builder::ConstFold::Zero || cf == Builder::ConstFold::AllOnes ||
+                        cf == Builder::ConstFold::OneBitTrue) {
+                        const char bitVal = (cf == Builder::ConstFold::Zero) ? '0' : '1';
+                        if (auto it = procTargets.find(fact.proc); it != procTargets.end()) {
+                            if (cf == Builder::ConstFold::OneBitTrue && it->second.size() != 1) continue;
+                            for (NodeId tn : it->second)
+                                foldedConstDrivers[tn].push_back({bitVal, EdgeType::Comb, fact.proc});
+                        }
+                    }
+                }
+                if (!changed) break;
+            }
+        }
+    }
+    // Propagate provably constant-stuck registers through sequential writes and toggle feedback.
+    {
+        std::unordered_set<const ValueSymbol*> specialSeqWriteSyms;
+        std::unordered_set<const ValueSymbol*> specialAliasWriteSyms;
+        for (const auto& sw : systemWrites) {
+            if (sw.target) {
+                specialSeqWriteSyms.insert(sw.target);
+                specialAliasWriteSyms.insert(sw.target);
+            }
+        }
+        for (const auto& cw : copyBackWrites) {
+            if (cw.target) {
+                specialSeqWriteSyms.insert(cw.target);
+                specialAliasWriteSyms.insert(cw.target);
+            }
+        }
+        for (const auto& pw : proceduralWrites) {
+            const bool seqSpecial = pw.called || pw.fromCall || pw.forkOwnership || !pw.nonBlocking || !pw.value ||
+                (pw.process && pw.process->procedureKind != slang::ast::ProceduralBlockKind::Always &&
+                 pw.process->procedureKind != slang::ast::ProceduralBlockKind::AlwaysFF);
+            const bool aliasSpecial = pw.called || pw.fromCall || pw.forkOwnership || !pw.value ||
+                (pw.process && (pw.process->procedureKind == slang::ast::ProceduralBlockKind::Initial ||
+                                pw.process->procedureKind == slang::ast::ProceduralBlockKind::Final ||
+                                pw.process->procedureKind == slang::ast::ProceduralBlockKind::AlwaysLatch));
+            if (seqSpecial) {
+                if (pw.target) specialSeqWriteSyms.insert(pw.target);
+                for (const auto* mt : pw.mayWrite) if (mt) specialSeqWriteSyms.insert(mt);
+            }
+            if (aliasSpecial) {
+                if (pw.target) specialAliasWriteSyms.insert(pw.target);
+                for (const auto* mt : pw.mayWrite) if (mt) specialAliasWriteSyms.insert(mt);
+            }
+        }
+        for (const auto& f : flops) {
+            if (!nodes[f.q].sym || collapsed(f.q) || multiSequential.count(f.q) || f.blocking || f.hasIff ||
+                !f.otherDomains.empty() || (f.q < blackBoxDriven.size() && blackBoxDriven[f.q]) ||
+                (f.q < unresolvedDriven.size() && unresolvedDriven[f.q]) || uncertainCallDrivers.count(f.q) ||
+                specialSeqWriteSyms.count(nodes[f.q].sym) || foldedConstDrivers.contains(f.q)) {
+                stuckRejected.insert(f.q);
+                continue;
+            }
+            bool hasComb = false;
+            for (auto ei : in[f.q]) {
+                if (edges[ei].type == EdgeType::Comb) { hasComb = true; break; }
+            }
+            if (!hasComb) {
+                if (auto cit = constDrivers.find(f.q); cit != constDrivers.end()) {
+                    for (const auto& cd : cit->second) {
+                        if (cd.type == EdgeType::Comb) { hasComb = true; break; }
+                    }
+                }
+            }
+            if (hasComb) stuckRejected.insert(f.q);
+        }
+        std::unordered_map<NodeId, char> stuckUncond;
+        auto safeAliasRoot = [&](NodeId n) -> NodeId {
+            for (int guard = 0; guard < 32; guard++) {
+                if (n >= nodes.size()) return kNoNode;
+                if (nodes[n].sym && specialAliasWriteSyms.count(nodes[n].sym)) return kNoNode;
+                if (n >= in.size() || in[n].size() != 1) return n;
+                if (combSelfRewritten.contains(n) || constDrivers.contains(n) || foldedConstDrivers.contains(n) ||
+                    (n < blackBoxDriven.size() && blackBoxDriven[n]) ||
+                    (n < unresolvedDriven.size() && unresolvedDriven[n]) ||
+                    uncertainCallDrivers.count(n))
+                    return n;
+                const Edge& e = edges[in[n][0]];
+                if (!(e.type == EdgeType::Comb && e.exact) || isDeadEdge(e) ||
+                    e.ctrl || e.approximate || e.shared)
+                    return n;
+                n = e.from;
+            }
+            return n;
+        };
+        auto knownUncondConst = [&](NodeId n) -> char {
+            if (n == kNoNode) return '?';
+            const NodeId root = safeAliasRoot(n);
+            if (root == kNoNode) return '?';
+            const char c = constantValue(n);
+            if (c == '0' || c == '1') return c;
+            if (auto it = stuckUncond.find(n); it != stuckUncond.end()) return it->second;
+            if (auto it = stuckUncond.find(root); it != stuckUncond.end()) return it->second;
+            return '?';
+        };
+        auto knownGuardedConst = [&](NodeId n) -> char {
+            const char u = knownUncondConst(n);
+            if (u == '0' || u == '1') return u;
+            const NodeId root = safeAliasRoot(n);
+            if (root == kNoNode) return '?';
+            if (auto it = stuckFlopValues.find(n); it != stuckFlopValues.end()) return it->second;
+            if (auto it = stuckFlopValues.find(root); it != stuckFlopValues.end()) return it->second;
+            return '?';
+        };
+        for (int iter = 0; iter < 16; ++iter) {
+            bool changed = false;
+            for (const auto& f : flops) {
+                if (stuckUncond.count(f.q) || stuckRejected.count(f.q)) continue;
+                char val = '?';
+                bool conflict = false;
+                bool hasUncondAnchor = false;
+                for (char rv : f.resetValues) {
+                    if (rv == 'n') continue;
+                    if (rv != '0' && rv != '1') { conflict = true; break; }
+                    if (val == '?') val = rv;
+                    else if (val != rv) { conflict = true; break; }
+                    hasUncondAnchor = true;
+                }
+                if (!conflict) {
+                    if (auto initIt = stuckInitValues.find(f.q); initIt != stuckInitValues.end()) {
+                        if (val == '?') val = initIt->second;
+                        else if (val != initIt->second) conflict = true;
+                    }
+                }
+                if (conflict) {
+                    stuckRejected.insert(f.q);
+                    stuckFlopValues.erase(f.q);
+                    stuckUncond.erase(f.q);
+                    continue;
+                }
+                auto it = stuckCandidates.find(f.q);
+                if (it == stuckCandidates.end()) continue;
+                bool pendingUncond = false;
+                bool pendingGuarded = false;
+                for (const auto& w : it->second) {
+                    using Kind = StuckFlopWrite::Kind;
+                    if (w.kind == Kind::Const) {
+                        if (w.constVal != '0' && w.constVal != '1') { conflict = true; break; }
+                        if (val == '?') val = w.constVal;
+                        else if (val != w.constVal) { conflict = true; break; }
+                        if (w.unconditional) hasUncondAnchor = true;
+                    } else if (w.kind == Kind::Copy) {
+                        if (w.other == f.q) continue;
+                        const char vu = knownUncondConst(w.other);
+                        if (vu == '0' || vu == '1') {
+                            if (val == '?') val = vu;
+                            else if (val != vu) { conflict = true; break; }
+                            if (w.unconditional) hasUncondAnchor = true;
+                        } else {
+                            pendingUncond = true;
+                            if (f.resets.empty()) {
+                                const char vg = knownGuardedConst(w.other);
+                                if (vg == '0' || vg == '1') {
+                                    if (val == '?') val = vg;
+                                    else if (val != vg) { conflict = true; break; }
+                                } else {
+                                    pendingGuarded = true;
+                                }
+                            } else {
+                                pendingGuarded = true;
+                            }
+                        }
+                    } else if (w.kind == Kind::SelfXor) {
+                        const char vu = knownUncondConst(w.other);
+                        if (vu == '0') continue;
+                        if (vu == '1') { conflict = true; break; }
+                        pendingUncond = true;
+                        pendingGuarded = true;
+                    } else if (w.kind == Kind::SelfOr) {
+                        const char vu = knownUncondConst(w.other);
+                        if (vu == '0') continue;
+                        if (vu == '1') {
+                            if (val == '?') val = '1';
+                            else if (val != '1') { conflict = true; break; }
+                            if (w.unconditional) hasUncondAnchor = true;
+                            continue;
+                        }
+                        pendingUncond = true;
+                        pendingGuarded = true;
+                    } else if (w.kind == Kind::SelfAnd) {
+                        const char vu = knownUncondConst(w.other);
+                        if (vu == '1') continue;
+                        if (vu == '0') {
+                            if (val == '?') val = '0';
+                            else if (val != '0') { conflict = true; break; }
+                            if (w.unconditional) hasUncondAnchor = true;
+                            continue;
+                        }
+                        pendingUncond = true;
+                        pendingGuarded = true;
+                    }
+                }
+                if (conflict) {
+                    stuckRejected.insert(f.q);
+                    stuckFlopValues.erase(f.q);
+                    stuckUncond.erase(f.q);
+                    continue;
+                }
+                if (!pendingUncond && hasUncondAnchor && (val == '0' || val == '1')) {
+                    if (stuckUncond.emplace(f.q, val).second) changed = true;
+                    if (stuckFlopValues.emplace(f.q, val).second) changed = true;
+                } else if (!pendingGuarded && (val == '0' || val == '1')) {
+                    if (stuckFlopValues.emplace(f.q, val).second) changed = true;
+                }
+            }
+            if (!changed) break;
+        }
+        stuckCandidates.clear();
+        stuckCandidates.rehash(0);
+        stuckRejected.clear();
+        stuckRejected.rehash(0);
+        stuckInitValues.clear();
+        stuckInitValues.rehash(0);
+    }
+    for (auto& [node, summary] : combQualifierDrivers) {
+        bool multi = summary.multipleDrivers || summary.proc == UINT32_MAX;
+        if (!multi) {
+            for (auto edgeId : in[node]) {
+                const auto& edge = edges[edgeId];
+                if (edge.type == EdgeType::Comb && edge.proc != summary.proc) {
+                    multi = true;
+                    break;
+                }
+            }
+        }
+        if (!multi) {
+            if (auto cdIt = constDrivers.find(node); cdIt != constDrivers.end()) {
+                for (const auto& cd : cdIt->second) {
+                    if (cd.type == EdgeType::Comb && cd.proc != summary.proc) {
+                        multi = true;
+                        break;
+                    }
+                }
+            }
+        }
+        if (multi) {
+            summary.supported = false;
+            summary.multipleDrivers = true;
+            summary.arms.clear();
+        }
+    }
+    // Compare reset polarities after connections are available. Keep the
+    // original guard nodes for control-edge matching and reset inventory.
+    for (auto& f : flops) {
+        if (f.syncResetFacts.size() < 2) continue;
+        std::map<NodeId, std::pair<bool, char>> seenFacts;
+        bool conflicting = false;
+        for (const auto& fact : f.syncResetFacts) {
+            NodeId node = fact.node;
+            bool activeLow = fact.activeLow;
+            bool reachedRoot = false;
+            for (unsigned step = 0; step < 64; ++step) {
+                const auto incoming = in[node];
+                if (incoming.size() != 1 || constDrivers.contains(node) ||
+                    (node < blackBoxDriven.size() && blackBoxDriven[node]) ||
+                    (node < unresolvedDriven.size() && unresolvedDriven[node])) {
+                    reachedRoot = true;
+                    break;
+                }
+                const auto& edge = edges[incoming[0]];
+                if (edge.type != EdgeType::Comb || edge.ctrl || edge.approximate ||
+                    edge.shared || !(edge.exact || edge.flip)) {
+                    reachedRoot = true;
+                    break;
+                }
+                node = edge.from;
+                activeLow = activeLow != edge.flip;
+            }
+            if (!reachedRoot) {
+                node = fact.node;
+                activeLow = fact.activeLow;
+            }
+            const auto value = std::pair{activeLow, fact.forcedValue};
+            auto [it, inserted] = seenFacts.emplace(node, value);
+            if (!inserted && it->second != value) {
+                conflicting = true;
+                break;
+            }
+        }
+        if (conflicting) {
+            f.hasSyncResetCandidate = false;
+            f.syncResetFacts.clear();
+            f.syncResetGuards.clear();
+            f.syncReset = kNoNode;
+            f.syncActiveLow = false;
+        }
+    }
     // resolve clock roots, domains, reset roots
     std::map<NodeId, uint32_t> domainOfRoot;
     for (auto& f : flops) {
@@ -4006,9 +6855,11 @@ void Model::finish() {
         for (auto& r : f.resets) r.root = traceRoot(r.signal);
     }
     // clocks of library RAMs and further sequential blocks are clock domains too (one may be the only user of its clock)
-    auto domainOf = [&](const std::vector<NodeId>& clk) -> int64_t {
-        if (clk.empty()) return -1;
+    auto domainOf = [&](const std::vector<NodeId>& clk, bool ramClock = false) -> int64_t {
+        if (clk.empty() || (ramClock && clk.size() != 1)) return -1;
         Root r = traceRoot(clk[0]);
+        if (ramClock && (r.kind == RootKind::Undriven || r.kind == RootKind::Cycle ||
+                         r.kind == RootKind::BlackBox || constantValue(clk[0]) != '?')) return -1;
         auto it = domainOfRoot.find(r.node);
         if (it == domainOfRoot.end()) {
             it = domainOfRoot.emplace(r.node, static_cast<uint32_t>(domains.size())).first;
@@ -4019,16 +6870,23 @@ void Model::finish() {
     for (auto& f : flops)
         for (auto clk : f.otherClockSignals) f.otherDomains.push_back(static_cast<uint32_t>(domainOf({clk})));
     for (auto& ram : rams) {
-        ram.writeDomain = domainOf(ram.writeClk);
-        ram.readDomain = domainOf(ram.readClk);
+        ram.writeDomain = domainOf(ram.writeClk, true);
+        ram.readDomain = domainOf(ram.readClk, true);
     }
 }
 
 NodeId Model::aliasRoot(NodeId n) const {
     for (int guard = 0; guard < 32; guard++) {
-        if (in[n].size() != 1) return n;
+        if (n >= in.size() || in[n].size() != 1) return n;
+        if (combSelfRewritten.contains(n) || constDrivers.contains(n) || foldedConstDrivers.contains(n) ||
+            (n < blackBoxDriven.size() && blackBoxDriven[n]) ||
+            (n < unresolvedDriven.size() && unresolvedDriven[n]) ||
+            uncertainCallDrivers.count(n))
+            return n;
         const Edge& e = edges[in[n][0]];
-        if (!(e.type == EdgeType::Comb && e.exact)) return n;
+        if (!(e.type == EdgeType::Comb && e.exact) || isDeadEdge(e) ||
+            e.ctrl || e.approximate || e.shared)
+            return n;
         n = e.from;
     }
     return n;
@@ -4039,14 +6897,30 @@ char Model::constantValue(NodeId n) const {
     if (auto it = modeConstants.find(n); it != modeConstants.end()) return it->second;
     n = aliasRoot(n);
     if (auto it = modeConstants.find(n); it != modeConstants.end()) return it->second;
-    if (!in[n].empty()) return '?';
-    auto it = constDrivers.find(n);
-    if (it == constDrivers.end() || it->second.size() != 1) return '?';
-    const auto& d = it->second[0];
-    // Procedural constants may be conditional or retain state.
-    if (d.type != EdgeType::Comb || (procs[d.proc].kind != ProcKind::Continuous &&
-                                   procs[d.proc].kind != ProcKind::PortConnection)) return '?';
-    return d.value;
+    if (in[n].empty()) {
+        auto it = constDrivers.find(n);
+        if (it == constDrivers.end() || it->second.size() != 1) return '?';
+        const auto& d = it->second[0];
+        // Procedural constants may be conditional or retain state.
+        if (d.type != EdgeType::Comb || (procs[d.proc].kind != ProcKind::Continuous &&
+                                       procs[d.proc].kind != ProcKind::PortConnection)) return '?';
+        return d.value;
+    }
+    auto fit = foldedConstDrivers.find(n);
+    if (fit != foldedConstDrivers.end() && fit->second.size() == 1) {
+        const auto& fd = fit->second[0];
+        if (fd.type != EdgeType::Comb || procs[fd.proc].kind != ProcKind::Continuous) return '?';
+        if (auto cit = constDrivers.find(n); cit != constDrivers.end()) {
+            for (const auto& cd : cit->second)
+                if (cd.proc != fd.proc) return '?';
+        }
+        for (auto ei : in[n]) {
+            const auto& e = edges[ei];
+            if (e.proc != fd.proc) return '?';
+        }
+        return fd.value;
+    }
+    return '?';
 }
 
 const Flop* Model::flopBehind(NodeId n, uint32_t* idx) const {
@@ -4533,6 +7407,7 @@ std::unique_ptr<Model> buildModel(Design& design) {
     // run() calls finish(); flags must be applied before finish() resolves roots
     // (so split: run builds, then flags, then finish)
     b.run();
+    m->indexFlops();
     return m;
 }
 

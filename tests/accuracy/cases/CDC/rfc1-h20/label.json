@@ -1,0 +1,135 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "IP and external boundaries",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 13,
+      "signal": "stat_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 16,
+      "signal": "stat_o"
+    },
+    {
+      "file": "intent.sdc",
+      "line": 7,
+      "signal": "stat_o"
+    }
+  ],
+  "expected_rules": [
+    "CST-012"
+  ],
+  "rationale": "stat_o is launched by stat_q in src_clk but contracted with set_output_delay -clock dst_clk (asynchronous): CST-012 ERROR (known asynchronous launch in the contracted cone).",
+  "author_reading": {
+    "id": "rfc1-h20",
+    "intended_verdict": "bad",
+    "critical": true,
+    "workflow_class": "IP and external boundaries",
+    "expected_rules": [
+      "CST-012"
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 16,
+        "signal": "stat_o"
+      },
+      {
+        "file": "intent.sdc",
+        "line": 7,
+        "signal": "stat_o"
+      }
+    ],
+    "rationale": "stat_o is driven by a src_clk register but constrained with set_output_delay against asynchronous dst_clk: known async launch in a contracted output cone."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "IP and external boundaries",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 16,
+          "signal": "stat_o"
+        },
+        {
+          "file": "intent.sdc",
+          "line": 7,
+          "signal": "stat_o"
+        }
+      ],
+      "rationale": "stat_o is driven by a src_clk register. Its output delay identifies dst_clk as the external capture clock, and SDC declares those clocks asynchronous.",
+      "expected_rules": [
+        "CST-012"
+      ]
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "IP and external boundaries",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 16,
+          "signal": "stat_o"
+        },
+        {
+          "file": "intent.sdc",
+          "line": 7,
+          "signal": "stat_o"
+        },
+        {
+          "file": "design.sv",
+          "line": 13,
+          "signal": "stat_q"
+        }
+      ],
+      "rationale": "Top-level output port stat_o is contracted to external capture clock dst_clk via set_output_delay -clock dst_clk (intent.sdc:7), but is driven directly by register stat_q clocked on posedge src_clk (design.sv:13, 16), which is declared asynchronous to dst_clk (CST-012 ERROR Established).",
+      "expected_rules": [
+        "CST-012"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "cdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "IP and external boundaries",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 13,
+        "signal": "stat_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 16,
+        "signal": "stat_o"
+      },
+      {
+        "file": "intent.sdc",
+        "line": 7,
+        "signal": "stat_o"
+      }
+    ],
+    "expected_rules": [
+      "CST-012"
+    ],
+    "rationale": "stat_o is launched by stat_q in src_clk but contracted with set_output_delay -clock dst_clk (asynchronous): CST-012 ERROR (known asynchronous launch in the contracted cone)."
+  }
+}

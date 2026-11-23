@@ -1,0 +1,121 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "verdict": "unknown",
+  "critical": false,
+  "workflow_class": "Gray pointer FIFO and cross-clock memory",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 15,
+      "signal": "mem"
+    },
+    {
+      "file": "design.sv",
+      "line": 18,
+      "signal": "rd_q"
+    }
+  ],
+  "expected_rules": [
+    "CDC-035"
+  ],
+  "rationale": "mem is written in clk_a and read raw into rd_q in clk_b; CDC-035(a) always reports WARNING Unresolved, proof NOT_ATTEMPTED, for an unpacked-array crossing that is not Exclusive. The contract states no collision or read-qualification protocol, so read-during-write corruption is neither established nor excluded. Settled as unknown (both readers), overriding the author's bad proposal; the case remains valid and is not excluded. Reader B's block-position note has no spec bearing.",
+  "author_reading": {
+    "id": "rfc1-h15",
+    "intended_verdict": "bad",
+    "critical": false,
+    "workflow_class": "Gray pointer FIFO and cross-clock memory",
+    "expected_rules": [
+      "CDC-035"
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 15,
+        "signal": "mem"
+      },
+      {
+        "file": "design.sv",
+        "line": 18,
+        "signal": "mem"
+      }
+    ],
+    "rationale": "Unpacked array memory written in clk_a and read in clk_b with no read-side synchronization or collision policy: memory crossing; outcome is Unresolved by design."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Gray pointer FIFO and cross-clock memory",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 11,
+          "signal": "mem"
+        },
+        {
+          "file": "design.sv",
+          "line": 18,
+          "signal": "rd_q"
+        }
+      ],
+      "rationale": "The unpacked array is written on clk_a and read on asynchronous clk_b. A collision is possible without an address or ownership guarantee. The intended storage and read-during-write behavior remain unspecified.",
+      "expected_rules": [
+        "CDC-035"
+      ]
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Gray pointer FIFO and cross-clock memory",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 18,
+          "signal": "rd_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 15,
+          "signal": "mem"
+        }
+      ],
+      "rationale": "Unpacked array mem[0:15] is written on posedge clk_a (design.sv:15, with we_i/waddr_i/wdata_i timed to clk_a) and read on posedge clk_b into rd_q (design.sv:18, with raddr_i timed to clk_b) across asynchronous clocks. Per CDC.md CDC-035(a), cross-clock unpacked-array memory access emits WARNING Unresolved (proof NOT_ATTEMPTED) because external read-during-write address-collision avoidance, entry stability, and multi-bit read coherence cannot be established from the memory RTL and SDC alone.",
+      "expected_rules": [
+        "CDC-035"
+      ],
+      "suspected_flaw": "Case sits at rfc1-h15 inside the h01..h20 bad-case block, and as a standalone register-file module has no internal Gray-pointer/handshake collision guard or read-data qualifier; however, under CDC.md CDC-035(a), an unpacked array written in clk_a and read in clk_b (with all write signals in clk_a and read address in clk_b) always emits WARNING Unresolved (proof NOT_ATTEMPTED), which scores as a disclosed unknown under verdict 'unknown' but would count as an unresolved bad case under verdict 'bad'."
+    }
+  ],
+  "settlement": {
+    "by": "cdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Gray pointer FIFO and cross-clock memory",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 15,
+        "signal": "mem"
+      },
+      {
+        "file": "design.sv",
+        "line": 18,
+        "signal": "rd_q"
+      }
+    ],
+    "expected_rules": [
+      "CDC-035"
+    ],
+    "rationale": "mem is written in clk_a and read raw into rd_q in clk_b; CDC-035(a) always reports WARNING Unresolved, proof NOT_ATTEMPTED, for an unpacked-array crossing that is not Exclusive. The contract states no collision or read-qualification protocol, so read-during-write corruption is neither established nor excluded. Settled as unknown (both readers), overriding the author's bad proposal; the case remains valid and is not excluded. Reader B's block-position note has no spec bearing."
+  }
+}

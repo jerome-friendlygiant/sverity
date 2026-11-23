@@ -1,0 +1,111 @@
+{
+  "family": "CDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "cdc-7-rfc1-fresh",
+  "author": "cdc-rfc1-author (Claude Sonnet 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "whole_ip_good_control": false,
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Qualified payload and event protocols",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 18,
+      "signal": "pay_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 28,
+      "signal": "cap_q"
+    }
+  ],
+  "expected_rules": [
+    "CDC-028"
+  ],
+  "rationale": "cap_q captures raw pay_q (clk_a) either under synchronized v2_q or under the clk_b force_i bypass; the bypass arm makes the clock-enabled capture unsafe: CDC-028 ERROR. Reader A's CDC-013 note (vld_q 10 ns < 12 ns margin) is a valid extra finding on a bad case, not a flaw.",
+  "author_reading": {
+    "id": "rfc1-h11",
+    "intended_verdict": "bad",
+    "critical": true,
+    "workflow_class": "Qualified payload and event protocols",
+    "expected_rules": [
+      "CDC-028"
+    ],
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 28,
+        "signal": "cap_q"
+      }
+    ],
+    "rationale": "Payload capture is enabled by a synchronized valid, but an else-if arm (force_i) also captures the raw source payload with no qualifier."
+  },
+  "labels": [
+    {
+      "by": "cdc-rfc1-reader-a (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Qualified payload and event protocols",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 28,
+          "signal": "cap_q"
+        }
+      ],
+      "rationale": "With v2_q low and force_i high, cap_q samples asynchronous pay_q directly. The local force branch bypasses the synchronized valid for the enabled capture.",
+      "expected_rules": [
+        "CDC-028"
+      ],
+      "suspected_flaw": "The 10 ns valid launch period also falls below the 12 ns CDC-013 review margin."
+    },
+    {
+      "by": "cdc-rfc1-reader-b (Gemini 4 Argon)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Qualified payload and event protocols",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 27,
+          "signal": "cap_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 28,
+          "signal": "cap_q"
+        }
+      ],
+      "rationale": "Unsynchronized 8-bit payload pay_q (clk_a) is captured into cap_q (clk_b) under synchronized qualifier v2_q at design.sv:27, but the else-if branch at design.sv:28 (else if (force_i) cap_q <= pay_q) enables raw cross-domain capture whenever destination input force_i is high and v2_q is low, bypassing synchronized qualification (CDC-028 ERROR Established).",
+      "expected_rules": [
+        "CDC-028"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "cdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Qualified payload and event protocols",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 18,
+        "signal": "pay_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 28,
+        "signal": "cap_q"
+      }
+    ],
+    "expected_rules": [
+      "CDC-028"
+    ],
+    "rationale": "cap_q captures raw pay_q (clk_a) either under synchronized v2_q or under the clk_b force_i bypass; the bypass arm makes the clock-enabled capture unsafe: CDC-028 ERROR. Reader A's CDC-013 note (vld_q 10 ns < 12 ns margin) is a valid extra finding on a bad case, not a flaw."
+  }
+}

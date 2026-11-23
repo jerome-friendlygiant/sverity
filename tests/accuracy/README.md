@@ -7,7 +7,11 @@ Each case is a directory `cases/<FAMILY>/<name>/` with `design.sv` (top module `
 and `label.json`. Read any label for its fields. The verdict is `bad` (a defect at `sites`), `good` (nothing to report)
 or `unknown` (the RTL and constraints cannot decide; a tool should say so). A lint label may name its defect `class`
 from the [lint workflow](../../docs/rules/LINT_WORKFLOW.md#defect-classes) and the `batch` it was written in;
-`--batch` scores one batch, and `budgets.json` holds the budgets `--budgets` compares with.
+`--batch` scores one batch. Pass `--budgets tests/accuracy/budgets.json` for lint
+or `--budgets tests/accuracy/cdc-budgets.json` for CDC.
+Fresh CDC labels and readings use `workflow_class` from the
+[CDC workflow](../../docs/rules/CDC_WORKFLOW.md#defect-classes-and-closure).
+The class accompanies each outcome in the score report for per-class review.
 
 The few rules that keep it worth measuring:
 
