@@ -170,7 +170,7 @@ def main():
     parser.add_argument("--min-available-gb", type=float, default=8.0)
     parser.add_argument("--timeout-seconds", type=int, default=3600)
     parser.add_argument("--goal", choices=("cdc", "rdc", "lint"))
-    parser.add_argument("--deck", choices=("core", "domain", "1.0", "lint", "cdc"))
+    parser.add_argument("--deck", choices=("core", "domain", "1.0", "lint", "cdc", "rdc"))
     parser.add_argument("--profile", choices=("generic", "asic", "fpga"))
     parser.add_argument("--exit-policy", choices=("strict",),
                         help="forward strict coverage and review exit semantics to the analyzer")

@@ -6,6 +6,7 @@
 #include <slang/syntax/SyntaxTree.h>
 #include "sverity/analyzer.h"
 #include "sverity/json.h"
+#include "sverity/reset_contracts.h"
 
 #include <array>
 #include <ctime>
@@ -280,6 +281,12 @@ Report analyze(const AnalyzerOptions& opts) {
             }
             report.addInput("boundary_events", boundaryEvents);
         }
+        if (!opts.config.powerIntentModel.empty()) {
+            json::Value intent = json::Value::object();
+            intent.set("model", opts.config.powerIntentModel);
+            report.addInput("power_intent", intent);
+        }
+        if (opts.config.resetContracts.present) report.addInput("reset_contracts", toJson(opts.config.resetContracts));
         json::Value overrides = json::Value::object();
         for (auto& [key, value] : opts.config.severityOverrides) overrides.set(key, toString(value));
         report.addInput("severity_overrides", overrides);

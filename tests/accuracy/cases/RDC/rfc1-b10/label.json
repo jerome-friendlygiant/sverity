@@ -1,0 +1,66 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-b (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "good",
+  "critical": false,
+  "workflow_class": "Asynchronous control conflicts and reset as data",
+  "sites": [],
+  "rationale": "Reset has priority over the watchdog's asynchronous set, so asserted reset always clears fault_q, and a fault still present at release is captured within a clock.",
+  "author_reading": {
+    "id": "rfc1-b10",
+    "intended_verdict": "good",
+    "critical": false,
+    "workflow_class": "Asynchronous control conflicts and reset as data",
+    "sites": [],
+    "rationale": "The reset is checked first in the asynchronous block, so an asserted reset always forces fault_q to zero and the watchdog set takes effect only after release."
+  },
+  "labels": [
+    {
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Asynchronous control conflicts and reset as data",
+      "sites": [],
+      "rationale": "Reset is first in the branch, so rst_ni clears fault_q with priority over the watchdog set. The asynchronous set from wdog_fault_i is the intended fault latch. RDC-026 discloses the set and clear mix as a review item.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)"
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Asynchronous control conflicts and reset as data",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 12,
+          "signal": "fault_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 13,
+          "signal": "fault_q"
+        }
+      ],
+      "rationale": "Reset priority clears fault_q during overlap, but releasing reset while the watchdog stays asserted does not trigger the block. The asynchronous fault remains unreported until the next clock.",
+      "expected_rules": [
+        "RDC-026",
+        "RDC-002",
+        "RDC-003",
+        "RDC-011"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "rdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "good",
+    "critical": false,
+    "workflow_class": "Asynchronous control conflicts and reset as data",
+    "sites": [],
+    "rationale": "A is right. B's scenario (the watchdog still high at reset release) leaves fault_q clear only until the next clock in simulation, while a set/reset cell sets it immediately. Either way the fault is captured and no state is lost. RDC-026 may still report the set/clear mix as a review item."
+  }
+}

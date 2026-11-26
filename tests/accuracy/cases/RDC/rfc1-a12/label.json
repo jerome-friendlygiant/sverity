@@ -1,0 +1,120 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-a (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Timing exceptions",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 10,
+      "signal": "rst_raw_n"
+    },
+    {
+      "file": "design.sv",
+      "line": 15,
+      "signal": "rst_raw_n"
+    }
+  ],
+  "expected_rules": [
+    "RDC-003",
+    "RDC-027"
+  ],
+  "rationale": "The raw rst_raw_n directly releases flops in two asynchronous clock domains, and set_false_path removes the only recovery and removal check, so neither release is synchronised or timed.",
+  "author_reading": {
+    "id": "rfc1-a12",
+    "intended_verdict": "bad",
+    "critical": true,
+    "workflow_class": "Timing exceptions",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 15,
+        "signal": "rst_raw_n"
+      }
+    ],
+    "rationale": "rst_raw_n releases clk_a and clk_b flops directly with no synchroniser, and the false path only removes the timing check; the design relies on that check."
+  },
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Reset synchronisation",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 10,
+          "signal": "rst_raw_n"
+        },
+        {
+          "file": "design.sv",
+          "line": 15,
+          "signal": "rst_raw_n"
+        }
+      ],
+      "expected_rules": [
+        "RDC-003",
+        "RDC-027"
+      ],
+      "rationale": "The raw top-level rst_raw_n is released directly into two asynchronous clock domains with no synchroniser. set_false_path on rst_raw_n removes the recovery and removal checks that would expose this, and RDC-027 says a false path does not establish safety.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)"
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Timing exceptions",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 10,
+          "signal": "rst_raw_n"
+        },
+        {
+          "file": "design.sv",
+          "line": 15,
+          "signal": "rst_raw_n"
+        }
+      ],
+      "rationale": "The false path cuts reset timing while the raw input directly releases two asynchronous domains. A release near either capture edge can leave that domain in an indeterminate state.",
+      "expected_rules": [
+        "RDC-027",
+        "RDC-002",
+        "RDC-003"
+      ],
+      "suspected_flaw": "The direct q_a to q_b data path is a separate uncontained CDC.",
+      "dropped_run_level_rules": [
+        "RDC-013"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "rdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Timing exceptions",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 10,
+        "signal": "rst_raw_n"
+      },
+      {
+        "file": "design.sv",
+        "line": 15,
+        "signal": "rst_raw_n"
+      }
+    ],
+    "expected_rules": [
+      "RDC-003",
+      "RDC-027"
+    ],
+    "rationale": "Both readers are right on bad, critical and the sites. The class follows B and the author: the case is about a false path hiding an unsynchronised release (RDC-027 together with RDC-003, as A lists). RDC-002 and RDC-013 (B) are inventory or run-level."
+  }
+}

@@ -3,7 +3,8 @@
 // A reciprocal endpoint pair is one CDC-015 structure; the protocol stays an open CDC-024 obligation.
 // expect-count: CDC-015 INFO 2
 // expect-count: CDC-024 WARNING 2
-// expect-count: RDC-023 WARNING 2
+// expect-count: RDC-023 INFO 2
+// expect-none: RDC-023 WARNING
 // expect-none: CDC-013 WARNING
 // expect-none: CDC-014 WARNING
 module req_owner(input logic clk, rst_n, start, ack_seen, output logic req);

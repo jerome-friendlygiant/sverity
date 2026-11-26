@@ -1,0 +1,42 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-c (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "good",
+  "critical": false,
+  "workflow_class": "Sequencing and release order",
+  "sites": [],
+  "rationale": "Both handshake sides reset from one rst_ni with equal phases and release through per-domain synchronisers; a request issued before the receiver releases persists until it is acknowledged.",
+  "author_reading": {
+    "id": "rfc1-c13",
+    "intended_verdict": "good",
+    "critical": false,
+    "workflow_class": "Sequencing and release order",
+    "sites": [],
+    "rationale": "Both handshake sides leave reset together from one root, so the request and acknowledge phases start equal and the first toggle is accepted."
+  },
+  "labels": [
+    {
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Sequencing and release order",
+      "sites": [],
+      "rationale": "Both sides are reset from rst_ni through 2-stage synchronisers, so the assertion source is shared and the handshake restarts consistently. The reset release-order obligation is recorded by RDC-023 but the structure is correct.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)"
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Sequencing and release order",
+      "sites": [],
+      "rationale": "A common assertion source clears both handshake phases to zero. A first request persists until the receiving side observes it and returns its acknowledgement, so release order does not lose that request.",
+      "suspected_flaw": "The header says the domains leave reset together, but the independent clocked chains may finish at different times."
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 // CDC protocol / structure recognition helpers used by the crossing analysis (see cdc_shared.h):
 // Gray-coded pointers, binary counters, payloads qualified by a synchronised control, SDC exception lookup.
 #include "rules/cdc/cdc_shared.h"
+#include "rules/rdc/rdc_shared.h"
 
 #include <array>
 #include <bit>
@@ -4235,6 +4236,7 @@ void Shared::protocols() {
                                       g.loc, g.hier, together ? Confidence::Heuristic : Confidence::Unresolved);
                     ev(r, g);
                     r.proofState = ProofState::NotAttempted;
+                    citeReleaseOrders(r, source, receiver);
                     r.evidence.push_back({together ? "trust_model" : "proof_obligation",
                                           together ? "a shared reset is assumed to reach both domains before either side toggles again"
                                                    : "show that the two sides are only reset together, or that the receiver discards the event a one-sided reset creates", {}});
@@ -4402,6 +4404,49 @@ void Shared::protocols() {
         }
     }
     std::vector<std::pair<const Group*, const Group*>> recognizedHandshakes;
+    // The exact asynchronous reset roots of a group's source registers: the reset sites that release-order clauses may name.
+    const auto groupResetRoots = [&](const Group& g) {
+        std::set<NodeId> roots;
+        for (NodeId q : g.srcBits)
+            if (const auto* f = m->flopAt(q)) for (const auto& rr : f->resets) roots.insert(rr.root.node);
+        return roots;
+    };
+    // Idle-phase shared reset of a handshake (RDC-023): every endpoint register and every synchroniser stage of the given groups, in
+    // both directions, is reset asynchronously (and only so) from one assertion leaf with one polarity, traced through recognised
+    // reset synchronisers and exact/inverted copies, and all of them reset to the same binary value, so the compared request and
+    // acknowledge values agree while idle. Returns the leaf name, empty when any register fails.
+    std::optional<rdc::AssertedUses> handshakeAssertedUses;
+    const auto sharedIdleReset = [&](const std::vector<const Group*>& legs) -> std::string {
+        if (!handshakeAssertedUses) handshakeAssertedUses = rdc::assertedUsesOf(*m);
+        std::set<uint32_t> flops;
+        for (const Group* g : legs) {
+            if (g->dstFlops.empty()) return {};
+            for (NodeId q : g->srcBits) {
+                const auto it = m->flopOfQ.find(q);
+                if (it == m->flopOfQ.end()) return {};
+                flops.insert(it->second);
+            }
+            for (auto di : g->dstFlops) {
+                flops.insert(di);
+                for (auto stage : chains_[di].stages) flops.insert(stage);
+            }
+        }
+        if (flops.empty()) return {};
+        std::pair<NodeId, bool> leaf{kNoNode, false};
+        char idle = 0;
+        for (uint32_t fi : flops) {
+            const Flop& f = m->flops[fi];
+            if (!f.clockResolved || f.resets.size() != 1 || f.resetValues.size() != 1 || !f.syncResetFacts.empty() || f.syncReset != kNoNode) return {};
+            if (f.resetValues[0] != '0' && f.resetValues[0] != '1') return {};
+            const char tied = rdc::tiedResetValue(*m, f.resets[0].root.node);
+            if (tied == '0' || tied == '1') return {};
+            const auto source = rdc::assertionSourceOf(*m, *handshakeAssertedUses, f.resets[0].root.node, f.resets[0].activeLow);
+            if (source.first == kNoNode) return {};
+            if (leaf.first == kNoNode) { leaf = source; idle = f.resetValues[0]; }
+            else if (source != leaf || f.resetValues[0] != idle) return {};
+        }
+        return m->nameOf(leaf.first);
+    };
     auto exactPairLess = [](const auto& x, const auto& y) {
         return std::tie(x.first->srcName, x.first->dstName, x.first->hier, x.second->srcName, x.second->dstName, x.second->hier) <
                std::tie(y.first->srcName, y.first->dstName, y.first->hier, y.second->srcName, y.second->dstName, y.second->hier);
@@ -4465,20 +4510,35 @@ void Shared::protocols() {
             }
             if ((relation.aFromB && relation.bFromA) || relation.exhausted || relation.uncertain) {
                 const bool searchIncomplete = relation.exhausted || relation.uncertain;
-                Diagnostic r = mk("RDC-023", Severity::Warning,
+                // Every candidate pairing meets the shared idle-phase reset condition: all groups of both endpoints and the chosen pair.
+                std::string sharedLeaf;
+                if (!searchIncomplete) {
+                    std::vector<const Group*> candidates(ae->groups.begin(), ae->groups.end());
+                    candidates.insert(candidates.end(), be->groups.begin(), be->groups.end());
+                    for (const auto& [ga, gb] : relation.exactPairs) { candidates.push_back(ga); candidates.push_back(gb); }
+                    sharedLeaf = sharedIdleReset(candidates);
+                }
+                const bool shared = !sharedLeaf.empty();
+                Diagnostic r = mk("RDC-023", shared ? Severity::Info : Severity::Warning,
                                   "reset-release sequencing for the " +
                                   std::string(searchIncomplete ? "search-incomplete candidate handshake " : "ambiguously paired handshake ") +
-                                  a->srcName + " <-> " + b->srcName + " is unresolved",
-                                  a->loc, a->hier, Confidence::Unresolved);
+                                  a->srcName + " <-> " + b->srcName + (shared
+                                      ? ": every candidate pairing is reset from one assertion source (" + sharedLeaf + "); the order in which the two clock domains leave reset is still not defined by the design"
+                                      : " is unresolved"),
+                                  a->loc, a->hier, shared ? Confidence::Heuristic : Confidence::Unresolved);
                 r.signals = {a->srcName, b->srcName};
                 r.proofState = ProofState::NotAttempted;
                 r.evidence.push_back({"handshake_leg", a->srcName + " -> " + flopName(m->flops[a->dstFlops.front()]) + " (" + m->domains[a->srcDomain].name + " -> " + m->domains[a->dstDomain].name + ")", a->loc});
                 r.evidence.push_back({"handshake_leg", b->srcName + " -> " + flopName(m->flops[b->dstFlops.front()]) + " (" + m->domains[b->srcDomain].name + " -> " + m->domains[b->dstDomain].name + ")", b->loc});
-                r.evidence.push_back({"proof_obligation",
-                                      searchIncomplete
-                                          ? "complete the endpoint dependency search and show coordinated reset release before either side acts"
-                                          : "resolve endpoint ownership and show coordinated reset release before either side acts",
-                                      {}});
+                if (shared)
+                    r.evidence.push_back({"trust_model", "a shared reset is assumed to reach both domains before either side issues a request; the endpoints and synchroniser stages reset to one value, so the request and acknowledge agree while idle", {}});
+                else
+                    r.evidence.push_back({"proof_obligation",
+                                          searchIncomplete
+                                              ? "complete the endpoint dependency search and show coordinated reset release before either side acts"
+                                              : "resolve endpoint ownership and show coordinated reset release before either side acts",
+                                          {}});
+                citeReleaseOrders(r, groupResetRoots(*a), groupResetRoots(*b));
                 r.identityKey = a->srcName + ":" + b->srcName +
                     (searchIncomplete ? ":incomplete-handshake-reset" : ":ambiguous-handshake-reset");
                 evaluated["RDC-023"]++;
@@ -4804,6 +4864,7 @@ void Shared::protocols() {
         resetFinding.signals = {g1.srcName, g2.srcName};
         resetFinding.proofState = ProofState::NotAttempted;
         resetFinding.evidence.push_back({"proof_obligation", "reset release of both domains must be sequenced (or each side must ignore the other until a synchronised ready); not verified", {}});
+        citeReleaseOrders(resetFinding, ra, rb);
         add(std::move(resetFinding));
         if (!sameReset && !cfg->disabledRules.count("RDC-023")) {
             for (const Group* leg : {&g1, &g2}) {
@@ -4815,10 +4876,17 @@ void Shared::protocols() {
     }
     for (const auto& [a, b] : recognizedHandshakes) {
             evaluated["RDC-023"]++;
-            Diagnostic d = mk("RDC-023", Severity::Warning, "handshake " + a->srcName + " <-> " + b->srcName + ": the reset release order of its two domains is not defined; a request issued "
-                              "right after one side leaves reset can be lost or acknowledged spuriously", a->loc, a->hier, Confidence::Unresolved);
+            const std::string sharedLeaf = sharedIdleReset({a, b});
+            const bool shared = !sharedLeaf.empty();
+            Diagnostic d = mk("RDC-023", shared ? Severity::Info : Severity::Warning, "handshake " + a->srcName + " <-> " + b->srcName + ": the reset release order of its two domains is not defined; a request issued "
+                              "right after one side leaves reset can be lost or acknowledged spuriously" +
+                              (shared ? " (both endpoints and every synchroniser stage are reset from one assertion source, " + sharedLeaf + ", to one idle value)" : ""),
+                              a->loc, a->hier, shared ? Confidence::Heuristic : Confidence::Unresolved);
             d.signals = {a->srcName, b->srcName};
             d.proofState = ProofState::NotAttempted;
+            if (shared)
+                d.evidence.push_back({"trust_model", "a shared reset is assumed to reach both domains before either side issues a request; the endpoints and synchroniser stages reset to one value, so the request and acknowledge agree while idle", {}});
+            citeReleaseOrders(d, groupResetRoots(*a), groupResetRoots(*b));
             add(std::move(d));
             if (!cfg->disabledRules.count("RDC-023")) {
                 for (const Group* leg : {a, b}) {
@@ -4834,11 +4902,13 @@ void Shared::protocols() {
     struct ResetHeadInfo {
         const SyncOut* rep = nullptr;
         std::set<uint32_t> userDomains;
+        std::set<NodeId> roots;   // the exact nodes whose asynchronous reset is used by the users
     };
     std::map<uint32_t, ResetHeadInfo> resetHeads;
     for (auto& [q, so] : syncedOut_) {
         bool asReset = false;
         std::set<uint32_t> stageDomains;
+        std::set<NodeId> asyncRoots;
         std::vector<NodeId> cl{q};
         std::unordered_set<NodeId> seen{q};
         for (size_t i = 0; i < cl.size(); i++)
@@ -4848,12 +4918,14 @@ void Shared::protocols() {
                     asReset = true;
                     if (const auto* uf = m->flopAt(e.to); uf && uf->clockResolved)
                         stageDomains.insert(uf->domain);
+                    asyncRoots.insert(cl[i]);
                 } else if (e.type == EdgeType::Comb && seen.insert(e.to).second) cl.push_back(e.to);
             }
         if (!asReset) continue;
         auto& info = resetHeads[so.head];
         if (!info.rep) info.rep = &so;
         info.userDomains.insert(stageDomains.begin(), stageDomains.end());
+        info.roots.insert(asyncRoots.begin(), asyncRoots.end());
     }
     for (const auto& [headId, info] : resetHeads) {
         const SyncOut& so = *info.rep;
@@ -4874,6 +4946,7 @@ void Shared::protocols() {
         d.signals = {so.srcName};
         d.proofState = ProofState::NotAttempted;
         d.evidence.push_back({"proof_obligation", "the requester must hold the request until the acknowledge from the reset domain returns; the reset must not release before its users are quiescent", {}});
+        citeReleaseOrders(d, info.roots, info.roots);
         add(std::move(d));
     }
 
@@ -5041,6 +5114,20 @@ void Shared::protocols() {
             add(std::move(d));
         }
     }
+}
+
+// The reset_contracts binding is pure: computed on first use and kept for the rest of the run.
+const model::ContractBindingResult& Shared::contractBinding() {
+    if (!contracts_) contracts_ = rdc::bindContracts(*m, *rel_, *cfg, rdc::assertedUsesOf(*m));
+    return *contracts_;
+}
+
+void Shared::citeReleaseOrders(Diagnostic& d, const std::set<NodeId>& a, const std::set<NodeId>& b) {
+    if (!cfg->resetContracts.present) return;
+    std::set<std::string> namesA, namesB;
+    for (NodeId n : a) namesA.insert(contractBitName(*m, *rel_, n));
+    for (NodeId n : b) namesB.insert(contractBitName(*m, *rel_, n));
+    rdc::citeReleaseOrders(d, contractBinding(), namesA, namesB);
 }
 
 } // namespace sverity::cdc

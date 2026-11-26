@@ -30,5 +30,6 @@ and runs the pinned public-RTL gate, stopping at the first failure.
 - **Adoption.** An adopter trial measures team review effort on its own IP. The
   1.0 lint scope defers this trial and human label review.
 
-See the [lint workflow](rules/LINT_WORKFLOW.md#verification) and
-[CDC workflow](rules/CDC_WORKFLOW.md#verification) for family-specific steps.
+See the [lint workflow](rules/LINT_WORKFLOW.md#verification),
+[CDC workflow](rules/CDC_WORKFLOW.md#verification) and
+[RDC workflow](rules/RDC_WORKFLOW.md#verification) for family-specific steps.

@@ -1,0 +1,128 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-c (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Reset-domain data crossings",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 16,
+      "signal": "wgray_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 27,
+      "signal": "wsync1_q"
+    }
+  ],
+  "expected_rules": [
+    "RDC-005"
+  ],
+  "rationale": "rst_a_n alone clears the write Gray pointer while the clk_b reader keeps rbin_q. The synchronised pointer then jumps, and empty_o reports phantom or lost entries.",
+  "author_reading": {
+    "id": "rfc1-c01",
+    "intended_verdict": "bad",
+    "critical": true,
+    "workflow_class": "Reset-domain data crossings",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 27,
+        "signal": "wsync1_q"
+      }
+    ],
+    "rationale": "The read-side synchroniser samples the write pointer without qualification by the write-domain reset. When rst_a_n clears wgray_q while rbin_q keeps its value, empty_o reports phantom entries that the reset erased."
+  },
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Reset-domain data crossings",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 27,
+          "signal": "wgray_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 28,
+          "signal": "wsync_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 33,
+          "signal": "rbin_q"
+        }
+      ],
+      "expected_rules": [
+        "RDC-005",
+        "RDC-011"
+      ],
+      "rationale": "The write pointer and its synchroniser are reset by rst_a_n, and the read pointer and the synchronised pointer by rst_b_n, with no reset contract. If rst_a_n alone asserts, the write pointer resets while the synchronised copy and rbin keep old values, so empty_o is wrong.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)",
+      "suspected_flaw": "The case declares no reset contract, so one-sided reset may be excluded outside the RTL. The batch treats the independent resets as the defect."
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Reset-domain data crossings",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 16,
+          "signal": "wgray_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 27,
+          "signal": "wsync1_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 35,
+          "signal": "empty_o"
+        }
+      ],
+      "rationale": "A writer-only reset jumps the Gray pointer to zero regardless of reader position. The active reader can interpret that jump as available entries and advance after entries have been consumed or invalidated.",
+      "expected_rules": [
+        "RDC-005",
+        "CDC-041",
+        "RDC-011",
+        "RDC-002",
+        "RDC-003"
+      ],
+      "suspected_flaw": "Only one Gray-pointer crossing is present, so the RDC-023 FIFO-pair trigger does not apply. There is also no Gray bus timing bound."
+    }
+  ],
+  "settlement": {
+    "by": "rdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Reset-domain data crossings",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 16,
+        "signal": "wgray_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 27,
+        "signal": "wsync1_q"
+      }
+    ],
+    "expected_rules": [
+      "RDC-005"
+    ],
+    "rationale": "Both readers are right on bad, critical, class and RDC-005. RDC-011 (both), and CDC-041/RDC-002/RDC-003 (B), are incidental or outside the deck. Sites merge both readers on the source and first-stage endpoints."
+  }
+}

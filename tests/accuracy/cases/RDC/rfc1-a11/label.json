@@ -1,0 +1,130 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-a (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "unknown",
+  "critical": false,
+  "workflow_class": "Reset synchronisation",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 16,
+      "signal": "u_cg"
+    },
+    {
+      "file": "design.sv",
+      "line": 19,
+      "signal": "gclk"
+    },
+    {
+      "file": "design.sv",
+      "line": 22,
+      "signal": "rst_sync"
+    }
+  ],
+  "expected_rules": [
+    "CST-001",
+    "CST-005",
+    "RDC-003"
+  ],
+  "rationale": "The release chain and q run on gclk, the output of the black-box clock gate cg_cell. The clock's identity and edges cannot be established, so the synchroniser and its release cannot be checked.",
+  "author_reading": {
+    "id": "rfc1-a11",
+    "intended_verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Reset synchronisation",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 16,
+        "signal": "gclk"
+      }
+    ],
+    "rationale": "The release chain is clocked by a gated clock from a cell not in the design, so whether its clock is synchronous to the source clock cannot be decided."
+  },
+  "labels": [
+    {
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Reset synchronisation",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 19,
+          "signal": "gclk"
+        },
+        {
+          "file": "design.sv",
+          "line": 22,
+          "signal": "rst_sync"
+        }
+      ],
+      "expected_rules": [
+        "RDC-003",
+        "CST-004",
+        "CST-005"
+      ],
+      "rationale": "The synchroniser and the data register are clocked by gclk from an opaque clock-gating cell. The clock is unidentified, so the chain cannot be recognised and its clock edge and synchroniser quality are undecided.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)",
+      "detection_gap": "The gated clock comes from an opaque cell, so RDC-003 and CST-004 can only report it as unresolved."
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Reset inventory and unknown sources",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 19,
+          "signal": "gclk"
+        },
+        {
+          "file": "design.sv",
+          "line": 27,
+          "signal": "gclk"
+        }
+      ],
+      "rationale": "The two stages and receiver share the gated clock. The missing gate implementation leaves pulse shape and restart behavior undecided, including whether enough valid clock edges arrive to release reset.",
+      "expected_rules": [
+        "CDC-002",
+        "CST-011"
+      ],
+      "suspected_flaw": "The cell is defined as an empty module without a black-box attribute. Its output is undriven in the literal RTL."
+    }
+  ],
+  "settlement": {
+    "by": "rdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Reset synchronisation",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 16,
+        "signal": "u_cg"
+      },
+      {
+        "file": "design.sv",
+        "line": 19,
+        "signal": "gclk"
+      },
+      {
+        "file": "design.sv",
+        "line": 22,
+        "signal": "rst_sync"
+      }
+    ],
+    "expected_rules": [
+      "CST-001",
+      "CST-005",
+      "RDC-003"
+    ],
+    "rationale": "Both readers are right on unknown. A's class is kept. The settler added (* black_box *) to cg_cell on line 3, fixing B's undriven-module flaw. CST-005 reports the black box, and RDC-003 (b) and CST-001 report the reset registers with no identified clock. CST-004 (A) concerns the d capture, not the reset. CDC-002 and CST-011 (B) are outside the reset question."
+  }
+}

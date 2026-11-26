@@ -1,0 +1,41 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-a (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "good",
+  "critical": false,
+  "workflow_class": "Reset synchronisation",
+  "sites": [],
+  "rationale": "Each clock domain releases its registers through its own two-stage synchroniser from por_n, and no data crosses between the domains.",
+  "author_reading": {
+    "id": "rfc1-a03",
+    "intended_verdict": "good",
+    "critical": false,
+    "workflow_class": "Reset inventory and unknown sources",
+    "sites": [],
+    "rationale": "Each domain's reset is released by a two-stage synchroniser clocked by that domain, and the functional flops use the synchronised release."
+  },
+  "labels": [
+    {
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Reset synchronisation",
+      "sites": [],
+      "rationale": "Each domain has its own 2-stage reset synchroniser (rst_a, rst_b) from por_n, and each q is reset by the last stage of its own domain. There is no data crossing, since beat_a and beat_b feed their own domains.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)"
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Reset synchronisation",
+      "sites": [],
+      "rationale": "Each domain asserts asynchronously and releases through its own two-stage chain. No data dependency requires a relative release order."
+    }
+  ]
+}

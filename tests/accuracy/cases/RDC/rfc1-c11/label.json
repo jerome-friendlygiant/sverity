@@ -1,0 +1,109 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-c (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Reset-domain data crossings",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 32,
+      "signal": "done_a_o"
+    }
+  ],
+  "expected_rules": [
+    "RDC-003",
+    "RDC-004"
+  ],
+  "rationale": "done_a_o is a clk_a flop reset by rst_b_n, the other domain's reset, while its data comes from rst_a_n flops. A producer reset leaves done stale, rst_a_n assertion changes its D asynchronously, and rst_b_n releases it at an arbitrary clk_a phase.",
+  "author_reading": {
+    "id": "rfc1-c11",
+    "intended_verdict": "bad",
+    "critical": false,
+    "workflow_class": "Sequencing and release order",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 32,
+        "signal": "done_a_o"
+      }
+    ],
+    "rationale": "The producer-domain done flag is reset by the destination reset rather than its own, so a producer-domain reset leaves done high until the next start. The flag is software-visible status only."
+  },
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Reset-domain data crossings",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 31,
+          "signal": "done_a_o"
+        },
+        {
+          "file": "design.sv",
+          "line": 26,
+          "signal": "run_q"
+        }
+      ],
+      "expected_rules": [
+        "RDC-003",
+        "RDC-005"
+      ],
+      "rationale": "done_a_o is a clk_a register that is reset by rst_b_n, the reset of the other clock domain. Its reset release is unsynchronised to clk_a, and its data comes from rst_a_n logic, so the crossing is wrong in both clock and reset.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)"
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Reset-domain data crossings",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 32,
+          "signal": "done_a_o"
+        },
+        {
+          "file": "design.sv",
+          "line": 34,
+          "signal": "done_a_o"
+        }
+      ],
+      "rationale": "B reset clears done_a_o without clearing the A-domain finish pipeline or run flag. A finish already in flight can set done after B restarts, and the raw B reset also directly releases the A-clock flop.",
+      "expected_rules": [
+        "RDC-004",
+        "RDC-005",
+        "CDC-041",
+        "RDC-011",
+        "RDC-002",
+        "RDC-003"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "rdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Reset-domain data crossings",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 32,
+        "signal": "done_a_o"
+      }
+    ],
+    "expected_rules": [
+      "RDC-003",
+      "RDC-004"
+    ],
+    "rationale": "Both readers are right on bad, critical and class. RDC-004 (same-clock source reset by rst_a_n, destination by rst_b_n, as B lists) and RDC-003 for the rst_b_n/clk_a pair (as A lists) both target the wrong-domain reset of done_a_o. RDC-005 does not apply to done_a_o, because its fan-in is clk_a only."
+  }
+}

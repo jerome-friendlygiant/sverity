@@ -1,0 +1,41 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-a (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "good",
+  "critical": false,
+  "workflow_class": "Reset synchronisation",
+  "sites": [],
+  "rationale": "A three-stage chain on clk releases q's asynchronous clear.",
+  "author_reading": {
+    "id": "rfc1-a09",
+    "intended_verdict": "good",
+    "critical": false,
+    "workflow_class": "Reset synchronisation",
+    "sites": [],
+    "rationale": "A three-stage chain on one clock releases the clear of q after three clock edges, with no clock crossing."
+  },
+  "labels": [
+    {
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Reset synchronisation",
+      "sites": [],
+      "rationale": "rst_sync is a 3-stage synchroniser from rst_n on the same clock, and q is released by its last stage. Each stage has an identical async reset and no outside fanout.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)"
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Reset synchronisation",
+      "sites": [],
+      "rationale": "Three stages shift in the released constant after asynchronous assertion. Only the final stage releases the receiving registers, on their own clock edge."
+    }
+  ]
+}

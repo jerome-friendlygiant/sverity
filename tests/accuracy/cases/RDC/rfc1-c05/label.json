@@ -1,0 +1,122 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-c (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Reset-domain data crossings",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 15,
+      "signal": "vld_a_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 19,
+      "signal": "pay_a_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 29,
+      "signal": "vld_b1_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 31,
+      "signal": "pay_b1_q"
+    }
+  ],
+  "expected_rules": [
+    "RDC-005"
+  ],
+  "rationale": "valid and payload cross rst_a_n to rst_b_n through separate per-bit synchronisers. A source-only reset during a transfer can let the active consumer see the old valid with a partly cleared payload and commit a word that was never sent.",
+  "author_reading": {
+    "id": "rfc1-c05",
+    "intended_verdict": "good",
+    "critical": false,
+    "workflow_class": "Reset-domain data crossings",
+    "sites": [],
+    "rationale": "The valid and payload registers share one asynchronous source reset, so a source reset cannot leave a valid without its cleared payload."
+  },
+  "labels": [
+    {
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Reset-domain data crossings",
+      "sites": [],
+      "rationale": "vld_a_q is reset, unlike c02, so the valid cannot carry a stale 1 out of reset. The independent resets remain a protocol matter, not a reset-structure defect.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)"
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Reset-domain data crossings",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 15,
+          "signal": "vld_a_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 19,
+          "signal": "pay_a_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 37,
+          "signal": "held_o"
+        }
+      ],
+      "rationale": "While the consumer remains active, producer reset clears payload and valid through independent paths. Those paths can present the reset payload with the old valid, committing a word that the producer did not send.",
+      "expected_rules": [
+        "RDC-005",
+        "CDC-041",
+        "RDC-011",
+        "RDC-002",
+        "RDC-003",
+        "CDC-009"
+      ],
+      "suspected_flaw": "Independent payload-bit synchronisers also permit incoherent ordinary transfers, and there is no reciprocal acknowledgement."
+    }
+  ],
+  "settlement": {
+    "by": "rdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Reset-domain data crossings",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 15,
+        "signal": "vld_a_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 19,
+        "signal": "pay_a_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 29,
+        "signal": "vld_b1_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 31,
+        "signal": "pay_b1_q"
+      }
+    ],
+    "expected_rules": [
+      "RDC-005"
+    ],
+    "rationale": "B is right: the shared source reset does not make the consumer tolerant. The reset clears valid and payload through independent synchroniser paths, so the consumer can commit a mixed word. A (and the author) treat a reset valid as sufficient. This is RDC-005's unproved destination tolerance. The parallel payload synchroniser is also a CDC defect outside the RDC deck."
+  }
+}

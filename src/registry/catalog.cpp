@@ -35,6 +35,7 @@ bool Catalog::parse(std::string_view text, Catalog& out, std::string& error) {
         ri.gap = r["gap"].asString();
         ri.deck = r["deck"].asString();
         ri.cdcDeck = r["cdc_deck"].asBool();
+        ri.rdcDeck = r["rdc_deck"].asBool();
         for (const auto& c : r["classes"].asArray()) ri.classes.push_back(c.asString());
         for (const auto& o : r["obligations"].asArray()) {
             ObligationInfo info{o["id"].asString(), o["reason"].asString()};
@@ -78,10 +79,11 @@ const Catalog& Catalog::embedded() {
 }
 
 static int deckOrder(std::string_view deck) { return deck == "core" ? 1 : deck == "domain" ? 2 : deck == "1.0" ? 3 : 0; }
-bool isDeck(std::string_view name) { return deckOrder(name) != 0 || name == "lint" || name == "cdc"; }
+bool isDeck(std::string_view name) { return deckOrder(name) != 0 || name == "lint" || name == "cdc" || name == "rdc"; }
 bool inDeck(const RuleInfo& rule, std::string_view deck) {
     if (deck == "lint") return !rule.classes.empty();
     if (deck == "cdc") return rule.cdcDeck;
+    if (deck == "rdc") return rule.rdcDeck;
     const int order = deckOrder(rule.deck);
     return order != 0 && order <= deckOrder(deck);
 }

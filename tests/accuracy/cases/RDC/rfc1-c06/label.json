@@ -1,0 +1,95 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-c (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "unknown",
+  "critical": false,
+  "workflow_class": "Reset-domain data crossings",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 27,
+      "signal": "rst_a_n"
+    },
+    {
+      "file": "design.sv",
+      "line": 32,
+      "signal": "status_b_o"
+    }
+  ],
+  "rationale": "The status latch is cleared by rst_b_n and by a two-flop-synchronised copy of rst_a_n, so a source-domain reset clears the status, and the fault path stays inside a two-flop synchroniser.",
+  "author_reading": {
+    "id": "rfc1-c06",
+    "intended_verdict": "good",
+    "critical": false,
+    "workflow_class": "Reset-domain data crossings",
+    "sites": [],
+    "rationale": "The status latch is cleared by the destination reset and by the synchronised source reset, so a source-domain reset clears the status with it."
+  },
+  "labels": [
+    {
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Sequencing and release order",
+      "sites": [],
+      "rationale": "The status latch is cleared while the synchronised source reset (ra_b_q) is asserted, so a source reset reaches the destination. Only a two-cycle transient remains, and it settles within the sequence.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)"
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Asynchronous control conflicts and reset as data",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 27,
+          "signal": "ra1_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 32,
+          "signal": "status_b_o"
+        }
+      ],
+      "rationale": "The sticky status clears only after the destination samples source reset as a level. The SDC gives no minimum assertion width or raw release timing, so the destination could miss a source reset or see the reset and fault paths in different cycles.",
+      "expected_rules": [
+        "RDC-019",
+        "RDC-002",
+        "RDC-003",
+        "RDC-011",
+        "RDC-005",
+        "CDC-041",
+        "CDC-010"
+      ],
+      "suspected_flaw": "The guard combines an asynchronous reset and a sampled synchronous clear, which can obscure the distinct control roles in static analysis."
+    }
+  ],
+  "settlement": {
+    "by": "rdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "good",
+    "critical": false,
+    "workflow_class": "Reset-domain data crossings",
+    "sites": [],
+    "rationale": "A is right on the verdict. B's concerns are a source reset shorter than the synchroniser can see (the generic minimum-pulse obligation) and the mixed guard, which is a legal synchronous clear. The class follows the author: the rfc1-c03 lookalike for reset-domain crossings. RDC-019 may report the sampled rst_a_n."
+  },
+  "adjudication": {
+    "by": "rdc-rfc1-adjudicator (Claude Opus 5.5), policy decision after the score",
+    "was": {
+      "verdict": "good",
+      "class": "Reset-domain data crossings",
+      "critical": false
+    },
+    "reason": "the source-reset clear of the sticky status samples rst_a_n as a level in clk_b, so it relies on an undeclared minimum assertion width; RDC_WORKFLOW: an undeclared contract blocks any claim about reset pulse behaviour",
+    "record": "tests/accuracy/results/rdc-8-rfc1-fresh-adjudication.json"
+  },
+  "expected_rules": [
+    "CDC-010",
+    "CST-011"
+  ]
+}

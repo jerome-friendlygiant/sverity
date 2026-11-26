@@ -62,12 +62,19 @@ def defect_classes():
 
 
 CLASS_CRITICAL, RULE_CLASSES = defect_classes()
-CDC_WORKFLOW_CLASSES = {
-    match.group(1)
-    for match in re.finditer(r"^\| ([^|]+?) \|", (REPO / "docs/rules/CDC_WORKFLOW.md").read_text()
-                            .split("## Defect classes and closure", 1)[1].split("##", 1)[0], re.M)
-    if match.group(1) != "Class"
-}
+def workflow_classes(doc):
+    """Class names from the first column of a workflow page's defect-class table."""
+    return {
+        match.group(1)
+        for match in re.finditer(r"^\| ([^|]+?) \|", (REPO / doc).read_text()
+                                .split("## Defect classes and closure", 1)[1].split("##", 1)[0], re.M)
+        if match.group(1) not in ("Class", "---")
+    }
+
+
+CDC_WORKFLOW_CLASSES = workflow_classes("docs/rules/CDC_WORKFLOW.md")
+RDC_WORKFLOW_CLASSES = workflow_classes("docs/rules/RDC_WORKFLOW.md")
+WORKFLOW_CLASSES = {"CDC": CDC_WORKFLOW_CLASSES, "RDC": RDC_WORKFLOW_CLASSES}
 
 
 def sha256(path):
@@ -239,9 +246,9 @@ def label_problems(case, label):
     if "class" in label and label.get("family") != "LNT":
         problem("defect classes are lint classes")
     def valid_workflow_class(value):
-        return label.get("family") == "CDC" and isinstance(value, str) and value in CDC_WORKFLOW_CLASSES
+        return isinstance(value, str) and value in WORKFLOW_CLASSES.get(label.get("family"), ())
     if "workflow_class" in label and not valid_workflow_class(label["workflow_class"]):
-        problem("invalid CDC workflow class")
+        problem("invalid CDC or RDC workflow class")
     for key in ("critical",):
         if key in label and type(label[key]) is not bool:
             problem(f"{key} must be boolean")
@@ -277,8 +284,8 @@ def label_problems(case, label):
     if label.get("verdict") in ("bad", "unknown") and not label.get("sites"):
         problem("a bad or unknown case needs sites")
     if "expected_rules" in label:
-        if label.get("family") != "CDC" or label.get("verdict") not in ("bad", "unknown"):
-            problem("expected_rules applies only to bad or unknown CDC workflow cases")
+        if label.get("family") not in ("CDC", "RDC") or label.get("verdict") not in ("bad", "unknown"):
+            problem("expected_rules applies only to bad or unknown CDC or RDC workflow cases")
         rules = label["expected_rules"]
         gap_reason = label.get("detection_gap")
         declared_gap = (label.get("verdict") == "bad" and rules == []
@@ -292,10 +299,10 @@ def label_problems(case, label):
                 not isinstance(site, dict) or not site.get("signal") for site in target_sites)):
             problem("expected_rules requires a signal on every final site")
     if "detection_gap" in label and (
-            label.get("family") != "CDC" or label.get("verdict") != "bad"
+            label.get("family") not in ("CDC", "RDC") or label.get("verdict") != "bad"
             or label.get("expected_rules") != [] or not isinstance(label["detection_gap"], str)
             or not label["detection_gap"].strip()):
-        problem("detection_gap requires a bad CDC case, empty expected_rules, and a nonempty reason")
+        problem("detection_gap requires a bad CDC or RDC case, empty expected_rules, and a nonempty reason")
     entries = label.get("labels", [])
     if not isinstance(entries, list):
         problem("labels must be a list")
@@ -316,10 +323,10 @@ def label_problems(case, label):
                 problem("invalid labeller CDC workflow class")
             if "critical" in entry and type(entry["critical"]) is not bool:
                 problem("labeller critical must be boolean")
-            if "expected_rules" in entry and (label.get("family") != "CDC"
+            if "expected_rules" in entry and (label.get("family") not in ("CDC", "RDC")
                     or entry.get("verdict") not in ("bad", "unknown") or not valid_cdc_rules(
                         entry["expected_rules"], allow_empty=True)):
-                problem("labeller expected_rules requires a bad or unknown CDC reading and site-specific rules")
+                problem("labeller expected_rules requires a bad or unknown CDC or RDC reading and site-specific rules")
     if "sdc" in label and (not isinstance(label["sdc"], list) or any(
             not isinstance(x, str) or not x or pathlib.PurePosixPath(x).is_absolute()
             or ".." in pathlib.PurePosixPath(x).parts for x in label["sdc"])):
@@ -333,7 +340,9 @@ def label_problems(case, label):
                 not isinstance(adjudication.get(k), str) or not adjudication[k].strip() for k in ("by", "reason", "record")):
             problem("adjudication requires by, reason and record strings")
         elif (not isinstance(adjudication.get("was"), dict) or adjudication["was"].get("verdict") not in VERDICTS
-              or adjudication["was"].get("class") not in CLASS_CRITICAL or type(adjudication["was"].get("critical")) is not bool):
+              or not (valid_workflow_class(adjudication["was"].get("class")) if label.get("family") in WORKFLOW_CLASSES
+                      else adjudication["was"].get("class") in CLASS_CRITICAL)
+              or type(adjudication["was"].get("critical")) is not bool):
             problem("adjudication.was requires a verdict, a class and a boolean critical")
     if "provenance" in label and not isinstance(label["provenance"], dict):
         problem("provenance must be an object")
@@ -349,8 +358,10 @@ def adjudicated(label):
 
 
 def reading_triple(reading):
-    """The parts of a reading an adjudication moves from or to: verdict, class, critical."""
-    return {k: reading.get(k) for k in ("verdict", "class", "critical")}
+    """The parts of a reading an adjudication moves from or to: verdict, class, critical. A CDC or RDC reading's class is its
+    workflow_class."""
+    return {"verdict": reading.get("verdict"), "class": reading.get("class", reading.get("workflow_class")),
+            "critical": reading.get("critical")}
 
 
 def settled_reading(label):
@@ -395,7 +406,8 @@ def same(a, b):
 
 def adjudication_record_problems(name, case_dir, label, suite):
     """The record is a repo path (the suite is <repo>/tests/accuracy), not a label, and lists this case once, keyed `family/case`. Its entry
-    states what the case was settled at (`was`: verdict, class, critical) and the final reading (`now`: verdict, class, critical, sites);
+    states what the case was settled at (`was`: verdict, class, critical, and optionally the frozen expected_rules and detection_gap) and the
+    final reading (`now`: verdict, class, critical, sites, and optionally expected_rules, which the label must then carry without a detection_gap);
     the label must equal both, and the two must differ. The adjudicator is none of the people who authored, read or settled the case."""
     if not adjudicated(label):
         return []
@@ -424,12 +436,22 @@ def adjudication_record_problems(name, case_dir, label, suite):
     if not isinstance(was, dict) or not isinstance(now, dict):
         return found + [f"{name}: adjudication record entry needs `was` and `now` readings (verdict, class, critical; now also sites)"]
     label_was = reading_triple(adjudication.get("was", {}))
-    if not same(was, label_was):
-        found.append(f"{name}: adjudication record says the case was {was!r}, the label says {label_was!r}")
+    # `was` may also record the frozen expected_rules and detection_gap; the label's own `was` must then say the same.
+    frozen = ("expected_rules", "detection_gap")
+    label_frozen = {k: adjudication["was"][k] for k in frozen if isinstance(adjudication.get("was"), dict) and k in adjudication["was"]}
+    if not same({k: v for k, v in was.items() if k not in frozen}, label_was) or not same(
+            {k: v for k, v in was.items() if k in frozen}, label_frozen):
+        found.append(f"{name}: adjudication record says the case was {was!r}, the label says {dict(label_was, **label_frozen)!r}")
     final = {**reading_triple(label), "sites": label.get("sites", [])}
+    moves_rules = "expected_rules" in now
+    if moves_rules:   # `now` may also carry the final expected_rules; the label then has no detection gap
+        final["expected_rules"] = label.get("expected_rules")
+        if "detection_gap" in label:
+            found.append(f"{name}: adjudication to expected_rules {now['expected_rules']!r} leaves no detection_gap on the label")
     if not same(now, final):
         found.append(f"{name}: adjudication record says the case is now {now!r}, the label is {final!r}")
-    if same({k: now.get(k) for k in ("verdict", "class", "critical")}, was):
+    if same({k: now.get(k) for k in ("verdict", "class", "critical")}, {k: was.get(k) for k in ("verdict", "class", "critical")}) and not (
+            moves_rules and not same(now["expected_rules"], was.get("expected_rules", []))):
         found.append(f"{name}: adjudication record moves the case from {was!r} to the same reading")
     settled = settled_reading(label)
     if settled is None:
@@ -459,9 +481,9 @@ def strict_label_problems(case, label):
     errors = []
     def error(message):
         errors.append(f"{case}: strict fresh: {message}")
-    class_field = {"LNT": "class", "CDC": "workflow_class"}.get(label.get("family"))
+    class_field = {"LNT": "class", "CDC": "workflow_class", "RDC": "workflow_class"}.get(label.get("family"))
     if not class_field or class_field not in label or "critical" not in label:
-        error("a LNT class or CDC workflow_class and critical are required")
+        error("a LNT class or CDC/RDC workflow_class and critical are required")
         return errors
     readings = label.get("labels", [])
     if len(readings) != 2:
@@ -976,7 +998,7 @@ def main():
     parser.add_argument("--strict-fresh-labels", action="store_true", help="enforce declared fresh-batch reading metadata")
     parser.add_argument("--profile", choices=("generic", "asic", "fpga"), help="pass --profile <name> to the analyzer")
     parser.add_argument("--goal", action="append", choices=("lint", "cdc", "rdc"), help="pass --goal <name> to the analyzer (repeatable)")
-    parser.add_argument("--deck", choices=("core", "domain", "1.0", "lint", "cdc"), help="pass --deck <name> to the analyzer")
+    parser.add_argument("--deck", choices=("core", "domain", "1.0", "lint", "cdc", "rdc"), help="pass --deck <name> to the analyzer")
     args = parser.parse_args()
     if (args.freeze_batch or args.verify_freeze) and not args.batch:
         parser.error("freeze operations require --batch")

@@ -1,0 +1,110 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-b (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "unknown",
+  "critical": false,
+  "workflow_class": "Reset synchronisation",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 17,
+      "signal": "valid_i"
+    },
+    {
+      "file": "intent.sdc",
+      "line": 2,
+      "signal": "valid_i"
+    }
+  ],
+  "rationale": "count_q releases from raw rst_ni, but its only update is gated by the two-stage synchronised rst_sync_q[1]. That holds its D at the reset value through the release window, so a recovery or removal violation cannot change its state.",
+  "author_reading": {
+    "id": "rfc1-b11",
+    "intended_verdict": "good",
+    "critical": false,
+    "workflow_class": "Asynchronous control conflicts and reset as data",
+    "sites": [],
+    "rationale": "The reset is used only through a two-flop synchroniser, and the counter and flag use the synchronised out-of-reset status as data."
+  },
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Reset synchronisation",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 15,
+          "signal": "count_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 11,
+          "signal": "rst_ni"
+        }
+      ],
+      "expected_rules": [
+        "RDC-003",
+        "RDC-002"
+      ],
+      "rationale": "rst_sync_q is built as a synchroniser for rst_ni, but count_q is reset directly by the raw rst_ni, so its release is not synchronised to clk. The synchronised signal exists and is used only for first_o.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)"
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Reset synchronisation",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 15,
+          "signal": "rst_ni"
+        },
+        {
+          "file": "design.sv",
+          "line": 17,
+          "signal": "count_q"
+        }
+      ],
+      "rationale": "The delayed enable postpones counter updates, while count_q still has raw rst_ni on its asynchronous pin. The SDC gives no relationship to establish safe recovery and removal.",
+      "expected_rules": [
+        "RDC-002",
+        "RDC-003"
+      ],
+      "suspected_flaw": "The synchroniser drives the enable rather than the counter reset pin.",
+      "dropped_run_level_rules": [
+        "RDC-013"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "rdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "good",
+    "critical": false,
+    "workflow_class": "Reset synchronisation",
+    "sites": [],
+    "rationale": "Neither reader is right. A (bad) and B (unknown) both rest on count_q's raw reset pin. Its enable is held low for two clocks after release by the synchronised status, so D equals Q at release and the raw release is safe by construction. RDC-003 may still report the raw pin."
+  },
+  "adjudication": {
+    "by": "rdc-rfc1-adjudicator (Claude Opus 5.5), policy decision after the score",
+    "was": {
+      "verdict": "good",
+      "class": "Reset synchronisation",
+      "critical": false
+    },
+    "reason": "reset release is safe by construction, but the valid_i input delay is not applied (-max/-min take no value), and an asynchronous valid_i directly enables the 8-bit count_q (convention 2: value from an unconstrained input)",
+    "record": "tests/accuracy/results/rdc-8-rfc1-fresh-adjudication.json"
+  },
+  "expected_rules": [
+    "CDC-029",
+    "CST-004",
+    "CST-011",
+    "CST-018"
+  ]
+}

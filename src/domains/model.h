@@ -163,6 +163,15 @@ struct ProcInfo {
     ProcKind kind = ProcKind::Other;
     SourceLocation loc;
     std::string instancePath;
+    /// A continuous assignment with a delay (`assign #1 y = x`), or a sequential block with an intra-assignment or statement
+    /// delay: its copies are not exact moves in time.
+    bool delayed = false;
+    /// A sequential block with a statement-level timing control or delay (`#d;`, `wait`, `forever`, non-sequential fork,
+    /// or blocking intra-assignment timing control), excluding synthesis-ignored NBA intra-assignment delays (`<= #d`).
+    bool bodyTiming = false;
+    /// The procedural block of a sequential or combinational procedure (null for other kinds) and its instance context.
+    const slang::ast::ProceduralBlockSymbol* block = nullptr;
+    const slang::ast::InstanceSymbol* inst = nullptr;
 };
 
 enum class PairOperator : uint8_t { Equal, NotEqual, Xor, And };
@@ -209,7 +218,8 @@ struct Flop {
     int edge = 0;                                        // 1 posedge, 2 negedge, 3 both, 0 unknown
     std::vector<ResetInfo> resets;                       // async resets (from event list)
     std::vector<int> resetKinds;                         // per reset: value it forces on this register bit: 0 clear, 1 set, 2 unknown (derived from resetValues)
-    std::vector<char> resetValues;                       // per reset: the constant this bit gets: '0' '1' 'x' 'z', '?' (assigned a non-constant or conflicting value), 'n' (not assigned by that reset's branch)
+    std::vector<bool> resetConditional;                  // per reset: the forced value sits under a condition that is not this reset (`if (!r && en)`, a test nested in its branch)
+    std::vector<char> resetValues;                       // per reset: the constant this bit gets: '0' '1' 'x' 'z', '?' (assigned a non-constant or conflicting value, or not decided), 'h' (assigned its own value: holds during this reset)
 
     // Exact two-branch asynchronous transition (one unconditional NBA per bit in each branch).
     bool resetTransitionKnown = false;
@@ -224,6 +234,7 @@ struct Flop {
     NodeId syncReset = kNoNode;                          // the candidate's signal (control edges from it are ignored for chain recognition)
     std::vector<NodeId> syncResetGuards;                 // all proven constant forcing guards, per-bit
     std::vector<SyncResetGuard> syncResetFacts;          // all guards with exact polarity and forced bit value
+    std::vector<SyncResetGuard> extraResetGuards;        // OR-combined async-branch or immediate else-if constant forcing guards on async-reset flops
     bool syncDataSuppressed = false;                     // a proven unconditional constant NBA overrides normal D
     uint32_t domain = 0;                                 // index into Model::domains (valid if clockResolved)
     std::vector<NodeId> otherClockSignals;               // clocks of further sequential blocks driving this bit (multiSequential)
@@ -297,6 +308,7 @@ struct ConstDriver {
     char value = '?';
     EdgeType type = EdgeType::Comb;
     uint32_t proc = 0;
+    bool unconditional = false;
 };
 
 // Boolean syntax facts for qualifier implication. Unknown retains dependencies;

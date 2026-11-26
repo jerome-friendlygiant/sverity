@@ -219,3 +219,18 @@ and `12` `unknown` cases.
   (`0.0` missed, `0.0` unresolved), `13/14` `good` clean / `1/14` unresolved (`0.071`),
   `12/12` `unknown` disclosed (`0` silent), `0` false errors, `0` false alarms, `0`
   silently accepted critical defects, and `1.689` review findings per case.
+
+## RDC held-out batch and artifacts (`rdc-8-rfc1-fresh`)
+
+See the [RDC qualification](../../../docs/rules/RDC_WORKFLOW.md#results) for the interpretation.
+Budgets are [`rdc-budgets.json`](../rdc-budgets.json), fixed before scoring.
+
+| Artifacts | What they preserve |
+|---|---|
+| [`rdc-8-rfc1-fresh-freeze.json`](rdc-8-rfc1-fresh-freeze.json) | The exact membership and bytes of the 45 blind cases. |
+| [`rdc-8-rfc1-fresh-first-score.json.gz`](rdc-8-rfc1-fresh-first-score.json.gz) | The original first score: missed `0.158`, false error `0.062`, false alarm `0.312`, silent unknown `1`, silent critical `rfc1-b01`, `b02`, `b08`. |
+| [`rdc-8-rfc1-fresh-adjudication.json`](rdc-8-rfc1-fresh-adjudication.json) | The post-score AI judgement that moved `rfc1-a04`, `b11` and `c06` from good to unknown and kept `b04`, `b05`, `b06` and `b10` good. It also moved the frozen detection gaps of `rfc1-b01` and `b02` to expected rule `RDC-009`. |
+| [`rdc-8-rfc1-fresh-regression.json.gz`](rdc-8-rfc1-fresh-regression.json.gz) | Regression after the adjudication, without `--verify-freeze`: 9 of 9 budgets met, 0 silently accepted critical defects. |
+| [`rdc-reviewed-residuals-rfc1.json`](rdc-reviewed-residuals-rfc1.json) and [`rdc-residual-review-rfc1.json.gz`](rdc-residual-review-rfc1.json.gz) | The `--deck rdc` run on the five pinned designs and the review of every finding. |
+| [`rdc-mutation-rfc1-first.json`](rdc-mutation-rfc1-first.json) | The first mutation score over the 23 frozen [operators](../rdc-mutation-operators.json): 23 of 23 caught. |
+| [`rdc-mutation-rfc1-regression.json`](rdc-mutation-rfc1-regression.json) | The regression mutation score over the same operators: 23 of 23 caught. |

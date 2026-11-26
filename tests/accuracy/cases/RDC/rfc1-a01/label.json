@@ -1,0 +1,115 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-a (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Reset generation and glitches",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 19,
+      "signal": "core_rst_n"
+    },
+    {
+      "file": "design.sv",
+      "line": 15,
+      "signal": "wdt_rst_n"
+    }
+  ],
+  "expected_rules": [
+    "RDC-007"
+  ],
+  "rationale": "core_rst_n = por_n & wdt_rst_n clears q_a in clk_a, but wdt_rst_n is a clk_b flop, so the clk_a reset releases on clk_b edges with no clk_a synchroniser while q_a may capture beat.",
+  "author_reading": {
+    "id": "rfc1-a01",
+    "intended_verdict": "bad",
+    "critical": true,
+    "workflow_class": "Reset inventory and unknown sources",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 19,
+        "signal": "core_rst_n"
+      }
+    ],
+    "rationale": "clk_b's wdt_rst_n is combined with por_n and drives the asynchronous clear of clk_a flops, so the clk_a reset releases on clk_b edges with no synchroniser in clk_a."
+  },
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Reset generation and glitches",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 19,
+          "signal": "core_rst_n"
+        },
+        {
+          "file": "design.sv",
+          "line": 15,
+          "signal": "wdt_rst_n"
+        }
+      ],
+      "expected_rules": [
+        "RDC-007",
+        "RDC-009"
+      ],
+      "rationale": "core_rst_n = por_n & wdt_rst_n is a reset for clk_a logic, but wdt_rst_n is a single clk_b flop (D=1) with no clk_a synchroniser. Its release is unsynchronised to clk_a, so q_a can be released unsafely. Clocks are declared asynchronous.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)"
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Reset generation and glitches",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 19,
+          "signal": "core_rst_n"
+        },
+        {
+          "file": "design.sv",
+          "line": 22,
+          "signal": "q_a"
+        }
+      ],
+      "rationale": "With POR inactive, a clk_b flip-flop directly releases core_rst_n. The clocks are asynchronous, so the release can violate recovery or removal of q_a.",
+      "expected_rules": [
+        "RDC-007",
+        "RDC-002",
+        "RDC-003"
+      ],
+      "suspected_flaw": "The clk_b beat register also has direct POR release and an unrelated asynchronous data capture."
+    }
+  ],
+  "settlement": {
+    "by": "rdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Reset generation and glitches",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 19,
+        "signal": "core_rst_n"
+      },
+      {
+        "file": "design.sv",
+        "line": 15,
+        "signal": "wdt_rst_n"
+      }
+    ],
+    "expected_rules": [
+      "RDC-007"
+    ],
+    "rationale": "Both readers are right on verdict, class and the clk_b-generated reset. RDC-007 is the rule that targets a reset generated in another clock domain. RDC-009 (A) targets glitchy gating rather than this release, RDC-003 (B) defers register-generated resets from another domain to RDC-007, and RDC-002 is an incidental inventory warning. Sites follow A; q_a (B) is the victim, not the defect."
+  }
+}

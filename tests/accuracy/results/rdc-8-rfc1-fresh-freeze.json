@@ -1,0 +1,231 @@
+{
+ "batch": "rdc-8-rfc1-fresh",
+ "cases": {
+  "RDC/rfc1-a01": {
+   "design.sv": "d8edde5722e568dd45a9632900ee08fd2ea73f99c89009405cbd0f81c457dec3",
+   "intent.sdc": "2153b5614894f5053a3e5d21ec2722baa87f54b36af13b85425f723ad77ce329",
+   "label.json": "3e5940ffd9292319c7bdb95acb8bb71b49d0ebdfede4c4507d4912bb6eadc731"
+  },
+  "RDC/rfc1-a02": {
+   "design.sv": "dc39fd58c233c9c55b43cb7c8768f74fd95c201f10e4ea7d978e7723b96f299a",
+   "intent.sdc": "d266e4d664b28461be11b2b39e6ea37ddb33dff99f006573c9a96007202e370d",
+   "label.json": "81595a18157e76665b4848d71f4eb87e7dfcc6f165d04c9a4fdb2ef97d16f4e9"
+  },
+  "RDC/rfc1-a03": {
+   "design.sv": "950e54311a469901282fe08324cf626bb67602bc14b9adf4829f67badd125243",
+   "intent.sdc": "b7658bbb312d1766892a753cf63d56635e51a75f76ef66b31975221b70534cd8",
+   "label.json": "45d86c906cd338172694913aef29bb7f5486ba3bea7d013fa69d7b5742ad05a6"
+  },
+  "RDC/rfc1-a04": {
+   "design.sv": "970a7d94508810c316be91b04f1bb2a1aaa7bc52e08baf7f76d2a8a8d7276e90",
+   "intent.sdc": "1ffe4ae354be87b8aaf64e988b0c1da00eed7ebaf8c5763c27ee0dd99844ca95",
+   "label.json": "81c001727d2ad906441eef7e4ae60918447dd60161b7c97451d8d2732b1442aa"
+  },
+  "RDC/rfc1-a05": {
+   "design.sv": "aa4293540a5f62154c27e1a98ff98b85abadedb20f23cf1dbf6f0db14c7b381c",
+   "intent.sdc": "1b1a91b236ce680a6f8d718242cf016d81a99f7a1d6b406d99bc15a47a21a825",
+   "label.json": "776e8e45230e0d5cc95fdb30a78508543f12108c6f937ff377f6994d4767c1e6"
+  },
+  "RDC/rfc1-a06": {
+   "design.sv": "c7c59bae931eba542bf24dba5b1a87b263bb823ea5ff954524f2f8a4c8225d11",
+   "intent.sdc": "1b1a91b236ce680a6f8d718242cf016d81a99f7a1d6b406d99bc15a47a21a825",
+   "label.json": "c00f12117d6cb193bbe5b9356633fbd41cdbe3b36202b27e834254b5dfc8b6ab"
+  },
+  "RDC/rfc1-a07": {
+   "design.sv": "8bb700897f1d48f0712d05cce7a65d3267e6461599b84783b24bea57723bb98b",
+   "intent.sdc": "d35428a2974f75c7ad6933292512e245a8a33502b52d05469c378808d6bc13c3",
+   "label.json": "d523be0112eb00358f859dad3d8ae03a24a3c69aff85ae5a65364a0d572da869"
+  },
+  "RDC/rfc1-a08": {
+   "design.sv": "522124f6f967217584b06603f786067b69a270aafa54d238d35bc0e33c19012a",
+   "intent.sdc": "5fd097da57a814bdc8fd85e910510bcd86d65b73c0d8e7d81df903adb73a879f",
+   "label.json": "cfa182ec97f0ba436e9fd7c9745e3ed560ad19dcea487bcff5ccde865fd948ca"
+  },
+  "RDC/rfc1-a09": {
+   "design.sv": "61a9309d3d32ab7aef32ea48160cb805fd153d3c69c567ab5ee238919b0afb5f",
+   "intent.sdc": "5fd097da57a814bdc8fd85e910510bcd86d65b73c0d8e7d81df903adb73a879f",
+   "label.json": "dffb82d6ee321e167d312169df65c56d8db701e4ba0bcf4d057d90ae737e4958"
+  },
+  "RDC/rfc1-a10": {
+   "design.sv": "8ef347af62f2b597f4debf4b3251e142ee6f89b2443fae9214d92a0100f652b2",
+   "intent.sdc": "f9d3128a2bfef34203489d81e5a26b0935969fea08a41cf366531b27b43c6b5b",
+   "label.json": "cab5bec654fb05d0cdd2fd3cda85c558fde49e8605252b2add4aa7411769ee06"
+  },
+  "RDC/rfc1-a11": {
+   "design.sv": "46c59357e3df27b981ca8d838b74e5f376fc7fcfd4bbbfb84e5a8f97b9e20a20",
+   "intent.sdc": "5e95def242b868956a2ae0db894025b01d8a874483b645ba1c02acc3df91487e",
+   "label.json": "fe3149c16f66ab318165b622d2c222ba91dd43b047f9f94af7ae47afb2a0478c"
+  },
+  "RDC/rfc1-a12": {
+   "design.sv": "a091317d5c232d5ba35fd71b2f7a83e2e1fad681607dd6c9370e44bcfd30e4d8",
+   "intent.sdc": "c2b7a98dfac719fd0b7b731ac20325aa40dba1018a5d08c065e9958664b67f27",
+   "label.json": "feb8bf17e2f13204ba2bb43735186a53c3d4dbd7bc72492823d7d862132b83f2"
+  },
+  "RDC/rfc1-a13": {
+   "design.sv": "f4883a9d31917f9815462c613ccd0bc70249e902b505cdffc9fbf80a9127236a",
+   "intent.sdc": "357954e2b8a7b09006532ce7fcb941fd0fc105dad4db6aa2f2539a64e47d9299",
+   "label.json": "44bdcfcfc61f8239e8640c436d8d8eacdaf390c363ea8442e4a4aaf21c887bea"
+  },
+  "RDC/rfc1-a14": {
+   "design.sv": "79b1a533e109ea1ba862fc9926f4146c3c2f4ddd59c89ad8214761927a348c40",
+   "intent.sdc": "8e8f07aabc5f0ddc942d2b274be84e77ffce7b7980b29af2510b24c4d1dd8613",
+   "label.json": "369e7961ff41ffdc7ef22b517c5f983225159cba467a3b888c04e1053c51b4c3"
+  },
+  "RDC/rfc1-a15": {
+   "design.sv": "09fbd3b97881b15dcfec9baf122a8f2c83e2af6a809ec43ab40da01c24ed003c",
+   "intent.sdc": "5f7bd602bcf8c31d1f30b7cbfd728916b0a7d03355c0beb855fc3c5814b3887d",
+   "label.json": "a449bcc3b243f8616da5b8ebc325748ac7047cda2bddfc2df325a4b18c386a79"
+  },
+  "RDC/rfc1-b01": {
+   "design.sv": "ad94d7312cb17872efc03458d5ef034657aef0832e4e65331006d94a79329430",
+   "intent.sdc": "276c878108ee6ffb5f950ed0e43d3dbae39579d8df46c29563d2b615177ed80a",
+   "label.json": "4431e670ba56281903dc494a02cb094e7aab04f56e17ae6e1afc4dd96fcf5565"
+  },
+  "RDC/rfc1-b02": {
+   "design.sv": "bb7b5b79b1d6dd838b00952f2e594eb58a83e85016dd23242044a904a8b14300",
+   "intent.sdc": "31314da68d6202bf7ffbd1b0177410276e92a93e31abc8f7fc3c96e5659d12b4",
+   "label.json": "cc2e253caf33c97a53dc6548569674a1a6081ff954abdf4f4cdc96dd0df931b3"
+  },
+  "RDC/rfc1-b03": {
+   "design.sv": "35a2381e14a80f545ddd7223edde1af95a587e56a0d0cf1fabade84c710fe2dd",
+   "intent.sdc": "e942f8cd243a2d866c628683e4b04a09321315c2acea9f27117b7d8edf4984ce",
+   "label.json": "9ccf2f4ac60d8efb9dfd31532c86800ba7e4bb068f99fdc85cbbff10a9ac5900"
+  },
+  "RDC/rfc1-b04": {
+   "design.sv": "788e7460e5c1dfaa2410dd2ee89005a277779c12f6a0f16e692396a4968bc11a",
+   "intent.sdc": "322609fc54381942ff443fae07a0cc87bab9c1230aa31cc997aa7b3dccc12ea9",
+   "label.json": "f7620ca1a1f8b23c803e85cb0d4089486b6c26f7e37b85ffab218d4c7d6859a2"
+  },
+  "RDC/rfc1-b05": {
+   "design.sv": "a66567eda1d96b1f2b09e6ef5f8db6d28484485b16878f0eccebd6aab21207ce",
+   "intent.sdc": "77434a781cc8afc730eee5df40d57f60d1abf9f82fa49e109b599185f1feaf33",
+   "label.json": "54992d1782956e8f2222f1db929cb4a47cdd18d4fc7b2767b41605c29b359d80"
+  },
+  "RDC/rfc1-b06": {
+   "design.sv": "f44f852141dba0916799109e5ef6e30e18de420ea6954a82a2d8914f32985ae6",
+   "intent.sdc": "69a86abd0d85ebb20aef22d29da5379f0c675a9f1d4484d8ae8de3247720e88e",
+   "label.json": "365ea64ab9acd05072ee76ebeaf29bf00a640ffda74ebb738f6931421e28412f"
+  },
+  "RDC/rfc1-b07": {
+   "design.sv": "f4918ada4a66000413e8ccf6a116e0efc1553bcab32cc79444c777469b589bf8",
+   "intent.sdc": "631b037bf0b8c97de554c0c3cb8a074c45f0ebf1b3233b0bac4062c1fa5a976e",
+   "label.json": "483044fc98d3c0e1ac53241d95ea7260de6c6b8c9b139a07c130c5e0ba1eb7e6"
+  },
+  "RDC/rfc1-b08": {
+   "design.sv": "7b2e23a0c76b232b9096cf658f31b370e63a58665c2027fb118890dceb708532",
+   "intent.sdc": "7376af0a31cbc5c677cdf07c57365d64ffd4baf1bac5a98892f912497078eafc",
+   "label.json": "c73a94ba719cc4ff897b336d99cc6ad60e3e207cecda8ed1ef245bd48b808f1e"
+  },
+  "RDC/rfc1-b09": {
+   "design.sv": "a64d4e0f81cb21ebe43632bcb39cd48833d39bb381497a73eaf822cba3057fde",
+   "intent.sdc": "3182998d35c5a8212a7bd1ef71b6eeed955eb4484fa481f9338929edd3025512",
+   "label.json": "7bb442bf168bc8e57f33ec4d87bc145872340059e1c49b0fd690b458ef7074b3"
+  },
+  "RDC/rfc1-b10": {
+   "design.sv": "3235944e0fab0c1b6ab708ff2d544dadc3ea83a456f3f80d3b78a05a9a19d5c0",
+   "intent.sdc": "3182998d35c5a8212a7bd1ef71b6eeed955eb4484fa481f9338929edd3025512",
+   "label.json": "9f3925505891fd74794373121b6ff72ef21b5b2735355ac8aa14f706e82dc2f8"
+  },
+  "RDC/rfc1-b11": {
+   "design.sv": "19a2735a67d80844ec432258095438b7accd7e09971bb8d40b43f877faa53755",
+   "intent.sdc": "7376af0a31cbc5c677cdf07c57365d64ffd4baf1bac5a98892f912497078eafc",
+   "label.json": "a14ce420a731adbbba2f7ece0fbec594e564f4ecb6f4978ec7905ee091a512f3"
+  },
+  "RDC/rfc1-b12": {
+   "design.sv": "fe3b0944f829c91bfd954ee449de5a7bc697dd9fed7e2938d4011e08a7570ba7",
+   "intent.sdc": "84efe6d8a0e72f11f203fed2518610b43e2d6b94e865dc88c98a338e69b5fa3e",
+   "label.json": "68a6739641319d7d0bd3237bfafe07159386a2f71cdff68c5a474d3d920b6c7a"
+  },
+  "RDC/rfc1-b13": {
+   "design.sv": "96f793dd82b7d76ef12006f0732789ca93634547c9640c329952574406d4252e",
+   "intent.sdc": "69a86abd0d85ebb20aef22d29da5379f0c675a9f1d4484d8ae8de3247720e88e",
+   "label.json": "cc54a4d6b676a50e3e699136d30882e76883724dae135f14b56d1ae741e98556"
+  },
+  "RDC/rfc1-b14": {
+   "design.sv": "1e1aabc13731a701a5495ac8a5761448c2e070a48d940813ad191fe7f43f1a90",
+   "intent.sdc": "041e029b5c47bdae0dfcccb7576da0c37a59295496903277780be45a736efec1",
+   "label.json": "0b93831b8843a67087c9a46a4d1e3faf136fa1f380613b6ad223c93f190a0772"
+  },
+  "RDC/rfc1-b15": {
+   "design.sv": "051fa3559ca96a6c98e1cc4129832057768439943643a3dc6f2c2512facee3c0",
+   "intent.sdc": "69a86abd0d85ebb20aef22d29da5379f0c675a9f1d4484d8ae8de3247720e88e",
+   "label.json": "e886629ae4f2964d2b66871e5f53d3bc8c2523998d03b74a70162902e7591cb9"
+  },
+  "RDC/rfc1-c01": {
+   "design.sv": "03942cab091f98a5c2f0b75bc15d57d683abcee578406ff11a8b87f727d7f8b9",
+   "intent.sdc": "177d7b84fa54aa411c94e9f2a94b59b555ddbcb86df93243746d8704fcca742a",
+   "label.json": "3da5b43018f51763e4f56ffdbad3ee324a86c28b9ef196e0b106f038765c3a37"
+  },
+  "RDC/rfc1-c02": {
+   "design.sv": "a77f1fb4d5537eeefb4496226c03142ea8a5ebf66f9607f278c1b68152d5df49",
+   "intent.sdc": "f6009bc65b23240c49da08b4f789c784e57ee18d8d69f160b1ce9121003b6547",
+   "label.json": "3a6a76e0466b856af71b92d3089f993c0143721e005ad5e76bf70c30937b14a2"
+  },
+  "RDC/rfc1-c03": {
+   "design.sv": "ce03c6052b0e8f78f651e881d20f9e301639ffdd3ad8dfeb6627e363abffcaec",
+   "intent.sdc": "2d4cb776fac612b14882c9d20613fd6d02ca48f375ca9b4d3af2bedba3d4e89d",
+   "label.json": "505b97a95921b470b13fe5f90a77538da94514693e83f3e1b734fe66fff0b549"
+  },
+  "RDC/rfc1-c04": {
+   "design.sv": "9ea7c8a38ed9b508667a93caec99716db5bd1a7f9629f4b0fab9ebc936fb45df",
+   "intent.sdc": "177d7b84fa54aa411c94e9f2a94b59b555ddbcb86df93243746d8704fcca742a",
+   "label.json": "d56d6921e53ede7ce5e7432897315e717b884e4f148ada9bd57602a076b45b2d"
+  },
+  "RDC/rfc1-c05": {
+   "design.sv": "24f9d3bce66b2f8968bd0ca958d965e4f4972bc9193a68744f6bebf2c989de90",
+   "intent.sdc": "f6009bc65b23240c49da08b4f789c784e57ee18d8d69f160b1ce9121003b6547",
+   "label.json": "4c2a75656f27d69989458d14951d1e3432a4db0fc450a3d7c234febffc58ad3f"
+  },
+  "RDC/rfc1-c06": {
+   "design.sv": "10c7a6747e2ee441212bae53040e03cf3f63d0df387b23eb7cad88177275cfb9",
+   "intent.sdc": "2d4cb776fac612b14882c9d20613fd6d02ca48f375ca9b4d3af2bedba3d4e89d",
+   "label.json": "910aba38937fe7954981ce1e8c999ba9467e4bb782571a850cea3736de3e0dd4"
+  },
+  "RDC/rfc1-c07": {
+   "design.sv": "ba7fc8cbcd850612a4b9a6ed89a7d1de4456879d0280d989ca008a10bfc52881",
+   "intent.sdc": "6c43314529b7e3ab86879e307400b419d10f57accceef4e81c0aca5d1d5364de",
+   "label.json": "4de9effe21064edab366ec3555299b9f49a95da5d1279e0f2b1e5cb3bbd2d45f"
+  },
+  "RDC/rfc1-c08": {
+   "design.sv": "89d9cdb41f212a8b834908fad7dce03c7cee2af6eb8f8fda3afc32bf627571e4",
+   "intent.sdc": "db8592e0d234f88f39074f4e1a4c3195a2c794da4dae55a1ee910e5aa36ac73b",
+   "label.json": "f05a18ef6019e684a44178ed6cde591f9b668ec2d1efe555885497470a04b4dc"
+  },
+  "RDC/rfc1-c09": {
+   "design.sv": "0f909bf6ca90b5b64873cfc9bc06d4efbeb3157f87da8857ecd5029404ad3a11",
+   "intent.sdc": "16181c04e1e99b32598d6bd7696e0a59bbafd7424f88fe16b7c3db736ef365f4",
+   "label.json": "6e8492a273eecd4804efeb67fc9f34489c1d2d2a8f3dd014bfd33f9175b832c5"
+  },
+  "RDC/rfc1-c10": {
+   "design.sv": "e712997a26cd3aafdbceb3f014588e1f09592ca5283d12f0a47b4808f619bc8b",
+   "intent.sdc": "b3a432b4b9f2bf2202c48afa388fabce9e3b05bbff0fe4b1a7aca82bea217e96",
+   "label.json": "aecf79020710e8c27bb12992f5c1bf3e7715afd5195ab33ed3e344bffe1f1909"
+  },
+  "RDC/rfc1-c11": {
+   "design.sv": "135851a44a8fbe3eacb1bfe7aafafaf49feb63eac4fdcd352984535ece4cfb4c",
+   "intent.sdc": "ad3c1001b65de135f5ec85908d03ce4ca46f70cf34fbbed85783ca41a0404eda",
+   "label.json": "c39c0279e32a8b20baaf2d146f4588a1226fc2d6dc6b69abcec7d59197697357"
+  },
+  "RDC/rfc1-c12": {
+   "design.sv": "35b2eb7b5a38237aa9133b9440a7c76cfd47a65c60cbfccad4f59af9d5ef0b78",
+   "intent.sdc": "0084ec590c78d8063b31f12ed70c794ad178069c43c58f1ae350efe310e1eed0",
+   "label.json": "695ad5d103d7affe76af875b39c282532308116a83fd31e9515494be5b712252"
+  },
+  "RDC/rfc1-c13": {
+   "design.sv": "6f639e4565cbc826710c67eafd402402d196ef1ea38d8ea2ddd2654c15e38fc0",
+   "intent.sdc": "b3a432b4b9f2bf2202c48afa388fabce9e3b05bbff0fe4b1a7aca82bea217e96",
+   "label.json": "468cf366871bfb0cd13eb0fdd97e37d6e19e0a1fb15208abb4442a48d7505789"
+  },
+  "RDC/rfc1-c14": {
+   "design.sv": "4a651bf9e35f1f743af79fff5421af3deb9048dc7925a4ee5c260038ba35d926",
+   "intent.sdc": "42d1023c6df482b5ae2e4eb6a9ad1de4392277dd3172696b533fb0dba1e54f2e",
+   "label.json": "ac85a529d52867f18692bc6ff91c1c74d3137388161ba74eb8e18599add2f251"
+  },
+  "RDC/rfc1-c15": {
+   "design.sv": "c0048de1435273b17663e063f8b6e04c205ce7d564087590b804e942dd098ccc",
+   "intent.sdc": "22f333d453325ca2c93ebbb9444f5c920d47de1e53301cb589ab3d32dcb45e8e",
+   "label.json": "fd3dec19dbff85f12201ee3508acefc6936b2c4cd8113fb69517717b455c8273"
+  }
+ },
+ "schema": "sverity-accuracy-freeze/1"
+}

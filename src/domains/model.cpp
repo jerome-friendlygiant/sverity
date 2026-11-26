@@ -1401,6 +1401,28 @@ private:
         }
         return e;
     }
+    /// Whole-net copies in one design: `wire r = rst_n;` and `assign r = rst_n;` map r to rst_n when r has no other driver
+    /// and no delay. Filled per scope before its members. Multiply-driven nets (`wand alias_n; assign alias_n = rst_n; ...`)
+    /// stay out of plainCopyOf and record their plain-copy sources separately so event matching still finds the clock while
+    /// forcing the guard to stay conditional (round 4 A2a).
+    std::unordered_map<const ValueSymbol*, const ValueSymbol*> plainCopyOf;
+    std::unordered_map<const ValueSymbol*, std::vector<const ValueSymbol*>> copiesOf;   // the reverse of plainCopyOf
+    std::unordered_set<const ValueSymbol*> multiDrivenSyms;
+    std::unordered_map<const ValueSymbol*, std::vector<const ValueSymbol*>> multiDriverSources;
+    void addPlainCopy(const ValueSymbol* copy, const ValueSymbol* source) {
+        if (plainCopyOf.emplace(copy, source).second) copiesOf[source].push_back(copy);
+    }
+    /// The path with plain copies followed back to the net they copy (same width, same bit positions). A test of `r` is a test of
+    /// `rst_n` when `r` is a copy of it: both read the same value.
+    Path canonPath(Path p) const {
+        for (int guard = 0; guard < 16 && p.sym; guard++) {
+            auto it = plainCopyOf.find(p.sym);
+            if (it == plainCopyOf.end() || widthOf(*p.sym) != widthOf(*it->second)) break;
+            p.sym = it->second;
+        }
+        return p;
+    }
+
     std::vector<Path> pathsOf(const Expression& expr, EvalContext& ec, bool skipSelectors) {
         const auto& selected = skipSelectors ? expr : modeExpr(expr, ec);
         // Only a one-bit value is fixed outright: a true vector can still carry unfixed bits, as in {mode[1], data}.
@@ -1857,7 +1879,7 @@ private:
     /// Emits the edges of one assignment: exact bit pairs when available, inexact otherwise, plus control.
     void emitAssign(const InstanceSymbol* ctx, const Assign& a, const std::vector<Path>& targets, EdgeType type,
                     uint32_t proc, slang::SourceLocation loc, const std::set<NodeId>* skipReads = nullptr,
-                    NodeId* /*unused*/ = nullptr) {
+                    const std::set<NodeId>* skipCtrlReads = nullptr) {
         if (!a.uncertainCalls.empty()) for (const auto& target : targets) for (auto node : nodesFor(ctx, target)) {
             auto& issues = m.uncertainCallDrivers[node];
             issues.insert(issues.end(), a.uncertainCalls.begin(), a.uncertainCalls.end());
@@ -1882,6 +1904,8 @@ private:
             for (const auto& read : a.dataReads) sources.insert(read.sym);
             curShared = a.afterPossibleExit || !a.conditions.empty() || !a.calledConditions.empty() || !a.ctrlReads.empty() || !a.booleanGuards.empty() || sources.size() > 1;
         }
+        const bool unconditionalConst = !a.afterPossibleExit && a.conditions.empty() && a.calledConditions.empty() &&
+                                        a.ctrlReads.empty() && a.booleanGuards.empty() && !a.approximate;
         struct Reset { Builder& b; ~Reset() { b.curData = b.curCtrl = nullptr; b.curApproximate = false; b.curShared = false; } } reset{*this};
         if (a.pairsValid) {
             for (auto& [t, src] : a.pairs) {
@@ -1891,7 +1915,7 @@ private:
                     if (sel && !curDeadWrite) {
                         const NodeId tn = nodeForBit(ctx, t);
                         if (type == EdgeType::Comb) noteCombTarget(tn, proc);
-                        m.constDrivers[tn].push_back({src.value ? src.value : '?', type, proc});
+                        m.constDrivers[tn].push_back({src.value ? src.value : '?', type, proc, unconditionalConst});
                     }
                     continue;
                 }
@@ -1975,10 +1999,11 @@ private:
             curApproximate = a.approximate;
         }
         std::vector<Path> ctrl;
+        const std::set<NodeId>* ctrlSkip = skipCtrlReads ? skipCtrlReads : skipReads;
         for (auto& r : a.ctrlReads) {
-            if (skipReads) {
+            if (ctrlSkip) {
                 bool skip = false;
-                for (auto n : nodesFor(ctx, r)) if (skipReads->count(n)) skip = true;
+                for (auto n : nodesFor(ctx, r)) if (ctrlSkip->count(n)) skip = true;
                 if (skip) continue;
             }
             ctrl.push_back(r);
@@ -2097,14 +2122,40 @@ private:
         return total == e.type->getBitstreamWidth();
     }
 
-    /// The operand of a bitwise inversion, `~x`, or of `!x` on one bit; null for any other expression.
+    /// The operand of a bitwise inversion, `~x`, `!x` on one bit, or a 1-bit constant XOR/XNOR polarity inversion (`x ^ 1'b1`, `x ~^ 1'b0`); null otherwise.
     const Expression* inversionOperand(const Expression& e, EvalContext& ec) {
         const Expression* x = &modeExpr(e, ec);
-        if (x->kind != ExpressionKind::UnaryOp || !x->type || !x->type->isIntegral()) return nullptr;
-        const auto& u = x->as<UnaryExpression>();
+        if (!x->type || !x->type->isIntegral()) return nullptr;
         const uint64_t width = x->type->getBitstreamWidth();
-        if (u.op == UnaryOperator::BitwiseNot && u.operand().type->getBitstreamWidth() == width) return &u.operand();
-        if (u.op == UnaryOperator::LogicalNot && width == 1 && u.operand().type->getBitstreamWidth() == 1) return &u.operand();
+        if (x->kind == ExpressionKind::UnaryOp) {
+            const auto& u = x->as<UnaryExpression>();
+            if (u.op == UnaryOperator::BitwiseNot && u.operand().type->getBitstreamWidth() == width) return &u.operand();
+            if (u.op == UnaryOperator::LogicalNot && width == 1 && u.operand().type->getBitstreamWidth() == 1) return &u.operand();
+            return nullptr;
+        }
+        if (x->kind == ExpressionKind::BinaryOp && width == 1) {
+            const auto& b = x->as<BinaryExpression>();
+            if (b.op == BinaryOperator::BinaryXor || b.op == BinaryOperator::BinaryXnor) {
+                const uint64_t want = b.op == BinaryOperator::BinaryXor ? 1 : 0;
+                auto isConstBit = [&](const Expression& op, uint64_t val) {
+                    EvalContext tmp(ec.astCtx);
+                    ConstantValue cv = op.eval(tmp);
+                    if (!cv.isInteger() || cv.integer().hasUnknown()) return false;
+                    auto v = cv.integer().as<uint64_t>();
+                    return v && *v == val;
+                };
+                auto oneBitOperand = [&](const Expression& op) -> const Expression* {
+                    const Expression* p = &modeExpr(op, ec);
+                    while (p->kind == ExpressionKind::Conversion && p->as<ConversionExpression>().isImplicit())
+                        p = &modeExpr(p->as<ConversionExpression>().operand(), ec);
+                    return (p->type && p->type->isIntegral() && p->type->getBitstreamWidth() == 1) ? p : nullptr;
+                };
+                if (isConstBit(b.right(), want))
+                    if (const Expression* s = oneBitOperand(b.left())) return s;
+                if (isConstBit(b.left(), want))
+                    if (const Expression* s = oneBitOperand(b.right())) return s;
+            }
+        }
         return nullptr;
     }
     /// `x` for `~~x`: a double inversion is the identity on every two-state bit (the model treats an inverter pair as a buffer).
@@ -2179,6 +2230,29 @@ private:
             return true;
         }
         if (const Expression* twice = doubleInversion(*x, ec)) return bitList(*twice, ec, out);   // ~~x is x
+        if (x->kind == ExpressionKind::BinaryOp && want == 1 && x->type && x->type->isIntegral()) {
+            const auto& b = x->as<BinaryExpression>();
+            if (b.op == BinaryOperator::BinaryXor || b.op == BinaryOperator::BinaryXnor) {
+                const uint64_t idVal = b.op == BinaryOperator::BinaryXor ? 0 : 1;
+                auto isConstBit = [&](const Expression& op, uint64_t val) {
+                    EvalContext tmp(ec.astCtx);
+                    ConstantValue cv = op.eval(tmp);
+                    if (!cv.isInteger() || cv.integer().hasUnknown()) return false;
+                    auto v = cv.integer().as<uint64_t>();
+                    return v && *v == val;
+                };
+                auto oneBitOperand = [&](const Expression& op) -> const Expression* {
+                    const Expression* p = &modeExpr(op, ec);
+                    while (p->kind == ExpressionKind::Conversion && p->as<ConversionExpression>().isImplicit())
+                        p = &modeExpr(p->as<ConversionExpression>().operand(), ec);
+                    return (p->type && p->type->isIntegral() && p->type->getBitstreamWidth() == 1) ? p : nullptr;
+                };
+                if (isConstBit(b.right(), idVal))
+                    if (const Expression* s = oneBitOperand(b.left())) return bitList(*s, ec, out);
+                if (isConstBit(b.left(), idVal))
+                    if (const Expression* s = oneBitOperand(b.right())) return bitList(*s, ec, out);
+            }
+        }
         if (x->kind == ExpressionKind::Streaming || x->kind == ExpressionKind::Replication) return false;
         ValuePath vp(*x, ec);
         const ValueSymbol* rs = vp.rootSymbol();
@@ -2187,6 +2261,35 @@ private:
         if (lo > hi) std::swap(lo, hi);
         if (hi - lo + 1 != want) return false;
         for (uint64_t b = hi + 1; b-- > lo;) out.push_back({rs, static_cast<uint32_t>(b)});
+        return true;
+    }
+
+    /// The bit sources of `x & mask` or `x | mask` where the mask is a known constant, most significant bit first: a bit the mask
+    /// passes is `x`'s own bit, a bit it forces is a constant. A constant x/z mask bit is undecided ('?'). False if not this shape.
+    bool maskedBits(const Expression& e, EvalContext& ec, std::vector<BitRef>& out) {
+        if (e.kind != ExpressionKind::BinaryOp) return false;
+        const auto& bin = e.as<BinaryExpression>();
+        if (bin.op != BinaryOperator::BinaryAnd && bin.op != BinaryOperator::BinaryOr) return false;
+        const bool isAnd = bin.op == BinaryOperator::BinaryAnd;
+        const Expression* mask = &bin.right();
+        const Expression* other = &bin.left();
+        auto mv = mask->eval(ec);
+        if (!mv.isInteger()) {
+            std::swap(mask, other);
+            mv = mask->eval(ec);
+            if (!mv.isInteger()) return false;
+        }
+        const uint64_t want = e.type ? e.type->getBitstreamWidth() : 0;
+        std::vector<BitRef> ob;
+        if (!want || !bitList(*other, ec, ob) || ob.size() != want) return false;
+        const uint32_t mw = mv.integer().getBitWidth();
+        for (uint64_t i = 0; i < want; i++) {
+            const uint64_t pos = want - 1 - i;   // bit position of this entry (MSB first)
+            logic_t bit = pos < mw ? mv.integer()[static_cast<int32_t>(pos)] : logic_t(false);
+            if (bit.value != 0 && bit.value != 1) out.push_back({nullptr, 0, '?'});
+            else if ((bit.value == 1) == isAnd) out.push_back(ob[i]);
+            else out.push_back({nullptr, 0, bit.value == 1 ? '1' : '0'});
+        }
         return true;
     }
 
@@ -3169,6 +3272,74 @@ private:
                 if (st->eval(tmp).bad()) return false;
         }
     }
+    bool unrollForeachLoop(const ForeachLoopStatement& s, EvalContext& /*ec*/, std::vector<LoopBinding>& iterations) {
+        static constexpr size_t kMaxUnrolled = 256;
+        std::vector<const ForeachLoopStatement::LoopDim*> dims;
+        std::vector<const ValueSymbol*> vars;
+        uint64_t total = 1;
+        for (const auto& d : s.loopDims) {
+            if (!d.loopVar) continue;
+            if (!d.range) return false;
+            dims.push_back(&d);
+            vars.push_back(d.loopVar);
+            const uint64_t w = d.range->width();
+            if (w == 0) return true;
+            if (w > kMaxUnrolled || total * w > kMaxUnrolled) return false;
+            total *= w;
+        }
+        if (dims.empty()) return false;
+        struct Body : ASTVisitor<Body, VisitFlags::AllGood> {
+            std::set<const Symbol*> vars;
+            bool ok = true;
+            void handle(const BreakStatement&) { ok = false; }
+            void handle(const ContinueStatement&) { ok = false; }
+            void handle(const ReturnStatement&) { ok = false; }
+            void handle(const DisableStatement&) { ok = false; }
+            void handle(const DisableForkStatement&) { ok = false; }
+            void handle(const TimedStatement&) { ok = false; }
+            void handle(const WaitStatement&) { ok = false; }
+            void handle(const WaitForkStatement&) { ok = false; }
+            void handle(const WaitOrderStatement&) { ok = false; }
+            void handle(const ConcurrentAssertionStatement& st) {
+                if (st.assertionKind == AssertionKind::Expect) ok = false;
+                visitDefault(st);
+            }
+            void handle(const CallExpression& c) { if (!c.isSystemCall()) ok = false; visitDefault(c); }
+            void written(const Expression& e) {
+                std::vector<const Symbol*> roots;
+                lvalueRootsOf(e, roots);
+                for (const auto* r : roots) ok = ok && !vars.count(r);
+            }
+            void handle(const AssignmentExpression& a) { written(a.left()); visitDefault(a); }
+            void handle(const UnaryExpression& u) {
+                if (u.op == UnaryOperator::Preincrement || u.op == UnaryOperator::Predecrement || u.op == UnaryOperator::Postincrement ||
+                    u.op == UnaryOperator::Postdecrement) written(u.operand());
+                visitDefault(u);
+            }
+        } body;
+        body.vars.insert(vars.begin(), vars.end());
+        s.body.visit(body);
+        if (!body.ok) return false;
+        LoopBinding cur = boundLoops;
+        std::function<void(size_t)> emit = [&](size_t k) {
+            if (k == dims.size()) {
+                iterations.push_back(cur);
+                return;
+            }
+            const auto& dim = *dims[k];
+            const Type& t = dim.loopVar->getType();
+            const int32_t step = dim.range->left <= dim.range->right ? 1 : -1;
+            for (int32_t i = dim.range->left;; i += step) {
+                cur.push_back({dim.loopVar, ConstantValue(SVInt(static_cast<bitwidth_t>(t.getBitWidth()),
+                                                                static_cast<uint64_t>(static_cast<int64_t>(i)), t.isSigned()))});
+                emit(k + 1);
+                cur.pop_back();
+                if (i == dim.range->right) break;
+            }
+        };
+        emit(0);
+        return true;
+    }
 
     // ---------------------------------------------------------------- statement walking
     struct ConditionalReads : ASTVisitor<ConditionalReads, VisitFlags::AllGood> {
@@ -3325,6 +3496,7 @@ private:
         unsigned jumpGuardDepth = 0;
         const Statement* outerTimed = nullptr;
         bool hasBodyTiming = false;
+        bool hasStmtTiming = false;
         void handle(const StatementList& list) {
             unsigned added = 0;
             for (auto* child : list.list) {
@@ -3344,6 +3516,7 @@ private:
         void handle(const TimedStatement& s) {
             if (&s != outerTimed) {
                 hasBodyTiming = true;
+                hasStmtTiming = true;
                 ++jumpGuardDepth;
                 visitDefault(s);
                 --jumpGuardDepth;
@@ -3353,24 +3526,27 @@ private:
         }
         void handle(const WaitStatement& s) {
             hasBodyTiming = true;
+            hasStmtTiming = true;
             ++jumpGuardDepth;
             visitDefault(s);
             --jumpGuardDepth;
         }
         void handle(const WaitForkStatement& s) {
             hasBodyTiming = true;
+            hasStmtTiming = true;
             ++jumpGuardDepth;
             visitDefault(s);
             --jumpGuardDepth;
         }
         void handle(const WaitOrderStatement& s) {
             hasBodyTiming = true;
+            hasStmtTiming = true;
             ++jumpGuardDepth;
             visitDefault(s);
             --jumpGuardDepth;
         }
         void handle(const ConcurrentAssertionStatement& s) {
-            if (s.assertionKind == AssertionKind::Expect) hasBodyTiming = true;
+            if (s.assertionKind == AssertionKind::Expect) { hasBodyTiming = true; hasStmtTiming = true; }
             ++jumpGuardDepth;
             visitDefault(s);
             --jumpGuardDepth;
@@ -3386,18 +3562,21 @@ private:
         }
         void handle(const PatternCaseStatement& s) {
             hasBodyTiming = true;
+            hasStmtTiming = true;
             ++jumpGuardDepth;
             visitDefault(s);
             --jumpGuardDepth;
         }
         void handle(const RandCaseStatement& s) {
             hasBodyTiming = true;
+            hasStmtTiming = true;
             ++jumpGuardDepth;
             visitDefault(s);
             --jumpGuardDepth;
         }
         void handle(const ForeverLoopStatement& s) {
             hasBodyTiming = true;
+            hasStmtTiming = true;
             ++jumpGuardDepth;
             visitDefault(s);
             --jumpGuardDepth;
@@ -3405,6 +3584,7 @@ private:
         void handle(const BlockStatement& s) {
             if (s.blockKind != StatementBlockKind::Sequential) {
                 hasBodyTiming = true;
+                hasStmtTiming = true;
                 ++jumpGuardDepth;
                 visitDefault(s);
                 --jumpGuardDepth;
@@ -3422,9 +3602,29 @@ private:
             control.resize(depth);
         }
         void handle(const ForeachLoopStatement& s) {
+            size_t depth = control.size();
+            for (const auto& d : s.loopDims) if (d.loopVar) b.m.loopVariables.insert(d.loopVar);
+            std::vector<LoopBinding> iterations;
+            if (b.unrollForeachLoop(s, ec, iterations) && iterations.size() * unrollFactor + unrollWalks <= kUnrollWalkBudget) {
+                unrollWalks += iterations.size() * unrollFactor;
+                const size_t savedFactor = unrollFactor;
+                unrollFactor *= std::max<size_t>(1, iterations.size());
+                const auto saved = b.boundLoops;
+                for (const auto& binding : iterations) {
+                    for (size_t k = saved.size(); k < binding.size(); ++k) ec.createLocal(binding[k].first, binding[k].second);
+                    b.boundLoops = binding;
+                    s.body.visit(*this);
+                    for (size_t k = saved.size(); k < binding.size(); ++k) ec.deleteLocal(binding[k].first);
+                }
+                b.boundLoops = saved;
+                unrollFactor = savedFactor;
+                control.resize(depth);
+                return;
+            }
             ++jumpGuardDepth;
             visitDefault(s);
             --jumpGuardDepth;
+            control.resize(depth);
         }
         void callEffects(const CallExpression& c) {
             if (!c.isSystemCall()) {
@@ -3545,7 +3745,12 @@ private:
             as.loc = loc;
             as.nonBlocking = nonBlocking;
             const bool hasIntraTiming = asg && asg->timingControl != nullptr;
-            if (hasIntraTiming) hasBodyTiming = true;
+            if (hasIntraTiming) {
+                hasBodyTiming = true;
+                const auto tk = asg->timingControl->kind;
+                const bool isPlainNbaDelay = nonBlocking && (tk == TimingControlKind::Delay || tk == TimingControlKind::Delay3);
+                if (!isPlainNbaDelay) hasStmtTiming = true;
+            }
             as.afterPossibleExit = jumpGuardDepth > 0 || hasIntraTiming;
             const bool lhsDynamic = lhs && b.hasDynamicSelect(*lhs, ec);
             const bool lhsNoCalls = !lhs || b.callsIn(*lhs).empty();
@@ -4351,6 +4556,8 @@ private:
         ProcKind kind = sequential ? ProcKind::Sequential
                       : pk == ProceduralBlockKind::AlwaysLatch ? ProcKind::Latch : ProcKind::Comb;
         uint32_t proc = addProc(kind, pb.location, ctx);
+        m.procs[proc].block = &pb;
+        m.procs[proc].inst = ctx;
         if (!sequential) {
             std::unique_ptr<flow::Flow> procFlow;
             bool exactProcFlow = false;
@@ -4411,7 +4618,7 @@ private:
         StuckBodyChecker stuckCheck;
         stuckCheck.outerTimed = v.outerTimed;
         body.visit(stuckCheck);
-        analyseSequential(pb, ctx, ec, events, first, assigns, proc, v.hasBodyTiming || stuckCheck.unsafe);
+        analyseSequential(pb, ctx, ec, events, first, assigns, proc, v.hasBodyTiming || stuckCheck.unsafe, v.hasStmtTiming);
     }
 
     void analyseCombProcedure(const ProceduralBlockSymbol& pb, const InstanceSymbol* ctx, EvalContext& ec, uint32_t proc) {
@@ -5037,32 +5244,86 @@ private:
 
     void analyseSequential(const ProceduralBlockSymbol& pb, const InstanceSymbol* ctx, EvalContext& ec,
                            const std::vector<Event>& events, const Statement* first, std::vector<Assign>& assigns,
-                           uint32_t proc, bool procHasBodyTiming = false) {
+                           uint32_t proc, bool procHasBodyTiming = false, bool procHasStmtTiming = false) {
+        // Expands condition paths through exact single-driver copies (`plainCopyOf`), and also through multiply-driven
+        // aliases (`multiDrivenSyms`) while reporting that the guard passed through a multiply-driven net (round 4 A2a).
+        auto expandCondPaths = [&](const Expression& e, std::set<Path>& out, bool* sawMultiDriven = nullptr) {
+            for (const auto& p : pathsOf(e, ec, false)) {
+                const Path cp = canonPath(p);
+                if (cp.sym && multiDrivenSyms.count(cp.sym)) {
+                    if (sawMultiDriven) *sawMultiDriven = true;
+                    if (auto it = multiDriverSources.find(cp.sym); it != multiDriverSources.end()) {
+                        for (const ValueSymbol* src : it->second) {
+                            if (widthOf(*src) == widthOf(*cp.sym)) out.insert(canonPath(Path{src, cp.lo, cp.hi}));
+                        }
+                    }
+                    out.insert(cp);
+                } else {
+                    out.insert(cp);
+                }
+            }
+        };
+        // Every signal a condition reads anywhere in a block (if tests, case selectors and items), whatever its nesting.
+        struct BlockConditions : ASTVisitor<BlockConditions, VisitFlags::AllGood> {
+            decltype(expandCondPaths)& expand; std::set<Path>& out;
+            BlockConditions(decltype(expandCondPaths)& expand, std::set<Path>& out) : expand(expand), out(out) {}
+            void note(const Expression& e) { expand(e, out, nullptr); }
+            void handle(const ConditionalStatement& s) { for (const auto& c : s.conditions) note(*c.expr); visitDefault(s); }
+            void handle(const ConditionalExpression& e) { for (const auto& c : e.conditions) note(*c.expr); visitDefault(e); }
+            void handle(const CaseStatement& s) {
+                note(s.expr);
+                for (const auto& g : s.items) for (const auto* e : g.expressions) note(*e);
+                visitDefault(s);
+            }
+            void handle(const PatternCaseStatement& s) { note(s.expr); visitDefault(s); }
+        };
+        // Target bits written under a condition nested in a branch (a test inside `if (!rst_n) begin if (en) v[1] <= 0; end`)
+        struct NestedWriteTargets : ASTVisitor<NestedWriteTargets, VisitFlags::AllGood> {
+            Builder& b; EvalContext& ec; const InstanceSymbol* ctx; std::set<NodeId>& out; int depth = 0;
+            NestedWriteTargets(Builder& b, EvalContext& ec, const InstanceSymbol* ctx, std::set<NodeId>& out)
+                : b(b), ec(ec), ctx(ctx), out(out) {}
+            void handle(const ConditionalStatement& s) { depth++; visitDefault(s); depth--; }
+            void handle(const CaseStatement& s) { depth++; visitDefault(s); depth--; }
+            void handle(const PatternCaseStatement& s) { depth++; visitDefault(s); depth--; }
+            void handle(const AssignmentExpression& a) {
+                if (depth > 0) {
+                    for (const auto& p : b.pathsOf(a.left(), ec, true))
+                        for (NodeId n : b.nodesFor(ctx, p)) out.insert(n);
+                }
+                visitDefault(a);
+            }
+        };
         // --- identify clock and asynchronous resets among the edge events
         std::vector<const Event*> edgeEvents;
         for (auto& e : events) if (e.edge) edgeEvents.push_back(&e);
         const Statement* inner = first && first->kind == StatementKind::Timed ? firstMeaningful(&first->as<TimedStatement>().stmt) : nullptr;
-        std::set<Path> topCond;
+        std::set<Path> topCond;   // canonical paths (a copy of a net counts as the net)
         const ConditionalStatement* topIf = nullptr;
         if (inner && inner->kind == StatementKind::Conditional) {
             topIf = &inner->as<ConditionalStatement>();
             // the whole if / else-if chain: `if (!rst_n) ... else if (!set_n) ...` tests two asynchronous controls
             for (const Statement* cur = topIf; cur && cur->kind == StatementKind::Conditional; ) {
                 auto& cs = cur->as<ConditionalStatement>();
-                for (auto& c : cs.conditions)
-                    for (auto& p : pathsOf(*c.expr, ec, false)) topCond.insert(p);
+                for (auto& c : cs.conditions) expandCondPaths(*c.expr, topCond);
                 cur = cs.ifFalse ? firstMeaningful(cs.ifFalse) : nullptr;
             }
+        }
+        // `case (rst_n) ...` at the top of the procedure tests its asynchronous controls too; the arms' forced values are not analysed
+        const CaseStatement* topCase = nullptr;
+        if (inner && inner->kind == StatementKind::Case) {
+            topCase = &inner->as<CaseStatement>();
+            expandCondPaths(topCase->expr, topCond);
         }
         const Event* clk = nullptr;
         bool dualEdge = false;
         std::vector<const Event*> rsts;
+        bool unanalysedControl = false;   // an asynchronous control found only by the block's conditions: its forced value is not analysed
         if (edgeEvents.size() == 1) {
             clk = edgeEvents[0];
         } else {
             std::vector<const Event*> nonReset;
             for (auto* e : edgeEvents) {
-                if (e->ok && topCond.count(e->path)) rsts.push_back(e); else nonReset.push_back(e);
+                if (e->ok && topCond.count(canonPath(e->path))) rsts.push_back(e); else nonReset.push_back(e);
             }
             if (nonReset.size() == 1) clk = nonReset[0];
             else if (nonReset.size() == 2) {
@@ -5078,7 +5339,31 @@ private:
                     dualEdge = true;
                 }
             }
-            if (!clk) rsts.clear();   // ambiguous: cannot tell which is the clock
+            // No top-level test decides it (`if (!rst_n) ... else case (set_n)`, `case (1'b1) !rst_n: ...`, `q <= rst_n ? d : 0`): the
+            // only edge that no condition anywhere in the block reads is the clock. Every other edge stays an asynchronous control.
+            if (!clk && first) {
+                std::set<Path> tested;
+                BlockConditions collect(expandCondPaths, tested);
+                first->visit(collect);
+                std::vector<const Event*> untested;
+                for (auto* e : edgeEvents) if (e->ok && !tested.count(canonPath(e->path))) untested.push_back(e);
+                if (untested.size() == 1) clk = untested[0];
+            }
+            if (clk) {
+                // every edge but the clock is a control; a dual-edge pair of the clock itself is one clock
+                rsts.clear();
+                for (auto* e : edgeEvents)
+                    if (e != clk && !(dualEdge && e->path == clk->path)) rsts.push_back(e);
+            } else {
+                // ambiguous: cannot tell which edge is the clock. When a top-level test names an asynchronous control, that control keeps
+                // its known force and every other edge stays an asynchronous control of unknown force (round 4 A1, a clock copy beside
+                // extra events). With no tested control no edge is listed (two clocks are not two resets). Either way the block is
+                // reported as an unresolved clock below.
+                rsts.clear();
+                bool anyTested = false;
+                for (auto* e : edgeEvents) anyTested = anyTested || (e->ok && topCond.count(canonPath(e->path)) > 0);
+                if (anyTested) for (auto* e : edgeEvents) if (e->ok) rsts.push_back(e);
+            }
         }
         NodeId clockNode = kNoNode;
         int clockEdge = 0;
@@ -5096,9 +5381,22 @@ private:
         std::vector<ResetInfo> resets;
         std::vector<const Event*> resetEvents;
         std::set<NodeId> resetNodes;
+        std::vector<bool> unknownForced;   // per reset: the value it forces is not decided by this analysis (reported as '?')
+        std::vector<bool> controlConditional;   // per reset: its forced value sits under a condition on another signal
+        std::vector<std::set<NodeId>> nestedTargets;   // per reset: the register bits written under a test nested in its branch
+        bool dualEdgeReset = false;
         for (auto* r : rsts) {
             auto ns = nodesFor(ctx, r->path);
             if (ns.empty()) continue;
+            const std::string controlName = r->path.sym ? std::string(r->path.sym->name) : std::string("?");
+            if (resetNodes.count(ns[0])) {
+                // one control listed on both edges is one receiver (not two) whose polarity and forced value are undecided
+                dualEdgeReset = true;
+                for (size_t i = 0; i < resets.size(); i++) if (resets[i].signal == ns[0]) unknownForced[i] = true;
+                fallback("reset-both-edges", "asynchronous control '" + controlName + "' is listed on both edges of one "
+                         "sequential block; counted once with an unknown forced value", pb.location);
+                continue;
+            }
             ResetInfo ri;
             ri.signal = ns[0];
             ri.async = true;
@@ -5107,49 +5405,424 @@ private:
             resets.push_back(ri);
             resetEvents.push_back(r);
             resetNodes.insert(ns[0]);
+            // a control the top-level if / case does not test is tested only inside the block: its forced value is not analysed
+            const bool testedAtTop = topCond.count(canonPath(r->path)) > 0;
+            unknownForced.push_back(topCase != nullptr || unanalysedControl || !testedAtTop);
+            controlConditional.push_back(false);
+            nestedTargets.emplace_back();
+            if (topCase)
+                fallback("reset-case", "asynchronous control '" + controlName + "' is tested by a case statement; the value it "
+                         "forces is not analysed", pb.location);
+            else if (unanalysedControl || !testedAtTop)
+                fallback("reset-branch", "asynchronous control '" + controlName + "' is tested only inside the block (a nested if or "
+                         "case); the value it forces is not analysed", pb.location);
         }
-        // value each asynchronous control forces on each register: constants assigned in the branch that tests that control
-        std::vector<std::map<const ValueSymbol*, std::string>> controlKinds(resets.size());   // per reset: symbol -> value per bit (LSB first)
-        struct ConstAssigns : ASTVisitor<ConstAssigns, VisitFlags::AllGood> {
-            std::vector<const AssignmentExpression*> v;
-            void handle(const AssignmentExpression& a) { v.push_back(&a); visitDefault(a); }
+        // A copy of an asynchronous control (`wire r = rst_n`) read in this block is a read of the control, not a functional use
+        // Only the bits the event names are controls: a sibling lane of a packed vector is still read as data (RDC-019, round 4 A3).
+        for (const Event* ev : resetEvents) {
+            const Path bits = canonPath(ev->path);
+            const ValueSymbol* root = bits.sym;
+            std::vector<const ValueSymbol*> family{root};
+            std::unordered_set<const ValueSymbol*> familySeen{root};
+            for (size_t fi = 0; fi < family.size(); fi++) {
+                if (auto it = copiesOf.find(family[fi]); it != copiesOf.end())
+                    for (const ValueSymbol* c : it->second) if (familySeen.insert(c).second) family.push_back(c);
+            }
+            for (const ValueSymbol* sym : family) {
+                const bool sameShape = widthOf(*sym) == widthOf(*root);
+                const Path named = sameShape ? Path{sym, bits.lo, bits.hi} : Path{sym, 0, widthOf(*sym) ? widthOf(*sym) - 1 : 0};
+                for (NodeId n : nodesFor(ctx, named)) resetNodes.insert(n);
+            }
+        }
+        // value each asynchronous control forces on each register: constants assigned in the branch that tests that control.
+        // Evaluates the branch structurally: unrolls constant-bound `for` and fixed-size `foreach` loops, folds constant/parameter
+        // `if` conditions, and joins runtime `if`/`case` arms so bits forced to the same constant on every path stay decided while
+        // partial, disagreeing, or non-constant-loop writes stay undecided ('?') and conditional.
+        using ResetBits = std::map<const ValueSymbol*, std::string>;
+        std::vector<ResetBits> controlKinds(resets.size());   // per reset: symbol -> value per bit (LSB first)
+        auto evalResetBranch = [&](const Statement& rootStmt, ResetBits& outState, std::set<NodeId>& condBits) {
+            static constexpr size_t kResetUnrollBudget = 2048;
+            size_t unrollWalks = 0, unrollFactor = 1;
+            auto recordBit = [](std::string& bits, uint64_t b, char ch) {
+                if (b >= bits.size()) return;
+                if (bits[b] == '\0') bits[b] = ch;
+                else if (bits[b] != ch) bits[b] = '?';
+            };
+            auto applyAssign = [&](const AssignmentExpression& a, ResetBits& state, bool forceUndecided, bool markCond) {
+                if (!a.isCompound() && a.left().kind == ExpressionKind::Concatenation) {
+                    std::vector<BitRef> targets, values;
+                    const bool exact = !forceUndecided && bitList(a.left(), ec, targets) && bitList(a.right(), ec, values) &&
+                                       targets.size() == values.size();
+                    if (targets.empty()) {
+                        for (const auto& p : pathsOf(a.left(), ec, true)) {
+                            if (!p.sym || !isGraphSymbol(*p.sym)) continue;
+                            uint64_t w = std::max<uint64_t>(widthOf(*p.sym), 1);
+                            auto& bits = state.try_emplace(p.sym, std::string(w, '\0')).first->second;
+                            for (uint64_t b = p.lo; b <= p.hi && b < w; b++) {
+                                bits[b] = '?';
+                                if (markCond) condBits.insert(nodeForBit(ctx, BitRef{p.sym, static_cast<uint32_t>(b), 0}));
+                            }
+                        }
+                        return;
+                    }
+                    for (size_t i = 0; i < targets.size(); i++) {
+                        const auto& t = targets[i];
+                        if (!t.sym || !isGraphSymbol(*t.sym)) continue;
+                        uint64_t w = std::max<uint64_t>(widthOf(*t.sym), 1);
+                        auto& bits = state.try_emplace(t.sym, std::string(w, '\0')).first->second;
+                        if (t.bit >= w) continue;
+                        char ch = '?';
+                        if (exact && values[i].sym == t.sym && values[i].bit == t.bit) ch = 'h';
+                        else if (exact && !values[i].sym && (values[i].value == '0' || values[i].value == '1')) ch = values[i].value;
+                        recordBit(bits, t.bit, ch);
+                        if (markCond) condBits.insert(nodeForBit(ctx, BitRef{t.sym, t.bit, 0}));
+                    }
+                    return;
+                }
+                ValuePath vp(a.left(), ec);
+                auto* vs = vp.rootSymbol();
+                if (!vs || !isGraphSymbol(*vs)) return;
+                uint64_t w = std::max<uint64_t>(widthOf(*vs), 1);
+                auto& bits = state.try_emplace(vs, std::string(w, '\0')).first->second;   // '\0' = bit not assigned here
+                uint64_t lo = 0, hi = w - 1;
+                bool stat = false;
+                if (vp.lsp) {
+                    lo = vp.lspBounds.first;
+                    hi = vp.lspBounds.second;
+                    if (lo > hi) std::swap(lo, hi);
+                    hi = std::min(hi, w - 1);
+                    lo = std::min(lo, hi);
+                    stat = vp.isFullyStatic();
+                }
+                if (forceUndecided) {
+                    for (uint64_t b = lo; b <= hi; b++) {
+                        bits[b] = '?';
+                        if (markCond) condBits.insert(nodeForBit(ctx, BitRef{vs, static_cast<uint32_t>(b), 0}));
+                    }
+                    return;
+                }
+                bool selfHold = false;
+                if (!a.isCompound() && (a.right().kind == ExpressionKind::NamedValue || a.right().kind == ExpressionKind::ElementSelect ||
+                                        a.right().kind == ExpressionKind::RangeSelect || a.right().kind == ExpressionKind::HierarchicalValue)) {
+                    ValuePath vr(a.right(), ec);
+                    selfHold = vr.rootSymbol() == vs && (vp.lsp == nullptr) == (vr.lsp == nullptr) &&
+                               (!vp.lsp || (vp.isFullyStatic() && vr.isFullyStatic() && vp.lspBounds == vr.lspBounds));
+                }
+                std::vector<BitRef> src;
+                const bool exactSrc = !a.isCompound() && (!vp.lsp || vp.isFullyStatic()) &&
+                                      (bitList(a.right(), ec, src) || maskedBits(a.right(), ec, src)) && src.size() == hi - lo + 1;
+                auto cv = a.right().eval(ec);
+                for (uint64_t b = lo; b <= hi; b++) {
+                    char ch = '?';
+                    if (exactSrc) {
+                        const BitRef& s = src[hi - b];   // MSB first: entry hi - b is the bit at position b
+                        if (s.sym == vs && s.bit == b) ch = 'h';
+                        else if (!s.sym && s.value != 0) ch = s.value;   // a constant, X or Z (a masked X is '?')
+                    } else if (selfHold) ch = 'h';
+                    else if (stat && cv.isInteger() && b - lo < cv.integer().getBitWidth()) {
+                        logic_t bit = cv.integer()[static_cast<int32_t>(b - lo)];
+                        ch = bit.value == 0 ? '0' : bit.value == 1 ? '1' : bit.value == logic_t::z.value ? 'z' : 'x';
+                    }
+                    recordBit(bits, b, ch);
+                }
+            };
+            auto markSubtreeUndecided = [&](const Statement& stmt, ResetBits& state, bool markCond) {
+                struct Finder : ASTVisitor<Finder, VisitFlags::AllGood> {
+                    decltype(applyAssign)& apply;
+                    ResetBits& state;
+                    bool markCond;
+                    void handle(const AssignmentExpression& a) { apply(a, state, true, markCond); visitDefault(a); }
+                } finder{{}, applyAssign, state, markCond};
+                stmt.visit(finder);
+            };
+            auto joinArms = [&](const std::vector<ResetBits>& arms, ResetBits& dst) {
+                if (arms.empty()) return;
+                std::set<const ValueSymbol*> syms;
+                for (const auto& arm : arms) for (const auto& [sym, _] : arm) syms.insert(sym);
+                ResetBits joined;
+                for (const ValueSymbol* sym : syms) {
+                    const uint64_t w = std::max<uint64_t>(widthOf(*sym), 1);
+                    std::string bits(w, '\0');
+                    for (uint64_t b = 0; b < w; b++) {
+                        auto at = [&](const ResetBits& m) -> char {
+                            auto it = m.find(sym);
+                            return (it != m.end() && b < it->second.size()) ? it->second[b] : '\0';
+                        };
+                        const char firstVal = at(arms[0]);
+                        bool same = true;
+                        for (size_t k = 1; k < arms.size(); k++) {
+                            if (at(arms[k]) != firstVal) { same = false; break; }
+                        }
+                        if (same) {
+                            bits[b] = firstVal;
+                        } else {
+                            bits[b] = '?';
+                            condBits.insert(nodeForBit(ctx, BitRef{sym, static_cast<uint32_t>(b), 0}));
+                        }
+                    }
+                    joined.emplace(sym, std::move(bits));
+                }
+                dst = std::move(joined);
+            };
+            std::function<void(const Statement&, ResetBits&)> walk = [&](const Statement& stmt, ResetBits& state) {
+                switch (stmt.kind) {
+                case StatementKind::Empty:
+                case StatementKind::VariableDeclaration:
+                    return;
+                case StatementKind::Block: {
+                    const auto& bs = stmt.as<BlockStatement>();
+                    if (bs.blockKind != StatementBlockKind::Sequential) { markSubtreeUndecided(stmt, state, true); return; }
+                    walk(bs.body, state);
+                    return;
+                }
+                case StatementKind::List: {
+                    bool afterJump = false;
+                    for (const auto* child : stmt.as<StatementList>().list) {
+                        if (afterJump) { markSubtreeUndecided(*child, state, true); continue; }
+                        walk(*child, state);
+                        JumpFinder jf;
+                        child->visit(jf);
+                        if (jf.found) afterJump = true;
+                    }
+                    return;
+                }
+                case StatementKind::ExpressionStatement: {
+                    const auto& expr = stmt.as<ExpressionStatement>().expr;
+                    if (expr.kind == ExpressionKind::Assignment)
+                        applyAssign(expr.as<AssignmentExpression>(), state, false, false);
+                    return;
+                }
+                case StatementKind::ForLoop: {
+                    const auto& fl = stmt.as<ForLoopStatement>();
+                    std::vector<LoopBinding> iterations;
+                    if (unrollForLoop(fl, ec, iterations) && iterations.size() * unrollFactor + unrollWalks <= kResetUnrollBudget) {
+                        unrollWalks += iterations.size() * unrollFactor;
+                        const size_t savedFactor = unrollFactor;
+                        unrollFactor *= std::max<size_t>(1, iterations.size());
+                        const auto saved = boundLoops;
+                        for (const auto& binding : iterations) {
+                            for (size_t k = saved.size(); k < binding.size(); ++k) ec.createLocal(binding[k].first, binding[k].second);
+                            boundLoops = binding;
+                            walk(fl.body, state);
+                            for (size_t k = saved.size(); k < binding.size(); ++k) ec.deleteLocal(binding[k].first);
+                        }
+                        boundLoops = saved;
+                        unrollFactor = savedFactor;
+                        return;
+                    }
+                    markSubtreeUndecided(fl.body, state, true);
+                    return;
+                }
+                case StatementKind::ForeachLoop: {
+                    const auto& fl = stmt.as<ForeachLoopStatement>();
+                    std::vector<LoopBinding> iterations;
+                    if (unrollForeachLoop(fl, ec, iterations) && iterations.size() * unrollFactor + unrollWalks <= kResetUnrollBudget) {
+                        unrollWalks += iterations.size() * unrollFactor;
+                        const size_t savedFactor = unrollFactor;
+                        unrollFactor *= std::max<size_t>(1, iterations.size());
+                        const auto saved = boundLoops;
+                        for (const auto& binding : iterations) {
+                            for (size_t k = saved.size(); k < binding.size(); ++k) ec.createLocal(binding[k].first, binding[k].second);
+                            boundLoops = binding;
+                            walk(fl.body, state);
+                            for (size_t k = saved.size(); k < binding.size(); ++k) ec.deleteLocal(binding[k].first);
+                        }
+                        boundLoops = saved;
+                        unrollFactor = savedFactor;
+                        return;
+                    }
+                    markSubtreeUndecided(fl.body, state, true);
+                    return;
+                }
+                case StatementKind::Conditional: {
+                    const auto& cs = stmt.as<ConditionalStatement>();
+                    if (cs.conditions.size() == 1 && !cs.conditions[0].pattern) {
+                        if (design.hasCaseMode()) {
+                            const int mv = modeValue(*cs.conditions[0].expr, ec);
+                            if (mv >= 0) {
+                                if (mv) walk(cs.ifTrue, state);
+                                else if (cs.ifFalse) walk(*cs.ifFalse, state);
+                                return;
+                            }
+                        }
+                        if (auto cv = model::elaboratedCondition(*cs.conditions[0].expr, ec)) {
+                            if (*cv) walk(cs.ifTrue, state);
+                            else if (cs.ifFalse) walk(*cs.ifFalse, state);
+                            return;
+                        }
+                    }
+                    ResetBits tState = state, fState = state;
+                    walk(cs.ifTrue, tState);
+                    if (cs.ifFalse) walk(*cs.ifFalse, fState);
+                    joinArms({tState, fState}, state);
+                    return;
+                }
+                case StatementKind::Case: {
+                    const auto& cs = stmt.as<CaseStatement>();
+                    std::vector<ResetBits> arms;
+                    arms.reserve(cs.items.size() + 1);
+                    for (const auto& item : cs.items) {
+                        ResetBits arm = state;
+                        walk(*item.stmt, arm);
+                        arms.push_back(std::move(arm));
+                    }
+                    if (cs.defaultCase) {
+                        ResetBits arm = state;
+                        walk(*cs.defaultCase, arm);
+                        arms.push_back(std::move(arm));
+                    } else {
+                        arms.push_back(state);
+                    }
+                    joinArms(arms, state);
+                    return;
+                }
+                default:
+                    markSubtreeUndecided(stmt, state, true);
+                    return;
+                }
+            };
+            walk(rootStmt, outState);
         };
+        // 3-valued evaluation of a reset guard under the assumption that async control `ri` is asserted
+        // (1 = guaranteed true, 0 = guaranteed false, -1 = unknown). Only exact single-driver copies of the
+        // control match it; multiply-driven nets (`multiDrivenSyms`) stay unknown.
+        auto evalUnderReset = [&](const BoolFactPtr& fact, size_t ri) {
+            const Path target = canonPath(resetEvents[ri]->path);
+            const int assertedVal = resets[ri].activeLow ? 0 : 1;
+            std::function<int(const BoolFactPtr&)> eval = [&](const BoolFactPtr& f) -> int {
+                if (!f) return -1;
+                switch (f->kind) {
+                case BoolFact::Kind::Constant: return f->value ? 1 : 0;
+                case BoolFact::Kind::Node: {
+                    if (f->node == kNoNode || f->node >= m.nodes.size()) return -1;
+                    const Node& nd = m.nodes[f->node];
+                    if (!nd.sym || multiDrivenSyms.count(nd.sym)) return -1;
+                    return canonPath(Path{nd.sym, nd.bit, nd.bit}) == target ? assertedVal : -1;
+                }
+                case BoolFact::Kind::Not: {
+                    if (f->args.size() != 1) return -1;
+                    const int v = eval(f->args[0]);
+                    return v < 0 ? -1 : (1 - v);
+                }
+                case BoolFact::Kind::Or: {
+                    bool anyUnknown = false;
+                    for (const auto& a : f->args) {
+                        const int v = eval(a);
+                        if (v == 1) return 1;
+                        if (v < 0) anyUnknown = true;
+                    }
+                    return anyUnknown ? -1 : 0;
+                }
+                case BoolFact::Kind::And: {
+                    bool anyUnknown = false;
+                    for (const auto& a : f->args) {
+                        const int v = eval(a);
+                        if (v == 0) return 0;
+                        if (v < 0) anyUnknown = true;
+                    }
+                    return anyUnknown ? -1 : 1;
+                }
+                case BoolFact::Kind::Equal: {
+                    if (f->args.size() != 2) return -1;
+                    const int a = eval(f->args[0]), b = eval(f->args[1]);
+                    return (a >= 0 && b >= 0) ? (a == b ? 1 : 0) : -1;
+                }
+                case BoolFact::Kind::Unknown: return -1;
+                }
+                return -1;
+            };
+            return eval(fact);
+        };
+        struct ExtraGuardBranch {
+            std::vector<std::pair<NodeId, bool>> guards;
+            ResetBits bits;
+            std::set<NodeId> nested;
+        };
+        std::vector<ExtraGuardBranch> extraGuardBranches;
+        std::function<void(const BoolFactPtr&, std::vector<std::pair<NodeId, bool>>&)> collectOrLiterals =
+            [&](const BoolFactPtr& f, std::vector<std::pair<NodeId, bool>>& out) {
+                if (!f) return;
+                if (f->kind == BoolFact::Kind::Or) {
+                    for (const auto& arg : f->args) collectOrLiterals(arg, out);
+                    return;
+                }
+                if (f->kind == BoolFact::Kind::Node && f->node != kNoNode) {
+                    out.emplace_back(f->node, false);
+                    return;
+                }
+                if (f->kind == BoolFact::Kind::Not && f->args.size() == 1 &&
+                    f->args[0] && f->args[0]->kind == BoolFact::Kind::Node && f->args[0]->node != kNoNode) {
+                    out.emplace_back(f->args[0]->node, true);
+                }
+            };
+        bool priorNonResetCond = false;
         for (const Statement* cur = topIf; cur && cur->kind == StatementKind::Conditional;) {
             auto& c = cur->as<ConditionalStatement>();
             std::set<Path> condPaths;
-            for (auto& cc : c.conditions) for (auto& p : pathsOf(*cc.expr, ec, false)) condPaths.insert(p);
+            bool condMultiDriven = false;
+            for (auto& cc : c.conditions) expandCondPaths(*cc.expr, condPaths, &condMultiDriven);
+            bool curHasNonOwnControl = condMultiDriven;
+            for (const auto& p : condPaths) {
+                bool ownControl = false;
+                for (const auto* event : resetEvents) ownControl = ownControl || p == canonPath(event->path);
+                if (!ownControl) curHasNonOwnControl = true;
+            }
+            std::vector<std::pair<NodeId, bool>> orLiterals;
+            if (!priorNonResetCond && c.conditions.size() == 1 && !c.conditions[0].pattern) {
+                collectOrLiterals(booleanOf(*c.conditions[0].expr, ec, ctx), orLiterals);
+            }
+            bool matchedAnyReset = false;
+            bool recordedOrForThisCond = false;
             for (size_t ri = 0; ri < resetEvents.size(); ri++) {
-                if (!condPaths.count(resetEvents[ri]->path)) continue;
-                ConstAssigns ca;
-                c.ifTrue.visit(ca);
-                for (auto* a : ca.v) {
-                    ValuePath vp(a->left(), ec);
-                    auto* vs = vp.rootSymbol();
-                    if (!vs || !isGraphSymbol(*vs)) continue;
-                    uint64_t w = std::max<uint64_t>(widthOf(*vs), 1);
-                    auto& bits = controlKinds[ri].try_emplace(vs, std::string(w, '\0')).first->second;   // '\0' = bit not assigned here
-                    uint64_t lo = 0, hi = w - 1;
-                    bool stat = false;
-                    if (vp.lsp) {
-                        lo = vp.lspBounds.first;
-                        hi = vp.lspBounds.second;
-                        if (lo > hi) std::swap(lo, hi);
-                        hi = std::min(hi, w - 1);
-                        lo = std::min(lo, hi);
-                        stat = vp.isFullyStatic();
+                if (!condPaths.count(canonPath(resetEvents[ri]->path))) continue;
+                matchedAnyReset = true;
+                // Another condition on the test, a multiply-driven guard, or a test nested in the branch decides whether the control forces its value.
+                // An OR-combined guard (`!rst || other`, `rst || other`) is still decided when asserting this reset forces the guard true.
+                {
+                    if (priorNonResetCond) {
+                        controlConditional[ri] = true;
+                    } else if (curHasNonOwnControl) {
+                        const bool implied = c.conditions.size() == 1 && !c.conditions[0].pattern &&
+                                             evalUnderReset(booleanOf(*c.conditions[0].expr, ec, ctx), ri) == 1;
+                        if (!implied) controlConditional[ri] = true;
                     }
-                    auto cv = a->right().eval(ec);
-                    for (uint64_t b = lo; b <= hi; b++) {
-                        char ch = '?';
-                        if (stat && cv.isInteger() && b - lo < cv.integer().getBitWidth()) {
-                            logic_t bit = cv.integer()[static_cast<int32_t>(b - lo)];
-                            ch = bit.value == 0 ? '0' : bit.value == 1 ? '1' : bit.value == logic_t::z.value ? 'z' : 'x';
-                        }
-                        if (bits[b] == '\0') bits[b] = ch;
-                        else if (bits[b] != ch) bits[b] = '?';
+                }
+                // `ifTrue` runs while the control is asserted only when the test is the control at its asserted level; the
+                // else arm of `if (rst_n) ...` is the reset branch. Such a branch is not read as a forced value here.
+                if (c.conditions.size() == 1 && !c.conditions[0].pattern) {
+                    auto fact = booleanOf(*c.conditions[0].expr, ec, ctx);
+                    bool low = false;
+                    if (fact && fact->kind == BoolFact::Kind::Not && fact->args.size() == 1) {
+                        low = true;
+                        fact = fact->args[0];
+                    }
+                    if (fact && fact->kind == BoolFact::Kind::Node && fact->node == resets[ri].signal && low != resets[ri].activeLow)
+                        unknownForced[ri] = true;
+                }
+                if (unknownForced[ri]) continue;
+                evalResetBranch(c.ifTrue, controlKinds[ri], nestedTargets[ri]);
+                if (!priorNonResetCond && !orLiterals.empty() && !recordedOrForThisCond) {
+                    ExtraGuardBranch br;
+                    for (const auto& [g, low] : orLiterals)
+                        if (!resetNodes.count(g)) br.guards.emplace_back(g, low);
+                    if (!br.guards.empty()) {
+                        br.bits = controlKinds[ri];
+                        br.nested = nestedTargets[ri];
+                        extraGuardBranches.push_back(std::move(br));
+                        recordedOrForThisCond = true;
                     }
                 }
             }
+            if (!resets.empty() && !matchedAnyReset && !priorNonResetCond && !orLiterals.empty()) {
+                ExtraGuardBranch br;
+                for (const auto& [g, low] : orLiterals)
+                    if (!resetNodes.count(g)) br.guards.emplace_back(g, low);
+                if (!br.guards.empty()) {
+                    evalResetBranch(c.ifTrue, br.bits, br.nested);
+                    extraGuardBranches.push_back(std::move(br));
+                }
+            }
+            priorNonResetCond = priorNonResetCond || curHasNonOwnControl;
             cur = c.ifFalse ? firstMeaningful(c.ifFalse) : nullptr;
         }
         // Guard formulas are deliberately small: a conjunction of known-true
@@ -5211,12 +5884,16 @@ private:
         }
 
         // A trailing suffix of else-free constant overrides can be equivalent to a
-        // reset-first branch, but only for bits with one unconditional exact or inverted NBA earlier.
+        // reset-first branch. `trailingResetGuards` (used for CDC synchroniser guard stripping)
+        // requires one unconditional exact/inverted NBA earlier; `trailingSyncResetCandidates`
+        // records any trailing constant-override reset for RDC-001/RDC-010/RDC-020/RDC-025.
         // Keep the control edges: a reset driven from another domain is still a crossing.
         std::map<NodeId, std::map<std::pair<NodeId, bool>, char>> trailingResetGuards;
+        std::map<NodeId, std::map<std::pair<NodeId, bool>, char>> trailingSyncResetCandidates;
         std::set<NodeId> unconditionalOverrideBits;
         bool unqualifiedClock = std::all_of(events.begin(), events.end(), [](const Event& e) { return !e.hasIff && e.iff.empty(); });
-        if (resets.empty() && unqualifiedClock && first && first->kind == StatementKind::Timed) {
+        const bool anyAfterExit = std::any_of(assigns.begin(), assigns.end(), [](const Assign& a) { return a.afterPossibleExit; });
+        if (resets.empty() && unqualifiedClock && !anyAfterExit && first && first->kind == StatementKind::Timed) {
             auto statements = [](const Statement* stmt) {
                 std::vector<const Statement*> result;
                 while (stmt && stmt->kind == StatementKind::Block) stmt = &stmt->as<BlockStatement>().body;
@@ -5228,12 +5905,13 @@ private:
             };
             auto list = statements(&first->as<TimedStatement>().stmt);
             if (list.size() >= 2 && list.back()->kind == StatementKind::Conditional) {
-                // A suffix of else-free constant overrides is one effective reset
-                // candidate only when every overlapping write agrees. Earlier writes remain the normal D.
+                // Walk backward across a trailing suffix of else-free constant-override conditionals.
+                // Stop cleanly when an earlier functional conditional is reached, keeping the valid
+                // trailing reset overrides already collected.
                 size_t suffix = list.size();
                 std::map<NodeId, char> forced;
                 std::map<NodeId, std::map<NodeId, bool>> forcingGuards;
-                bool suffixValid = true;
+                std::set<NodeId> conflictedBits;
                 while (suffix > 0 && list[suffix - 1]->kind == StatementKind::Conditional) {
                     const auto& c = list[suffix - 1]->as<ConditionalStatement>();
                     if (c.ifFalse || c.conditions.size() != 1 || c.conditions[0].pattern) break;
@@ -5262,16 +5940,18 @@ private:
                         if (allUnconditionalConstants)
                             for (const auto& targets : writes) for (const auto& target : targets)
                                 unconditionalOverrideBits.insert(nodeForBit(ctx, target));
-                        suffixValid = false; break; // unconditional override is not a reset candidate
+                        break; // unconditional override is not a reset candidate; stop extending suffix
                     }
                     std::map<NodeId, bool> conditionGuards;
-                    if (!collectResetGuards(*test, conditionGuards)) { suffixValid = false; break; }
+                    if (!collectResetGuards(*test, conditionGuards)) break;
                     auto branch = statements(&c.ifTrue);
-                    if (branch.empty()) { suffixValid = false; break; }
+                    if (branch.empty()) break;
+                    std::vector<std::pair<NodeId, char>> stepWrites;
+                    bool stepOk = true;
                     for (const auto* stmt : branch) {
-                        if (stmt->kind != StatementKind::ExpressionStatement) { suffixValid = false; break; }
+                        if (stmt->kind != StatementKind::ExpressionStatement) { stepOk = false; break; }
                         const auto& expr = stmt->as<ExpressionStatement>().expr;
-                        if (expr.kind != ExpressionKind::Assignment) { suffixValid = false; break; }
+                        if (expr.kind != ExpressionKind::Assignment) { stepOk = false; break; }
                         const auto& assignment = expr.as<AssignmentExpression>();
                         std::vector<Assign> parsed;
                         StmtVisitor visitor(*this, ec, parsed, ctx);
@@ -5279,39 +5959,46 @@ private:
                         std::vector<BitRef> targets;
                         auto value = assignment.right().eval(ec);
                         if (!assignment.isNonBlocking() || assignment.isCompound() || !value.isInteger() || value.integer().hasUnknown() ||
-                            parsed.size() != 1 || !parsed[0].ctrlReads.empty() || !bitList(assignment.left(), ec, targets) || targets.empty()) {
-                            suffixValid = false; break;
+                            parsed.size() != 1 || !parsed[0].ctrlReads.empty() || !parsed[0].dataReads.empty() ||
+                            !parsed[0].uncertainCalls.empty() || !bitList(assignment.left(), ec, targets) || targets.empty()) {
+                            stepOk = false; break;
                         }
                         const auto bits = value.integer();
                         for (size_t targetIndex = 0; targetIndex < targets.size(); ++targetIndex) {
                             const auto& target = targets[targetIndex];
-                            if (!target.sym) { suffixValid = false; break; }
+                            if (!target.sym) { stepOk = false; break; }
                             const NodeId bit = nodeForBit(ctx, target);
                             const auto valueIndex = bits.getBitWidth() - 1 - targetIndex;
                             const char force = bits[static_cast<int32_t>(valueIndex)] ? '1' : '0';
-                            auto [it, inserted] = forced.emplace(bit, force);
-                            if (!inserted && it->second != force) { suffixValid = false; break; }
-                            for (const auto& [guard, low] : conditionGuards) {
-                                auto [guardIt, guardInserted] = forcingGuards[bit].emplace(guard, low);
-                                if (!guardInserted && guardIt->second != low) { suffixValid = false; break; }
-                            }
+                            stepWrites.emplace_back(bit, force);
                         }
-                        if (!suffixValid) break;
+                        if (!stepOk) break;
                     }
-                    if (!suffixValid) break;
+                    if (!stepOk) break;
+                    for (const auto& [bit, force] : stepWrites) {
+                        auto [it, inserted] = forced.emplace(bit, force);
+                        if (!inserted && it->second != force) conflictedBits.insert(bit);
+                        for (const auto& [guard, low] : conditionGuards) {
+                            auto [guardIt, guardInserted] = forcingGuards[bit].emplace(guard, low);
+                            if (!guardInserted && guardIt->second != low) conflictedBits.insert(bit);
+                        }
+                    }
                     --suffix;
                 }
-                if (suffix == list.size() || forcingGuards.empty()) suffixValid = false;
-                if (suffixValid) {
+                if (suffix < list.size() && !forcingGuards.empty()) {
                     std::map<NodeId, unsigned> priorWrites;
                     std::set<NodeId> exactData;
                     std::map<NodeId, NodeId> dataSource;
+                    std::set<NodeId> blockingWrittenBits;
                     for (size_t i = 0; i < suffix; ++i) {
                         std::vector<Assign> prior;
                         StmtVisitor visitor(*this, ec, prior, ctx);
                         list[i]->visit(visitor);
                         for (const auto& a : prior) for (const auto& target : a.targets)
-                            for (auto bit : nodesFor(ctx, target)) ++priorWrites[bit];
+                            for (auto bit : nodesFor(ctx, target)) {
+                                ++priorWrites[bit];
+                                if (!a.nonBlocking) blockingWrittenBits.insert(bit);
+                            }
                         if (list[i]->kind != StatementKind::ExpressionStatement || prior.size() != 1) continue;
                         const auto& a = prior[0];
                         if (!a.nonBlocking || !(a.pairsValid || a.flipPairsValid) || !a.ctrlReads.empty() || a.afterPossibleExit) continue;
@@ -5323,19 +6010,29 @@ private:
                             }
                     }
                     for (const auto& [bit, force] : forced) {
+                        if (conflictedBits.count(bit) || unconditionalOverrideBits.count(bit)) continue;
                         const auto& guards = forcingGuards[bit];
+                        if (guards.empty()) continue;
                         bool aliasesData = false;
-                        for (const auto& [guard, low] : guards) aliasesData |= dataSource[bit] == guard;
-                        if (priorWrites[bit] == 1 && exactData.count(bit) && !aliasesData && !guards.empty())
+                        bool blockingGuard = false;
+                        for (const auto& [guard, low] : guards) {
+                            if (dataSource.count(bit) && dataSource[bit] == guard) aliasesData = true;
+                            if (blockingWrittenBits.count(guard)) blockingGuard = true;
+                        }
+                        if (blockingGuard) continue;
+                        if (priorWrites[bit] == 1 && exactData.count(bit) && !aliasesData)
                             for (const auto& [guard, low] : guards)
                                 trailingResetGuards[bit][{guard, low}] = force;
+                        else if (!aliasesData)
+                            for (const auto& [guard, low] : guards)
+                                trailingSyncResetCandidates[bit][{guard, low}] = force;
                     }
                 }
                 // Keep the established single-final-override path for older
                 // supported forms whose surrounding block syntax is not a
                 // suffix of simple conditionals (for example, unrelated writes
                 // in the same process).
-                if (trailingResetGuards.empty()) {
+                if (trailingResetGuards.empty() && trailingSyncResetCandidates.empty()) {
                     const auto& last = list.back()->as<ConditionalStatement>();
                     if (!last.ifFalse && last.conditions.size() == 1 && !last.conditions[0].pattern) {
                         const Expression* cond = last.conditions[0].expr;
@@ -5453,7 +6150,7 @@ private:
             if (e.hasIff || !e.iff.empty()) anyEventHasIff = true;
             if (e.hasIff || !e.iff.empty() || !e.uncertainCalls.empty()) plainEvents = false;
         }
-        if (plainEvents && sole == topIf && resets.size() == 1 && topIf && topIf->ifFalse &&
+        if (plainEvents && !dualEdgeReset && sole == topIf && resets.size() == 1 && topIf && topIf->ifFalse &&
             topIf->conditions.size() == 1 && !topIf->conditions[0].pattern &&
             straight(straight, topIf->ifTrue) && straight(straight, *topIf->ifFalse)) {
             auto cond = booleanOf(*topIf->conditions[0].expr, ec, ctx);
@@ -5579,6 +6276,35 @@ private:
         for (const auto& a : assigns) {
             if (a.unattributedWrite) { procHasUnattributedWrite = true; break; }
         }
+        // Intra-assignment delays (`q <= #1 d`) make every write of this block a delayed copy, as does a delay statement in its body.
+        const bool procDelayed = procHasBodyTiming || std::any_of(assigns.begin(), assigns.end(),
+            [](const Assign& a) { return a.asg && a.asg->timingControl != nullptr; });
+        if (procDelayed) m.procs[proc].delayed = true;
+        if (procHasStmtTiming) m.procs[proc].bodyTiming = true;
+        // Block-local counters written solely inside an async-reset branch without reading any non-self signal as data
+        // (e.g. `int i; i = 0; while (i < 4) ... i++;` or `repeat (4)` counters) are loop indices, not functional uses of the reset.
+        std::unordered_set<const ValueSymbol*> resetLocalCounters;
+        if (!resetNodes.empty()) {
+            std::unordered_map<const ValueSymbol*, bool> cand;
+            auto hasResetCtrl = [&](const Assign& a) {
+                for (const auto& r : a.ctrlReads)
+                    for (NodeId n : nodesFor(ctx, r))
+                        if (resetNodes.count(n)) return true;
+                return false;
+            };
+            for (const auto& a : assigns) {
+                for (const auto& t : a.targets) {
+                    if (!t.sym || isModuleLevel(*t.sym) || isPackageState(*t.sym)) continue;
+                    auto [it, fresh] = cand.emplace(t.sym, true);
+                    if (!it->second) continue;
+                    if (!hasResetCtrl(a)) { it->second = false; continue; }
+                    for (const auto& r : a.dataReads) {
+                        if (r.sym != t.sym) { it->second = false; break; }
+                    }
+                }
+            }
+            for (const auto& [sym, ok] : cand) if (ok) resetLocalCounters.insert(sym);
+        }
         for (auto& a : assigns) {
             std::vector<Path> liveLocal, liveModule, deadLocal, deadModule;
             for (auto& t : a.targets) {
@@ -5587,7 +6313,24 @@ private:
                 if (isDeadWrite(a, t)) (state ? deadModule : deadLocal).push_back(t);
                 else (state ? liveModule : liveLocal).push_back(t);
             }
-            if (!liveLocal.empty()) emitAssign(ctx, a, liveLocal, EdgeType::Comb, proc, pb.location);
+            if (!liveLocal.empty()) {
+                // Loop-index declarations/counters inside the async reset branch (e.g. `for (int i = 0; ...)`,
+                // `int i; i = 0; while (...) ... i++;`) are guarded by the async reset condition, not using the
+                // reset as functional data; skip `resetNodes` only on loop-variable/counter targets (other locals
+                // keep their normal control edges for qualification checks).
+                std::vector<Path> emitLoopLocal, emitOtherLocal;
+                for (const auto& t : liveLocal) {
+                    if (m.loopVariables.count(t.sym) || resetLocalCounters.count(t.sym)) {
+                        emitLoopLocal.push_back(t);
+                    } else {
+                        emitOtherLocal.push_back(t);
+                    }
+                }
+                if (!emitLoopLocal.empty())
+                    emitAssign(ctx, a, emitLoopLocal, EdgeType::Comb, proc, pb.location, nullptr, &resetNodes);
+                if (!emitOtherLocal.empty())
+                    emitAssign(ctx, a, emitOtherLocal, EdgeType::Comb, proc, pb.location);
+            }
             if (!liveModule.empty()) {
                 emitAssign(ctx, a, liveModule, EdgeType::Seq, proc, pb.location, &resetNodes);
                 emitModuleExtras(a, liveModule);
@@ -5741,11 +6484,13 @@ private:
             f.clockResolved = clockOk && clockNode != kNoNode;
             f.edge = clockEdge;
             f.hasIff = anyEventHasIff;
+            // Per bit: 'n' = this control's branch does not assign the bit, 'h' = it assigns the bit its own value (held during
+            // the control). Both stay listed as resets (CDC reads them as unknown forced values); RDC decides what holds.
             f.resets = resets;
             for (size_t ri = 0; ri < resets.size(); ri++) {
                 auto it = controlKinds[ri].find(m.nodes[q].sym);
-                char ch = 'n';   // 'n': this reset branch does not assign the bit
-                if (it != controlKinds[ri].end()) {
+                char ch = unknownForced[ri] ? '?' : 'n';   // 'n': this reset branch does not assign the bit
+                if (!unknownForced[ri] && it != controlKinds[ri].end()) {
                     const std::string& bits = it->second;
                     uint32_t bit = m.nodes[q].bit;
                     if (m.collapsed(q)) {   // one node stands for the whole vector: a value only if every bit agrees
@@ -5755,8 +6500,14 @@ private:
                     else if (bit < bits.size()) ch = bits[bit];
                     if (ch == '\0') ch = 'n';
                 }
+                // A write under a compound/multiply-driven guard or a nested test holds when that condition fails:
+                // the forced value is not a guarantee (round 4 A2/A2a), so this bit is undecided.
+                const bool bitNested = ri < nestedTargets.size() && nestedTargets[ri].count(q) > 0;
+                const bool bitConditional = (ri < controlConditional.size() && controlConditional[ri]) || bitNested;
+                if (ch != 'n' && bitConditional) ch = '?';
                 f.resetValues.push_back(ch);
                 f.resetKinds.push_back(ch == '0' ? 0 : ch == '1' ? 1 : 2);
+                f.resetConditional.push_back(bitConditional);
             }
             if (auto it = transitions.find(q); it != transitions.end()) {
                 f.resetTransitionKnown = true;
@@ -5767,22 +6518,52 @@ private:
                 else f.releasedValue = src.value;
             }
             auto trailing = trailingResetGuards.find(q);
+            auto trailingCand = trailingSyncResetCandidates.find(q);
             auto syncForce = syncResetValues.find(q);
             bool syncBit = syncCand && syncForce != syncResetValues.end() &&
                 (syncForce->second == '0' || syncForce->second == '1');
-            std::vector<SyncResetGuard> facts;
+            std::vector<SyncResetGuard> guardFacts;
             if (trailing != trailingResetGuards.end()) {
                 for (const auto& [guardPolarity, forced] : trailing->second) {
-                    facts.push_back({guardPolarity.first, guardPolarity.second, forced});
+                    guardFacts.push_back({guardPolarity.first, guardPolarity.second, forced});
                 }
             }
             if (syncBit) for (const auto& [guard, low] : syncGuardPolarity)
-                facts.push_back({guard, low, syncForce->second});
+                guardFacts.push_back({guard, low, syncForce->second});
+            std::sort(guardFacts.begin(), guardFacts.end());
+            guardFacts.erase(std::unique(guardFacts.begin(), guardFacts.end()), guardFacts.end());
+            std::vector<SyncResetGuard> facts = guardFacts;
+            if (trailingCand != trailingSyncResetCandidates.end()) {
+                for (const auto& [guardPolarity, forced] : trailingCand->second) {
+                    facts.push_back({guardPolarity.first, guardPolarity.second, forced});
+                }
+            }
             std::sort(facts.begin(), facts.end());
             facts.erase(std::unique(facts.begin(), facts.end()), facts.end());
             f.hasSyncResetCandidate = !facts.empty();
             f.syncResetFacts = facts;
-            for (const auto& fact : facts) f.syncResetGuards.push_back(fact.node);
+            for (const auto& br : extraGuardBranches) {
+                if (br.nested.count(q)) continue;
+                auto it = br.bits.find(m.nodes[q].sym);
+                if (it == br.bits.end()) continue;
+                const std::string& bits = it->second;
+                char ch = 'n';
+                if (m.collapsed(q)) {
+                    ch = bits.empty() ? 'n' : bits[0];
+                    for (char c : bits) if (c != ch) ch = '?';
+                } else if (m.nodes[q].bit < bits.size()) {
+                    ch = bits[m.nodes[q].bit];
+                }
+                if (ch == '0' || ch == '1') {
+                    for (const auto& [g, low] : br.guards)
+                        f.extraResetGuards.push_back({g, low, ch});
+                }
+            }
+            if (!f.extraResetGuards.empty()) {
+                std::sort(f.extraResetGuards.begin(), f.extraResetGuards.end());
+                f.extraResetGuards.erase(std::unique(f.extraResetGuards.begin(), f.extraResetGuards.end()), f.extraResetGuards.end());
+            }
+            for (const auto& fact : guardFacts) f.syncResetGuards.push_back(fact.node);
             f.syncReset = facts.empty() ? kNoNode : facts.front().node;
             f.syncActiveLow = facts.empty() ? syncLow : facts.front().activeLow;
             f.syncDataSuppressed = unconditionalOverrideBits.count(q) != 0;
@@ -5800,6 +6581,7 @@ private:
         StmtVisitor v(*this, ec, as, ctx);
         e.visit(v);
         uint32_t proc = addProc(ProcKind::Continuous, loc, ctx);
+        if (anchor.kind == SymbolKind::ContinuousAssign) m.procs[proc].delayed = anchor.as<ContinuousAssignSymbol>().getDelay() != nullptr;
         struct PairFacts : ASTVisitor<PairFacts, VisitFlags::AllGood> {
             Model& model;
             uint32_t proc;
@@ -5909,6 +6691,60 @@ private:
     }
 
     void processScope(const Scope& scope, const InstanceSymbol* ctx) {
+        // Count every driver in the scope before recording plain copies: a multiply-driven net (`wand alias_n`) or delayed copy
+        // is never an exact alias, though its plain-copy sources stay available for reset-event identification (round 4 A2a).
+        std::unordered_map<const ValueSymbol*, int> driverCount;
+        struct CopyCand { const ValueSymbol* lhs; const ValueSymbol* rhs; bool delayed; };
+        std::vector<CopyCand> copyCands;
+        for (auto& mem : scope.members()) {
+            if (mem.kind == SymbolKind::ContinuousAssign) {
+                const auto& ca = mem.as<ContinuousAssignSymbol>();
+                const Expression& e = ca.getAssignment();
+                if (e.kind == ExpressionKind::Assignment) {
+                    const auto& a = e.as<AssignmentExpression>();
+                    EvalContext ec(ca);
+                    for (const auto& p : rawPathsOf(a.left(), ec, true)) driverCount[p.sym]++;
+                    if (!a.isCompound() && a.left().kind == ExpressionKind::NamedValue && a.right().kind == ExpressionKind::NamedValue) {
+                        const auto* lhs = &a.left().as<NamedValueExpression>().symbol;
+                        const auto* rhs = &a.right().as<NamedValueExpression>().symbol;
+                        const bool netDelay = lhs->kind == SymbolKind::Net && lhs->as<NetSymbol>().getDelay() != nullptr;
+                        copyCands.push_back({lhs, rhs, ca.getDelay() != nullptr || netDelay});
+                    }
+                }
+            } else if (mem.kind == SymbolKind::Net) {
+                const auto& net = mem.as<NetSymbol>();
+                if (const Expression* init = net.getInitializer()) {
+                    driverCount[&net]++;
+                    if (init->kind == ExpressionKind::NamedValue)
+                        copyCands.push_back({&net, &init->as<NamedValueExpression>().symbol, net.getDelay() != nullptr});
+                }
+            } else if (mem.kind == SymbolKind::Instance) {
+                const auto& inst = mem.as<InstanceSymbol>();
+                for (const auto* pc : inst.getPortConnections()) {
+                    if (!pc->getExpression()) continue;
+                    const auto* port = pc->port.as_if<PortSymbol>();
+                    if (!port || port->direction == ArgumentDirection::In) continue;
+                    EvalContext ec(inst);
+                    for (const auto& p : rawPathsOf(*pc->getExpression(), ec, true)) driverCount[p.sym]++;
+                }
+            } else if (mem.kind == SymbolKind::PrimitiveInstance) {
+                const auto& prim = mem.as<PrimitiveInstanceSymbol>();
+                EvalContext ec(prim);
+                for (const auto* conn : prim.getPortConnections()) {
+                    if (!conn) continue;
+                    for (const auto& p : rawPathsOf(*conn, ec, true)) driverCount[p.sym]++;
+                }
+            }
+        }
+        for (const auto& c : copyCands) {
+            const bool multi = driverCount[c.lhs] > 1;
+            if (!multi && !c.delayed) addPlainCopy(c.lhs, c.rhs);
+            else {
+                multiDrivenSyms.insert(c.lhs);
+                auto& srcs = multiDriverSources[c.lhs];
+                if (std::find(srcs.begin(), srcs.end(), c.rhs) == srcs.end()) srcs.push_back(c.rhs);
+            }
+        }
         for (auto& mem : scope.members()) {
             switch (mem.kind) {
                 case SymbolKind::ProceduralBlock: handleProcedure(mem.as<ProceduralBlockSymbol>(), ctx); break;
@@ -5927,6 +6763,7 @@ private:
                         std::vector<Path> reads = pathsOf(*init, ec, false);
                         Path t{&net, 0, widthOf(net) ? widthOf(net) - 1 : 0};
                         uint32_t proc = addProc(ProcKind::Continuous, net.location, ctx);
+                        if (net.getDelay() != nullptr) m.procs[proc].delayed = true;
                         Assign as;
                         as.targets = {t};
                         as.dataReads = reads;
@@ -6432,15 +7269,30 @@ std::string Model::nameOf(NodeId id) const {
     if (!n.sym) return "<logic>";
     std::string s;
     if (n.inst) s = n.inst->getHierarchicalPath();
-    std::vector<std::string_view> rel;
+    std::vector<std::string> rel;
     const Scope* sc = n.sym->getParentScope();
     while (sc) {
         const Symbol& ss = sc->asSymbol();
         if (ss.kind == SymbolKind::InstanceBody) break;
-        if (!ss.name.empty()) rel.push_back(ss.name);
+        if (ss.kind == SymbolKind::GenerateBlock) {
+            const auto& gb = ss.as<GenerateBlockSymbol>();
+            if (const SVInt* idx = gb.getArrayIndex()) {
+                std::string name;
+                if (const Scope* psc = ss.getParentScope(); psc && psc->asSymbol().kind == SymbolKind::GenerateBlockArray) {
+                    name = std::string(psc->asSymbol().name);
+                    sc = psc;
+                } else {
+                    name = std::string(ss.name);
+                }
+                if (!name.empty()) rel.push_back(name + "[" + idx->toString(LiteralBase::Decimal, false) + "]");
+                sc = sc->asSymbol().getParentScope();
+                continue;
+            }
+        }
+        if (!ss.name.empty()) rel.push_back(std::string(ss.name));
         sc = ss.getParentScope();
     }
-    for (auto it = rel.rbegin(); it != rel.rend(); ++it) { s += "."; s += std::string(*it); }
+    for (auto it = rel.rbegin(); it != rel.rend(); ++it) { s += "."; s += *it; }
     s += "." + std::string(n.sym->name);
     uint64_t w = n.sym->getType().isFixedSize() ? n.sym->getType().getBitstreamWidth() : 0;
     if (w > 1 && !tooWide(n.sym->getType(), w)) s += "[" + std::to_string(n.bit) + "]";
@@ -6520,6 +7372,31 @@ void Model::finish() {
     edges.shrink_to_fit();
     out.build(nodes.size(), edges.size(), [&](size_t e) { return edges[e].from; });
     in.build(nodes.size(), edges.size(), [&](size_t e) { return edges[e].to; });
+    // One control listed twice through exact copies of one net (`posedge clka or negedge rst_n or negedge r`, `wire r = rst_n`) is one
+    // receiver. On the same edge it is one control with its known forced value; on opposite edges its polarity and forced value are
+    // undecided: the first listing is kept with an unknown force.
+    for (auto& f : flops) {
+        if (f.resets.size() < 2 || f.resetValues.size() != f.resets.size() || f.resetKinds.size() != f.resets.size()) continue;
+        const bool hasConditional = f.resetConditional.size() == f.resets.size();
+        for (size_t j = 1; j < f.resets.size(); j++) {
+            const NodeId root = aliasRoot(f.resets[j].signal);
+            size_t first = j;
+            for (size_t i = 0; i < j && first == j; i++)
+                if (aliasRoot(f.resets[i].signal) == root) first = i;
+            if (first == j) continue;
+            if (f.resets[first].activeLow != f.resets[j].activeLow) {
+                f.resetValues[first] = '?';
+                f.resetKinds[first] = 2;
+            }
+            f.resetTransitionKnown = false;
+            if (hasConditional) f.resetConditional[first] = f.resetConditional[first] || f.resetConditional[j];
+            f.resets.erase(f.resets.begin() + static_cast<std::ptrdiff_t>(j));
+            f.resetValues.erase(f.resetValues.begin() + static_cast<std::ptrdiff_t>(j));
+            f.resetKinds.erase(f.resetKinds.begin() + static_cast<std::ptrdiff_t>(j));
+            if (hasConditional) f.resetConditional.erase(f.resetConditional.begin() + static_cast<std::ptrdiff_t>(j));
+            j--;
+        }
+    }
     // Propagate named constant-0/all-ones continuous drivers into constantProcs
     // so expressions like `(s2 ^ s3) & zer` (where `wire zer = 1'b0;` or `en ^ en`)
     // fold regardless of declaration order, while respecting competing drivers.
@@ -6901,9 +7778,11 @@ char Model::constantValue(NodeId n) const {
         auto it = constDrivers.find(n);
         if (it == constDrivers.end() || it->second.size() != 1) return '?';
         const auto& d = it->second[0];
-        // Procedural constants may be conditional or retain state.
-        if (d.type != EdgeType::Comb || (procs[d.proc].kind != ProcKind::Continuous &&
-                                       procs[d.proc].kind != ProcKind::PortConnection)) return '?';
+        // Procedural constants may be conditional or retain state; only an unconditional zero-delay always_comb
+        // assignment is an exact constant like a continuous assignment.
+        const auto& p = procs[d.proc];
+        const bool combConst = p.kind == ProcKind::Comb && !p.delayed && !p.bodyTiming && d.unconditional;
+        if (d.type != EdgeType::Comb || (p.kind != ProcKind::Continuous && p.kind != ProcKind::PortConnection && !combConst)) return '?';
         return d.value;
     }
     auto fit = foldedConstDrivers.find(n);

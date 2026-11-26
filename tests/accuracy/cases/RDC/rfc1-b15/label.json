@@ -1,0 +1,94 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-b (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "unknown",
+  "critical": false,
+  "workflow_class": "Asynchronous control conflicts and reset as data",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 15,
+      "signal": "status_q"
+    }
+  ],
+  "expected_rules": [
+    "CST-005"
+  ],
+  "rationale": "status_q is held in the black-box set/reset flop sky_dffsr, so the priority between SN and the combined RN, and the overlap behaviour, cannot be decided.",
+  "author_reading": {
+    "id": "rfc1-b15",
+    "intended_verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Asynchronous control conflicts and reset as data",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 15,
+        "signal": "status_q"
+      }
+    ],
+    "rationale": "sky_dffsr is an unmodelled library flop; its set-versus-clear priority is unknown, and RN combines reset with a functional clear, so the outcome when both assert cannot be decided."
+  },
+  "labels": [
+    {
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Asynchronous control conflicts and reset as data",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 15,
+          "signal": "rst_ni & clr_ni"
+        }
+      ],
+      "expected_rules": [
+        "RDC-008",
+        "RDC-002",
+        "CST-005"
+      ],
+      "rationale": "The status flop is an opaque sky_dffsr cell. Its RN is an AND of two raw resets, and SN is a raw async set. Their priority inside the cell and the RN combination cannot be decided from RTL.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)",
+      "detection_gap": "The set and reset controls sit on black-box pins, so RDC-026 cannot see the set and reset priority."
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Asynchronous control conflicts and reset as data",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 15,
+          "signal": "status_q"
+        }
+      ],
+      "rationale": "The missing cell prevents judgment of set versus clear priority, overlap behavior and release timing. Port names do not establish asynchronous control semantics.",
+      "expected_rules": [],
+      "detection_gap": "RDC-026 requires a modeled register and asynchronous controls. The defined empty module has no black-box attribute or supplied library model, so it also falls outside the CST-005 trigger.",
+      "suspected_flaw": "The cell is defined as an empty module without a black-box attribute. Its output is undriven in the literal RTL."
+    }
+  ],
+  "settlement": {
+    "by": "rdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Asynchronous control conflicts and reset as data",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 15,
+        "signal": "status_q"
+      }
+    ],
+    "expected_rules": [
+      "CST-005"
+    ],
+    "rationale": "Both readers are right on unknown and class. The settler added (* black_box *) to sky_dffsr on line 3, so CST-005 now reports it; this answers B's gap note. RDC-008 (A) cannot fire, because RN is a black-box pin and not a modelled reset root, and RDC-002 is incidental."
+  }
+}

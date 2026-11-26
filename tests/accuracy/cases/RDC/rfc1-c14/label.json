@@ -1,0 +1,127 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-c (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Reset synchronisation",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 13,
+      "signal": "rst_a_n"
+    },
+    {
+      "file": "design.sv",
+      "line": 15,
+      "signal": "rst_a_n"
+    }
+  ],
+  "expected_rules": [
+    "RDC-003",
+    "RDC-014"
+  ],
+  "rationale": "rst_a_n is one clk_a flop sampling the unconstrained pll_locked_i, and it drives q_a_q's asynchronous reset directly. The producer reset release (and any lock glitch) is therefore unsynchronised.",
+  "author_reading": {
+    "id": "rfc1-c14",
+    "intended_verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Sequencing and release order",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 25,
+        "signal": "rst_b_n"
+      }
+    ],
+    "rationale": "Both domain releases follow one lock input through different synchroniser depths. Their relative order depends on clock ratios and on when the lock input settles, which the constraints do not state, so the start flag can reach a receiver still in reset."
+  },
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Reset synchronisation",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 13,
+          "signal": "rst_a_n"
+        },
+        {
+          "file": "design.sv",
+          "line": 15,
+          "signal": "q_a_q"
+        }
+      ],
+      "expected_rules": [
+        "RDC-014",
+        "RDC-003",
+        "RDC-005"
+      ],
+      "rationale": "The producer reset rst_a_n is a single clk_a flop whose D is the unconstrained pll_locked_i, with no synchroniser. Its release is unsafe for clk_a, although the consumer side has a proper 2-stage synchroniser.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)",
+      "suspected_flaw": "pll_locked_i has no input delay. The comment says the lock indication releases both domains, but the producer side is not synchronised."
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Reset generation and glitches",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 13,
+          "signal": "rst_a_n"
+        },
+        {
+          "file": "design.sv",
+          "line": 15,
+          "signal": "rst_a_n"
+        },
+        {
+          "file": "design.sv",
+          "line": 30,
+          "signal": "q_b_o"
+        }
+      ],
+      "rationale": "clk_a samples uncontracted PLL lock with one flop that directly drives an asynchronous reset pin. clk_b separately samples lock and captures the A startup flag without containment, so either domain can be active before the other.",
+      "expected_rules": [
+        "RDC-003",
+        "RDC-014",
+        "RDC-005",
+        "CDC-003",
+        "CDC-029",
+        "CST-011"
+      ],
+      "suspected_flaw": "The A startup flag also crosses directly into B. The PLL source has no launch or stability contract."
+    }
+  ],
+  "settlement": {
+    "by": "rdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Reset synchronisation",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 13,
+        "signal": "rst_a_n"
+      },
+      {
+        "file": "design.sv",
+        "line": 15,
+        "signal": "rst_a_n"
+      }
+    ],
+    "expected_rules": [
+      "RDC-003",
+      "RDC-014"
+    ],
+    "rationale": "Both readers are right on bad, critical and the rst_a_n sites, and on RDC-003/RDC-014. The class follows A: the defect is the missing second stage on clk_a, which clk_b has. B's generation class and extra CDC rules describe consequences. RDC-005 (both) reports the q_a_q crossing, which is not the defect. The author's ordering unknown is superseded by the definite single-stage defect."
+  }
+}

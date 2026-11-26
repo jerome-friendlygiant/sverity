@@ -1,0 +1,42 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-c (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "good",
+  "critical": false,
+  "workflow_class": "Reset-domain data crossings",
+  "sites": [],
+  "rationale": "Both domain resets assert from one rst_ni and release through per-domain two-stage synchronisers, so the Gray pointer and its reader clear together, and either release order is safe.",
+  "author_reading": {
+    "id": "rfc1-c04",
+    "intended_verdict": "good",
+    "critical": false,
+    "workflow_class": "Reset-domain data crossings",
+    "sites": [],
+    "rationale": "Both domain resets assert asynchronously from one root and release through per-domain synchronisers, so the write and read pointers clear together and no read sees a pointer the reset has erased."
+  },
+  "labels": [
+    {
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Reset-domain data crossings",
+      "sites": [],
+      "rationale": "Both domain resets are derived from one external reset through 2-stage synchronisers, so the shared assertion source is structural. RDC-005 is exempt for this shared source. The pointer bridge is a single direction.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)"
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Reset-domain data crossings",
+      "sites": [],
+      "rationale": "The shared assertion source clears both pointers and the receiving pipeline. A reader that releases first sees an empty bridge, while a writer that releases first is observed once its pointer propagates.",
+      "suspected_flaw": "The one-way pointer bridge has no full-side protocol or Gray bus timing bound. This verdict is specific to reset behavior."
+    }
+  ]
+}

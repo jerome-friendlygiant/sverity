@@ -1,0 +1,105 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-b (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "unknown",
+  "critical": false,
+  "workflow_class": "Reset generation and glitches",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 12,
+      "signal": "tmr_rst_n"
+    }
+  ],
+  "expected_rules": [
+    "RDC-008",
+    "RDC-009"
+  ],
+  "rationale": "tmr_rst_n muxes two external resets with the external pin ext_sel_i. If ext_sel_i is a static strap the reset is safe; if it can switch while the sources differ, it can release or truncate the timer reset. The RTL and SDC state neither.",
+  "author_reading": {
+    "id": "rfc1-b13",
+    "intended_verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Reset generation and glitches",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 12,
+        "signal": "tmr_rst_n"
+      }
+    ],
+    "rationale": "The select and both reset sources are unconstrained external pins with no ordering or glitch-free contract, so whether tmr_rst_n can glitch cannot be decided from the RTL and constraints."
+  },
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Reset generation and glitches",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 12,
+          "signal": "tmr_rst_n"
+        }
+      ],
+      "expected_rules": [
+        "RDC-009",
+        "RDC-008",
+        "RDC-002"
+      ],
+      "rationale": "tmr_rst_n is a mux of two raw asynchronous resets, selected by ext_sel_i, which has no input delay. Switching the select while a reset is asserted can release the timer reset without any synchronisation.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)"
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Reset generation and glitches",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 12,
+          "signal": "tmr_rst_n"
+        },
+        {
+          "file": "design.sv",
+          "line": 14,
+          "signal": "tmr_rst_n"
+        }
+      ],
+      "rationale": "With one input asserted and one released, changing ext_sel_i directly releases the timer reset without containment. Select or reset-input changes can also truncate an assertion pulse.",
+      "expected_rules": [
+        "RDC-009",
+        "RDC-002",
+        "RDC-003"
+      ],
+      "dropped_run_level_rules": [
+        "RDC-013"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "rdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Reset generation and glitches",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 12,
+        "signal": "tmr_rst_n"
+      }
+    ],
+    "expected_rules": [
+      "RDC-008",
+      "RDC-009"
+    ],
+    "rationale": "Both readers call it bad, assuming ext_sel_i switches during operation. Nothing in the RTL or SDC says whether this mode pin is static, so the settler keeps the author's unknown. RDC-008 and RDC-009 disclose the muxed reset; RDC-002, RDC-003 and RDC-013 are inventory or run-level."
+  }
+}

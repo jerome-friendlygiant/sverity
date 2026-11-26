@@ -1,0 +1,116 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-a (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Reset synchronisation",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 18,
+      "signal": "rst_sync[1]"
+    },
+    {
+      "file": "design.sv",
+      "line": 21,
+      "signal": "rst_sync[1]"
+    }
+  ],
+  "expected_rules": [
+    "RDC-003",
+    "RDC-014"
+  ],
+  "rationale": "rst_sync[1] is the only clk_b stage and samples rst_sync[0], which changes on clk_a. It releases q directly, so the clk_b release can be metastable.",
+  "author_reading": {
+    "id": "rfc1-a07",
+    "intended_verdict": "bad",
+    "critical": true,
+    "workflow_class": "Reset synchronisation",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 11,
+        "signal": "rst_sync[0]"
+      }
+    ],
+    "rationale": "The first synchroniser stage is clocked by clk_a while the second stage and the functional flops run on clk_b, so the release is not resolved in the clk_b domain."
+  },
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Reset synchronisation",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 17,
+          "signal": "rst_sync[1]"
+        },
+        {
+          "file": "design.sv",
+          "line": 18,
+          "signal": "rst_sync[0]"
+        }
+      ],
+      "expected_rules": [
+        "RDC-003"
+      ],
+      "rationale": "The release chain has its first stage on clk_a and its second on clk_b. The clk_b flop samples an asynchronous clk_a signal with no clk_b stage behind it, so it is effectively a one-stage synchroniser in clk_b. q is released from that flop, which can be metastable.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)"
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Reset synchronisation",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 18,
+          "signal": "rst_sync[1]"
+        },
+        {
+          "file": "design.sv",
+          "line": 21,
+          "signal": "rst_sync[1]"
+        }
+      ],
+      "rationale": "The first stage launches on clk_a, making rst_sync[1] the first clk_b sampler of an asynchronous transition. That same stage directly releases the downstream reset.",
+      "expected_rules": [
+        "RDC-003",
+        "RDC-014",
+        "RDC-002",
+        "CDC-003"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "rdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Reset synchronisation",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 18,
+        "signal": "rst_sync[1]"
+      },
+      {
+        "file": "design.sv",
+        "line": 21,
+        "signal": "rst_sync[1]"
+      }
+    ],
+    "expected_rules": [
+      "RDC-003",
+      "RDC-014"
+    ],
+    "rationale": "Both readers are right on bad, critical and the class. RDC-003 (unrecognised chain in the receiving domain) and RDC-014 (reset driven by a register that is not a recognised synchroniser) both target this release. RDC-002 and CDC-003 (B) are incidental or outside the RDC deck. The settler rewrote the line 1 comment, which named the defect."
+  }
+}

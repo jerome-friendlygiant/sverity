@@ -185,6 +185,11 @@ class MutationScoreTests(unittest.TestCase):
         self.assertEqual(score.score({"diagnostics": []}, mutant,
                                      {"expected_rule": "CDC-028", "launch": "top.src", "endpoint": "top.dst"})[0], "MISSED")
 
+    def test_frozen_rdc_operator_set_validates(self):
+        ops = score.load_operators(ROOT / "tests/accuracy/rdc-mutation-operators.json")
+        self.assertEqual(len(ops), 23)
+        self.assertTrue(all(op["expected_rule"].startswith(("RDC-", "CST-")) for op in ops))
+
     def test_operator_schema_validation(self):
         self.assertEqual(len(score.validate_operators(score.OPERATORS)), len(score.OPERATORS))
         score.validate_operator(_valid_crossing_op())

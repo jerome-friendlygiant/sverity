@@ -1,0 +1,67 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-b (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "good",
+  "critical": false,
+  "workflow_class": "Reset generation and glitches",
+  "sites": [],
+  "rationale": "Two resets are each synchronised on clk, ANDed and registered, so the exported reset is glitch-free and releases on clk. acc_rst_q's D is low at por_ni release.",
+  "author_reading": {
+    "id": "rfc1-b06",
+    "intended_verdict": "good",
+    "critical": false,
+    "workflow_class": "Reset generation and glitches",
+    "sites": [],
+    "rationale": "Two independently synchronised resets are combined in one domain and registered, so the accelerator reset is a single clock-edge-driven signal."
+  },
+  "labels": [
+    {
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Reset generation and glitches",
+      "sites": [],
+      "rationale": "Both resets pass through their own 2-stage synchronisers on clk, and acc_rst_q registers their AND on clk. The output changes only at clock edges, so the combined reset is safe.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)"
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Reset-domain data crossings",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 17,
+          "signal": "dbg_sync_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 22,
+          "signal": "acc_rst_q"
+        }
+      ],
+      "rationale": "Debug reset can asynchronously clear dbg_sync_q[1] while acc_rst_q stays active. The D transition can meet the acc_rst_q aperture and propagate metastability onto the exported reset.",
+      "expected_rules": [
+        "RDC-004",
+        "RDC-011",
+        "RDC-002",
+        "RDC-003"
+      ],
+      "suspected_flaw": "The output flop samples asynchronous assertion of the independently reset debug stage. No accelerator receiver is present."
+    }
+  ],
+  "settlement": {
+    "by": "rdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "good",
+    "critical": false,
+    "workflow_class": "Reset generation and glitches",
+    "sites": [],
+    "rationale": "A is right. B's hazard is a debug-reset assertion reaching acc_rst_q's D asynchronously. At worst that delays or briefly blurs an assertion that settles to asserted on the next edge, and corrupts no state; the registered output is the standard remedy for combining resets. RDC-004 may still report it as an obligation."
+  }
+}

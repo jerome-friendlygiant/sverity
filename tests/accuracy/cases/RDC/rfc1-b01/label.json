@@ -1,0 +1,127 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-b (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Reset generation and glitches",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 21,
+      "signal": "periph_rst_no"
+    },
+    {
+      "file": "design.sv",
+      "line": 19,
+      "signal": "link_up_q"
+    }
+  ],
+  "expected_rules": [
+    "RDC-009"
+  ],
+  "rationale": "periph_rst_no ANDs a clk_core-synchronised reset with link_up_q from the asynchronous clk_link domain. The exported reset therefore asserts and releases at clk_link edges and can glitch when the two inputs change together.",
+  "author_reading": {
+    "id": "rfc1-b01",
+    "intended_verdict": "bad",
+    "critical": true,
+    "workflow_class": "Reset generation and glitches",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 21,
+        "signal": "periph_rst_no"
+      }
+    ],
+    "rationale": "periph_rst_no is a combinational AND of a clk_core-synchronised reset and a flag flop clocked by the unrelated clk_link; the flag can toggle while the synchronised reset is high, so the output reset can glitch and assert the peripheral reset spuriously."
+  },
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Reset generation and glitches",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 21,
+          "signal": "periph_rst_no"
+        },
+        {
+          "file": "design.sv",
+          "line": 19,
+          "signal": "link_up_q"
+        }
+      ],
+      "expected_rules": [
+        "RDC-009",
+        "RDC-017"
+      ],
+      "rationale": "periph_rst_no is a reset-named net that combines a synchronised core reset with link_up_q, a clk_link register. Its value changes at clk_link edges, unsynchronised to clk_core, so the peripheral reset can glitch or release unsafely.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)"
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Reset generation and glitches",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 21,
+          "signal": "periph_rst_no"
+        },
+        {
+          "file": "design.sv",
+          "line": 25,
+          "signal": "core_active_o"
+        }
+      ],
+      "rationale": "Link status can release the peripheral output at any phase of clk_core. If link_up_q falls just after the core stage rises, the output can produce a short release pulse, and core_active_o samples the same asynchronous result.",
+      "expected_rules": [
+        "CDC-003",
+        "CDC-008",
+        "RDC-002",
+        "RDC-003"
+      ],
+      "suspected_flaw": "There is no local peripheral reset pin, so the reset-net rules cannot identify the exported pulse directly."
+    }
+  ],
+  "settlement": {
+    "by": "rdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Reset generation and glitches",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 21,
+        "signal": "periph_rst_no"
+      },
+      {
+        "file": "design.sv",
+        "line": 19,
+        "signal": "link_up_q"
+      }
+    ],
+    "expected_rules": [],
+    "detection_gap": "The gated reset periph_rst_no is only exported. No local asynchronous reset pin reads it, so the reset-net rules (RDC-007/008/009/017), which start from local reset roots, do not see it. CST-012 (multi-domain output) is outside the RDC deck and does not address the glitch.",
+    "rationale": "Both readers are right on bad, critical and class. B's flaw is decisive for the rules: periph_rst_no drives no local reset pin, so none of A's RDC-009/RDC-017 triggers fire. B's CDC rules concern core_active_o sampling, not the reset, and are outside the RDC deck. The settler records a detection gap and uses A's sites."
+  },
+  "adjudication": {
+    "by": "rdc-rfc1-adjudicator (Claude Opus 5.5), after the score",
+    "was": {
+      "verdict": "bad",
+      "class": "Reset generation and glitches",
+      "critical": true,
+      "expected_rules": [],
+      "detection_gap": "The gated reset periph_rst_no is only exported. No local asynchronous reset pin reads it, so the reset-net rules (RDC-007/008/009/017), which start from local reset roots, do not see it. CST-012 (multi-domain output) is outside the RDC deck and does not address the glitch."
+    },
+    "reason": "RDC-009 reports a top-level output that builds a reset from a reset root and a functional leaf (exported reset, consumer outside the design); the frozen detection gap no longer holds",
+    "record": "tests/accuracy/results/rdc-8-rfc1-fresh-adjudication.json"
+  }
+}

@@ -1,0 +1,118 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-b (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Asynchronous control conflicts and reset as data",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 12,
+      "signal": "trained_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 13,
+      "signal": "trained_q"
+    }
+  ],
+  "expected_rules": [
+    "RDC-026"
+  ],
+  "rationale": "trained_q has two asynchronous controls that force opposite values, and the functional link_drop_ni clear has priority over the reset preset. Its value during and after overlapping assertion depends on priority and release order.",
+  "author_reading": {
+    "id": "rfc1-b07",
+    "intended_verdict": "bad",
+    "critical": true,
+    "workflow_class": "Asynchronous control conflicts and reset as data",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 12,
+        "signal": "trained_q"
+      }
+    ],
+    "rationale": "The functional asynchronous clear is checked before reset, so when link_drop_ni is low while rst_ni asserts, trained_q is cleared instead of taking its reset-to-one value."
+  },
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Asynchronous control conflicts and reset as data",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 11,
+          "signal": "link_drop_ni"
+        },
+        {
+          "file": "design.sv",
+          "line": 13,
+          "signal": "rst_ni"
+        }
+      ],
+      "expected_rules": [
+        "RDC-026",
+        "RDC-019",
+        "RDC-002"
+      ],
+      "rationale": "rst_ni both sets trained_q (negedge event, then the synchronous branch !rst_ni sets 1) and is read as data. Reset therefore forces the training flag to 1, not 0, while link_drop_ni clears it. The stored state during reset does not reflect a reset value.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)",
+      "suspected_flaw": "The comment says the block tracks whether link training has completed, but the reset branch sets trained_q to 1. That contradicts a normal reset value of 0."
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Asynchronous control conflicts and reset as data",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 12,
+          "signal": "trained_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 13,
+          "signal": "trained_q"
+        }
+      ],
+      "rationale": "The asynchronous controls force opposite values. Releasing link_drop_ni when rst_ni remains asserted leaves trained_q clear until a clock edge despite the remaining asynchronous set request.",
+      "expected_rules": [
+        "RDC-026",
+        "RDC-002",
+        "RDC-003",
+        "RDC-011"
+      ],
+      "suspected_flaw": "The reset branch also sets trained before any reported training completion."
+    }
+  ],
+  "settlement": {
+    "by": "rdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Asynchronous control conflicts and reset as data",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 12,
+        "signal": "trained_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 13,
+        "signal": "trained_q"
+      }
+    ],
+    "expected_rules": [
+      "RDC-026"
+    ],
+    "rationale": "Both readers are right on bad, critical, class and RDC-026. RDC-019 (A) does not apply: rst_ni is used only as an asynchronous control. RDC-002, RDC-003 and RDC-011 are incidental. Sites follow B."
+  }
+}

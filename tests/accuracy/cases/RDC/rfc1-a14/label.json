@@ -1,0 +1,50 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-a (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "good",
+  "critical": false,
+  "workflow_class": "Timing exceptions",
+  "sites": [],
+  "rationale": "scan_en only selects functional data. The reset releases through a two-stage chain on clk, and the false path names no reset root.",
+  "author_reading": {
+    "id": "rfc1-a14",
+    "intended_verdict": "good",
+    "critical": false,
+    "workflow_class": "Timing exceptions",
+    "sites": [],
+    "rationale": "scan_en is a static functional-mode select outside the reset path; the reset chain is a plain two-stage release on clk."
+  },
+  "labels": [
+    {
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Reset-domain data crossings",
+      "sites": [],
+      "rationale": "rst_sync is a 2-stage synchroniser from rst_n on clk, and q is released by it. scan_en is a data mux select, not a reset, and its false path does not touch any reset root.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)"
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Timing exceptions",
+      "sites": [],
+      "rationale": "The scan select affects functional data only. The exception on that select creates no reset release path, and reset releases through a two-stage chain.",
+      "suspected_flaw": "The scan select has no timing or static-mode contract for its separate functional data path."
+    }
+  ],
+  "settlement": {
+    "by": "rdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "good",
+    "critical": false,
+    "workflow_class": "Timing exceptions",
+    "sites": [],
+    "rationale": "Both readers judge good. The class follows B and the author (the false-path lookalike); A's crossing class does not fit."
+  }
+}

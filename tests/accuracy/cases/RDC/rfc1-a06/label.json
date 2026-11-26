@@ -1,0 +1,109 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-a (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "unknown",
+  "critical": false,
+  "workflow_class": "Reset generation and glitches",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 11,
+      "signal": "core_rst_n"
+    }
+  ],
+  "expected_rules": [
+    "RDC-002",
+    "RDC-003",
+    "RDC-008",
+    "RDC-009"
+  ],
+  "rationale": "core_rst_n ANDs two unconstrained external resets and clears the counter directly. Whether a handoff between them can produce a short release, and how the release relates to clk, depends on external behaviour that is not stated.",
+  "author_reading": {
+    "id": "rfc1-a06",
+    "intended_verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Reset inventory and unknown sources",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 11,
+        "signal": "core_rst_n"
+      }
+    ],
+    "rationale": "Two external resets are combined by an AND and drive the asynchronous clear of the counter; the release order and timing of the two sources are not stated."
+  },
+  "labels": [
+    {
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Reset generation and glitches",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 11,
+          "signal": "core_rst_n"
+        }
+      ],
+      "expected_rules": [
+        "RDC-002",
+        "RDC-003",
+        "RDC-008"
+      ],
+      "rationale": "core_rst_n = pad_rst_n & por_n combines two external resets with no synchroniser and no input constraints. Whether the release is synchronised to clk depends on external timing that the RTL and SDC do not state, so the verdict is unknown.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)"
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Reset generation and glitches",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 11,
+          "signal": "core_rst_n"
+        },
+        {
+          "file": "design.sv",
+          "line": 13,
+          "signal": "core_rst_n"
+        }
+      ],
+      "rationale": "The AND releases the counter when the last low input rises. Input timing and coordination are unstated, so safe recovery and the absence of a short release during a reset handoff depend on external behavior.",
+      "expected_rules": [
+        "RDC-002",
+        "RDC-003",
+        "RDC-009"
+      ],
+      "dropped_run_level_rules": [
+        "RDC-013"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "rdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Reset generation and glitches",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 11,
+        "signal": "core_rst_n"
+      }
+    ],
+    "expected_rules": [
+      "RDC-002",
+      "RDC-003",
+      "RDC-008",
+      "RDC-009"
+    ],
+    "rationale": "Both readers are right on unknown and the generation class. RDC-008 and RDC-009 are both listed because the spec routes this combined net to RDC-008 or to RDC-009 depending on whether pad_rst_n is classed as a reset or a data leaf. RDC-002 and RDC-003 disclose the unconstrained combined root, which is the undecided point here."
+  }
+}

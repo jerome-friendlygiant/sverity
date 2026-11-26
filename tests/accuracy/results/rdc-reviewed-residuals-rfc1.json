@@ -1,0 +1,380 @@
+{
+  "aggregate": {
+    "deck": {
+      "ERROR": 0,
+      "FATAL": 0,
+      "WARNING": 58,
+      "established": 0,
+      "generic_obligation": 0,
+      "heuristic": 29,
+      "informational": 10,
+      "non_info": 58,
+      "not_analysed": 0,
+      "resolved": 0,
+      "unresolved": 19,
+      "waived": 0
+    },
+    "deck_by_rule": {
+      "CST-010": 2,
+      "RDC-005": 21,
+      "RDC-011": 5,
+      "RDC-012": 5,
+      "RDC-013": 10,
+      "RDC-023": 7,
+      "RDC-025": 8
+    },
+    "deck_rates": {
+      "false_positive_upper_bound_per_kloc": 10.020732550103663,
+      "non_info_per_kloc": 20.041465100207326,
+      "not_analysed_per_kloc": 0.0,
+      "obligation_per_kloc": 6.565307532826537
+    },
+    "preview": {
+      "ERROR": 0,
+      "FATAL": 0,
+      "WARNING": 14,
+      "established": 14,
+      "generic_obligation": 0,
+      "heuristic": 0,
+      "informational": 0,
+      "non_info": 14,
+      "not_analysed": 0,
+      "resolved": 0,
+      "unresolved": 0,
+      "waived": 0
+    },
+    "preview_by_rule": {
+      "LNT-010": 4,
+      "SLANG-incomplete-return": 1,
+      "SLANG-int-bool-conv": 1,
+      "SLANG-unnamed-generate": 8
+    }
+  },
+  "analysed_physical_lines": 2894,
+  "binary_sha256": "621840ad07e709eadd37f90204cc49941e0443352ff7c1af34fda725b1243984",
+  "budgets": {
+    "ERROR == 0": {
+      "machine_checked": true,
+      "pass_": true,
+      "value": 0
+    },
+    "FATAL == 0": {
+      "machine_checked": true,
+      "pass_": true,
+      "value": 0
+    },
+    "confirmed false positives <= 1/kLOC": {
+      "limit": 1.0,
+      "machine_checked": false,
+      "note": "value is the unreviewed upper bound (established + heuristic); confirmation needs review",
+      "pass_": false,
+      "value": 10.020732550103663
+    },
+    "not analysed <= 2/kLOC": {
+      "limit": 2.0,
+      "machine_checked": true,
+      "pass_": true,
+      "value": 0.0
+    },
+    "obligations <= 15/kLOC": {
+      "limit": 15.0,
+      "machine_checked": true,
+      "note": "unresolved + generic_obligation findings",
+      "pass_": true,
+      "value": 6.565307532826537
+    }
+  },
+  "budgets_all_pass_if_upper_bound_confirmed": false,
+  "budgets_machine_checked_pass": true,
+  "catalog_sha256": "3838dc4ecc7264c526ba4efea10f7810ad49064f464d8289653b051a001f8756",
+  "deck_rule_count": 40,
+  "designs": {
+    "axis_async_fifo": {
+      "analysed_physical_lines": 911,
+      "analysis_coverage": "INCOMPLETE",
+      "commit": "48ff7a7e2ef782cf778d47910cf85835c64b1bce",
+      "deck": {
+        "ERROR": 0,
+        "FATAL": 0,
+        "WARNING": 16,
+        "established": 0,
+        "generic_obligation": 0,
+        "heuristic": 8,
+        "informational": 2,
+        "non_info": 16,
+        "not_analysed": 0,
+        "resolved": 0,
+        "unresolved": 6,
+        "waived": 0
+      },
+      "deck_by_rule": {
+        "CST-010": 2,
+        "RDC-011": 1,
+        "RDC-012": 1,
+        "RDC-013": 2,
+        "RDC-023": 2,
+        "RDC-025": 8
+      },
+      "deck_rates": {
+        "false_positive_upper_bound_per_kloc": 8.781558726673984,
+        "non_info_per_kloc": 17.563117453347967,
+        "not_analysed_per_kloc": 0.0,
+        "obligation_per_kloc": 6.586169045005488
+      },
+      "execution_status": "SUCCESS",
+      "exit_code": 6,
+      "preview": {
+        "ERROR": 0,
+        "FATAL": 0,
+        "WARNING": 9,
+        "established": 9,
+        "generic_obligation": 0,
+        "heuristic": 0,
+        "informational": 0,
+        "non_info": 9,
+        "not_analysed": 0,
+        "resolved": 0,
+        "unresolved": 0,
+        "waived": 0
+      },
+      "preview_by_rule": {
+        "SLANG-incomplete-return": 1,
+        "SLANG-int-bool-conv": 1,
+        "SLANG-unnamed-generate": 7
+      },
+      "report_sha256": "6357d0e6dcce959d45118c1b8a6f7949f65d5ee71868a80ad644a9e22bac19db",
+      "review_status": "REVIEW_REQUIRED",
+      "sdc": "tests/public_projects/reviewed_sdc/axis_async_fifo.sdc",
+      "sdc_sha256": "5b52070c4c7ef6b85cad8fe8ce5f108dd35f8a4d0bd371c9d3cb588094f0ca10"
+    },
+    "cc_cdc_2phase": {
+      "analysed_physical_lines": 246,
+      "analysis_coverage": "INCOMPLETE",
+      "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+      "deck": {
+        "ERROR": 0,
+        "FATAL": 0,
+        "WARNING": 8,
+        "established": 0,
+        "generic_obligation": 0,
+        "heuristic": 3,
+        "informational": 2,
+        "non_info": 8,
+        "not_analysed": 0,
+        "resolved": 0,
+        "unresolved": 3,
+        "waived": 0
+      },
+      "deck_by_rule": {
+        "RDC-005": 3,
+        "RDC-011": 1,
+        "RDC-012": 1,
+        "RDC-013": 2,
+        "RDC-023": 1
+      },
+      "deck_rates": {
+        "false_positive_upper_bound_per_kloc": 12.195121951219512,
+        "non_info_per_kloc": 32.520325203252035,
+        "not_analysed_per_kloc": 0.0,
+        "obligation_per_kloc": 12.195121951219512
+      },
+      "execution_status": "SUCCESS",
+      "exit_code": 6,
+      "preview": {
+        "ERROR": 0,
+        "FATAL": 0,
+        "WARNING": 0,
+        "established": 0,
+        "generic_obligation": 0,
+        "heuristic": 0,
+        "informational": 0,
+        "non_info": 0,
+        "not_analysed": 0,
+        "resolved": 0,
+        "unresolved": 0,
+        "waived": 0
+      },
+      "preview_by_rule": {},
+      "report_sha256": "108b40ec7173ebad9a12695038ae7fa016245082ae8925ff457a423222fff7c4",
+      "review_status": "REVIEW_REQUIRED",
+      "sdc": "tests/public_projects/reviewed_sdc/cc_cdc_2phase.sdc",
+      "sdc_sha256": "1a6d988d568605bb2c289158a7a70b50f1d54579655ff463043af185394dbb8a"
+    },
+    "cc_cdc_4phase": {
+      "analysed_physical_lines": 511,
+      "analysis_coverage": "INCOMPLETE",
+      "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+      "deck": {
+        "ERROR": 0,
+        "FATAL": 0,
+        "WARNING": 8,
+        "established": 0,
+        "generic_obligation": 0,
+        "heuristic": 3,
+        "informational": 2,
+        "non_info": 8,
+        "not_analysed": 0,
+        "resolved": 0,
+        "unresolved": 3,
+        "waived": 0
+      },
+      "deck_by_rule": {
+        "RDC-005": 3,
+        "RDC-011": 1,
+        "RDC-012": 1,
+        "RDC-013": 2,
+        "RDC-023": 1
+      },
+      "deck_rates": {
+        "false_positive_upper_bound_per_kloc": 5.870841487279844,
+        "non_info_per_kloc": 15.655577299412915,
+        "not_analysed_per_kloc": 0.0,
+        "obligation_per_kloc": 5.870841487279844
+      },
+      "execution_status": "SUCCESS",
+      "exit_code": 6,
+      "preview": {
+        "ERROR": 0,
+        "FATAL": 0,
+        "WARNING": 0,
+        "established": 0,
+        "generic_obligation": 0,
+        "heuristic": 0,
+        "informational": 0,
+        "non_info": 0,
+        "not_analysed": 0,
+        "resolved": 0,
+        "unresolved": 0,
+        "waived": 0
+      },
+      "preview_by_rule": {},
+      "report_sha256": "3edb65124cae86d1b78a17fac68d4120a326536c570ea6fd86452385a1efe02c",
+      "review_status": "REVIEW_REQUIRED",
+      "sdc": "tests/public_projects/reviewed_sdc/cc_cdc_4phase.sdc",
+      "sdc_sha256": "33a432339724c3b279583d0bf9e17be798958c8b7ee8c42d9e2fea61f2610872"
+    },
+    "cc_cdc_fifo_2phase": {
+      "analysed_physical_lines": 558,
+      "analysis_coverage": "INCOMPLETE",
+      "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+      "deck": {
+        "ERROR": 0,
+        "FATAL": 0,
+        "WARNING": 12,
+        "established": 0,
+        "generic_obligation": 0,
+        "heuristic": 6,
+        "informational": 2,
+        "non_info": 12,
+        "not_analysed": 0,
+        "resolved": 0,
+        "unresolved": 4,
+        "waived": 0
+      },
+      "deck_by_rule": {
+        "RDC-005": 6,
+        "RDC-011": 1,
+        "RDC-012": 1,
+        "RDC-013": 2,
+        "RDC-023": 2
+      },
+      "deck_rates": {
+        "false_positive_upper_bound_per_kloc": 10.75268817204301,
+        "non_info_per_kloc": 21.50537634408602,
+        "not_analysed_per_kloc": 0.0,
+        "obligation_per_kloc": 7.168458781362006
+      },
+      "execution_status": "SUCCESS",
+      "exit_code": 6,
+      "preview": {
+        "ERROR": 0,
+        "FATAL": 0,
+        "WARNING": 4,
+        "established": 4,
+        "generic_obligation": 0,
+        "heuristic": 0,
+        "informational": 0,
+        "non_info": 4,
+        "not_analysed": 0,
+        "resolved": 0,
+        "unresolved": 0,
+        "waived": 0
+      },
+      "preview_by_rule": {
+        "LNT-010": 4
+      },
+      "report_sha256": "b4dde803ae33c35304651ecebc495410a8948a13da07652a8874f0b62a692879",
+      "review_status": "REVIEW_REQUIRED",
+      "sdc": "tests/public_projects/reviewed_sdc/cc_cdc_fifo_2phase.sdc",
+      "sdc_sha256": "b8fd27272994a1880080dc6c6dda23c77b7308714b8f8bed12ab6e466c1507af"
+    },
+    "cc_cdc_fifo_gray": {
+      "analysed_physical_lines": 668,
+      "analysis_coverage": "INCOMPLETE",
+      "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+      "deck": {
+        "ERROR": 0,
+        "FATAL": 0,
+        "WARNING": 14,
+        "established": 0,
+        "generic_obligation": 0,
+        "heuristic": 9,
+        "informational": 2,
+        "non_info": 14,
+        "not_analysed": 0,
+        "resolved": 0,
+        "unresolved": 3,
+        "waived": 0
+      },
+      "deck_by_rule": {
+        "RDC-005": 9,
+        "RDC-011": 1,
+        "RDC-012": 1,
+        "RDC-013": 2,
+        "RDC-023": 1
+      },
+      "deck_rates": {
+        "false_positive_upper_bound_per_kloc": 13.473053892215567,
+        "non_info_per_kloc": 20.95808383233533,
+        "not_analysed_per_kloc": 0.0,
+        "obligation_per_kloc": 4.491017964071856
+      },
+      "execution_status": "SUCCESS",
+      "exit_code": 6,
+      "preview": {
+        "ERROR": 0,
+        "FATAL": 0,
+        "WARNING": 1,
+        "established": 1,
+        "generic_obligation": 0,
+        "heuristic": 0,
+        "informational": 0,
+        "non_info": 1,
+        "not_analysed": 0,
+        "resolved": 0,
+        "unresolved": 0,
+        "waived": 0
+      },
+      "preview_by_rule": {
+        "SLANG-unnamed-generate": 1
+      },
+      "report_sha256": "400247c490db82266e2fd190634450d34fe40ab4b5fcdc6933948b2c620f34ad",
+      "review_status": "REVIEW_REQUIRED",
+      "sdc": "tests/public_projects/reviewed_sdc/cc_cdc_fifo_gray.sdc",
+      "sdc_sha256": "8297b532772f19fc7c27391c29cb13b888897ff2047b9959073ae7e62077355e"
+    }
+  },
+  "flags": [
+    "--profile",
+    "asic",
+    "--goal",
+    "rdc",
+    "--deck",
+    "rdc"
+  ],
+  "kloc": 2.894,
+  "manifest_sha256": "ba90d78ccbbc42e4436ff101768d943d37acbe258aa417e71e659341f4f2de8e",
+  "schema": "sverity-rdc-reviewed-residuals/1",
+  "tool": "tools/dev/cdc_reviewed_residuals.py",
+  "tool_sha256": "12e3452e1fef7cce0d454bda3793ff478b615f8cd8dda7cbb60bcfaebf34fa2b"
+}

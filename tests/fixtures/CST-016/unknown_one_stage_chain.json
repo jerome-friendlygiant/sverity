@@ -1,0 +1,38 @@
+{
+ "reset_contracts": {
+  "sources": [
+   {
+    "id": "a",
+    "root": "top.a_rst",
+    "active": "low"
+   },
+   {
+    "id": "b",
+    "root": "top.s1",
+    "active": "low"
+   },
+   {
+    "id": "p",
+    "port": "top.rst_n",
+    "active": "low"
+   }
+  ],
+  "release_order": [
+   {
+    "id": "a_before_b",
+    "before": "a",
+    "after": "b",
+    "clock": "clkb",
+    "edge": "posedge",
+    "min_cycles": 1
+   }
+  ],
+  "state": [
+   {
+    "id": "init_p",
+    "source": "p",
+    "initial": "asserted"
+   }
+  ]
+ }
+}

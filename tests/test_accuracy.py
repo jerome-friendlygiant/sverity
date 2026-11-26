@@ -2,6 +2,7 @@
 import importlib.util
 import json
 import pathlib
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -655,6 +656,69 @@ class Adjudication(unittest.TestCase):
     def test_adjudication_needs_its_fields(self):
         self.rejected(dict(self.label, adjudication=dict(by='delegate', record=self.record)), 'adjudication requires by, reason and record')
         self.rejected(dict(self.label, adjudication=dict(self.label['adjudication'], was=dict(verdict='bad'))), 'adjudication.was requires')
+
+    def test_rdc_adjudication_uses_the_workflow_class(self):
+        cls = 'Reset synchronisation'
+        shutil.rmtree(self.case)
+        self.case = self.suite / 'cases/RDC/example'
+        self.case.mkdir(parents=True)
+        (self.case / 'design.sv').write_text('module top; endmodule\n')
+        reading = dict(verdict='good', sites=[], critical=False, workflow_class=cls)
+        label = dict(family='RDC', top='top', batch='fresh', author='author', verdict='unknown', critical=False,
+                     workflow_class=cls, sites=[dict(file='design.sv', line=1, signal='rst_n')],
+                     labels=[dict(reading, by='one (model-a, blind)'), dict(reading, by='two (model-b, blind)')],
+                     adjudication=dict(by='delegate', was=dict(verdict='good', critical=False, **{'class': cls}),
+                                       reason='narrowed', record=self.record))
+        now = dict(verdict='unknown', critical=False, sites=label['sites'], **{'class': cls})
+        self.write_record(case='RDC/example', was=label['adjudication']['was'], now=now, label=label)
+        result = self.check(label)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.rejected(dict(label, adjudication=dict(label['adjudication'], was=dict(label['adjudication']['was'], **{'class': 'LC02'}))),
+                      'adjudication.was requires')
+
+    def rdc_gap_case(self):
+        """An RDC bad case frozen with a detection gap, adjudicated to the rule that now detects it."""
+        cls = 'Reset synchronisation'
+        shutil.rmtree(self.case)
+        self.case = self.suite / 'cases/RDC/example'
+        self.case.mkdir(parents=True)
+        (self.case / 'design.sv').write_text('module top; endmodule\n')
+        sites = [dict(file='design.sv', line=1, signal='rst_o')]
+        reading = dict(verdict='bad', sites=sites, critical=True, workflow_class=cls, expected_rules=[])
+        was = dict(verdict='bad', critical=True, expected_rules=[], detection_gap='no rule reports an exported reset', **{'class': cls})
+        label = dict(family='RDC', top='top', batch='fresh', author='author', verdict='bad', critical=True, workflow_class=cls,
+                     sites=sites, expected_rules=['RDC-009'],
+                     labels=[dict(reading, by='one (model-a, blind)'), dict(reading, by='two (model-b, blind)')],
+                     adjudication=dict(by='delegate', was=was, reason='narrowed', record=self.record))
+        now = dict(verdict='bad', critical=True, sites=sites, expected_rules=['RDC-009'], **{'class': cls})
+        return label, was, now
+
+    def test_adjudication_moves_a_frozen_detection_gap_to_expected_rules(self):
+        label, was, now = self.rdc_gap_case()
+        self.write_record(case='RDC/example', was=was, now=now, label=label)
+        result = self.check(label)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        spec = importlib.util.spec_from_file_location('accuracy_under_test', SCORER)
+        scorer = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(scorer)
+        report = {'diagnostics': [dict(rule_id='RDC-009', severity='WARNING', confidence='heuristic', disposition='REVIEW_REQUIRED',
+                                       signals=['top.rst_o'], location=dict(file='design.sv', line=1))]}
+        self.assertEqual(scorer.score(label, report, {}, {})['outcome'], 'detected')
+        other = {'diagnostics': [dict(report['diagnostics'][0], rule_id='RDC-003')]}
+        self.assertEqual(scorer.score(label, other, {}, {})['outcome'], 'missed')
+
+    def test_expected_rules_in_the_record_must_match_the_label(self):
+        label, was, now = self.rdc_gap_case()
+        for record_now, text in ((dict(now, expected_rules=['RDC-003']), 'says the case is now'),
+                                 ({k: v for k, v in now.items() if k != 'expected_rules'}, 'to the same reading')):
+            self.write_record(case='RDC/example', was=was, now=record_now, label=label)
+            self.rejected(label, text)
+        self.write_record(case='RDC/example', was=was, now=now, label=label)
+        self.rejected(dict(label, expected_rules=['RDC-003']), 'says the case is now')
+        self.rejected(dict(label, detection_gap='still a gap'), 'detection_gap requires')
+        self.rejected(dict(label, adjudication=dict(label['adjudication'], was=dict(was, detection_gap='another'))), 'says the case was')
+        self.write_record(case='RDC/example', was=dict(was, expected_rules=['RDC-003']), now=now, label=label)
+        self.rejected(label, 'says the case was')
 
 
 class ClassContracts(unittest.TestCase):

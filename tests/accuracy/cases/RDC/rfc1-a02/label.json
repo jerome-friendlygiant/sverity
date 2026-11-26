@@ -1,0 +1,55 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-a (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "good",
+  "critical": false,
+  "workflow_class": "Reset inventory and unknown sources",
+  "sites": [],
+  "rationale": "Both configuration registers are reset by por_n, which has an input delay on clk, and cfg_shadow samples cfg in the same reset domain. sw_rst_n is unused, which is a lint matter with no reset-domain effect.",
+  "author_reading": {
+    "id": "rfc1-a02",
+    "intended_verdict": "bad",
+    "critical": true,
+    "workflow_class": "Reset inventory and unknown sources",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 5,
+        "signal": "sw_rst_n"
+      }
+    ],
+    "rationale": "sw_rst_n is a declared reset input that reaches no flop, so a software reset never restores cfg to its default."
+  },
+  "labels": [
+    {
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Reset inventory and unknown sources",
+      "sites": [],
+      "rationale": "Both registers are reset by por_n on the same clock and cfg_shadow samples cfg, so there is no reset-domain defect. sw_rst_n is declared but unused, which is a lint matter. por_n and sw_rst_n carry set_input_delay.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)"
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Reset-domain data crossings",
+      "sites": [],
+      "rationale": "Both configuration registers share the same reset and reset value. The SDC supplies a reset input-delay contract referenced to their clock, and the shadow captures the previous configuration on an ordinary edge."
+    }
+  ],
+  "settlement": {
+    "by": "rdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "good",
+    "critical": false,
+    "workflow_class": "Reset inventory and unknown sources",
+    "sites": [],
+    "rationale": "Both readers judge good and the settler agrees. The author's defect (an unused software-reset input) is not a reset-domain defect. The readers differ only on the class; the case is the inventory lookalike of rfc1-a04."
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-b (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Asynchronous control conflicts and reset as data",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 11,
+      "signal": "in_rst_q"
+    }
+  ],
+  "expected_rules": [
+    "RDC-019"
+  ],
+  "rationale": "The raw asynchronous reset rst_ni is sampled as data by one unreset clk flop with no synchroniser, and that flop drives first_o. A reset edge near clk can make first_o metastable or produce a spurious pulse.",
+  "author_reading": {
+    "id": "rfc1-b08",
+    "intended_verdict": "bad",
+    "critical": true,
+    "workflow_class": "Asynchronous control conflicts and reset as data",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 11,
+        "signal": "in_rst_q"
+      }
+    ],
+    "rationale": "The raw asynchronous reset rst_ni is sampled into a clk flop with no synchroniser and used as functional data in first_o, so metastability or a reset edge near the clock can corrupt the flag and the count logic."
+  },
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": false,
+      "workflow_class": "Asynchronous control conflicts and reset as data",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 11,
+          "signal": "in_rst_q"
+        }
+      ],
+      "expected_rules": [
+        "RDC-019",
+        "RDC-025"
+      ],
+      "rationale": "rst_ni is sampled as data by an unreset flop in_rst_q, with no synchroniser, and in_rst_q drives the primary output first_o. A metastable sample can give a spurious first_o pulse. The defect affects one functional flag, not persistent state.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)"
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Asynchronous control conflicts and reset as data",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 11,
+          "signal": "in_rst_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 17,
+          "signal": "first_o"
+        }
+      ],
+      "rationale": "in_rst_q samples raw reset as data without containment. With valid_i high and count_q cleared, first_o can assert during reset and then change according to the sampled level near release.",
+      "expected_rules": [
+        "RDC-019",
+        "RDC-025",
+        "RDC-002",
+        "RDC-003",
+        "CDC-029"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "rdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Asynchronous control conflicts and reset as data",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 11,
+        "signal": "in_rst_q"
+      }
+    ],
+    "expected_rules": [
+      "RDC-019"
+    ],
+    "rationale": "Both readers are right on bad, class and RDC-019, which targets a reset used as data. Critical follows B and the author: the metastable sample reaches a functional output. RDC-025 (both readers) reports the unreset output register, which is a separate concern from reset-as-data; B's extra rules are incidental. Sites follow A."
+  }
+}

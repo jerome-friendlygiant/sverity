@@ -24,12 +24,13 @@ struct RuleInfo {
     std::string gap;                      // what a partial rule does not cover (empty if none recorded)
     std::string deck;                     // earliest deck holding the rule: core | domain | 1.0 (decks are cumulative)
     bool cdcDeck = false;                 // member of the CDC 1.0 workflow deck (--deck cdc)
+    bool rdcDeck = false;                 // member of the RDC 1.0 workflow deck (--deck rdc)
     std::vector<std::string> classes;     // lint workflow defect classes it covers (docs/rules/LINT_WORKFLOW.md)
     std::vector<ObligationInfo> obligations;   // predicates the rule may emit as obligations; empty = none declared
 };
 
 /// True for a known deck name. Decks are cumulative: core is inside domain, domain is inside 1.0.
-/// Workflow decks `lint` and `cdc` stand apart: the rules covering a named workflow's frozen scope.
+/// Workflow decks `lint`, `cdc` and `rdc` stand apart: the rules covering a named workflow's frozen scope.
 bool isDeck(std::string_view name);
 /// True when `rule` belongs to `deck`.
 bool inDeck(const RuleInfo& rule, std::string_view deck);

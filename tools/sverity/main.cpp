@@ -16,6 +16,7 @@
 #include <sstream>
 
 #include "sverity/analyzer.h"
+#include "sverity/reset_contracts.h"
 #include "sverity/baseline.h"
 #include "sverity/waiver.h"
 
@@ -45,7 +46,7 @@ sverity options:
   --config <file>          JSON configuration; paths are relative to the file
   --goal <lint|cdc|rdc>    limit rule families (repeatable; union); CLI goals replace config goals
                            goal, file enable/disable, then CLI enable/disable; disabled coverage stays INCOMPLETE
-  --deck <core|domain|1.0|lint|cdc> report coverage for a published deck (lint/cdc: workflow decks);
+  --deck <core|domain|1.0|lint|cdc|rdc> report coverage for a published deck (lint/cdc/rdc: workflow decks);
                            other rules still run, as preview
   --option <key=value>     override a rule option from the file (repeatable)
   --severity <pattern=level> override severity for matching rules (repeatable)
@@ -208,7 +209,7 @@ static int runSverity(int argc, char** argv) {
         if (!parsed.value.isObject()) fail("config must be a JSON object");
         file = std::move(parsed.value);
     }
-    const std::set<std::string> keys = {"options", "severity", "enable", "disable", "sdc", "library", "waivers", "goal", "deck", "boundary_events"};
+    const std::set<std::string> keys = {"options", "severity", "enable", "disable", "sdc", "library", "waivers", "goal", "deck", "boundary_events", "reset_contracts", "power_intent"};
     for (auto& [key, value] : file.asObject()) if (!keys.count(key)) fail("unknown config key '" + key + "'");
     auto array = [&](const char* key) {
         std::vector<std::string> values;
@@ -229,7 +230,7 @@ static int runSverity(int argc, char** argv) {
     };
     for (const auto& goal : fileGoals) validGoal(goal);
     for (const auto& goal : cliGoals) validGoal(goal);
-    if (!opts.config.deck.empty() && !isDeck(opts.config.deck)) fail("unknown deck '" + opts.config.deck + "' (core|domain|1.0|lint|cdc)");
+    if (!opts.config.deck.empty() && !isDeck(opts.config.deck)) fail("unknown deck '" + opts.config.deck + "' (core|domain|1.0|lint|cdc|rdc)");
     if (!cliGoals.empty()) opts.config.goals = cliGoals;
     else opts.config.goals.insert(fileGoals.begin(), fileGoals.end());
     auto applyPaths = [&](const char* key, std::vector<std::string>& target) {
@@ -266,6 +267,18 @@ static int runSverity(int argc, char** argv) {
             if (c.durationUnit != "s" && c.durationUnit != "ms" && c.durationUnit != "us" && c.durationUnit != "ns" && c.durationUnit != "ps" && c.durationUnit != "fs" && c.durationUnit != "source_cycles") fail("boundary_events.duration.unit must be s, ms, us, ns, ps, fs, or source_cycles");
             opts.config.boundaryEvents.push_back(std::move(c));
         }
+    }
+    if (const auto* intent = file.find("power_intent")) {
+        if (!intent->isObject()) fail("config 'power_intent' must be an object");
+        for (const auto& [key, value] : intent->asObject()) if (key != "model") fail("unknown power_intent field '" + key + "'");
+        const auto* model = intent->find("model");
+        if (!model || !model->isString() || model->asString() != "single_always_on")
+            fail("power_intent.model must be the string single_always_on (the only supported model)");
+        opts.config.powerIntentModel = model->asString();
+    }
+    if (const auto* section = file.find("reset_contracts")) {
+        std::string error;
+        if (!parseResetContracts(*section, opts.config.resetContracts, error)) fail(error);
     }
     std::map<std::string, std::string> options;
     if (auto* item = file.find("options")) {

@@ -1,0 +1,131 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-c (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Sequencing and release order",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 17,
+      "signal": "stb_a_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 29,
+      "signal": "stb_b1_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 36,
+      "signal": "applied_b_o"
+    }
+  ],
+  "expected_rules": [
+    "RDC-005",
+    "RDC-023"
+  ],
+  "rationale": "A source-only reset clears a high stb_a_q, and the active consumer detects that as a strobe toggle and loads the reset command into applied_b_o, a command the producer never sent.",
+  "author_reading": {
+    "id": "rfc1-c08",
+    "intended_verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Reset-domain data crossings",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 36,
+        "signal": "applied_b_o"
+      }
+    ],
+    "rationale": "A strobe toggle caused by the source reset can make the consumer apply the reset value of the command register. Whether that value is a no-op depends on the command encoding and a software quiesce protocol that the RTL and SDC do not state."
+  },
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Sequencing and release order",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 36,
+          "signal": "applied_b_o"
+        },
+        {
+          "file": "design.sv",
+          "line": 29,
+          "signal": "stb_b1_q"
+        }
+      ],
+      "expected_rules": [
+        "RDC-023",
+        "RDC-005"
+      ],
+      "rationale": "The toggle synchroniser's source toggle stb_a_q is reset by rst_a_n, and its detector stages by rst_b_n. A one-sided reset can create a spurious edge in the destination, so applied_b_o loads a stale or zero command.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)"
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Sequencing and release order",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 17,
+          "signal": "stb_a_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 36,
+          "signal": "applied_b_o"
+        }
+      ],
+      "rationale": "When a source reset clears a high strobe, the still-active consumer interprets that transition as another command. The detector also uses the first synchroniser stage directly.",
+      "expected_rules": [
+        "RDC-005",
+        "CDC-041",
+        "CDC-007",
+        "CDC-014",
+        "RDC-011",
+        "RDC-002",
+        "RDC-003"
+      ],
+      "suspected_flaw": "RDC-023 requires a recognised detector after the first stage. This case uses an early-stage XOR."
+    }
+  ],
+  "settlement": {
+    "by": "rdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Sequencing and release order",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 17,
+        "signal": "stb_a_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 29,
+        "signal": "stb_b1_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 36,
+        "signal": "applied_b_o"
+      }
+    ],
+    "expected_rules": [
+      "RDC-005",
+      "RDC-023"
+    ],
+    "rationale": "Both readers are right on bad, critical and class. A's RDC-023 (toggle synchroniser with mismatched resets) and RDC-005 (both) target the spurious event. The author's unknown is not upheld: whatever the encoding, the consumer's applied command changes nondeterministically on a source reset. Sites merge both readers."
+  }
+}

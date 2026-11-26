@@ -38,6 +38,13 @@ class ResidualTests(unittest.TestCase):
         self.assertIn("CDC-017", deck)
         self.assertNotIn("CDC-012", deck)
 
+    def test_rdc_deck_rules_come_from_the_catalog(self):
+        deck = residuals.deck_rules("rdc")
+        self.assertEqual(len(deck), 40)
+        self.assertIn("RDC-007", deck)
+        self.assertNotIn("RDC-029", deck)
+        self.assertEqual(residuals.DECKS["rdc"]["flags"][-2:], ["--deck", "rdc"])
+
     def test_tally_skips_info_and_separates_preview(self):
         deck = {"CDC-017", "CDC-024"}
         t = residuals.tally([

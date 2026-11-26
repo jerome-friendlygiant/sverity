@@ -1,0 +1,109 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-b (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "unknown",
+  "critical": false,
+  "workflow_class": "Reset generation and glitches",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 31,
+      "signal": "blk_rst_n"
+    }
+  ],
+  "expected_rules": [
+    "CST-005",
+    "RDC-001",
+    "RDC-003"
+  ],
+  "rationale": "blk_rst_n comes from the black-box reset mux rstmux_cell. Whether switching sel_q between the two synchronised resets is glitch-free cannot be decided without the cell.",
+  "author_reading": {
+    "id": "rfc1-b12",
+    "intended_verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Reset generation and glitches",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 31,
+        "signal": "blk_rst_n"
+      }
+    ],
+    "rationale": "rstmux_cell is an unmodelled library cell; whether its output and select path are glitch-free cannot be decided from the RTL, and a reviewed model is required."
+  },
+  "labels": [
+    {
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Reset generation and glitches",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 31,
+          "signal": "blk_rst_n"
+        }
+      ],
+      "expected_rules": [
+        "RDC-001",
+        "RDC-003",
+        "CST-005"
+      ],
+      "rationale": "blk_rst_n is the output of an opaque rstmux_cell that selects between two synchronised resets with a register select. Glitch freedom and select timing inside the cell cannot be decided from RTL.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)",
+      "detection_gap": "The mux is an opaque cell, so RDC-009 cannot see its internal logic."
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Reset generation and glitches",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 31,
+          "signal": "blk_rst_n"
+        },
+        {
+          "file": "design.sv",
+          "line": 33,
+          "signal": "blk_rst_n"
+        }
+      ],
+      "rationale": "Switching behavior depends on the omitted mux and its glitch guarantees. The input release chains do not specify how the selected reset reaches blk_q.",
+      "expected_rules": [
+        "RDC-001",
+        "RDC-003",
+        "RDC-011"
+      ],
+      "suspected_flaw": "The cell is defined as an empty module without a black-box attribute. Its output is undriven in the literal RTL.",
+      "dropped_run_level_rules": [
+        "RDC-013"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "rdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Reset generation and glitches",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 31,
+        "signal": "blk_rst_n"
+      }
+    ],
+    "expected_rules": [
+      "CST-005",
+      "RDC-001",
+      "RDC-003"
+    ],
+    "rationale": "Final equals A. The settler added (* black_box *) to rstmux_cell on line 3, fixing B's undriven-module flaw. B's RDC-013 is run-level and RDC-011 is incidental."
+  }
+}

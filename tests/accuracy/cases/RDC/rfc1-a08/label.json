@@ -1,0 +1,111 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-a (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Reset synchronisation",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 11,
+      "signal": "rst_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 15,
+      "signal": "rst_q"
+    }
+  ],
+  "expected_rules": [
+    "RDC-006"
+  ],
+  "rationale": "rst_q is a one-stage reset synchroniser that directly releases the asynchronous clear of q, so a metastable release can reach the pipeline.",
+  "author_reading": {
+    "id": "rfc1-a08",
+    "intended_verdict": "bad",
+    "critical": true,
+    "workflow_class": "Reset synchronisation",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 15,
+        "signal": "rst_q"
+      }
+    ],
+    "rationale": "rst_q is a single flop releasing the asynchronous clear of q with no second stage, so a metastable release can reach the functional state."
+  },
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Reset synchronisation",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 11,
+          "signal": "rst_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 16,
+          "signal": "rst_q"
+        }
+      ],
+      "expected_rules": [
+        "RDC-006"
+      ],
+      "rationale": "rst_q is a single flop with D=1 and async reset rst_n. It releases q directly with no second stage, so the release can be metastable and unsafe. This is a shallow chain, which RDC-006 covers.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)"
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Reset synchronisation",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 12,
+          "signal": "rst_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 15,
+          "signal": "rst_q"
+        }
+      ],
+      "rationale": "A single flop samples asynchronous release and directly controls the pipeline reset. A metastable sample can reach every pipeline bit without a second stage.",
+      "expected_rules": [
+        "RDC-006"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "rdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Reset synchronisation",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 11,
+        "signal": "rst_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 15,
+        "signal": "rst_q"
+      }
+    ],
+    "expected_rules": [
+      "RDC-006"
+    ],
+    "rationale": "Both readers agree on verdict, class, critical and RDC-006, and differ only in site lines. The settler merges them as rst_q at line 11 and the receiver procedure at line 15."
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-b (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "good",
+  "critical": false,
+  "workflow_class": "Reset synchronisation",
+  "sites": [],
+  "rationale": "Each domain has its own two-stage reset synchroniser, and the DMA counter uses only the clk_dma one.",
+  "author_reading": {
+    "id": "rfc1-b05",
+    "intended_verdict": "good",
+    "critical": false,
+    "workflow_class": "Reset generation and glitches",
+    "sites": [],
+    "rationale": "Each clock domain has its own two-flop reset synchroniser, and the DMA counter uses only the reset from its own domain."
+  },
+  "labels": [
+    {
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Reset synchronisation",
+      "sites": [],
+      "rationale": "Each domain has its own 2-stage synchroniser from por_ni, and beats_q is reset by its own domain's last stage. por_ni has no input delay, which RDC-002 reports, but the design is a standard raw-POR synchroniser and is correct.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)"
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Reset synchronisation",
+      "sites": [],
+      "rationale": "DMA state releases from the final stage of a two-stage DMA-clock chain. The configuration-ready output comes from an independent local chain."
+    }
+  ]
+}

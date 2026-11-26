@@ -24,10 +24,12 @@
 #include "domains/batch_reach.h"
 #include "domains/model.h"
 #include "domains/relations.h"
+#include "domains/reset_contracts_bind.h"
 #include "slang/ast/symbols/ValueSymbol.h"
 #include "slang/ast/types/Type.h"
 #include "slang/ast/symbols/InstanceSymbols.h"
 #include "rules/rules.h"
+#include "rules/rdc/rdc_shared.h"
 #include "sverity/waiver.h"   // globMatch
 
 namespace sverity {
@@ -90,6 +92,7 @@ public:
     std::map<std::string, std::vector<Diagnostic>> findings;
     std::map<std::string, uint64_t> evaluated;
     std::unique_ptr<ClockRelations> rel_;
+    std::optional<model::ContractBindingResult> contracts_;   // reset_contracts binding, computed on first use (see contractBinding)
     Config const* cfg = nullptr;
     Report* report = nullptr;
     Design* design_ = nullptr;
@@ -396,6 +399,39 @@ private:
             for (size_t i = 0; i < v.size() && i < 8; i++) {
                 d.evidence.push_back({"blackbox_instance", v[i]->hierarchy, v[i]->loc});
                 d.evidence.push_back({"site_signal", v[i]->hierarchy, v[i]->loc});
+            }
+            // List nets connected to output-capable ports and the registers/ports they drive directly so black-box
+            // findings name the affected state.
+            std::unordered_set<std::string> seenSig;
+            auto pushSig = [&](const std::string& raw) {
+                if (raw.empty() || raw == "<unknown>" || d.signals.size() >= 32) return;
+                if (seenSig.insert(raw).second) d.signals.push_back(raw);
+            };
+            for (const BlackBoxInst* inst : v) {
+                for (const auto& port : inst->ports) {
+                    if (port.dir == PortDir::In) continue;
+                    for (NodeId start : port.nodes) {
+                        if (start == kNoNode || start >= m->nodes.size()) continue;
+                        pushSig(stripBit(m->nameOf(start)));
+                        std::vector<NodeId> work{start};
+                        std::unordered_set<NodeId> seen{start};
+                        for (size_t wi = 0; wi < work.size() && seen.size() < 64; wi++) {
+                            const NodeId u = work[wi];
+                            if (u != start && u < m->topOutput.size() && m->topOutput[u])
+                                pushSig(stripBit(m->nameOf(u)));
+                            if (u != start && m->flopOfQ.count(u)) continue;
+                            if (u >= m->out.size()) continue;
+                            for (auto ei : m->out[u]) {
+                                const Edge& e = m->edges[ei];
+                                if (e.type == EdgeType::Seq || e.type == EdgeType::AsyncCtl) {
+                                    pushSig(stripBit(m->nameOf(e.to)));
+                                } else if (e.type == EdgeType::Comb && seen.insert(e.to).second) {
+                                    work.push_back(e.to);
+                                }
+                            }
+                        }
+                    }
+                }
             }
             d.nextStep = "Provide the module source or a model with clock/reset/CDC metadata.";
             add(std::move(d));
@@ -1308,11 +1344,12 @@ private:
     void analyseResets() {
         evaluated["RDC-001"] = m->flops.size();
         evaluated["CST-001"] = m->flops.size();
-        struct Rs { Root root; bool activeLow = false; std::set<uint32_t> domains; uint64_t regs = 0, clears = 0, sets = 0, other = 0; SourceLocation loc; };
+        struct Rs { Root root; bool activeLow = false; std::set<uint32_t> domains; std::vector<uint32_t> users; uint64_t regs = 0, clears = 0, sets = 0, other = 0; SourceLocation loc; };
         std::map<NodeId, Rs> resets;
         uint64_t asyncRegs = 0, syncCand = 0, none = 0;
         std::map<uint32_t, std::array<uint64_t, 3>> perDomain;   // async, sync-candidate, none
-        for (auto& f : m->flops) {
+        for (uint32_t fi = 0; fi < m->flops.size(); fi++) {
+            auto& f = m->flops[fi];
             uint32_t dm = f.clockResolved ? f.domain : ~0u;
             if (!f.resets.empty()) {
                 asyncRegs++;
@@ -1322,6 +1359,7 @@ private:
                     auto& e = resets[r.root.node];
                     e.root = r.root;
                     e.activeLow = r.activeLow;
+                    e.users.push_back(fi);
                     e.regs++;
                     char rv = ri < f.resetValues.size() ? f.resetValues[ri] : '?';
                     (rv == '0' ? e.clears : rv == '1' ? e.sets : e.other)++;
@@ -1336,8 +1374,94 @@ private:
                 if (dm != ~0u) perDomain[dm][2]++;
             }
         }
+        int rdcMinStages = 2;
+        try {
+            const std::string value = cfg->option("RDC-006.min_stages", "2");
+            size_t end = 0;
+            const int parsed = std::stoi(value, &end);
+            if (end == value.size() && parsed >= 2) rdcMinStages = parsed;
+        } catch (...) {}
+        const auto assertedUses = rdc::assertedUsesOf(*m);
+        auto copyRoot = [&](NodeId n) {
+            for (int ch = 0; ch < 16; ++ch) {
+                if (n == kNoNode || n >= m->in.size() || m->in[n].size() != 1) break;
+                const Edge& e = m->edges[m->in[n][0]];
+                if (e.type != EdgeType::Comb || e.ctrl || e.approximate || e.shared || !(e.exact || e.flip)) break;
+                n = e.from;
+            }
+            return n;
+        };
+        auto rawSourcesAreTopPorts = [&](uint32_t firstFlop) {
+            // Trace every raw reset source of the synchroniser's first stage through exact/inverted copies and recognised synchroniser hops.
+            if (m->flops[firstFlop].resets.empty()) return false;
+            std::vector<std::pair<NodeId, int>> work;
+            for (const auto& res : m->flops[firstFlop].resets) work.emplace_back(res.root.node, 0);
+            std::unordered_set<NodeId> seen;
+            while (!work.empty()) {
+                auto [cur, hop] = work.back();
+                work.pop_back();
+                if (!seen.insert(cur).second) return false;
+                const NodeId copied = copyRoot(cur);
+                const Root root = m->traceRoot(copied);
+                if (root.kind == RootKind::TopPort) continue;
+                if (root.kind != RootKind::Logic || hop >= 64) return false;
+                uint32_t ri = 0;
+                const Flop* rf = m->flopBehind(root.node, &ri);
+                if (!rf) return false;
+                const rdc::SyncInfo si = rdc::syncChainOf(*m, assertedUses, ri);
+                if (!si.recognised || si.first == ~0u || m->flops[si.first].resets.empty()) return false;
+                for (const auto& res : m->flops[si.first].resets) work.emplace_back(res.root.node, hop + 1);
+            }
+            return true;
+        };
+        auto isRecognisedTopPortSync = [&](NodeId node, const Rs& r, rdc::SyncInfo* outSi = nullptr) {
+            if (r.root.kind != RootKind::Logic) return false;
+            uint32_t ri = 0;
+            const Flop* rf = m->flopBehind(node, &ri);
+            if (!rf || !rf->clockResolved) return false;
+            const rdc::SyncInfo si = rdc::syncChainOf(*m, assertedUses, ri);
+            if (!si.recognised || si.depth < rdcMinStages || si.first == ~0u) return false;
+            for (uint32_t ui : r.users) {
+                const Flop& uf = m->flops[ui];
+                if (!uf.clockResolved || rel_->relation(rf->domain, uf.domain) != Relation::Same || uf.edge != rf->edge)
+                    return false;
+            }
+            if (!rawSourcesAreTopPorts(si.first)) return false;
+            if (outSi) *outSi = si;
+            return true;
+        };
+        std::unordered_set<uint32_t> recognisedSyncStages;
+        for (const auto& [node, r] : resets) {
+            const char tiedVal = rdc::tiedResetValue(*m, node);
+            if (tiedVal == '0' || tiedVal == '1') continue;
+            rdc::SyncInfo si;
+            if (isRecognisedTopPortSync(node, r, &si))
+                for (uint32_t st : si.stages) recognisedSyncStages.insert(st);
+        }
         for (auto& [node, r] : resets) {
-            const char* kind = r.root.kind == RootKind::TopPort ? "top-level port" : r.root.kind == RootKind::Logic ? "logic-generated"
+            const char tiedVal = rdc::tiedResetValue(*m, node);
+            const bool isTied = tiedVal == '0' || tiedVal == '1';
+            const bool isTiedActive = isTied && (r.activeLow ? tiedVal == '0' : tiedVal == '1');
+            const bool isTiedInactive = isTied && !isTiedActive;
+            const bool isSync = !isTied && isRecognisedTopPortSync(node, r);
+            const NodeId copiedNode = copyRoot(node);
+            const bool isSyncInput = !isTied && !isSync && r.root.kind == RootKind::Logic &&
+                                     copiedNode < m->topInput.size() && m->topInput[copiedNode] &&
+                                     !r.users.empty() &&
+                                     std::all_of(r.users.begin(), r.users.end(), [&](uint32_t ui) { return recognisedSyncStages.count(ui) > 0; });
+            const bool isBlackBoxPort = r.root.kind == RootKind::BlackBox && node < m->topInput.size() && m->topInput[node];
+            bool isReleaseFlop = false;
+            if (!isTied && !isSync && !isSyncInput && r.root.kind == RootKind::Logic) {
+                uint32_t ri = 0;
+                isReleaseFlop = m->flopBehind(node, &ri) && rdc::isReleaseFlop(*m, assertedUses, rdcMinStages, ri);
+            }
+            const char* kind = isTiedInactive ? "tied inactive"
+                             : isTiedActive ? "tied active"
+                             : isSync ? "synchroniser"
+                             : isSyncInput ? "inverted top-level port feeding a synchroniser"
+                             : isReleaseFlop ? "release flop feeding reset synchronisers"
+                             : r.root.kind == RootKind::TopPort ? "top-level port" : r.root.kind == RootKind::Logic ? "logic-generated"
+                             : isBlackBoxPort ? "connected to an unmodeled black box (port direction unknown)"
                              : r.root.kind == RootKind::BlackBox ? "black-box output" : r.root.kind == RootKind::Cycle ? "cyclic" : "undriven";
             std::string doms;
             for (auto dmn : r.domains) doms += (doms.empty() ? "" : ", ") + m->domains[dmn].name;
@@ -1350,10 +1474,46 @@ private:
             d.evidence.push_back({"reset_polarity", "polarity inferred from the event edge (negedge=active-low); assumes the block resets when the signal is asserted", r.loc});
             d.evidence.push_back({"reset_values", "register bits cleared to 0: " + std::to_string(r.clears) + ", set to 1: " + std::to_string(r.sets) + ", other or unknown value: " + std::to_string(r.other), r.loc});
             add(std::move(d));
-            if (r.root.kind != RootKind::TopPort) {
-                Diagnostic g = mk("RDC-001", Severity::Warning,
-                                  "reset '" + m->nameOf(node) + "' is " + kind + ", not a primary input: its source and release synchronisation are unresolved",
-                                  r.loc, {}, Confidence::Unresolved);
+            if (isTiedActive) {
+                const bool anyConstantForce = r.clears > 0 || r.sets > 0;
+                const bool mismatchOrUndecided = r.other > 0;
+                if (!anyConstantForce && mismatchOrUndecided) {
+                    Diagnostic g = mk("RDC-001", Severity::Warning,
+                                      "reset '" + m->nameOf(node) + "' is tied to its edge-active level (" + std::string(1, tiedVal) +
+                                      "), but the tie level does not match the tested level: forced reset value is undecided for its " +
+                                      std::to_string(r.regs) + " register bit(s)",
+                                      r.loc, {}, Confidence::Unresolved);
+                    g.identityKey = "tied-active:" + m->nameOf(node);
+                    g.signals = {m->nameOf(node)};
+                    g.nextStep = "Check the reset condition polarity against the event edge and constant tie.";
+                    add(std::move(g));
+                    incomplete("reset-extraction", "reset '" + m->nameOf(node) + "' tie level does not match tested level");
+                } else if (mismatchOrUndecided) {
+                    Diagnostic g = mk("RDC-001", Severity::Warning,
+                                      "reset '" + m->nameOf(node) + "' is tied to its active level (" + std::string(1, tiedVal) +
+                                      "): " + std::to_string(r.clears + r.sets) + " register bit(s) are held permanently in reset, while " +
+                                      std::to_string(r.other) + " bit(s) have a tie level that does not match the tested level or an undecided reset value",
+                                      r.loc, {}, Confidence::Unresolved);
+                    g.identityKey = "tied-active:" + m->nameOf(node);
+                    g.signals = {m->nameOf(node)};
+                    g.nextStep = "Verify whether the constant tie is intentional and check the reset condition polarity against the event edge.";
+                    add(std::move(g));
+                    incomplete("reset-extraction", "reset '" + m->nameOf(node) + "' has register bit(s) whose tie level does not match tested level");
+                } else {
+                    Diagnostic g = mk("RDC-001", Severity::Warning,
+                                      "reset '" + m->nameOf(node) + "' is tied to its active level (" + std::string(1, tiedVal) +
+                                      "): its " + std::to_string(r.regs) + " register bit(s) are held permanently in reset",
+                                      r.loc, {}, Confidence::Established);
+                    g.identityKey = "tied-active:" + m->nameOf(node);
+                    g.signals = {m->nameOf(node)};
+                    g.nextStep = "Verify whether the constant tie is intentional; an active-level tie keeps the register(s) permanently in reset.";
+                    add(std::move(g));
+                }
+            } else if (!isTiedInactive && r.root.kind != RootKind::TopPort && !isSync && !isSyncInput && !isReleaseFlop) {
+                const std::string warnMsg = isBlackBoxPort
+                    ? "reset '" + m->nameOf(node) + "' is a primary input also connected to an unmodeled black box (port direction unknown): its source and release synchronisation are unresolved"
+                    : "reset '" + m->nameOf(node) + "' is " + kind + ", not a primary input: its source and release synchronisation are unresolved";
+                Diagnostic g = mk("RDC-001", Severity::Warning, warnMsg, r.loc, {}, Confidence::Unresolved);
                 g.identityKey = "unresolved:" + m->nameOf(node);
                 g.nextStep = "Check the reset generation/synchroniser; RDC analysis of this reset is incomplete.";
                 add(std::move(g));
@@ -2477,6 +2637,10 @@ private:
     void reconvergence();      // CDC-010 / 011 / 036
     void clockStructure();     // CDC-019 / 020 / 030 / 031
     void edgeStructure();      // CDC-043
+    /// The reset_contracts binding of this design (rdc::bindContracts, pure); computed once per run by this family on first use.
+    const model::ContractBindingResult& contractBinding();
+    /// Cites the release orders between two sets of reset roots as evidence of one RDC-023/024 finding; never changes its severity.
+    void citeReleaseOrders(Diagnostic& d, const std::set<NodeId>& a, const std::set<NodeId>& b);
     void protocols();          // CDC-012 / 013 / 014 / 015 / 024 / 034 / 035 / 037 / 038 / 040 / 041 / 042 / 044
     void sequentialElements(); // CDC-001 latches
     void libraryCells();       // cdc_library.cpp: CDC-020 / 035 / 045 / 046 for declared library RAMs, clock gates and black boxes

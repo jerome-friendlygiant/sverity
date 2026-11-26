@@ -1,0 +1,3452 @@
+{
+  "binary_sha256": "7abe608e71a2a7224c065f865ad3eec5ba88bf226d67abb372f390ba9095c9d3",
+  "counts": {
+    "CAUGHT": 23
+  },
+  "designs": {
+    "axis_async_fifo": {
+      "analysis_coverage": "INCOMPLETE",
+      "commit": "48ff7a7e2ef782cf778d47910cf85835c64b1bce",
+      "config_sha256": "f5ecc673c64257b2a7b0b2fd4791a28fc662f93f68f0d41a08b183b904240503",
+      "diagnostic_count": 45,
+      "execution": "SUCCESS",
+      "invocation": {
+        "deck": "rdc",
+        "goal": "rdc",
+        "manifest_args": [],
+        "profile": "asic",
+        "root": ".",
+        "sdc": "tests/public_projects/reviewed_sdc/axis_async_fifo.sdc",
+        "sdc_sha256": "5b52070c4c7ef6b85cad8fe8ce5f108dd35f8a4d0bd371c9d3cb588094f0ca10",
+        "sources": [
+          "axis_async_fifo.v"
+        ],
+        "top": "axis_async_fifo"
+      },
+      "report_sha256": "1fb29a0036cf4717b23fadf51f59f6ddb037d877ab7961b467f90688ed73487a",
+      "repository": "verilog-axis",
+      "repository_url": "https://github.com/alexforencich/verilog-axis",
+      "review_status": "REVIEW_REQUIRED",
+      "top": "axis_async_fifo"
+    },
+    "cc_cdc_2phase": {
+      "analysis_coverage": "INCOMPLETE",
+      "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+      "config_sha256": "90ff2b1bf630073d77d179ffc989dc72bdcd159987225e28e5bab8be237cb590",
+      "diagnostic_count": 14,
+      "execution": "SUCCESS",
+      "invocation": {
+        "deck": "rdc",
+        "goal": "rdc",
+        "manifest_args": [
+          "-y",
+          ".",
+          "-y",
+          "deprecated",
+          "-y",
+          "{tech_cells_generic}/src/rtl",
+          "--libext",
+          ".sv",
+          "-I",
+          "../include",
+          "-D",
+          "TARGET_SYNTHESIS"
+        ],
+        "profile": "asic",
+        "root": ".",
+        "sdc": "tests/public_projects/reviewed_sdc/cc_cdc_2phase.sdc",
+        "sdc_sha256": "1a6d988d568605bb2c289158a7a70b50f1d54579655ff463043af185394dbb8a",
+        "sources": [
+          "cc_cdc_2phase.sv"
+        ],
+        "top": "cc_cdc_2phase"
+      },
+      "report_sha256": "ecb41caacc477045af90f1282a066deb5c2814b763da511ea357d69aeb4f5ed9",
+      "repository": "common_cells",
+      "repository_url": "https://github.com/pulp-platform/common_cells",
+      "review_status": "REVIEW_REQUIRED",
+      "top": "cc_cdc_2phase"
+    },
+    "cc_cdc_4phase": {
+      "analysis_coverage": "INCOMPLETE",
+      "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+      "config_sha256": "592037ba02ca97426aa4a8981e4831a48d087d6fddcade758b20dfd4cffdc1ec",
+      "diagnostic_count": 16,
+      "execution": "SUCCESS",
+      "invocation": {
+        "deck": "rdc",
+        "goal": "rdc",
+        "manifest_args": [
+          "-y",
+          ".",
+          "-y",
+          "deprecated",
+          "-y",
+          "{tech_cells_generic}/src/rtl",
+          "--libext",
+          ".sv",
+          "-I",
+          "../include",
+          "-D",
+          "TARGET_SYNTHESIS"
+        ],
+        "profile": "asic",
+        "root": ".",
+        "sdc": "tests/public_projects/reviewed_sdc/cc_cdc_4phase.sdc",
+        "sdc_sha256": "33a432339724c3b279583d0bf9e17be798958c8b7ee8c42d9e2fea61f2610872",
+        "sources": [
+          "cc_cdc_4phase.sv"
+        ],
+        "top": "cc_cdc_4phase"
+      },
+      "report_sha256": "20afc0d2d0c95890a4bda3d82db3174c5998733081dffc38169173f2f289798e",
+      "repository": "common_cells",
+      "repository_url": "https://github.com/pulp-platform/common_cells",
+      "review_status": "REVIEW_REQUIRED",
+      "top": "cc_cdc_4phase"
+    },
+    "cc_cdc_fifo_2phase": {
+      "analysis_coverage": "INCOMPLETE",
+      "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+      "config_sha256": "b5490ff21340cc5f57e969d3c63d62d70ef62629676e00553a24f49c61c3ce74",
+      "diagnostic_count": 23,
+      "execution": "SUCCESS",
+      "invocation": {
+        "deck": "rdc",
+        "goal": "rdc",
+        "manifest_args": [
+          "-y",
+          ".",
+          "-y",
+          "deprecated",
+          "-y",
+          "{tech_cells_generic}/src/rtl",
+          "--libext",
+          ".sv",
+          "-I",
+          "../include",
+          "-D",
+          "TARGET_SYNTHESIS"
+        ],
+        "profile": "asic",
+        "root": ".",
+        "sdc": "tests/public_projects/reviewed_sdc/cc_cdc_fifo_2phase.sdc",
+        "sdc_sha256": "b8fd27272994a1880080dc6c6dda23c77b7308714b8f8bed12ab6e466c1507af",
+        "sources": [
+          "cc_cdc_fifo_2phase.sv",
+          "cc_cdc_2phase.sv"
+        ],
+        "top": "cc_cdc_fifo_2phase"
+      },
+      "report_sha256": "60366f8992ef21b9b08613877dacf737d20c0465dc541f1989efee030be2924d",
+      "repository": "common_cells",
+      "repository_url": "https://github.com/pulp-platform/common_cells",
+      "review_status": "REVIEW_REQUIRED",
+      "top": "cc_cdc_fifo_2phase"
+    },
+    "cc_cdc_fifo_gray": {
+      "analysis_coverage": "INCOMPLETE",
+      "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+      "config_sha256": "da6b1a58cc8fe450047f3faed6abd6659b53d19f37eeb64635aa863ec4a5979f",
+      "diagnostic_count": 21,
+      "execution": "SUCCESS",
+      "invocation": {
+        "deck": "rdc",
+        "goal": "rdc",
+        "manifest_args": [
+          "-y",
+          ".",
+          "-y",
+          "deprecated",
+          "-y",
+          "{tech_cells_generic}/src/rtl",
+          "--libext",
+          ".sv",
+          "-I",
+          "../include",
+          "-D",
+          "TARGET_SYNTHESIS"
+        ],
+        "profile": "asic",
+        "root": ".",
+        "sdc": "tests/public_projects/reviewed_sdc/cc_cdc_fifo_gray.sdc",
+        "sdc_sha256": "8297b532772f19fc7c27391c29cb13b888897ff2047b9959073ae7e62077355e",
+        "sources": [
+          "cc_cdc_fifo_gray.sv"
+        ],
+        "top": "cc_cdc_fifo_gray"
+      },
+      "report_sha256": "e7e21f699a881d53014a51fc42fbe99a484aa11ff219964807e9b1633a619288",
+      "repository": "common_cells",
+      "repository_url": "https://github.com/pulp-platform/common_cells",
+      "review_status": "REVIEW_REQUIRED",
+      "top": "cc_cdc_fifo_gray"
+    }
+  },
+  "manifest_sha256": "50e277723e994ad6ff83eaf30c5d82d9ad1063c4bb392d2522cac9b7d0776ffd",
+  "mutant_triage": {
+    "equivalent": 0,
+    "independently_reviewed": 23,
+    "invalid": 0,
+    "pending": 0
+  },
+  "mutants": [
+    {
+      "accept_unresolved": true,
+      "defect": "remove set_input_delay constraint from top-level asynchronous reset input src_rst_ni",
+      "design": "cc_cdc_2phase",
+      "disappeared": [
+        {
+          "confidence": "informational",
+          "fingerprint": "c20c0e219e53b745",
+          "rule_id": "RDC-003",
+          "severity": "INFO",
+          "signals": [
+            "cc_cdc_2phase.src_rst_ni",
+            "cc_cdc_2phase.src_clk_i"
+          ]
+        }
+      ],
+      "equivalence_assessment": "changes active logic in the pinned configuration",
+      "exit_code": 6,
+      "expected_rule": "RDC-002",
+      "id": "rdc-2phase-drop-src-rst-input-delay",
+      "line": 8,
+      "matched": {
+        "accept_unresolved": true,
+        "classification": "unresolved",
+        "confidence": "unresolved",
+        "disposition": "REVIEW_REQUIRED",
+        "line": 30,
+        "require_incomplete_scope": "reset-extraction",
+        "required_signals": [
+          "cc_cdc_2phase.src_rst_ni"
+        ],
+        "rule": "RDC-002",
+        "severity": "WARNING",
+        "signals": [
+          "cc_cdc_2phase.src_rst_ni"
+        ]
+      },
+      "mutant_sdc_sha256": "0a016e3b4d31648c76e1a6aa961afebb75cb4acd34867756db445f0060c52b8e",
+      "mutant_sha256": "0a016e3b4d31648c76e1a6aa961afebb75cb4acd34867756db445f0060c52b8e",
+      "operator": "rdc-2phase-drop-src-rst-input-delay",
+      "original_sdc_sha256": "1a6d988d568605bb2c289158a7a70b50f1d54579655ff463043af185394dbb8a",
+      "original_sha256": "1a6d988d568605bb2c289158a7a70b50f1d54579655ff463043af185394dbb8a",
+      "outcome": "CAUGHT",
+      "paired_baseline_sha256": "7077cd63743fdbfda6a2ac3648f78c7e04638a469850b36789f5fb02add6abe8",
+      "precondition": "src_rst_ni is a top-level asynchronous reset port driving functional registers in i_src (not only a reset synchronizer); removing its set_input_delay leaves its timing relation to src_clk_i unconstrained.",
+      "report_sha256": "6448d3de8140e02ae7954b4440188607ab193a0f2eb8a8e1b179996938becae2",
+      "require_incomplete_scope": "reset-extraction",
+      "required_signals": [
+        "cc_cdc_2phase.src_rst_ni"
+      ],
+      "source_commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+      "source_path": "tests/public_projects/reviewed_sdc/cc_cdc_2phase.sdc",
+      "target": "sdc",
+      "triage": "independently_reviewed"
+    },
+    {
+      "accept_unresolved": true,
+      "defect": "connect i_dst asynchronous reset to an undriven internal wire dst_rst_unconnected_n",
+      "design": "cc_cdc_fifo_2phase",
+      "disappeared": [
+        {
+          "confidence": "informational",
+          "fingerprint": "31639c7c6211caf8",
+          "rule_id": "RDC-013",
+          "severity": "WARNING",
+          "signals": []
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "88274b0ccdfcdb15",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_fifo_2phase.i_dst.i_cdc_wptr_dst.data_dst_q",
+            "cc_cdc_fifo_2phase.i_src.i_cdc_wptr_src.data_src_q"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "5bf9ded78c5131ab",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_fifo_2phase.i_src.i_cdc_rptr_dst.data_dst_q",
+            "cc_cdc_fifo_2phase.i_dst.i_cdc_rptr_src.data_src_q"
+          ]
+        },
+        {
+          "confidence": "informational",
+          "fingerprint": "5145079aba23d90b",
+          "rule_id": "RDC-003",
+          "severity": "INFO",
+          "signals": [
+            "cc_cdc_fifo_2phase.dst_rst_ni",
+            "cc_cdc_fifo_2phase.dst_clk_i"
+          ]
+        },
+        {
+          "confidence": "informational",
+          "fingerprint": "2c6b141980acfe07",
+          "rule_id": "RDC-001",
+          "severity": "INFO",
+          "signals": []
+        },
+        {
+          "confidence": "informational",
+          "fingerprint": "a38788e1dcde91fa",
+          "rule_id": "RDC-003",
+          "severity": "INFO",
+          "signals": [
+            "cc_cdc_fifo_2phase.src_rst_ni",
+            "cc_cdc_fifo_2phase.src_clk_i"
+          ]
+        },
+        {
+          "confidence": "established",
+          "fingerprint": "01fc0e9881ee1d67",
+          "rule_id": "LNT-010",
+          "severity": "WARNING",
+          "signals": []
+        },
+        {
+          "confidence": "established",
+          "fingerprint": "2a924d053bc687e0",
+          "rule_id": "LNT-010",
+          "severity": "WARNING",
+          "signals": []
+        },
+        {
+          "confidence": "established",
+          "fingerprint": "f6e233407746a71d",
+          "rule_id": "LNT-010",
+          "severity": "WARNING",
+          "signals": []
+        },
+        {
+          "confidence": "established",
+          "fingerprint": "e1747511eb38b92e",
+          "rule_id": "LNT-010",
+          "severity": "WARNING",
+          "signals": []
+        },
+        {
+          "confidence": "informational",
+          "fingerprint": "6d646d2463473bf0",
+          "rule_id": "RDC-001",
+          "severity": "INFO",
+          "signals": []
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "f0e1fc5dd8563cf2",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_fifo_2phase.i_dst.i_cdc_rptr_src.i_sync.reg_q",
+            "cc_cdc_fifo_2phase.i_src.i_cdc_rptr_dst.ack_dst_q"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "5e1ded81a579f6d2",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_fifo_2phase.i_dst.i_cdc_wptr_dst.i_sync.reg_q",
+            "cc_cdc_fifo_2phase.i_src.i_cdc_wptr_src.req_src_q"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "f67a1f95ebda2878",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_fifo_2phase.i_src.i_cdc_rptr_dst.i_sync.reg_q",
+            "cc_cdc_fifo_2phase.i_dst.i_cdc_rptr_src.req_src_q"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "39d0ecc94cf624e0",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_fifo_2phase.i_src.i_cdc_wptr_src.i_sync.reg_q",
+            "cc_cdc_fifo_2phase.i_dst.i_cdc_wptr_dst.ack_dst_q"
+          ]
+        }
+      ],
+      "equivalence_assessment": "changes active logic in the pinned configuration",
+      "exit_code": 6,
+      "expected_rule": "RDC-001",
+      "id": "rdc-fifo2phase-undriven-reset-root",
+      "line": null,
+      "matched": {
+        "accept_unresolved": true,
+        "classification": "unresolved",
+        "confidence": "unresolved",
+        "disposition": "REVIEW_REQUIRED",
+        "line": 30,
+        "require_incomplete_scope": "reset-extraction",
+        "required_message_contains": "reset 'cc_cdc_fifo_2phase.dst_rst_unconnected_n' is undriven",
+        "rule": "RDC-001",
+        "severity": "WARNING",
+        "signals": []
+      },
+      "mutant_sha256": "ec4bb7846796188a1fbed8cbd1637668e94ced4d896adb7fddfcec24c3658679",
+      "operator": "rdc-fifo2phase-undriven-reset-root",
+      "original_sha256": "1b8a440361eea9de681f801c217f240232a11d159e29315861227258ceaad2a7",
+      "outcome": "CAUGHT",
+      "paired_baseline_sha256": "2f00141e967af052658e104c664b549ff9b8978c0737b861a47c86847376a9da",
+      "precondition": "i_dst contains active asynchronously reset registers in dst_clk_i; replacing top-level port dst_rst_ni with an undriven internal wire leaves the reset root without any modelled driver or release synchronisation.",
+      "report_sha256": "85ef65189dd65460da626cf29cb88a0c9a36321752840b9c514cb3a8fb803dec",
+      "require_incomplete_scope": "reset-extraction",
+      "required_message_contains": "reset 'cc_cdc_fifo_2phase.dst_rst_unconnected_n' is undriven",
+      "source_commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+      "source_path": "src/cc_cdc_fifo_2phase.sv",
+      "triage": "independently_reviewed"
+    },
+    {
+      "accept_unresolved": true,
+      "defect": "time destination asynchronous reset dst_rst_ni against asynchronous source clock src_clk_i instead of dst_clk_i",
+      "design": "cc_cdc_4phase",
+      "disappeared": [
+        {
+          "confidence": "informational",
+          "fingerprint": "e1e5a07ed8a1e2f8",
+          "rule_id": "RDC-003",
+          "severity": "INFO",
+          "signals": [
+            "cc_cdc_4phase.dst_rst_ni",
+            "cc_cdc_4phase.dst_clk_i"
+          ]
+        }
+      ],
+      "equivalence_assessment": "changes active logic in the pinned configuration",
+      "exit_code": 6,
+      "expected_rule": "RDC-003",
+      "id": "rdc-4phase-rst-wrong-clock-delay",
+      "line": 9,
+      "matched": {
+        "accept_unresolved": true,
+        "classification": "unresolved",
+        "confidence": "unresolved",
+        "disposition": "REVIEW_REQUIRED",
+        "line": 30,
+        "require_incomplete_scope": "reset-extraction",
+        "required_signals": [
+          "cc_cdc_4phase.dst_rst_ni"
+        ],
+        "rule": "RDC-003",
+        "severity": "WARNING",
+        "signals": [
+          "cc_cdc_4phase.dst_rst_ni",
+          "cc_cdc_4phase.dst_clk_i"
+        ]
+      },
+      "mutant_sdc_sha256": "ffd1474d6c5bb49176c97e6c6326a146f084adca1585e64eb1c5e529975af0d9",
+      "mutant_sha256": "ffd1474d6c5bb49176c97e6c6326a146f084adca1585e64eb1c5e529975af0d9",
+      "operator": "rdc-4phase-rst-wrong-clock-delay",
+      "original_sdc_sha256": "33a432339724c3b279583d0bf9e17be798958c8b7ee8c42d9e2fea61f2610872",
+      "original_sha256": "33a432339724c3b279583d0bf9e17be798958c8b7ee8c42d9e2fea61f2610872",
+      "outcome": "CAUGHT",
+      "paired_baseline_sha256": "4772b137edc95ed22a9faf869135aba143c806ac44bd02605dae9b740476c20b",
+      "precondition": "dst_rst_ni directly resets registers clocked by dst_clk_i with no internal reset synchronizer; timing its release against the asynchronous src_clk_i leaves deassertion unsynchronized to dst_clk_i.",
+      "report_sha256": "d934f5e68d00c0df389406f929afc186a65c05e78a3d0519505831a89dbff6fc",
+      "require_incomplete_scope": "reset-extraction",
+      "required_signals": [
+        "cc_cdc_4phase.dst_rst_ni"
+      ],
+      "source_commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+      "source_path": "tests/public_projects/reviewed_sdc/cc_cdc_4phase.sdc",
+      "target": "sdc",
+      "triage": "independently_reviewed"
+    },
+    {
+      "accept_unresolved": true,
+      "defect": "clock a 2-stage destination reset synchronizer on negedge dst_clk_i while i_dst receivers use posedge dst_clk_i",
+      "design": "cc_cdc_fifo_gray",
+      "disappeared": [
+        {
+          "confidence": "heuristic",
+          "fingerprint": "66e5260a680efc67",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_fifo_gray.i_dst.i_dst_data.i_spill_register.spill_register_flushable_i.gen_spill_reg.a_data_q",
+            "cc_cdc_fifo_gray.i_src.i_src_data.data_q"
+          ]
+        },
+        {
+          "confidence": "informational",
+          "fingerprint": "f7d7dbfd47975a53",
+          "rule_id": "RDC-003",
+          "severity": "INFO",
+          "signals": [
+            "cc_cdc_fifo_gray.src_rst_ni",
+            "cc_cdc_fifo_gray.src_clk_i"
+          ]
+        },
+        {
+          "confidence": "informational",
+          "fingerprint": "e9eb8454710c9bd6",
+          "rule_id": "RDC-003",
+          "severity": "INFO",
+          "signals": [
+            "cc_cdc_fifo_gray.dst_rst_ni",
+            "cc_cdc_fifo_gray.dst_clk_i"
+          ]
+        },
+        {
+          "confidence": "informational",
+          "fingerprint": "7d5f0e87ee088594",
+          "rule_id": "RDC-001",
+          "severity": "INFO",
+          "signals": []
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "fd24961701c47d03",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_fifo_gray.i_dst.i_dst_ptr.gen_sync[0].i_sync.reg_q",
+            "cc_cdc_fifo_gray.i_src.i_src_ptr.wptr_q"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "23093bb91230a063",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_fifo_gray.i_dst.i_dst_ptr.gen_sync[1].i_sync.reg_q",
+            "cc_cdc_fifo_gray.i_src.i_src_ptr.wptr_q"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "a8ff6c8c3dbad7eb",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_fifo_gray.i_dst.i_dst_ptr.gen_sync[2].i_sync.reg_q",
+            "cc_cdc_fifo_gray.i_src.i_src_ptr.wptr_q"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "554fa7b13382616b",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_fifo_gray.i_dst.i_dst_ptr.gen_sync[3].i_sync.reg_q",
+            "cc_cdc_fifo_gray.i_src.i_src_ptr.wptr_q"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "261fea8c11acbb32",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_fifo_gray.i_src.i_src_ptr.gen_sync[0].i_sync.reg_q",
+            "cc_cdc_fifo_gray.i_dst.i_dst_ptr.rptr_q"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "2b33d725a3873a8a",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_fifo_gray.i_src.i_src_ptr.gen_sync[1].i_sync.reg_q",
+            "cc_cdc_fifo_gray.i_dst.i_dst_ptr.rptr_q"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "7e14239f42c1cb4a",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_fifo_gray.i_src.i_src_ptr.gen_sync[2].i_sync.reg_q",
+            "cc_cdc_fifo_gray.i_dst.i_dst_ptr.rptr_q"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "0559cc846c289f92",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_fifo_gray.i_src.i_src_ptr.gen_sync[3].i_sync.reg_q",
+            "cc_cdc_fifo_gray.i_dst.i_dst_ptr.rptr_q"
+          ]
+        }
+      ],
+      "equivalence_assessment": "changes active logic in the pinned configuration",
+      "exit_code": 6,
+      "expected_rule": "RDC-003",
+      "id": "rdc-gray-rst-sync-opposite-edge",
+      "line": null,
+      "matched": {
+        "accept_unresolved": true,
+        "classification": "unresolved",
+        "confidence": "unresolved",
+        "disposition": "REVIEW_REQUIRED",
+        "line": null,
+        "require_incomplete_scope": "reset-extraction",
+        "required_message_contains": "opposite edge",
+        "required_signals": [
+          "cc_cdc_fifo_gray.dst_rst_neg_s2_q"
+        ],
+        "rule": "RDC-003",
+        "severity": "WARNING",
+        "signals": [
+          "cc_cdc_fifo_gray.dst_rst_neg_s2_q",
+          "cc_cdc_fifo_gray.dst_clk_i"
+        ]
+      },
+      "mutant_sha256": "4c6e1c7f0f59c88868633577c85ec5e9a64b4da1b40b4565de33fba4f3b137dc",
+      "operator": "rdc-gray-rst-sync-opposite-edge",
+      "original_sha256": "d3957e376134fa3020f45edc9573fdae10f504167ebc7d6aadf71fbd7474680a",
+      "outcome": "CAUGHT",
+      "paired_baseline_sha256": "07ff94652011c7bc611c4c5cb3a99f2ff1de7d51573112f53f995894b93c8dc4",
+      "precondition": "i_dst registers are clocked on posedge dst_clk_i; releasing dst_rst_ni through a 2-stage reset synchronizer clocked on negedge dst_clk_i creates a half-cycle opposite-edge reset release path.",
+      "report_sha256": "a3223daf8a24d00ffc4b61d9a43a8f3634b9fd5f4aa56364404d02dca235469b",
+      "require_incomplete_scope": "reset-extraction",
+      "required_message_contains": "opposite edge",
+      "required_signals": [
+        "cc_cdc_fifo_gray.dst_rst_neg_s2_q"
+      ],
+      "source_commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+      "source_path": "src/cc_cdc_fifo_gray.sv",
+      "triage": "independently_reviewed"
+    },
+    {
+      "defect": "synchronize dst_rst_ni deassertion through only a single flip-flop stage before resetting i_dst",
+      "design": "cc_cdc_2phase",
+      "disappeared": [
+        {
+          "confidence": "heuristic",
+          "fingerprint": "f189e62a6d9fa364",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_2phase.i_dst.data_dst_q",
+            "cc_cdc_2phase.i_src.data_src_q"
+          ]
+        },
+        {
+          "confidence": "informational",
+          "fingerprint": "aaaf84f48acce44e",
+          "rule_id": "RDC-001",
+          "severity": "INFO",
+          "signals": []
+        },
+        {
+          "confidence": "informational",
+          "fingerprint": "eecaae38b003589c",
+          "rule_id": "RDC-003",
+          "severity": "INFO",
+          "signals": [
+            "cc_cdc_2phase.dst_rst_ni",
+            "cc_cdc_2phase.dst_clk_i"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "923f946efa7e11ad",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_2phase.i_dst.i_sync.reg_q",
+            "cc_cdc_2phase.i_src.req_src_q"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "a49bb36cc97337e0",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_2phase.i_src.i_sync.reg_q",
+            "cc_cdc_2phase.i_dst.ack_dst_q"
+          ]
+        }
+      ],
+      "equivalence_assessment": "changes active logic in the pinned configuration",
+      "exit_code": 6,
+      "expected_rule": "RDC-006",
+      "id": "rdc-2phase-single-stage-rst-sync",
+      "line": null,
+      "matched": {
+        "classification": "established",
+        "confidence": "established",
+        "disposition": "REVIEW_REQUIRED",
+        "line": 30,
+        "required_signals": [
+          "cc_cdc_2phase.dst_rst_sync1_q"
+        ],
+        "rule": "RDC-006",
+        "severity": "WARNING",
+        "signals": [
+          "cc_cdc_2phase.dst_rst_sync1_q",
+          "cc_cdc_2phase.dst_clk_i"
+        ]
+      },
+      "mutant_sha256": "879361eec46b5b829b79c444671c22638084d4e70e9f17863a7260190b12edf2",
+      "operator": "rdc-2phase-single-stage-rst-sync",
+      "original_sha256": "fa6ad79abf71c03b4e49580761dde3c2c39ff93cc70c901babc8450d6ac007ff",
+      "outcome": "CAUGHT",
+      "paired_baseline_sha256": "2c9e02c34b5f7e9857f64ab826b6f729eb714991c929274843946af18bd13a67",
+      "precondition": "1-stage reset synchroniser; defect under the RDC-006 depth policy, assuming the raw reset is asynchronous as the synchroniser implies",
+      "report_sha256": "078a6801868d04cc0006947d81bcd4db63d7aff5016623b0b3b75960b5d0c088",
+      "required_signals": [
+        "cc_cdc_2phase.dst_rst_sync1_q"
+      ],
+      "source_commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+      "source_path": "src/cc_cdc_2phase.sv",
+      "triage": "independently_reviewed"
+    },
+    {
+      "defect": "tap the intermediate first stage of a 2-stage reset synchronizer to gate functional downstream ready logic",
+      "design": "cc_cdc_4phase",
+      "disappeared": [
+        {
+          "confidence": "heuristic",
+          "fingerprint": "fe7f65bc0fafc561",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_4phase.i_dst.gen_decoupled.i_spill_register.spill_register_flushable_i.gen_spill_reg.a_data_q",
+            "cc_cdc_4phase.i_src.data_src_q"
+          ]
+        },
+        {
+          "confidence": "established",
+          "fingerprint": "494f97c4645f9304",
+          "rule_id": "LNT-017",
+          "severity": "INFO",
+          "signals": []
+        },
+        {
+          "confidence": "established",
+          "fingerprint": "2a2a0e2353d25142",
+          "rule_id": "LNT-017",
+          "severity": "INFO",
+          "signals": []
+        },
+        {
+          "confidence": "informational",
+          "fingerprint": "0ceed5b1c050501c",
+          "rule_id": "RDC-001",
+          "severity": "INFO",
+          "signals": []
+        },
+        {
+          "confidence": "informational",
+          "fingerprint": "e1e5a07ed8a1e2f8",
+          "rule_id": "RDC-003",
+          "severity": "INFO",
+          "signals": [
+            "cc_cdc_4phase.dst_rst_ni",
+            "cc_cdc_4phase.dst_clk_i"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "cd93cfbb7dce47c2",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_4phase.i_dst.i_sync.reg_q",
+            "cc_cdc_4phase.i_src.req_src_q"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "08e2a23c35d018de",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_4phase.i_src.i_sync.reg_q",
+            "cc_cdc_4phase.i_dst.ack_dst_q"
+          ]
+        }
+      ],
+      "equivalence_assessment": "changes active logic in the pinned configuration",
+      "exit_code": 6,
+      "expected_rule": "RDC-016",
+      "id": "rdc-4phase-rst-sync-early-fanout",
+      "line": null,
+      "matched": {
+        "classification": "established",
+        "confidence": "established",
+        "disposition": "REVIEW_REQUIRED",
+        "line": 87,
+        "required_message_contains": "intermediate stage cc_cdc_4phase.dst_rst_s1_q",
+        "rule": "RDC-016",
+        "severity": "WARNING",
+        "signals": []
+      },
+      "mutant_sha256": "68453ebd610ff201b9da22c14ccf9baf7fbce2f1547697af29593660b4c1d7b3",
+      "operator": "rdc-4phase-rst-sync-early-fanout",
+      "original_sha256": "0427c1251ef95d56b07d567477c176f35af12499842205eb45533a20e3474f7f",
+      "outcome": "CAUGHT",
+      "paired_baseline_sha256": "66122f0d42e38a1e5b133fdb9f07f8a4d83ec60c04916dba2185ab0d609b6bb6",
+      "precondition": "dst_rst_s1_q -> dst_rst_s2_q forms a recognized 2-stage reset synchronizer for i_dst in dst_clk_i; fanning dst_rst_s1_q out into ready_i exposes active control logic to unresolved recovery metastability.",
+      "report_sha256": "5edbcffb85c03d744e93bdea374305ad0d7fc5ad6fd5a61e9707329e72572f9a",
+      "required_message_contains": "intermediate stage cc_cdc_4phase.dst_rst_s1_q",
+      "source_commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+      "source_path": "src/cc_cdc_4phase.sv",
+      "triage": "independently_reviewed"
+    },
+    {
+      "defect": "drive i_dst asynchronous reset directly from a register clocked in asynchronous domain src_clk_i",
+      "design": "cc_cdc_2phase",
+      "disappeared": [
+        {
+          "confidence": "unresolved",
+          "fingerprint": "15ac16aab170d31a",
+          "rule_id": "RDC-011",
+          "severity": "WARNING",
+          "signals": []
+        },
+        {
+          "confidence": "informational",
+          "fingerprint": "c722b3481560a816",
+          "rule_id": "RDC-013",
+          "severity": "WARNING",
+          "signals": []
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "f189e62a6d9fa364",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_2phase.i_dst.data_dst_q",
+            "cc_cdc_2phase.i_src.data_src_q"
+          ]
+        },
+        {
+          "confidence": "informational",
+          "fingerprint": "aaaf84f48acce44e",
+          "rule_id": "RDC-001",
+          "severity": "INFO",
+          "signals": []
+        },
+        {
+          "confidence": "informational",
+          "fingerprint": "eecaae38b003589c",
+          "rule_id": "RDC-003",
+          "severity": "INFO",
+          "signals": [
+            "cc_cdc_2phase.dst_rst_ni",
+            "cc_cdc_2phase.dst_clk_i"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "923f946efa7e11ad",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_2phase.i_dst.i_sync.reg_q",
+            "cc_cdc_2phase.i_src.req_src_q"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "a49bb36cc97337e0",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_2phase.i_src.i_sync.reg_q",
+            "cc_cdc_2phase.i_dst.ack_dst_q"
+          ]
+        }
+      ],
+      "equivalence_assessment": "changes active logic in the pinned configuration",
+      "exit_code": 5,
+      "expected_rule": "RDC-007",
+      "id": "rdc-2phase-cross-domain-gen-reset",
+      "line": null,
+      "matched": {
+        "classification": "established",
+        "confidence": "established",
+        "disposition": "OPEN",
+        "line": 30,
+        "required_signals": [
+          "cc_cdc_2phase.src_gen_rst_nq"
+        ],
+        "rule": "RDC-007",
+        "severity": "ERROR",
+        "signals": [
+          "cc_cdc_2phase.src_gen_rst_nq",
+          "cc_cdc_2phase.dst_clk_i"
+        ]
+      },
+      "mutant_sha256": "37f14414c8552c30242f4bd3013b151eb95f00f1eba25528e701a2bc35bb18ad",
+      "operator": "rdc-2phase-cross-domain-gen-reset",
+      "original_sha256": "fa6ad79abf71c03b4e49580761dde3c2c39ff93cc70c901babc8450d6ac007ff",
+      "outcome": "CAUGHT",
+      "paired_baseline_sha256": "de6085b864135501feb01dd9272b6227845a504951cdde4197ff9b513328df2c",
+      "precondition": "src_clk_i and dst_clk_i are declared asynchronous in cc_cdc_2phase.sdc; generating i_dst's reset from a src_clk_i flop causes asynchronous reset deassertion in dst_clk_i.",
+      "report_sha256": "ff5225085274869dd555774c6382da75331cb3db09f2f86e739f11fafff2a01d",
+      "required_signals": [
+        "cc_cdc_2phase.src_gen_rst_nq"
+      ],
+      "source_commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+      "source_path": "src/cc_cdc_2phase.sv",
+      "triage": "independently_reviewed"
+    },
+    {
+      "defect": "combine src_rst_ni and dst_rst_ni with a combinational AND gate to drive i_dst asynchronous reset",
+      "design": "cc_cdc_fifo_gray",
+      "disappeared": [
+        {
+          "confidence": "informational",
+          "fingerprint": "89e758cceed66278",
+          "rule_id": "RDC-013",
+          "severity": "WARNING",
+          "signals": []
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "66e5260a680efc67",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_fifo_gray.i_dst.i_dst_data.i_spill_register.spill_register_flushable_i.gen_spill_reg.a_data_q",
+            "cc_cdc_fifo_gray.i_src.i_src_data.data_q"
+          ]
+        },
+        {
+          "confidence": "informational",
+          "fingerprint": "f7d7dbfd47975a53",
+          "rule_id": "RDC-003",
+          "severity": "INFO",
+          "signals": [
+            "cc_cdc_fifo_gray.src_rst_ni",
+            "cc_cdc_fifo_gray.src_clk_i"
+          ]
+        },
+        {
+          "confidence": "informational",
+          "fingerprint": "e9eb8454710c9bd6",
+          "rule_id": "RDC-003",
+          "severity": "INFO",
+          "signals": [
+            "cc_cdc_fifo_gray.dst_rst_ni",
+            "cc_cdc_fifo_gray.dst_clk_i"
+          ]
+        },
+        {
+          "confidence": "informational",
+          "fingerprint": "7d5f0e87ee088594",
+          "rule_id": "RDC-001",
+          "severity": "INFO",
+          "signals": []
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "fd24961701c47d03",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_fifo_gray.i_dst.i_dst_ptr.gen_sync[0].i_sync.reg_q",
+            "cc_cdc_fifo_gray.i_src.i_src_ptr.wptr_q"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "23093bb91230a063",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_fifo_gray.i_dst.i_dst_ptr.gen_sync[1].i_sync.reg_q",
+            "cc_cdc_fifo_gray.i_src.i_src_ptr.wptr_q"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "a8ff6c8c3dbad7eb",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_fifo_gray.i_dst.i_dst_ptr.gen_sync[2].i_sync.reg_q",
+            "cc_cdc_fifo_gray.i_src.i_src_ptr.wptr_q"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "554fa7b13382616b",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_fifo_gray.i_dst.i_dst_ptr.gen_sync[3].i_sync.reg_q",
+            "cc_cdc_fifo_gray.i_src.i_src_ptr.wptr_q"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "261fea8c11acbb32",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_fifo_gray.i_src.i_src_ptr.gen_sync[0].i_sync.reg_q",
+            "cc_cdc_fifo_gray.i_dst.i_dst_ptr.rptr_q"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "2b33d725a3873a8a",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_fifo_gray.i_src.i_src_ptr.gen_sync[1].i_sync.reg_q",
+            "cc_cdc_fifo_gray.i_dst.i_dst_ptr.rptr_q"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "7e14239f42c1cb4a",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_fifo_gray.i_src.i_src_ptr.gen_sync[2].i_sync.reg_q",
+            "cc_cdc_fifo_gray.i_dst.i_dst_ptr.rptr_q"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "0559cc846c289f92",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_fifo_gray.i_src.i_src_ptr.gen_sync[3].i_sync.reg_q",
+            "cc_cdc_fifo_gray.i_dst.i_dst_ptr.rptr_q"
+          ]
+        }
+      ],
+      "equivalence_assessment": "changes active logic in the pinned configuration",
+      "exit_code": 6,
+      "expected_rule": "RDC-008",
+      "id": "rdc-gray-combined-async-resets",
+      "line": null,
+      "matched": {
+        "classification": "heuristic",
+        "confidence": "heuristic",
+        "disposition": "REVIEW_REQUIRED",
+        "line": null,
+        "required_signals": [
+          "cc_cdc_fifo_gray.comb_rst_n"
+        ],
+        "rule": "RDC-008",
+        "severity": "WARNING",
+        "signals": [
+          "cc_cdc_fifo_gray.comb_rst_n"
+        ]
+      },
+      "mutant_sha256": "c86606a87ef78a4d6739f13363b13a473333d4c1c8ba9b09b44f978dd44b31e6",
+      "operator": "rdc-gray-combined-async-resets",
+      "original_sha256": "d3957e376134fa3020f45edc9573fdae10f504167ebc7d6aadf71fbd7474680a",
+      "outcome": "CAUGHT",
+      "paired_baseline_sha256": "bbe8d2fd61974f3a7751b4c20d51ccc2bcec68bd7583ad7bf4dc959b61497cf2",
+      "precondition": "src_rst_ni and dst_rst_ni are distinct top-level asynchronous reset inputs; combining them combinationally onto i_dst's async reset net introduces multi-source reset skew and glitch risk.",
+      "report_sha256": "4720003fb4732beeb2bb517bd11748e260202dd21aa6a69a44629cc445c5c456",
+      "required_signals": [
+        "cc_cdc_fifo_gray.comb_rst_n"
+      ],
+      "source_commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+      "source_path": "src/cc_cdc_fifo_gray.sv",
+      "triage": "independently_reviewed"
+    },
+    {
+      "defect": "gate asynchronous reset dst_rst_ni with functional data input dst_ready_i",
+      "design": "cc_cdc_4phase",
+      "disappeared": [
+        {
+          "confidence": "informational",
+          "fingerprint": "bc25b01e6228300c",
+          "rule_id": "RDC-013",
+          "severity": "WARNING",
+          "signals": []
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "fe7f65bc0fafc561",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_4phase.i_dst.gen_decoupled.i_spill_register.spill_register_flushable_i.gen_spill_reg.a_data_q",
+            "cc_cdc_4phase.i_src.data_src_q"
+          ]
+        },
+        {
+          "confidence": "established",
+          "fingerprint": "494f97c4645f9304",
+          "rule_id": "LNT-017",
+          "severity": "INFO",
+          "signals": []
+        },
+        {
+          "confidence": "established",
+          "fingerprint": "2a2a0e2353d25142",
+          "rule_id": "LNT-017",
+          "severity": "INFO",
+          "signals": []
+        },
+        {
+          "confidence": "informational",
+          "fingerprint": "0ceed5b1c050501c",
+          "rule_id": "RDC-001",
+          "severity": "INFO",
+          "signals": []
+        },
+        {
+          "confidence": "informational",
+          "fingerprint": "e1e5a07ed8a1e2f8",
+          "rule_id": "RDC-003",
+          "severity": "INFO",
+          "signals": [
+            "cc_cdc_4phase.dst_rst_ni",
+            "cc_cdc_4phase.dst_clk_i"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "cd93cfbb7dce47c2",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_4phase.i_dst.i_sync.reg_q",
+            "cc_cdc_4phase.i_src.req_src_q"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "08e2a23c35d018de",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_4phase.i_src.i_sync.reg_q",
+            "cc_cdc_4phase.i_dst.ack_dst_q"
+          ]
+        }
+      ],
+      "equivalence_assessment": "changes active logic in the pinned configuration",
+      "exit_code": 6,
+      "expected_rule": "RDC-009",
+      "id": "rdc-4phase-gated-reset-with-data",
+      "line": null,
+      "matched": {
+        "classification": "heuristic",
+        "confidence": "heuristic",
+        "disposition": "REVIEW_REQUIRED",
+        "line": 30,
+        "required_signals": [
+          "cc_cdc_4phase.gated_dst_rst_n"
+        ],
+        "rule": "RDC-009",
+        "severity": "WARNING",
+        "signals": [
+          "cc_cdc_4phase.gated_dst_rst_n"
+        ]
+      },
+      "mutant_sha256": "ab3e005e29c6b5d56c08dc10fd4f64e43bbc78364ce6628e9c1ccf4277d63212",
+      "operator": "rdc-4phase-gated-reset-with-data",
+      "original_sha256": "0427c1251ef95d56b07d567477c176f35af12499842205eb45533a20e3474f7f",
+      "outcome": "CAUGHT",
+      "paired_baseline_sha256": "6a0e6acba1d06afbc7b07fdff06e2c0b7a1f59a5770f9965b8967d0647261bb1",
+      "precondition": "dst_ready_i is a functional handshake input, not a reset; gating dst_rst_ni with it creates glitch-prone combinational reset logic driving active registers in i_dst.",
+      "report_sha256": "eaaef1261ba10733db5883df03a928a1482af07ff7a07adfa7a7405282a59876",
+      "required_signals": [
+        "cc_cdc_4phase.gated_dst_rst_n"
+      ],
+      "source_commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+      "source_path": "src/cc_cdc_4phase.sv",
+      "triage": "independently_reviewed"
+    },
+    {
+      "defect": "mux asynchronous resets s_rst and m_rst with top-level mode/control input m_pause_req before s_rst_sync1_reg",
+      "design": "axis_async_fifo",
+      "disappeared": [
+        {
+          "confidence": "informational",
+          "fingerprint": "0bf53b65a491e55f",
+          "rule_id": "RDC-013",
+          "severity": "WARNING",
+          "signals": []
+        },
+        {
+          "confidence": "informational",
+          "fingerprint": "529735098ef99469",
+          "rule_id": "RDC-001",
+          "severity": "INFO",
+          "signals": []
+        },
+        {
+          "confidence": "informational",
+          "fingerprint": "c745bd8355df8f8f",
+          "rule_id": "RDC-003",
+          "severity": "INFO",
+          "signals": [
+            "axis_async_fifo.m_rst",
+            "axis_async_fifo.m_clk"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "bf68d249405f1377",
+          "rule_id": "RDC-019",
+          "severity": "WARNING",
+          "signals": [
+            "axis_async_fifo.m_rst",
+            "axis_async_fifo.rd_ptr_gray_reg",
+            "axis_async_fifo.wr_ptr_gray_sync2_reg",
+            "axis_async_fifo.m_axis_tvalid_pipe_reg",
+            "axis_async_fifo.m_terminate_frame_reg",
+            "axis_async_fifo.overflow_sync3_reg",
+            "axis_async_fifo.overflow_sync4_reg",
+            "axis_async_fifo.bad_frame_sync3_reg",
+            "axis_async_fifo.bad_frame_sync4_reg",
+            "axis_async_fifo.good_frame_sync3_reg",
+            "axis_async_fifo.good_frame_sync4_reg",
+            "axis_async_fifo.wr_ptr_update_sync3_reg",
+            "axis_async_fifo.wr_ptr_gray_sync1_reg",
+            "axis_async_fifo.wr_ptr_update_sync1_reg",
+            "axis_async_fifo.wr_ptr_update_sync2_reg",
+            "axis_async_fifo.wr_ptr_commit_sync_reg",
+            "axis_async_fifo.overflow_sync2_reg"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "ebe35043033ab6a6",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "axis_async_fifo.s_rst_sync2_reg",
+            "axis_async_fifo.s_rst_sync1_reg"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "047ac8ed8fddb8e2",
+          "rule_id": "RDC-025",
+          "severity": "WARNING",
+          "signals": [
+            "axis_async_fifo.s_axis_tready",
+            "axis_async_fifo.s_rst_sync3_reg"
+          ]
+        },
+        {
+          "confidence": "informational",
+          "fingerprint": "a638b52e5eb3c27e",
+          "rule_id": "RDC-001",
+          "severity": "INFO",
+          "signals": []
+        },
+        {
+          "confidence": "informational",
+          "fingerprint": "4e29e5349af28059",
+          "rule_id": "RDC-003",
+          "severity": "INFO",
+          "signals": [
+            "axis_async_fifo.s_rst",
+            "axis_async_fifo.s_clk"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "8d49d72dd28f59c8",
+          "rule_id": "RDC-019",
+          "severity": "WARNING",
+          "signals": [
+            "axis_async_fifo.s_rst",
+            "axis_async_fifo.wr_ptr_gray_reg",
+            "axis_async_fifo.rd_ptr_gray_sync2_reg",
+            "axis_async_fifo.wr_ptr_reg",
+            "axis_async_fifo.wr_ptr_commit_reg",
+            "axis_async_fifo.mark_frame_reg",
+            "axis_async_fifo.overflow_reg",
+            "axis_async_fifo.bad_frame_reg",
+            "axis_async_fifo.good_frame_reg",
+            "axis_async_fifo.s_frame_reg",
+            "axis_async_fifo.drop_frame_reg",
+            "axis_async_fifo.wr_ptr_sync_commit_reg",
+            "axis_async_fifo.wr_ptr_update_valid_reg",
+            "axis_async_fifo.wr_ptr_update_reg",
+            "axis_async_fifo.send_frame_reg",
+            "axis_async_fifo.rd_ptr_gray_sync1_reg",
+            "axis_async_fifo.wr_ptr_update_ack_sync1_reg"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "92f2794105f44bc3",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "axis_async_fifo.m_rst_sync2_reg",
+            "axis_async_fifo.m_rst_sync1_reg"
+          ]
+        },
+        {
+          "confidence": "unresolved",
+          "fingerprint": "cb0b73df31acdbd5",
+          "rule_id": "CST-010",
+          "severity": "WARNING",
+          "signals": []
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "cfd518f3157b5033",
+          "rule_id": "RDC-025",
+          "severity": "WARNING",
+          "signals": [
+            "axis_async_fifo.s_status_bad_frame",
+            "axis_async_fifo.bad_frame_reg"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "d4006e9bd4c6e30c",
+          "rule_id": "RDC-025",
+          "severity": "WARNING",
+          "signals": [
+            "axis_async_fifo.s_status_good_frame",
+            "axis_async_fifo.good_frame_reg"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "7a73aeca04405915",
+          "rule_id": "RDC-025",
+          "severity": "WARNING",
+          "signals": [
+            "axis_async_fifo.s_status_overflow",
+            "axis_async_fifo.overflow_reg"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "8e5f9736e906ce6d",
+          "rule_id": "RDC-025",
+          "severity": "WARNING",
+          "signals": [
+            "axis_async_fifo.s_status_depth",
+            "axis_async_fifo.s_depth_reg"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "b587ce4f74ede572",
+          "rule_id": "RDC-025",
+          "severity": "WARNING",
+          "signals": [
+            "axis_async_fifo.s_status_depth_commit",
+            "axis_async_fifo.s_depth_commit_reg"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "30a7a035a0883062",
+          "rule_id": "RDC-001",
+          "severity": "INFO",
+          "signals": []
+        },
+        {
+          "confidence": "unresolved",
+          "fingerprint": "3b51fe65ab8e6dcb",
+          "rule_id": "RDC-023",
+          "severity": "WARNING",
+          "signals": [
+            "axis_async_fifo.rd_ptr_gray_reg",
+            "axis_async_fifo.wr_ptr_gray_reg"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "3f77a2916d96866e",
+          "rule_id": "RDC-001",
+          "severity": "INFO",
+          "signals": []
+        },
+        {
+          "confidence": "unresolved",
+          "fingerprint": "6604e0bef344b6cf",
+          "rule_id": "RDC-023",
+          "severity": "WARNING",
+          "signals": [
+            "axis_async_fifo.overflow_sync1_reg",
+            "axis_async_fifo.overflow_sync2_reg"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "fa693edbe2770c9b",
+          "rule_id": "RDC-001",
+          "severity": "INFO",
+          "signals": []
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "f4c149a3ce1f0936",
+          "rule_id": "RDC-025",
+          "severity": "WARNING",
+          "signals": [
+            "axis_async_fifo.m_axis_tdata",
+            "axis_async_fifo.m_axis_pipe_reg"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "32541963bb6dc362",
+          "rule_id": "RDC-025",
+          "severity": "WARNING",
+          "signals": [
+            "axis_async_fifo.m_axis_tlast",
+            "axis_async_fifo.m_axis_pipe_reg"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "e45b02a5ec953e7f",
+          "rule_id": "RDC-025",
+          "severity": "WARNING",
+          "signals": [
+            "axis_async_fifo.m_axis_tuser",
+            "axis_async_fifo.m_axis_pipe_reg"
+          ]
+        },
+        {
+          "confidence": "established",
+          "fingerprint": "10e712412dcba609",
+          "rule_id": "SLANG-int-bool-conv",
+          "severity": "WARNING",
+          "signals": []
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "b1a7d9a6117512dd",
+          "rule_id": "RDC-025",
+          "severity": "WARNING",
+          "signals": [
+            "axis_async_fifo.m_status_depth",
+            "axis_async_fifo.m_depth_reg"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "bd3a6cbbdc0dac72",
+          "rule_id": "RDC-025",
+          "severity": "WARNING",
+          "signals": [
+            "axis_async_fifo.m_status_depth_commit",
+            "axis_async_fifo.m_depth_commit_reg"
+          ]
+        },
+        {
+          "confidence": "established",
+          "fingerprint": "2af2453488cbd315",
+          "rule_id": "SLANG-unnamed-generate",
+          "severity": "WARNING",
+          "signals": []
+        },
+        {
+          "confidence": "established",
+          "fingerprint": "2835a1af1931ce62",
+          "rule_id": "SLANG-unnamed-generate",
+          "severity": "WARNING",
+          "signals": []
+        }
+      ],
+      "equivalence_assessment": "changes active logic in the pinned configuration",
+      "exit_code": 6,
+      "expected_rule": "RDC-009",
+      "id": "rdc-axis-reset-mux-functional-select",
+      "line": null,
+      "matched": {
+        "classification": "heuristic",
+        "confidence": "heuristic",
+        "disposition": "REVIEW_REQUIRED",
+        "line": 358,
+        "required_signals": [
+          "axis_async_fifo.muxed_m_rst"
+        ],
+        "rule": "RDC-009",
+        "severity": "WARNING",
+        "signals": [
+          "axis_async_fifo.muxed_m_rst"
+        ]
+      },
+      "mutant_sha256": "12e8c71611ea55abf3c37bf79c4765d9eae6c1cbf405195bdf9546412406e8e1",
+      "operator": "rdc-axis-reset-mux-functional-select",
+      "original_sha256": "fe5ff09a96a5f6fd13606529e0265f3e44aca308dcd83121f963f1dc7d53fb40",
+      "outcome": "CAUGHT",
+      "paired_baseline_sha256": "44bd143abb0026c565e6fc96fd08f3d3895a7469323fa4bdcfbb102f713c37ae",
+      "precondition": "m_pause_req is a non-reset top-level control input (unused under PAUSE_ENABLE=0); using it to select between s_rst and m_rst introduces a combinational reset mux that can glitch when the select toggles.",
+      "report_sha256": "8f1b31fdfd27c86e15afce2353cdd196568aacd3ce186eaa3f929f1e8562247a",
+      "required_signals": [
+        "axis_async_fifo.muxed_m_rst"
+      ],
+      "source_commit": "48ff7a7e2ef782cf778d47910cf85835c64b1bce",
+      "source_path": "rtl/axis_async_fifo.v",
+      "triage": "independently_reviewed"
+    },
+    {
+      "defect": "drive i_spill_register asynchronous reset from functional FSM data register ack_dst_q",
+      "design": "cc_cdc_4phase",
+      "disappeared": [
+        {
+          "confidence": "heuristic",
+          "fingerprint": "fe7f65bc0fafc561",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_4phase.i_dst.gen_decoupled.i_spill_register.spill_register_flushable_i.gen_spill_reg.a_data_q",
+            "cc_cdc_4phase.i_src.data_src_q"
+          ]
+        }
+      ],
+      "equivalence_assessment": "changes active logic in the pinned configuration",
+      "exit_code": 6,
+      "expected_rule": "RDC-014",
+      "id": "rdc-4phase-data-flop-drives-reset",
+      "line": null,
+      "matched": {
+        "classification": "heuristic",
+        "confidence": "heuristic",
+        "disposition": "REVIEW_REQUIRED",
+        "line": null,
+        "required_signals": [
+          "cc_cdc_4phase.i_dst.ack_dst_q"
+        ],
+        "rule": "RDC-014",
+        "severity": "WARNING",
+        "signals": [
+          "cc_cdc_4phase.i_dst.ack_dst_q"
+        ]
+      },
+      "mutant_sha256": "7caf5f94737309a9ef6344d7634e67c1f81e6ba3c084db70940db6182a4a272d",
+      "operator": "rdc-4phase-data-flop-drives-reset",
+      "original_sha256": "0427c1251ef95d56b07d567477c176f35af12499842205eb45533a20e3474f7f",
+      "outcome": "CAUGHT",
+      "paired_baseline_sha256": "c56a0b1f47e830fcf16f6819d07acc7a8fff56084d9be68568e4a5fb27dbec62",
+      "precondition": "Decoupled defaults to 1 so i_spill_register is instantiated in dst_clk_i; ack_dst_q is a functional handshake register in dst_clk_i, not a reset synchronizer, so using it as an async reset risks pulse-width and glitch defects.",
+      "report_sha256": "3bda658c9c474f7bb489f203ddfb6f267ee83ad0af74d1f50ccdc7a747eb58cc",
+      "required_signals": [
+        "cc_cdc_4phase.i_dst.ack_dst_q"
+      ],
+      "source_commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+      "source_path": "src/cc_cdc_4phase.sv",
+      "triage": "independently_reviewed"
+    },
+    {
+      "defect": "gate i_dst asynchronous reset with a register (async_wptr_req / req_src_q) from the source reset domain",
+      "design": "cc_cdc_fifo_2phase",
+      "disappeared": [
+        {
+          "confidence": "informational",
+          "fingerprint": "31639c7c6211caf8",
+          "rule_id": "RDC-013",
+          "severity": "WARNING",
+          "signals": []
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "88274b0ccdfcdb15",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_fifo_2phase.i_dst.i_cdc_wptr_dst.data_dst_q",
+            "cc_cdc_fifo_2phase.i_src.i_cdc_wptr_src.data_src_q"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "5bf9ded78c5131ab",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_fifo_2phase.i_src.i_cdc_rptr_dst.data_dst_q",
+            "cc_cdc_fifo_2phase.i_dst.i_cdc_rptr_src.data_src_q"
+          ]
+        },
+        {
+          "confidence": "informational",
+          "fingerprint": "5145079aba23d90b",
+          "rule_id": "RDC-003",
+          "severity": "INFO",
+          "signals": [
+            "cc_cdc_fifo_2phase.dst_rst_ni",
+            "cc_cdc_fifo_2phase.dst_clk_i"
+          ]
+        },
+        {
+          "confidence": "informational",
+          "fingerprint": "2c6b141980acfe07",
+          "rule_id": "RDC-001",
+          "severity": "INFO",
+          "signals": []
+        },
+        {
+          "confidence": "informational",
+          "fingerprint": "a38788e1dcde91fa",
+          "rule_id": "RDC-003",
+          "severity": "INFO",
+          "signals": [
+            "cc_cdc_fifo_2phase.src_rst_ni",
+            "cc_cdc_fifo_2phase.src_clk_i"
+          ]
+        },
+        {
+          "confidence": "established",
+          "fingerprint": "01fc0e9881ee1d67",
+          "rule_id": "LNT-010",
+          "severity": "WARNING",
+          "signals": []
+        },
+        {
+          "confidence": "established",
+          "fingerprint": "2a924d053bc687e0",
+          "rule_id": "LNT-010",
+          "severity": "WARNING",
+          "signals": []
+        },
+        {
+          "confidence": "established",
+          "fingerprint": "f6e233407746a71d",
+          "rule_id": "LNT-010",
+          "severity": "WARNING",
+          "signals": []
+        },
+        {
+          "confidence": "established",
+          "fingerprint": "e1747511eb38b92e",
+          "rule_id": "LNT-010",
+          "severity": "WARNING",
+          "signals": []
+        },
+        {
+          "confidence": "informational",
+          "fingerprint": "6d646d2463473bf0",
+          "rule_id": "RDC-001",
+          "severity": "INFO",
+          "signals": []
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "f0e1fc5dd8563cf2",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_fifo_2phase.i_dst.i_cdc_rptr_src.i_sync.reg_q",
+            "cc_cdc_fifo_2phase.i_src.i_cdc_rptr_dst.ack_dst_q"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "5e1ded81a579f6d2",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_fifo_2phase.i_dst.i_cdc_wptr_dst.i_sync.reg_q",
+            "cc_cdc_fifo_2phase.i_src.i_cdc_wptr_src.req_src_q"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "f67a1f95ebda2878",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_fifo_2phase.i_src.i_cdc_rptr_dst.i_sync.reg_q",
+            "cc_cdc_fifo_2phase.i_dst.i_cdc_rptr_src.req_src_q"
+          ]
+        },
+        {
+          "confidence": "heuristic",
+          "fingerprint": "39d0ecc94cf624e0",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_fifo_2phase.i_src.i_cdc_wptr_src.i_sync.reg_q",
+            "cc_cdc_fifo_2phase.i_dst.i_cdc_wptr_dst.ack_dst_q"
+          ]
+        }
+      ],
+      "equivalence_assessment": "changes active logic in the pinned configuration",
+      "exit_code": 5,
+      "expected_rule": "RDC-017",
+      "id": "rdc-fifo2phase-reset-gate-cross-domain-select",
+      "line": null,
+      "matched": {
+        "classification": "heuristic",
+        "confidence": "heuristic",
+        "disposition": "REVIEW_REQUIRED",
+        "line": null,
+        "required_signals": [
+          "cc_cdc_fifo_2phase.gated_dst_rst_n",
+          "cc_cdc_fifo_2phase.i_src.i_cdc_wptr_src.req_src_q"
+        ],
+        "rule": "RDC-017",
+        "severity": "WARNING",
+        "signals": [
+          "cc_cdc_fifo_2phase.gated_dst_rst_n",
+          "cc_cdc_fifo_2phase.i_src.i_cdc_wptr_src.req_src_q"
+        ]
+      },
+      "mutant_sha256": "d8b599fae0337f16c472ee933cc9faa2f05f3f1ce951a9211838d11319a5abe9",
+      "operator": "rdc-fifo2phase-reset-gate-cross-domain-select",
+      "original_sha256": "1b8a440361eea9de681f801c217f240232a11d159e29315861227258ceaad2a7",
+      "outcome": "CAUGHT",
+      "paired_baseline_sha256": "e586f10cd4f25bf46fc2dfbee9fdcacaf1d0ffa53e56fcfb685e6d003a283f98",
+      "precondition": "async_wptr_req is driven by i_src.i_cdc_wptr_src.req_src_q which is reset by src_rst_ni, a different reset domain from i_dst; gating dst_rst_ni with it lets a source reset toggle or glitch the destination reset tree.",
+      "report_sha256": "c409bcab70fcf6c4daca3148475b2311dd404e21404794bc6229c4cdaf6ee63e",
+      "required_signals": [
+        "cc_cdc_fifo_2phase.gated_dst_rst_n",
+        "cc_cdc_fifo_2phase.i_src.i_cdc_wptr_src.req_src_q"
+      ],
+      "source_commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+      "source_path": "src/cc_cdc_fifo_2phase.sv",
+      "triage": "independently_reviewed"
+    },
+    {
+      "defect": "instantiate active-high async reset macro FFLAR on active-low reset port src_rst_ni for req_src_q",
+      "design": "cc_cdc_2phase",
+      "disappeared": [],
+      "equivalence_assessment": "changes active logic in the pinned configuration",
+      "exit_code": 5,
+      "expected_rule": "RDC-028",
+      "id": "rdc-2phase-reset-both-polarities",
+      "line": 141,
+      "matched": {
+        "classification": "established",
+        "confidence": "established",
+        "disposition": "OPEN",
+        "line": 30,
+        "required_signals": [
+          "cc_cdc_2phase.src_rst_ni"
+        ],
+        "rule": "RDC-028",
+        "severity": "ERROR",
+        "signals": [
+          "cc_cdc_2phase.src_rst_ni"
+        ]
+      },
+      "mutant_sha256": "fcc8721373eb024ebc9d054c06433ed7c2faa54f52a29916186fc966eb8adcd8",
+      "operator": "rdc-2phase-reset-both-polarities",
+      "original_sha256": "fa6ad79abf71c03b4e49580761dde3c2c39ff93cc70c901babc8450d6ac007ff",
+      "outcome": "CAUGHT",
+      "paired_baseline_sha256": "11c4c31c3916a8486362b5d3370565a2ab25b3d29a64f66de7c860ce4c2b20e2",
+      "precondition": "src_rst_ni resets data_src_q and i_sync active-low (negedge); switching req_src_q to FFLAR (posedge) makes src_rst_ni active with both polarities, holding req_src_q in reset during normal operation.",
+      "report_sha256": "6b113e9ced5fd05d25103bdecce5e243a346edd9c7ed069048383de40285cc6e",
+      "required_signals": [
+        "cc_cdc_2phase.src_rst_ni"
+      ],
+      "source_commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+      "source_path": "src/cc_cdc_2phase.sv",
+      "triage": "independently_reviewed"
+    },
+    {
+      "defect": "drop asynchronous reset on req_src_q while its same-clock FSM driver state_q stays asynchronously reset",
+      "design": "cc_cdc_4phase",
+      "disappeared": [
+        {
+          "confidence": "heuristic",
+          "fingerprint": "cd93cfbb7dce47c2",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_4phase.i_dst.i_sync.reg_q",
+            "cc_cdc_4phase.i_src.req_src_q"
+          ]
+        }
+      ],
+      "endpoint": "cc_cdc_4phase.i_src.req_src_q",
+      "equivalence_assessment": "changes active logic in the pinned configuration",
+      "exit_code": 6,
+      "expected_rule": "RDC-004",
+      "id": "rdc-4phase-same-clock-unreset-dest",
+      "launch": "cc_cdc_4phase.i_src.state_q",
+      "line": 199,
+      "matched": {
+        "classification": "heuristic",
+        "confidence": "heuristic",
+        "disposition": "REVIEW_REQUIRED",
+        "endpoint": "cc_cdc_4phase.i_src.req_src_q",
+        "line": null,
+        "rule": "RDC-004",
+        "severity": "WARNING"
+      },
+      "mutant_sha256": "93287087446645e2d11361831f243a6fe71a6a6dbc1438a50cf8a29efb0ffcfb",
+      "operator": "rdc-4phase-same-clock-unreset-dest",
+      "original_sha256": "0427c1251ef95d56b07d567477c176f35af12499842205eb45533a20e3474f7f",
+      "outcome": "CAUGHT",
+      "paired_baseline_sha256": "c3304b0ff243488f3ff6db0430bd5682343d6a1dad375212a78a8dd3e21df1a1",
+      "precondition": "i_src.state_q drives req_src_d into i_src.req_src_q on src_clk_i; removing req_src_q's async reset creates a same-clock reset-domain crossing where asserting src_rst_ni changes state_q while req_src_q keeps sampling.",
+      "report_sha256": "c1d001768961a4f20f41e042e263665f03674e9be42fb432f6a83580f94006a7",
+      "source_commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+      "source_path": "src/cc_cdc_4phase.sv",
+      "triage": "independently_reviewed"
+    },
+    {
+      "defect": "make overflow_sync1_reg asynchronously reset by s_rst while its cross-clock capture overflow_sync2_reg in m_clk is not reset by s_rst",
+      "design": "axis_async_fifo",
+      "disappeared": [],
+      "endpoint": "axis_async_fifo.overflow_sync2_reg",
+      "equivalence_assessment": "changes active logic in the pinned configuration",
+      "exit_code": 6,
+      "expected_rule": "RDC-005",
+      "id": "rdc-axis-async-reset-one-side-of-crossing",
+      "launch": "axis_async_fifo.overflow_sync1_reg",
+      "line": null,
+      "matched": {
+        "classification": "heuristic",
+        "confidence": "heuristic",
+        "disposition": "REVIEW_REQUIRED",
+        "endpoint": "axis_async_fifo.overflow_sync2_reg",
+        "line": 621,
+        "rule": "RDC-005",
+        "severity": "WARNING"
+      },
+      "mutant_sha256": "2db6a56cde0102c057a79760c92dc46bb9c1f8da47e3f772a7b29e0d7bcf342e",
+      "operator": "rdc-axis-async-reset-one-side-of-crossing",
+      "original_sha256": "fe5ff09a96a5f6fd13606529e0265f3e44aca308dcd83121f963f1dc7d53fb40",
+      "outcome": "CAUGHT",
+      "paired_baseline_sha256": "724ec751f0b1cd7f7f6786910e958e07f7e2030c4af4386dc473853ee6171dd9",
+      "precondition": "overflow_sync1_reg (s_clk) -> overflow_sync2_reg (m_clk) is an active cross-clock toggle path under default parameters; converting only the source to async s_rst creates an independent cross-clock reset-domain crossing.",
+      "report_sha256": "3bc74efd328a2563e1c0b9d078a2bde64d550363a24e6035e614e8143e1569ea",
+      "source_commit": "48ff7a7e2ef782cf778d47910cf85835c64b1bce",
+      "source_path": "rtl/axis_async_fifo.v",
+      "triage": "independently_reviewed"
+    },
+    {
+      "defect": "remove asynchronous reset from transition-detector register req_synced_q1 while it feeds reset register ack_dst_q",
+      "design": "cc_cdc_2phase",
+      "disappeared": [],
+      "endpoint": "cc_cdc_2phase.i_dst.ack_dst_q",
+      "equivalence_assessment": "changes active logic in the pinned configuration",
+      "exit_code": 6,
+      "expected_rule": "RDC-010",
+      "id": "rdc-2phase-unreset-reg-feeds-reset-reg",
+      "launch": "cc_cdc_2phase.i_dst.req_synced_q1",
+      "line": 199,
+      "matched": {
+        "classification": "heuristic",
+        "confidence": "heuristic",
+        "disposition": "REVIEW_REQUIRED",
+        "endpoint": "cc_cdc_2phase.i_dst.ack_dst_q",
+        "line": null,
+        "rule": "RDC-010",
+        "severity": "WARNING"
+      },
+      "mutant_sha256": "9e63d6abb0a016a70e9db5669fa4847bbf0fd858eedee9b8f216f6f30a423d5e",
+      "operator": "rdc-2phase-unreset-reg-feeds-reset-reg",
+      "original_sha256": "fa6ad79abf71c03b4e49580761dde3c2c39ff93cc70c901babc8450d6ac007ff",
+      "outcome": "CAUGHT",
+      "paired_baseline_sha256": "e9a90c145d8eb755104cbf49ccabaceba45dd033d8769d3c8becbaac2236f853",
+      "precondition": "req_synced_q1 drives valid_o -> dst_accept -> ack_dst_q in the same module instance cc_cdc_2phase.i_dst; removing its reset lets an unknown/stale post-reset state corrupt ack_dst_q.",
+      "report_sha256": "c4ec04478d71b6a459964b9a67c8e09938b515164ca85be49d0f6ecff2c3008e",
+      "source_commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+      "source_path": "src/cc_cdc_2phase.sv",
+      "triage": "independently_reviewed"
+    },
+    {
+      "defect": "reset only lower index bits [LogDepth-1:0] of packed write pointer src_wptr_q, leaving wrap-around MSB unreset",
+      "design": "cc_cdc_fifo_2phase",
+      "disappeared": [
+        {
+          "confidence": "informational",
+          "fingerprint": "5145079aba23d90b",
+          "rule_id": "RDC-003",
+          "severity": "INFO",
+          "signals": [
+            "cc_cdc_fifo_2phase.dst_rst_ni",
+            "cc_cdc_fifo_2phase.dst_clk_i"
+          ]
+        },
+        {
+          "confidence": "established",
+          "fingerprint": "01fc0e9881ee1d67",
+          "rule_id": "LNT-010",
+          "severity": "WARNING",
+          "signals": []
+        },
+        {
+          "confidence": "established",
+          "fingerprint": "2a924d053bc687e0",
+          "rule_id": "LNT-010",
+          "severity": "WARNING",
+          "signals": []
+        },
+        {
+          "confidence": "established",
+          "fingerprint": "f6e233407746a71d",
+          "rule_id": "LNT-010",
+          "severity": "WARNING",
+          "signals": []
+        },
+        {
+          "confidence": "established",
+          "fingerprint": "e1747511eb38b92e",
+          "rule_id": "LNT-010",
+          "severity": "WARNING",
+          "signals": []
+        }
+      ],
+      "equivalence_assessment": "changes active logic in the pinned configuration",
+      "exit_code": 6,
+      "expected_rule": "RDC-020",
+      "id": "rdc-fifo2phase-partial-reset-wptr",
+      "line": 184,
+      "matched": {
+        "classification": "heuristic",
+        "confidence": "heuristic",
+        "disposition": "REVIEW_REQUIRED",
+        "line": 184,
+        "required_signals": [
+          "cc_cdc_fifo_2phase.i_src.src_wptr_q"
+        ],
+        "rule": "RDC-020",
+        "severity": "WARNING",
+        "signals": [
+          "cc_cdc_fifo_2phase.i_src.src_wptr_q"
+        ]
+      },
+      "mutant_sha256": "6e96272b66b9fa3421f65507346f073914ea8cc1df4051eff6b70d50f4172357",
+      "operator": "rdc-fifo2phase-partial-reset-wptr",
+      "original_sha256": "1b8a440361eea9de681f801c217f240232a11d159e29315861227258ceaad2a7",
+      "outcome": "CAUGHT",
+      "paired_baseline_sha256": "0f0ff597e1e0a062e33853284e55678c691c7dc89359abaf8db3f7718434769e",
+      "precondition": "src_wptr_q is LogDepth+1 (4) bits wide and its MSB determines FIFO full/empty status on src_ready_o; resetting only LogDepth bits leaves bit 3 unreset after asynchronous reset.",
+      "report_sha256": "200303f593c04f980ffed1efb88d1ef76372cccae83197e22a30c57a0b904dae",
+      "required_signals": [
+        "cc_cdc_fifo_2phase.i_src.src_wptr_q"
+      ],
+      "source_commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+      "source_path": "src/cc_cdc_fifo_2phase.sv",
+      "triage": "independently_reviewed"
+    },
+    {
+      "accept_unresolved": true,
+      "defect": "assign constant 'x as the asynchronous reset value of write pointer wptr_q feeding primary output src_ready_o",
+      "design": "cc_cdc_fifo_gray",
+      "disappeared": [],
+      "endpoint": "cc_cdc_fifo_gray.src_ready_o",
+      "equivalence_assessment": "changes active logic in the pinned configuration",
+      "exit_code": 6,
+      "expected_rule": "RDC-025",
+      "id": "rdc-gray-x-reset-value-to-output",
+      "launch": "cc_cdc_fifo_gray.i_src.i_src_ptr.wptr_q",
+      "line": 343,
+      "matched": {
+        "accept_unresolved": true,
+        "classification": "unresolved",
+        "confidence": "unresolved",
+        "disposition": "REVIEW_REQUIRED",
+        "endpoint": "cc_cdc_fifo_gray.src_ready_o",
+        "line": null,
+        "require_incomplete_scope": "reset-extraction",
+        "rule": "RDC-025",
+        "severity": "WARNING"
+      },
+      "mutant_sha256": "b02f8e9979dcb22a9624ab9c492a7881fb4315aa46f52af14925f39a34b9c197",
+      "operator": "rdc-gray-x-reset-value-to-output",
+      "original_sha256": "d3957e376134fa3020f45edc9573fdae10f504167ebc7d6aadf71fbd7474680a",
+      "outcome": "CAUGHT",
+      "paired_baseline_sha256": "24b617b2d5bff9bf2978ac5b33efa05272826ab27470f2fe1fe273054df9da52",
+      "precondition": "wptr_q combinationally drives src_ready_o via i_wptr_g2b; forcing 'x on reset leaves wptr_q's reset value undecided and makes top-level output src_ready_o undefined during reset.",
+      "report_sha256": "34aac122e52bb556cc96953249c8891d636a0d9492381d60488fd7255c5e0479",
+      "require_incomplete_scope": "reset-extraction",
+      "source_commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+      "source_path": "src/cc_cdc_fifo_gray.sv",
+      "triage": "independently_reviewed"
+    },
+    {
+      "defect": "use asynchronous reset input src_rst_ni as a functional combinational gate on i_dst.ready_i",
+      "design": "cc_cdc_2phase",
+      "disappeared": [],
+      "equivalence_assessment": "changes active logic in the pinned configuration",
+      "exit_code": 6,
+      "expected_rule": "RDC-019",
+      "id": "rdc-2phase-reset-used-as-data",
+      "line": 94,
+      "matched": {
+        "classification": "heuristic",
+        "confidence": "heuristic",
+        "disposition": "REVIEW_REQUIRED",
+        "line": 30,
+        "required_signals": [
+          "cc_cdc_2phase.src_rst_ni"
+        ],
+        "rule": "RDC-019",
+        "severity": "WARNING",
+        "signals": [
+          "cc_cdc_2phase.src_rst_ni",
+          "cc_cdc_2phase.i_dst.ack_dst_q"
+        ]
+      },
+      "mutant_sha256": "13efbd9185efdb04a98fe6fde097ec55836df1a122425d8206bf067522ba2a7d",
+      "operator": "rdc-2phase-reset-used-as-data",
+      "original_sha256": "fa6ad79abf71c03b4e49580761dde3c2c39ff93cc70c901babc8450d6ac007ff",
+      "outcome": "CAUGHT",
+      "paired_baseline_sha256": "b81055039583435664bf40a9599f0e2a8300974f6c645561cfe091cc55854baa",
+      "precondition": "src_rst_ni asynchronously resets all registers in i_src; gating i_dst's dst_ready_i with src_rst_ni changes active destination handshake behavior and mixes async-reset and functional-data timing paths on src_rst_ni.",
+      "report_sha256": "f74a6353ae8e05bf970b80d7512c4edb63fdef263be195c10bbea7c13c105101",
+      "required_signals": [
+        "cc_cdc_2phase.src_rst_ni"
+      ],
+      "source_commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+      "source_path": "src/cc_cdc_2phase.sv",
+      "triage": "independently_reviewed"
+    },
+    {
+      "defect": "add an asynchronous active-high set (posedge ready_i) alongside asynchronous active-low clear (negedge rst_ni) on ack_dst_q",
+      "design": "cc_cdc_4phase",
+      "disappeared": [
+        {
+          "confidence": "heuristic",
+          "fingerprint": "08e2a23c35d018de",
+          "rule_id": "RDC-005",
+          "severity": "WARNING",
+          "signals": [
+            "cc_cdc_4phase.i_src.i_sync.reg_q",
+            "cc_cdc_4phase.i_dst.ack_dst_q"
+          ]
+        }
+      ],
+      "equivalence_assessment": "changes active logic in the pinned configuration",
+      "exit_code": 6,
+      "expected_rule": "RDC-026",
+      "id": "rdc-4phase-dual-async-set-clear",
+      "line": 310,
+      "matched": {
+        "classification": "established",
+        "confidence": "established",
+        "disposition": "REVIEW_REQUIRED",
+        "line": 310,
+        "required_signals": [
+          "cc_cdc_4phase.i_dst.ack_dst_q"
+        ],
+        "rule": "RDC-026",
+        "severity": "WARNING",
+        "signals": [
+          "cc_cdc_4phase.i_dst.ack_dst_q"
+        ]
+      },
+      "mutant_sha256": "8b9e8746342220ef205547bbee7bad1168366fa34e4064620c748af39bb2f91b",
+      "operator": "rdc-4phase-dual-async-set-clear",
+      "original_sha256": "0427c1251ef95d56b07d567477c176f35af12499842205eb45533a20e3474f7f",
+      "outcome": "CAUGHT",
+      "paired_baseline_sha256": "de7b0693f02f8b93174d21dfa290d0476309e19a5cc30bdc85752e0d64fe4451",
+      "precondition": "ack_dst_q is an active destination handshake register; adding a second unconditional asynchronous control with opposite forced value creates a simultaneous async set/clear conflict.",
+      "report_sha256": "29f4d17f6aec6a8d196a0228fc10143258ac8c6c61b7ebadde6b271a89047d05",
+      "required_signals": [
+        "cc_cdc_4phase.i_dst.ack_dst_q"
+      ],
+      "source_commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+      "source_path": "src/cc_cdc_4phase.sv",
+      "triage": "independently_reviewed"
+    },
+    {
+      "defect": "apply set_false_path -from [get_ports dst_rst_ni] on asynchronous reset root dst_rst_ni",
+      "design": "cc_cdc_fifo_gray",
+      "disappeared": [],
+      "equivalence_assessment": "changes active logic in the pinned configuration",
+      "exit_code": 6,
+      "expected_rule": "RDC-027",
+      "id": "rdc-gray-false-path-on-reset",
+      "line": 15,
+      "matched": {
+        "classification": "established",
+        "confidence": "established",
+        "disposition": "REVIEW_REQUIRED",
+        "line": 16,
+        "required_signals": [
+          "cc_cdc_fifo_gray.dst_rst_ni"
+        ],
+        "rule": "RDC-027",
+        "severity": "WARNING",
+        "signals": [
+          "cc_cdc_fifo_gray.dst_rst_ni"
+        ]
+      },
+      "mutant_sdc_sha256": "c08542decb48284ee3eaf227ba25157f0f4ae025e2bdacaf11b8bf2f32b5bf4a",
+      "mutant_sha256": "c08542decb48284ee3eaf227ba25157f0f4ae025e2bdacaf11b8bf2f32b5bf4a",
+      "operator": "rdc-gray-false-path-on-reset",
+      "original_sdc_sha256": "8297b532772f19fc7c27391c29cb13b888897ff2047b9959073ae7e62077355e",
+      "original_sha256": "8297b532772f19fc7c27391c29cb13b888897ff2047b9959073ae7e62077355e",
+      "outcome": "CAUGHT",
+      "paired_baseline_sha256": "96debdcc8d5b941b45f226e9b46c3898e5dcb03a1d0e4dfe9bc7c0343b68214c",
+      "precondition": "dst_rst_ni directly resets functional destination registers in cc_cdc_fifo_gray (not only a reset synchronizer); a false path hides recovery/removal timing checks without establishing reset safety.",
+      "report_sha256": "bedd4c56c810ca742d762d08443289cfdfba764e7443878a39883cda70da8eb0",
+      "required_signals": [
+        "cc_cdc_fifo_gray.dst_rst_ni"
+      ],
+      "source_commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+      "source_path": "tests/public_projects/reviewed_sdc/cc_cdc_fifo_gray.sdc",
+      "target": "sdc",
+      "triage": "independently_reviewed"
+    },
+    {
+      "defect": "apply set_multicycle_path 2 -setup -from [get_ports src_rst_ni] on asynchronous reset root src_rst_ni",
+      "design": "cc_cdc_2phase",
+      "disappeared": [],
+      "equivalence_assessment": "changes active logic in the pinned configuration",
+      "exit_code": 6,
+      "expected_rule": "RDC-027",
+      "id": "rdc-2phase-multicycle-path-on-reset",
+      "line": 11,
+      "matched": {
+        "classification": "established",
+        "confidence": "established",
+        "disposition": "REVIEW_REQUIRED",
+        "line": 12,
+        "required_message_contains": "set_multicycle_path",
+        "required_signals": [
+          "cc_cdc_2phase.src_rst_ni"
+        ],
+        "rule": "RDC-027",
+        "severity": "WARNING",
+        "signals": [
+          "cc_cdc_2phase.src_rst_ni"
+        ]
+      },
+      "mutant_sdc_sha256": "4979d1ce7213c00aa3d690aba1df07c725c4dd92d9efb0c8e6e810e6399ec985",
+      "mutant_sha256": "4979d1ce7213c00aa3d690aba1df07c725c4dd92d9efb0c8e6e810e6399ec985",
+      "operator": "rdc-2phase-multicycle-path-on-reset",
+      "original_sdc_sha256": "1a6d988d568605bb2c289158a7a70b50f1d54579655ff463043af185394dbb8a",
+      "original_sha256": "1a6d988d568605bb2c289158a7a70b50f1d54579655ff463043af185394dbb8a",
+      "outcome": "CAUGHT",
+      "paired_baseline_sha256": "33eceeac9f4d6e64fb259687912c87ccbdc351ff219864f08dbccbc66e46ebe8",
+      "precondition": "src_rst_ni directly resets functional source registers in cc_cdc_2phase; relaxing its recovery check with a multicycle exception does not establish reset-domain safety.",
+      "report_sha256": "728a7b6289f36caf3b2260315c0be1e288d962bc0ac77bf265b364431d9adbd5",
+      "required_message_contains": "set_multicycle_path",
+      "required_signals": [
+        "cc_cdc_2phase.src_rst_ni"
+      ],
+      "source_commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+      "source_path": "tests/public_projects/reviewed_sdc/cc_cdc_2phase.sdc",
+      "target": "sdc",
+      "triage": "independently_reviewed"
+    },
+    {
+      "defect": "apply set_false_path -through [get_ports dst_rst_ni] on asynchronous reset root dst_rst_ni",
+      "design": "cc_cdc_4phase",
+      "disappeared": [],
+      "equivalence_assessment": "changes active logic in the pinned configuration",
+      "exit_code": 6,
+      "expected_rule": "RDC-027",
+      "id": "rdc-4phase-false-path-through-reset",
+      "line": 11,
+      "matched": {
+        "classification": "established",
+        "confidence": "established",
+        "disposition": "REVIEW_REQUIRED",
+        "line": 12,
+        "required_message_contains": "set_false_path",
+        "required_signals": [
+          "cc_cdc_4phase.dst_rst_ni"
+        ],
+        "rule": "RDC-027",
+        "severity": "WARNING",
+        "signals": [
+          "cc_cdc_4phase.dst_rst_ni"
+        ]
+      },
+      "mutant_sdc_sha256": "4f8fa7de164a79e40de7d8f6bebcc24c4601cd4f469c26d16949f801ab230ef9",
+      "mutant_sha256": "4f8fa7de164a79e40de7d8f6bebcc24c4601cd4f469c26d16949f801ab230ef9",
+      "operator": "rdc-4phase-false-path-through-reset",
+      "original_sdc_sha256": "33a432339724c3b279583d0bf9e17be798958c8b7ee8c42d9e2fea61f2610872",
+      "original_sha256": "33a432339724c3b279583d0bf9e17be798958c8b7ee8c42d9e2fea61f2610872",
+      "outcome": "CAUGHT",
+      "paired_baseline_sha256": "2ffac18ee8fde1d3f0772c918fad88eb631f0355bce2815d1bcb04fc5c88aa28",
+      "precondition": "dst_rst_ni directly resets functional destination registers in cc_cdc_4phase; a -through false path suppresses reset timing checks without establishing reset-domain safety.",
+      "report_sha256": "879ef28fbff11b56565353f33b84ae51f30d978cc37e5de323d88a0d6e78b90d",
+      "required_message_contains": "set_false_path",
+      "required_signals": [
+        "cc_cdc_4phase.dst_rst_ni"
+      ],
+      "source_commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+      "source_path": "tests/public_projects/reviewed_sdc/cc_cdc_4phase.sdc",
+      "target": "sdc",
+      "triage": "independently_reviewed"
+    }
+  ],
+  "options": {
+    "deck": "rdc",
+    "goal": "rdc",
+    "profile": "asic",
+    "sdc_dir": "tests/public_projects/reviewed_sdc"
+  },
+  "repository_pins": {
+    "common_cells": {
+      "commit": "e73baaec2ca665cd80c3c384e9258e35242b829c",
+      "url": "https://github.com/pulp-platform/common_cells"
+    },
+    "tech_cells_generic": {
+      "commit": "55cb54513e2d426be5992d311cb9d5dbcad10c78",
+      "url": "https://github.com/pulp-platform/tech_cells_generic"
+    },
+    "verilog-axis": {
+      "commit": "48ff7a7e2ef782cf778d47910cf85835c64b1bce",
+      "url": "https://github.com/alexforencich/verilog-axis"
+    }
+  },
+  "residual_counts": {
+    "established": 21,
+    "generic_obligation": 0,
+    "heuristic": 49,
+    "informational": 30,
+    "not_analysed": 0,
+    "resolved": 0,
+    "unresolved": 19,
+    "waived": 0
+  },
+  "residual_inventory": [
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "clock domain 'axis_async_fifo.m_clk': 1 register bit(s) with asynchronous reset, 40 with a probable synchronous reset (heuristic), 116 with no reset (classified NO_RESET_INFERRED; not declared by the user)",
+      "obligation": "",
+      "rule": "CST-001",
+      "severity": "INFO",
+      "site": "design"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "clock domain 'axis_async_fifo.s_clk': 1 register bit(s) with asynchronous reset, 28 with a probable synchronous reset (heuristic), 119 with no reset (classified NO_RESET_INFERRED; not declared by the user)",
+      "obligation": "",
+      "rule": "CST-001",
+      "severity": "INFO",
+      "site": "design"
+    },
+    {
+      "classification": "unresolved",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "1 precision fallback(s) of kind 'wide-symbol' in the connectivity/clock/reset model; results involving them are not conclusive",
+      "obligation": "",
+      "rule": "CST-010",
+      "severity": "WARNING",
+      "site": "axis_async_fifo.v:256"
+    },
+    {
+      "classification": "unresolved",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "2 precision fallback(s) of kind 'blocking-assignment-register' in the connectivity/clock/reset model; results involving them are not conclusive",
+      "obligation": "",
+      "rule": "CST-010",
+      "severity": "WARNING",
+      "site": "axis_async_fifo.v:384"
+    },
+    {
+      "classification": "established",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "unused variable 'mem_read_data_valid_reg'",
+      "obligation": "",
+      "rule": "LNT-011",
+      "severity": "INFO",
+      "site": "axis_async_fifo.v:257"
+    },
+    {
+      "classification": "established",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "unused variable 'write'",
+      "obligation": "",
+      "rule": "LNT-011",
+      "severity": "INFO",
+      "site": "axis_async_fifo.v:272"
+    },
+    {
+      "classification": "established",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "unused variable 'read'",
+      "obligation": "",
+      "rule": "LNT-011",
+      "severity": "INFO",
+      "site": "axis_async_fifo.v:273"
+    },
+    {
+      "classification": "established",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "unused variable 'store_output'",
+      "obligation": "",
+      "rule": "LNT-011",
+      "severity": "INFO",
+      "site": "axis_async_fifo.v:274"
+    },
+    {
+      "classification": "informational",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "reset source 'axis_async_fifo.m_rst' (top-level port, asynchronous, active-high by edge polarity): 1 register bit(s) in clock domain(s) [axis_async_fifo.m_clk]",
+      "obligation": "",
+      "rule": "RDC-001",
+      "severity": "INFO",
+      "site": "axis_async_fifo.v:357"
+    },
+    {
+      "classification": "informational",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "reset source 'axis_async_fifo.s_rst' (top-level port, asynchronous, active-high by edge polarity): 1 register bit(s) in clock domain(s) [axis_async_fifo.s_clk]",
+      "obligation": "",
+      "rule": "RDC-001",
+      "severity": "INFO",
+      "site": "axis_async_fifo.v:370"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "synchronous reset candidate 'axis_async_fifo.s_rst' (active-high by condition shape) clears: 28 register bit(s) assigned this value when it is asserted",
+      "obligation": "",
+      "rule": "RDC-001",
+      "severity": "INFO",
+      "site": "axis_async_fifo.v:570"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "synchronous reset candidate 'axis_async_fifo.m_rst' (active-high by condition shape) clears: 38 register bit(s) assigned this value when it is asserted",
+      "obligation": "",
+      "rule": "RDC-001",
+      "severity": "INFO",
+      "site": "axis_async_fifo.v:584"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "synchronous reset candidate 'axis_async_fifo.m_axis_tready_pipe' (active-high by condition shape) clears: 2 register bit(s) assigned this value when it is asserted",
+      "obligation": "",
+      "rule": "RDC-001",
+      "severity": "INFO",
+      "site": "axis_async_fifo.v:648"
+    },
+    {
+      "classification": "informational",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "asynchronous reset 'axis_async_fifo.m_rst' of 1 register bit(s) in clock domain 'axis_async_fifo.m_clk' comes from a primary input with release timed by the declared input delay on clock 'm_clk'",
+      "obligation": "",
+      "rule": "RDC-003",
+      "severity": "INFO",
+      "site": "axis_async_fifo.v:357"
+    },
+    {
+      "classification": "informational",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "asynchronous reset 'axis_async_fifo.s_rst' of 1 register bit(s) in clock domain 'axis_async_fifo.s_clk' comes from a primary input with release timed by the declared input delay on clock 's_clk'",
+      "obligation": "",
+      "rule": "RDC-003",
+      "severity": "INFO",
+      "site": "axis_async_fifo.v:370"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "register axis_async_fifo.s_rst_sync2_reg samples axis_async_fifo.s_rst_sync1_reg which is asynchronously reset by [axis_async_fifo.m_rst], but is not reset (different clocks: declared asynchronous): asserting the source reset can change the sampled value without resetting the destination; reset compatibility is an unproved functional obligation, even with a data synchroniser",
+      "obligation": "",
+      "rule": "RDC-005",
+      "severity": "WARNING",
+      "site": "axis_async_fifo.v:365"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "register axis_async_fifo.m_rst_sync2_reg samples axis_async_fifo.m_rst_sync1_reg which is asynchronously reset by [axis_async_fifo.s_rst], but is not reset (different clocks: declared asynchronous): asserting the source reset can change the sampled value without resetting the destination; reset compatibility is an unproved functional obligation, even with a data synchroniser",
+      "obligation": "",
+      "rule": "RDC-005",
+      "severity": "WARNING",
+      "site": "axis_async_fifo.v:378"
+    },
+    {
+      "classification": "unresolved",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "2 independent asynchronous reset sources exist; the order in which they assert and release is not modelled, and no constraint or intent describes it",
+      "obligation": "",
+      "rule": "RDC-011",
+      "severity": "WARNING",
+      "site": "design"
+    },
+    {
+      "classification": "unresolved",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "no power intent (UPF/CPF) is supported or supplied: retention, isolation and power-domain reset rules are not evaluated",
+      "obligation": "",
+      "rule": "RDC-012",
+      "severity": "WARNING",
+      "site": "design"
+    },
+    {
+      "classification": "informational",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "reset axis_async_fifo.m_rst: recovery/removal timing, minimum pulse width and metastability are physical properties that digital RTL cannot show; they are not analysed",
+      "obligation": "",
+      "rule": "RDC-013",
+      "severity": "WARNING",
+      "site": "design"
+    },
+    {
+      "classification": "informational",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "reset axis_async_fifo.s_rst: recovery/removal timing, minimum pulse width and metastability are physical properties that digital RTL cannot show; they are not analysed",
+      "obligation": "",
+      "rule": "RDC-013",
+      "severity": "WARNING",
+      "site": "design"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "reset axis_async_fifo.m_rst asynchronously resets 1 register(s) and is also used as a functional signal (synchronous reset or data): the two uses have different timing requirements",
+      "obligation": "",
+      "rule": "RDC-019",
+      "severity": "WARNING",
+      "site": "axis_async_fifo.v:357"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "reset axis_async_fifo.s_rst asynchronously resets 1 register(s) and is also used as a functional signal (synchronous reset or data): the two uses have different timing requirements",
+      "obligation": "",
+      "rule": "RDC-019",
+      "severity": "WARNING",
+      "site": "axis_async_fifo.v:370"
+    },
+    {
+      "classification": "unresolved",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "FIFO axis_async_fifo.rd_ptr_gray_reg / axis_async_fifo.wr_ptr_gray_reg: the order in which the two clock domains leave reset is not defined by the design; a side that leaves reset early can read or write before the other side's pointers are valid (the pointers are reset independently)",
+      "obligation": "reset release of both domains must be sequenced (or each side must ignore the other until a synchronised ready); not verified",
+      "rule": "RDC-023",
+      "severity": "WARNING",
+      "site": "axis_async_fifo.v:570"
+    },
+    {
+      "classification": "unresolved",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "toggle protocol axis_async_fifo.overflow_sync1_reg -> axis_async_fifo.overflow_sync2_reg: the source and the receiver are not reset together, so resetting one side alone can create a spurious event or lose one",
+      "obligation": "show that the two sides are only reset together, or that the receiver discards the event a one-sided reset creates",
+      "rule": "RDC-023",
+      "severity": "WARNING",
+      "site": "axis_async_fifo.v:621"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "primary output axis_async_fifo.s_axis_tready depends on register axis_async_fifo.s_rst_sync3_reg which has no reset: the output is undefined while its side of the interface is in reset",
+      "obligation": "",
+      "rule": "RDC-025",
+      "severity": "WARNING",
+      "site": "axis_async_fifo.v:365"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "primary output axis_async_fifo.s_status_bad_frame depends on register axis_async_fifo.bad_frame_reg which has no reset: the output is undefined while its side of the interface is in reset",
+      "obligation": "",
+      "rule": "RDC-025",
+      "severity": "WARNING",
+      "site": "axis_async_fifo.v:384"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "primary output axis_async_fifo.s_status_good_frame depends on register axis_async_fifo.good_frame_reg which has no reset: the output is undefined while its side of the interface is in reset",
+      "obligation": "",
+      "rule": "RDC-025",
+      "severity": "WARNING",
+      "site": "axis_async_fifo.v:384"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "primary output axis_async_fifo.s_status_overflow depends on register axis_async_fifo.overflow_reg which has no reset: the output is undefined while its side of the interface is in reset",
+      "obligation": "",
+      "rule": "RDC-025",
+      "severity": "WARNING",
+      "site": "axis_async_fifo.v:384"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "primary output axis_async_fifo.s_status_depth depends on register axis_async_fifo.s_depth_reg which has no reset: the output is undefined while its side of the interface is in reset",
+      "obligation": "",
+      "rule": "RDC-025",
+      "severity": "WARNING",
+      "site": "axis_async_fifo.v:563"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "primary output axis_async_fifo.s_status_depth_commit depends on register axis_async_fifo.s_depth_commit_reg which has no reset: the output is undefined while its side of the interface is in reset",
+      "obligation": "",
+      "rule": "RDC-025",
+      "severity": "WARNING",
+      "site": "axis_async_fifo.v:563"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "primary output axis_async_fifo.m_axis_tdata depends on register axis_async_fifo.m_axis_pipe_reg which has no reset: the output is undefined while its side of the interface is in reset",
+      "obligation": "",
+      "rule": "RDC-025",
+      "severity": "WARNING",
+      "site": "axis_async_fifo.v:648"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "primary output axis_async_fifo.m_axis_tlast depends on register axis_async_fifo.m_axis_pipe_reg which has no reset: the output is undefined while its side of the interface is in reset",
+      "obligation": "",
+      "rule": "RDC-025",
+      "severity": "WARNING",
+      "site": "axis_async_fifo.v:648"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "primary output axis_async_fifo.m_axis_tuser depends on register axis_async_fifo.m_axis_pipe_reg which has no reset: the output is undefined while its side of the interface is in reset",
+      "obligation": "",
+      "rule": "RDC-025",
+      "severity": "WARNING",
+      "site": "axis_async_fifo.v:648"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "primary output axis_async_fifo.m_status_depth depends on register axis_async_fifo.m_depth_reg which has no reset: the output is undefined while its side of the interface is in reset",
+      "obligation": "",
+      "rule": "RDC-025",
+      "severity": "WARNING",
+      "site": "axis_async_fifo.v:725"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "primary output axis_async_fifo.m_status_depth_commit depends on register axis_async_fifo.m_depth_commit_reg which has no reset: the output is undefined while its side of the interface is in reset",
+      "obligation": "",
+      "rule": "RDC-025",
+      "severity": "WARNING",
+      "site": "axis_async_fifo.v:725"
+    },
+    {
+      "classification": "established",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "non-void function 'gray2bin' does not return a value on all control paths",
+      "obligation": "",
+      "rule": "SLANG-incomplete-return",
+      "severity": "WARNING",
+      "site": "axis_async_fifo.v:199"
+    },
+    {
+      "classification": "established",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "implicit conversion from 'reg[1:0]' to boolean value",
+      "obligation": "",
+      "rule": "SLANG-int-bool-conv",
+      "severity": "WARNING",
+      "site": "axis_async_fifo.v:664"
+    },
+    {
+      "classification": "established",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "generate block is unnamed",
+      "obligation": "",
+      "rule": "SLANG-unnamed-generate",
+      "severity": "WARNING",
+      "site": "axis_async_fifo.v:313"
+    },
+    {
+      "classification": "established",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "generate block is unnamed",
+      "obligation": "",
+      "rule": "SLANG-unnamed-generate",
+      "severity": "WARNING",
+      "site": "axis_async_fifo.v:314"
+    },
+    {
+      "classification": "established",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "generate block is unnamed",
+      "obligation": "",
+      "rule": "SLANG-unnamed-generate",
+      "severity": "WARNING",
+      "site": "axis_async_fifo.v:315"
+    },
+    {
+      "classification": "established",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "generate block is unnamed",
+      "obligation": "",
+      "rule": "SLANG-unnamed-generate",
+      "severity": "WARNING",
+      "site": "axis_async_fifo.v:316"
+    },
+    {
+      "classification": "established",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "generate block is unnamed",
+      "obligation": "",
+      "rule": "SLANG-unnamed-generate",
+      "severity": "WARNING",
+      "site": "axis_async_fifo.v:317"
+    },
+    {
+      "classification": "established",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "generate block is unnamed",
+      "obligation": "",
+      "rule": "SLANG-unnamed-generate",
+      "severity": "WARNING",
+      "site": "axis_async_fifo.v:733"
+    },
+    {
+      "classification": "established",
+      "count": 1,
+      "design": "axis_async_fifo",
+      "message": "generate block is unnamed",
+      "obligation": "",
+      "rule": "SLANG-unnamed-generate",
+      "severity": "WARNING",
+      "site": "axis_async_fifo.v:890"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "cc_cdc_2phase",
+      "message": "clock domain 'cc_cdc_2phase.dst_clk_i': 5 register bit(s) with asynchronous reset, 0 with a probable synchronous reset (heuristic), 0 with no reset (classified NO_RESET_INFERRED; not declared by the user)",
+      "obligation": "",
+      "rule": "CST-001",
+      "severity": "INFO",
+      "site": "design"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "cc_cdc_2phase",
+      "message": "clock domain 'cc_cdc_2phase.src_clk_i': 4 register bit(s) with asynchronous reset, 0 with a probable synchronous reset (heuristic), 0 with no reset (classified NO_RESET_INFERRED; not declared by the user)",
+      "obligation": "",
+      "rule": "CST-001",
+      "severity": "INFO",
+      "site": "design"
+    },
+    {
+      "classification": "informational",
+      "count": 1,
+      "design": "cc_cdc_2phase",
+      "message": "reset source 'cc_cdc_2phase.dst_rst_ni' (top-level port, asynchronous, active-low by edge polarity): 5 register bit(s) in clock domain(s) [cc_cdc_2phase.dst_clk_i]",
+      "obligation": "",
+      "rule": "RDC-001",
+      "severity": "INFO",
+      "site": "../../tech_cells_generic/src/rtl/tc_sync.sv:30"
+    },
+    {
+      "classification": "informational",
+      "count": 1,
+      "design": "cc_cdc_2phase",
+      "message": "reset source 'cc_cdc_2phase.src_rst_ni' (top-level port, asynchronous, active-low by edge polarity): 4 register bit(s) in clock domain(s) [cc_cdc_2phase.src_clk_i]",
+      "obligation": "",
+      "rule": "RDC-001",
+      "severity": "INFO",
+      "site": "../../tech_cells_generic/src/rtl/tc_sync.sv:30"
+    },
+    {
+      "classification": "informational",
+      "count": 1,
+      "design": "cc_cdc_2phase",
+      "message": "asynchronous reset 'cc_cdc_2phase.dst_rst_ni' of 5 register bit(s) in clock domain 'cc_cdc_2phase.dst_clk_i' comes from a primary input with release timed by the declared input delay on clock 'dst_clk_i'",
+      "obligation": "",
+      "rule": "RDC-003",
+      "severity": "INFO",
+      "site": "../../tech_cells_generic/src/rtl/tc_sync.sv:30"
+    },
+    {
+      "classification": "informational",
+      "count": 1,
+      "design": "cc_cdc_2phase",
+      "message": "asynchronous reset 'cc_cdc_2phase.src_rst_ni' of 4 register bit(s) in clock domain 'cc_cdc_2phase.src_clk_i' comes from a primary input with release timed by the declared input delay on clock 'src_clk_i'",
+      "obligation": "",
+      "rule": "RDC-003",
+      "severity": "INFO",
+      "site": "../../tech_cells_generic/src/rtl/tc_sync.sv:30"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "cc_cdc_2phase",
+      "message": "register cc_cdc_2phase.i_dst.i_sync.reg_q samples cc_cdc_2phase.i_src.req_src_q which is asynchronously reset by [cc_cdc_2phase.src_rst_ni], but is reset by [cc_cdc_2phase.dst_rst_ni] (different clocks: declared asynchronous): asserting the source reset can change the sampled value without resetting the destination; reset compatibility is an unproved functional obligation, even with a data synchroniser",
+      "obligation": "",
+      "rule": "RDC-005",
+      "severity": "WARNING",
+      "site": "../../tech_cells_generic/src/rtl/tc_sync.sv:30"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "cc_cdc_2phase",
+      "message": "register cc_cdc_2phase.i_src.i_sync.reg_q samples cc_cdc_2phase.i_dst.ack_dst_q which is asynchronously reset by [cc_cdc_2phase.dst_rst_ni], but is reset by [cc_cdc_2phase.src_rst_ni] (different clocks: declared asynchronous): asserting the source reset can change the sampled value without resetting the destination; reset compatibility is an unproved functional obligation, even with a data synchroniser",
+      "obligation": "",
+      "rule": "RDC-005",
+      "severity": "WARNING",
+      "site": "../../tech_cells_generic/src/rtl/tc_sync.sv:30"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "cc_cdc_2phase",
+      "message": "register cc_cdc_2phase.i_dst.data_dst_q samples cc_cdc_2phase.i_src.data_src_q which is asynchronously reset by [cc_cdc_2phase.src_rst_ni], but is reset by [cc_cdc_2phase.dst_rst_ni] (different clocks: declared asynchronous): asserting the source reset can change the sampled value without resetting the destination; reset compatibility is an unproved functional obligation, even with a data synchroniser",
+      "obligation": "",
+      "rule": "RDC-005",
+      "severity": "WARNING",
+      "site": "cc_cdc_2phase.i_dst.data_dst_q, cc_cdc_2phase.i_src.data_src_q"
+    },
+    {
+      "classification": "unresolved",
+      "count": 1,
+      "design": "cc_cdc_2phase",
+      "message": "2 independent asynchronous reset sources exist; the order in which they assert and release is not modelled, and no constraint or intent describes it",
+      "obligation": "",
+      "rule": "RDC-011",
+      "severity": "WARNING",
+      "site": "design"
+    },
+    {
+      "classification": "unresolved",
+      "count": 1,
+      "design": "cc_cdc_2phase",
+      "message": "no power intent (UPF/CPF) is supported or supplied: retention, isolation and power-domain reset rules are not evaluated",
+      "obligation": "",
+      "rule": "RDC-012",
+      "severity": "WARNING",
+      "site": "design"
+    },
+    {
+      "classification": "informational",
+      "count": 1,
+      "design": "cc_cdc_2phase",
+      "message": "reset cc_cdc_2phase.dst_rst_ni: recovery/removal timing, minimum pulse width and metastability are physical properties that digital RTL cannot show; they are not analysed",
+      "obligation": "",
+      "rule": "RDC-013",
+      "severity": "WARNING",
+      "site": "design"
+    },
+    {
+      "classification": "informational",
+      "count": 1,
+      "design": "cc_cdc_2phase",
+      "message": "reset cc_cdc_2phase.src_rst_ni: recovery/removal timing, minimum pulse width and metastability are physical properties that digital RTL cannot show; they are not analysed",
+      "obligation": "",
+      "rule": "RDC-013",
+      "severity": "WARNING",
+      "site": "design"
+    },
+    {
+      "classification": "unresolved",
+      "count": 1,
+      "design": "cc_cdc_2phase",
+      "message": "handshake cc_cdc_2phase.i_src.req_src_q <-> cc_cdc_2phase.i_dst.ack_dst_q: the reset release order of its two domains is not defined; a request issued right after one side leaves reset can be lost or acknowledged spuriously",
+      "obligation": "",
+      "rule": "RDC-023",
+      "severity": "WARNING",
+      "site": "../../tech_cells_generic/src/rtl/tc_sync.sv:30"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "cc_cdc_4phase",
+      "message": "clock domain 'cc_cdc_4phase.dst_clk_i': 9 register bit(s) with asynchronous reset, 0 with a probable synchronous reset (heuristic), 0 with no reset (classified NO_RESET_INFERRED; not declared by the user)",
+      "obligation": "",
+      "rule": "CST-001",
+      "severity": "INFO",
+      "site": "design"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "cc_cdc_4phase",
+      "message": "clock domain 'cc_cdc_4phase.src_clk_i': 6 register bit(s) with asynchronous reset, 0 with a probable synchronous reset (heuristic), 0 with no reset (classified NO_RESET_INFERRED; not declared by the user)",
+      "obligation": "",
+      "rule": "CST-001",
+      "severity": "INFO",
+      "site": "design"
+    },
+    {
+      "classification": "established",
+      "count": 1,
+      "design": "cc_cdc_4phase",
+      "message": "enumeration value 'WAIT_ACK_ASSERT' not explicitly handled in case statement",
+      "obligation": "",
+      "rule": "LNT-017",
+      "severity": "INFO",
+      "site": "cc_cdc_4phase.sv:151"
+    },
+    {
+      "classification": "established",
+      "count": 1,
+      "design": "cc_cdc_4phase",
+      "message": "enumeration value 'WAIT_REQ_DEASSERT' not explicitly handled in case statement",
+      "obligation": "",
+      "rule": "LNT-017",
+      "severity": "INFO",
+      "site": "cc_cdc_4phase.sv:256"
+    },
+    {
+      "classification": "informational",
+      "count": 1,
+      "design": "cc_cdc_4phase",
+      "message": "reset source 'cc_cdc_4phase.dst_rst_ni' (top-level port, asynchronous, active-low by edge polarity): 9 register bit(s) in clock domain(s) [cc_cdc_4phase.dst_clk_i]",
+      "obligation": "",
+      "rule": "RDC-001",
+      "severity": "INFO",
+      "site": "../../tech_cells_generic/src/rtl/tc_sync.sv:30"
+    },
+    {
+      "classification": "informational",
+      "count": 1,
+      "design": "cc_cdc_4phase",
+      "message": "reset source 'cc_cdc_4phase.src_rst_ni' (top-level port, asynchronous, active-low by edge polarity): 6 register bit(s) in clock domain(s) [cc_cdc_4phase.src_clk_i]",
+      "obligation": "",
+      "rule": "RDC-001",
+      "severity": "INFO",
+      "site": "../../tech_cells_generic/src/rtl/tc_sync.sv:30"
+    },
+    {
+      "classification": "informational",
+      "count": 1,
+      "design": "cc_cdc_4phase",
+      "message": "asynchronous reset 'cc_cdc_4phase.dst_rst_ni' of 9 register bit(s) in clock domain 'cc_cdc_4phase.dst_clk_i' comes from a primary input with release timed by the declared input delay on clock 'dst_clk_i'",
+      "obligation": "",
+      "rule": "RDC-003",
+      "severity": "INFO",
+      "site": "../../tech_cells_generic/src/rtl/tc_sync.sv:30"
+    },
+    {
+      "classification": "informational",
+      "count": 1,
+      "design": "cc_cdc_4phase",
+      "message": "asynchronous reset 'cc_cdc_4phase.src_rst_ni' of 6 register bit(s) in clock domain 'cc_cdc_4phase.src_clk_i' comes from a primary input with release timed by the declared input delay on clock 'src_clk_i'",
+      "obligation": "",
+      "rule": "RDC-003",
+      "severity": "INFO",
+      "site": "../../tech_cells_generic/src/rtl/tc_sync.sv:30"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "cc_cdc_4phase",
+      "message": "register cc_cdc_4phase.i_dst.i_sync.reg_q samples cc_cdc_4phase.i_src.req_src_q which is asynchronously reset by [cc_cdc_4phase.src_rst_ni], but is reset by [cc_cdc_4phase.dst_rst_ni] (different clocks: declared asynchronous): asserting the source reset can change the sampled value without resetting the destination; reset compatibility is an unproved functional obligation, even with a data synchroniser",
+      "obligation": "",
+      "rule": "RDC-005",
+      "severity": "WARNING",
+      "site": "../../tech_cells_generic/src/rtl/tc_sync.sv:30"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "cc_cdc_4phase",
+      "message": "register cc_cdc_4phase.i_src.i_sync.reg_q samples cc_cdc_4phase.i_dst.ack_dst_q which is asynchronously reset by [cc_cdc_4phase.dst_rst_ni], but is reset by [cc_cdc_4phase.src_rst_ni] (different clocks: declared asynchronous): asserting the source reset can change the sampled value without resetting the destination; reset compatibility is an unproved functional obligation, even with a data synchroniser",
+      "obligation": "",
+      "rule": "RDC-005",
+      "severity": "WARNING",
+      "site": "../../tech_cells_generic/src/rtl/tc_sync.sv:30"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "cc_cdc_4phase",
+      "message": "register cc_cdc_4phase.i_dst.gen_decoupled.i_spill_register.spill_register_flushable_i.gen_spill_reg.a_data_q samples cc_cdc_4phase.i_src.data_src_q which is asynchronously reset by [cc_cdc_4phase.src_rst_ni], but is reset by [cc_cdc_4phase.dst_rst_ni] (different clocks: declared asynchronous): asserting the source reset can change the sampled value without resetting the destination; reset compatibility is an unproved functional obligation, even with a data synchroniser",
+      "obligation": "",
+      "rule": "RDC-005",
+      "severity": "WARNING",
+      "site": "cc_cdc_4phase.i_dst.gen_decoupled.i_spill_register.spill_register_flushable_i.gen_spill_reg.a_data_q, cc_cdc_4phase.i_src.data_src_q"
+    },
+    {
+      "classification": "unresolved",
+      "count": 1,
+      "design": "cc_cdc_4phase",
+      "message": "2 independent asynchronous reset sources exist; the order in which they assert and release is not modelled, and no constraint or intent describes it",
+      "obligation": "",
+      "rule": "RDC-011",
+      "severity": "WARNING",
+      "site": "design"
+    },
+    {
+      "classification": "unresolved",
+      "count": 1,
+      "design": "cc_cdc_4phase",
+      "message": "no power intent (UPF/CPF) is supported or supplied: retention, isolation and power-domain reset rules are not evaluated",
+      "obligation": "",
+      "rule": "RDC-012",
+      "severity": "WARNING",
+      "site": "design"
+    },
+    {
+      "classification": "informational",
+      "count": 1,
+      "design": "cc_cdc_4phase",
+      "message": "reset cc_cdc_4phase.dst_rst_ni: recovery/removal timing, minimum pulse width and metastability are physical properties that digital RTL cannot show; they are not analysed",
+      "obligation": "",
+      "rule": "RDC-013",
+      "severity": "WARNING",
+      "site": "design"
+    },
+    {
+      "classification": "informational",
+      "count": 1,
+      "design": "cc_cdc_4phase",
+      "message": "reset cc_cdc_4phase.src_rst_ni: recovery/removal timing, minimum pulse width and metastability are physical properties that digital RTL cannot show; they are not analysed",
+      "obligation": "",
+      "rule": "RDC-013",
+      "severity": "WARNING",
+      "site": "design"
+    },
+    {
+      "classification": "unresolved",
+      "count": 1,
+      "design": "cc_cdc_4phase",
+      "message": "handshake cc_cdc_4phase.i_src.req_src_q <-> cc_cdc_4phase.i_dst.ack_dst_q: the reset release order of its two domains is not defined; a request issued right after one side leaves reset can be lost or acknowledged spuriously",
+      "obligation": "",
+      "rule": "RDC-023",
+      "severity": "WARNING",
+      "site": "../../tech_cells_generic/src/rtl/tc_sync.sv:30"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "cc_cdc_fifo_2phase",
+      "message": "clock domain 'cc_cdc_fifo_2phase.dst_clk_i': 19 register bit(s) with asynchronous reset, 0 with a probable synchronous reset (heuristic), 0 with no reset (classified NO_RESET_INFERRED; not declared by the user)",
+      "obligation": "",
+      "rule": "CST-001",
+      "severity": "INFO",
+      "site": "design"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "cc_cdc_fifo_2phase",
+      "message": "clock domain 'cc_cdc_fifo_2phase.src_clk_i': 27 register bit(s) with asynchronous reset, 0 with a probable synchronous reset (heuristic), 0 with no reset (classified NO_RESET_INFERRED; not declared by the user)",
+      "obligation": "",
+      "rule": "CST-001",
+      "severity": "INFO",
+      "site": "design"
+    },
+    {
+      "classification": "established",
+      "count": 1,
+      "design": "cc_cdc_fifo_2phase",
+      "message": "output port 'ready_o' is explicitly connected to nothing",
+      "obligation": "",
+      "rule": "LNT-010",
+      "severity": "WARNING",
+      "site": "cc_cdc_fifo_2phase.sv:200"
+    },
+    {
+      "classification": "established",
+      "count": 1,
+      "design": "cc_cdc_fifo_2phase",
+      "message": "output port 'valid_o' is explicitly connected to nothing",
+      "obligation": "",
+      "rule": "LNT-010",
+      "severity": "WARNING",
+      "site": "cc_cdc_fifo_2phase.sv:213"
+    },
+    {
+      "classification": "established",
+      "count": 1,
+      "design": "cc_cdc_fifo_2phase",
+      "message": "output port 'valid_o' is explicitly connected to nothing",
+      "obligation": "",
+      "rule": "LNT-010",
+      "severity": "WARNING",
+      "site": "cc_cdc_fifo_2phase.sv:285"
+    },
+    {
+      "classification": "established",
+      "count": 1,
+      "design": "cc_cdc_fifo_2phase",
+      "message": "output port 'ready_o' is explicitly connected to nothing",
+      "obligation": "",
+      "rule": "LNT-010",
+      "severity": "WARNING",
+      "site": "cc_cdc_fifo_2phase.sv:300"
+    },
+    {
+      "classification": "established",
+      "count": 1,
+      "design": "cc_cdc_fifo_2phase",
+      "message": "module definition is unused",
+      "obligation": "",
+      "rule": "LNT-011",
+      "severity": "INFO",
+      "site": "cc_cdc_2phase.sv:44"
+    },
+    {
+      "classification": "informational",
+      "count": 1,
+      "design": "cc_cdc_fifo_2phase",
+      "message": "reset source 'cc_cdc_fifo_2phase.dst_rst_ni' (top-level port, asynchronous, active-low by edge polarity): 19 register bit(s) in clock domain(s) [cc_cdc_fifo_2phase.dst_clk_i]",
+      "obligation": "",
+      "rule": "RDC-001",
+      "severity": "INFO",
+      "site": "../../tech_cells_generic/src/rtl/tc_sync.sv:30"
+    },
+    {
+      "classification": "informational",
+      "count": 1,
+      "design": "cc_cdc_fifo_2phase",
+      "message": "reset source 'cc_cdc_fifo_2phase.src_rst_ni' (top-level port, asynchronous, active-low by edge polarity): 27 register bit(s) in clock domain(s) [cc_cdc_fifo_2phase.src_clk_i]",
+      "obligation": "",
+      "rule": "RDC-001",
+      "severity": "INFO",
+      "site": "cc_cdc_fifo_2phase.sv:175"
+    },
+    {
+      "classification": "informational",
+      "count": 1,
+      "design": "cc_cdc_fifo_2phase",
+      "message": "asynchronous reset 'cc_cdc_fifo_2phase.dst_rst_ni' of 19 register bit(s) in clock domain 'cc_cdc_fifo_2phase.dst_clk_i' comes from a primary input with release timed by the declared input delay on clock 'dst_clk_i'",
+      "obligation": "",
+      "rule": "RDC-003",
+      "severity": "INFO",
+      "site": "cc_cdc_fifo_2phase.dst_rst_ni, cc_cdc_fifo_2phase.dst_clk_i"
+    },
+    {
+      "classification": "informational",
+      "count": 1,
+      "design": "cc_cdc_fifo_2phase",
+      "message": "asynchronous reset 'cc_cdc_fifo_2phase.src_rst_ni' of 27 register bit(s) in clock domain 'cc_cdc_fifo_2phase.src_clk_i' comes from a primary input with release timed by the declared input delay on clock 'src_clk_i'",
+      "obligation": "",
+      "rule": "RDC-003",
+      "severity": "INFO",
+      "site": "cc_cdc_fifo_2phase.sv:175"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "cc_cdc_fifo_2phase",
+      "message": "register cc_cdc_fifo_2phase.i_dst.i_cdc_rptr_src.i_sync.reg_q samples cc_cdc_fifo_2phase.i_src.i_cdc_rptr_dst.ack_dst_q which is asynchronously reset by [cc_cdc_fifo_2phase.src_rst_ni], but is reset by [cc_cdc_fifo_2phase.dst_rst_ni] (different clocks: declared asynchronous): asserting the source reset can change the sampled value without resetting the destination; reset compatibility is an unproved functional obligation, even with a data synchroniser",
+      "obligation": "",
+      "rule": "RDC-005",
+      "severity": "WARNING",
+      "site": "../../tech_cells_generic/src/rtl/tc_sync.sv:30"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "cc_cdc_fifo_2phase",
+      "message": "register cc_cdc_fifo_2phase.i_dst.i_cdc_wptr_dst.i_sync.reg_q samples cc_cdc_fifo_2phase.i_src.i_cdc_wptr_src.req_src_q which is asynchronously reset by [cc_cdc_fifo_2phase.src_rst_ni], but is reset by [cc_cdc_fifo_2phase.dst_rst_ni] (different clocks: declared asynchronous): asserting the source reset can change the sampled value without resetting the destination; reset compatibility is an unproved functional obligation, even with a data synchroniser",
+      "obligation": "",
+      "rule": "RDC-005",
+      "severity": "WARNING",
+      "site": "../../tech_cells_generic/src/rtl/tc_sync.sv:30"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "cc_cdc_fifo_2phase",
+      "message": "register cc_cdc_fifo_2phase.i_src.i_cdc_rptr_dst.i_sync.reg_q samples cc_cdc_fifo_2phase.i_dst.i_cdc_rptr_src.req_src_q which is asynchronously reset by [cc_cdc_fifo_2phase.dst_rst_ni], but is reset by [cc_cdc_fifo_2phase.src_rst_ni] (different clocks: declared asynchronous): asserting the source reset can change the sampled value without resetting the destination; reset compatibility is an unproved functional obligation, even with a data synchroniser",
+      "obligation": "",
+      "rule": "RDC-005",
+      "severity": "WARNING",
+      "site": "../../tech_cells_generic/src/rtl/tc_sync.sv:30"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "cc_cdc_fifo_2phase",
+      "message": "register cc_cdc_fifo_2phase.i_src.i_cdc_wptr_src.i_sync.reg_q samples cc_cdc_fifo_2phase.i_dst.i_cdc_wptr_dst.ack_dst_q which is asynchronously reset by [cc_cdc_fifo_2phase.dst_rst_ni], but is reset by [cc_cdc_fifo_2phase.src_rst_ni] (different clocks: declared asynchronous): asserting the source reset can change the sampled value without resetting the destination; reset compatibility is an unproved functional obligation, even with a data synchroniser",
+      "obligation": "",
+      "rule": "RDC-005",
+      "severity": "WARNING",
+      "site": "../../tech_cells_generic/src/rtl/tc_sync.sv:30"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "cc_cdc_fifo_2phase",
+      "message": "register cc_cdc_fifo_2phase.i_dst.i_cdc_wptr_dst.data_dst_q samples cc_cdc_fifo_2phase.i_src.i_cdc_wptr_src.data_src_q which is asynchronously reset by [cc_cdc_fifo_2phase.src_rst_ni], but is reset by [cc_cdc_fifo_2phase.dst_rst_ni] (different clocks: declared asynchronous): asserting the source reset can change the sampled value without resetting the destination; reset compatibility is an unproved functional obligation, even with a data synchroniser",
+      "obligation": "",
+      "rule": "RDC-005",
+      "severity": "WARNING",
+      "site": "cc_cdc_fifo_2phase.i_dst.i_cdc_wptr_dst.data_dst_q, cc_cdc_fifo_2phase.i_src.i_cdc_wptr_src.data_src_q"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "cc_cdc_fifo_2phase",
+      "message": "register cc_cdc_fifo_2phase.i_src.i_cdc_rptr_dst.data_dst_q samples cc_cdc_fifo_2phase.i_dst.i_cdc_rptr_src.data_src_q which is asynchronously reset by [cc_cdc_fifo_2phase.dst_rst_ni], but is reset by [cc_cdc_fifo_2phase.src_rst_ni] (different clocks: declared asynchronous): asserting the source reset can change the sampled value without resetting the destination; reset compatibility is an unproved functional obligation, even with a data synchroniser",
+      "obligation": "",
+      "rule": "RDC-005",
+      "severity": "WARNING",
+      "site": "cc_cdc_fifo_2phase.i_src.i_cdc_rptr_dst.data_dst_q, cc_cdc_fifo_2phase.i_dst.i_cdc_rptr_src.data_src_q"
+    },
+    {
+      "classification": "unresolved",
+      "count": 1,
+      "design": "cc_cdc_fifo_2phase",
+      "message": "2 independent asynchronous reset sources exist; the order in which they assert and release is not modelled, and no constraint or intent describes it",
+      "obligation": "",
+      "rule": "RDC-011",
+      "severity": "WARNING",
+      "site": "design"
+    },
+    {
+      "classification": "unresolved",
+      "count": 1,
+      "design": "cc_cdc_fifo_2phase",
+      "message": "no power intent (UPF/CPF) is supported or supplied: retention, isolation and power-domain reset rules are not evaluated",
+      "obligation": "",
+      "rule": "RDC-012",
+      "severity": "WARNING",
+      "site": "design"
+    },
+    {
+      "classification": "informational",
+      "count": 1,
+      "design": "cc_cdc_fifo_2phase",
+      "message": "reset cc_cdc_fifo_2phase.dst_rst_ni: recovery/removal timing, minimum pulse width and metastability are physical properties that digital RTL cannot show; they are not analysed",
+      "obligation": "",
+      "rule": "RDC-013",
+      "severity": "WARNING",
+      "site": "design"
+    },
+    {
+      "classification": "informational",
+      "count": 1,
+      "design": "cc_cdc_fifo_2phase",
+      "message": "reset cc_cdc_fifo_2phase.src_rst_ni: recovery/removal timing, minimum pulse width and metastability are physical properties that digital RTL cannot show; they are not analysed",
+      "obligation": "",
+      "rule": "RDC-013",
+      "severity": "WARNING",
+      "site": "design"
+    },
+    {
+      "classification": "unresolved",
+      "count": 1,
+      "design": "cc_cdc_fifo_2phase",
+      "message": "handshake cc_cdc_fifo_2phase.i_src.i_cdc_rptr_dst.ack_dst_q <-> cc_cdc_fifo_2phase.i_dst.i_cdc_rptr_src.req_src_q: the reset release order of its two domains is not defined; a request issued right after one side leaves reset can be lost or acknowledged spuriously",
+      "obligation": "",
+      "rule": "RDC-023",
+      "severity": "WARNING",
+      "site": "../../tech_cells_generic/src/rtl/tc_sync.sv:30"
+    },
+    {
+      "classification": "unresolved",
+      "count": 1,
+      "design": "cc_cdc_fifo_2phase",
+      "message": "handshake cc_cdc_fifo_2phase.i_src.i_cdc_wptr_src.req_src_q <-> cc_cdc_fifo_2phase.i_dst.i_cdc_wptr_dst.ack_dst_q: the reset release order of its two domains is not defined; a request issued right after one side leaves reset can be lost or acknowledged spuriously",
+      "obligation": "",
+      "rule": "RDC-023",
+      "severity": "WARNING",
+      "site": "../../tech_cells_generic/src/rtl/tc_sync.sv:30"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "cc_cdc_fifo_gray",
+      "message": "clock domain 'cc_cdc_fifo_gray.dst_clk_i': 16 register bit(s) with asynchronous reset, 0 with a probable synchronous reset (heuristic), 0 with no reset (classified NO_RESET_INFERRED; not declared by the user)",
+      "obligation": "",
+      "rule": "CST-001",
+      "severity": "INFO",
+      "site": "design"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "cc_cdc_fifo_gray",
+      "message": "clock domain 'cc_cdc_fifo_gray.src_clk_i': 20 register bit(s) with asynchronous reset, 0 with a probable synchronous reset (heuristic), 0 with no reset (classified NO_RESET_INFERRED; not declared by the user)",
+      "obligation": "",
+      "rule": "CST-001",
+      "severity": "INFO",
+      "site": "design"
+    },
+    {
+      "classification": "informational",
+      "count": 1,
+      "design": "cc_cdc_fifo_gray",
+      "message": "reset source 'cc_cdc_fifo_gray.dst_rst_ni' (top-level port, asynchronous, active-low by edge polarity): 16 register bit(s) in clock domain(s) [cc_cdc_fifo_gray.dst_clk_i]",
+      "obligation": "",
+      "rule": "RDC-001",
+      "severity": "INFO",
+      "site": "../../tech_cells_generic/src/rtl/tc_sync.sv:30"
+    },
+    {
+      "classification": "informational",
+      "count": 1,
+      "design": "cc_cdc_fifo_gray",
+      "message": "reset source 'cc_cdc_fifo_gray.src_rst_ni' (top-level port, asynchronous, active-low by edge polarity): 20 register bit(s) in clock domain(s) [cc_cdc_fifo_gray.src_clk_i]",
+      "obligation": "",
+      "rule": "RDC-001",
+      "severity": "INFO",
+      "site": "../../tech_cells_generic/src/rtl/tc_sync.sv:30"
+    },
+    {
+      "classification": "informational",
+      "count": 1,
+      "design": "cc_cdc_fifo_gray",
+      "message": "asynchronous reset 'cc_cdc_fifo_gray.dst_rst_ni' of 16 register bit(s) in clock domain 'cc_cdc_fifo_gray.dst_clk_i' comes from a primary input with release timed by the declared input delay on clock 'dst_clk_i'",
+      "obligation": "",
+      "rule": "RDC-003",
+      "severity": "INFO",
+      "site": "cc_cdc_fifo_gray.dst_rst_ni, cc_cdc_fifo_gray.dst_clk_i"
+    },
+    {
+      "classification": "informational",
+      "count": 1,
+      "design": "cc_cdc_fifo_gray",
+      "message": "asynchronous reset 'cc_cdc_fifo_gray.src_rst_ni' of 20 register bit(s) in clock domain 'cc_cdc_fifo_gray.src_clk_i' comes from a primary input with release timed by the declared input delay on clock 'src_clk_i'",
+      "obligation": "",
+      "rule": "RDC-003",
+      "severity": "INFO",
+      "site": "cc_cdc_fifo_gray.src_rst_ni, cc_cdc_fifo_gray.src_clk_i"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "cc_cdc_fifo_gray",
+      "message": "register cc_cdc_fifo_gray.i_dst.i_dst_ptr.gen_sync[0].i_sync.reg_q samples cc_cdc_fifo_gray.i_src.i_src_ptr.wptr_q which is asynchronously reset by [cc_cdc_fifo_gray.src_rst_ni], but is reset by [cc_cdc_fifo_gray.dst_rst_ni] (different clocks: declared asynchronous): asserting the source reset can change the sampled value without resetting the destination; reset compatibility is an unproved functional obligation, even with a data synchroniser",
+      "obligation": "",
+      "rule": "RDC-005",
+      "severity": "WARNING",
+      "site": "../../tech_cells_generic/src/rtl/tc_sync.sv:30"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "cc_cdc_fifo_gray",
+      "message": "register cc_cdc_fifo_gray.i_dst.i_dst_ptr.gen_sync[1].i_sync.reg_q samples cc_cdc_fifo_gray.i_src.i_src_ptr.wptr_q which is asynchronously reset by [cc_cdc_fifo_gray.src_rst_ni], but is reset by [cc_cdc_fifo_gray.dst_rst_ni] (different clocks: declared asynchronous): asserting the source reset can change the sampled value without resetting the destination; reset compatibility is an unproved functional obligation, even with a data synchroniser",
+      "obligation": "",
+      "rule": "RDC-005",
+      "severity": "WARNING",
+      "site": "../../tech_cells_generic/src/rtl/tc_sync.sv:30"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "cc_cdc_fifo_gray",
+      "message": "register cc_cdc_fifo_gray.i_dst.i_dst_ptr.gen_sync[2].i_sync.reg_q samples cc_cdc_fifo_gray.i_src.i_src_ptr.wptr_q which is asynchronously reset by [cc_cdc_fifo_gray.src_rst_ni], but is reset by [cc_cdc_fifo_gray.dst_rst_ni] (different clocks: declared asynchronous): asserting the source reset can change the sampled value without resetting the destination; reset compatibility is an unproved functional obligation, even with a data synchroniser",
+      "obligation": "",
+      "rule": "RDC-005",
+      "severity": "WARNING",
+      "site": "../../tech_cells_generic/src/rtl/tc_sync.sv:30"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "cc_cdc_fifo_gray",
+      "message": "register cc_cdc_fifo_gray.i_dst.i_dst_ptr.gen_sync[3].i_sync.reg_q samples cc_cdc_fifo_gray.i_src.i_src_ptr.wptr_q which is asynchronously reset by [cc_cdc_fifo_gray.src_rst_ni], but is reset by [cc_cdc_fifo_gray.dst_rst_ni] (different clocks: declared asynchronous): asserting the source reset can change the sampled value without resetting the destination; reset compatibility is an unproved functional obligation, even with a data synchroniser",
+      "obligation": "",
+      "rule": "RDC-005",
+      "severity": "WARNING",
+      "site": "../../tech_cells_generic/src/rtl/tc_sync.sv:30"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "cc_cdc_fifo_gray",
+      "message": "register cc_cdc_fifo_gray.i_src.i_src_ptr.gen_sync[0].i_sync.reg_q samples cc_cdc_fifo_gray.i_dst.i_dst_ptr.rptr_q which is asynchronously reset by [cc_cdc_fifo_gray.dst_rst_ni], but is reset by [cc_cdc_fifo_gray.src_rst_ni] (different clocks: declared asynchronous): asserting the source reset can change the sampled value without resetting the destination; reset compatibility is an unproved functional obligation, even with a data synchroniser",
+      "obligation": "",
+      "rule": "RDC-005",
+      "severity": "WARNING",
+      "site": "../../tech_cells_generic/src/rtl/tc_sync.sv:30"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "cc_cdc_fifo_gray",
+      "message": "register cc_cdc_fifo_gray.i_src.i_src_ptr.gen_sync[1].i_sync.reg_q samples cc_cdc_fifo_gray.i_dst.i_dst_ptr.rptr_q which is asynchronously reset by [cc_cdc_fifo_gray.dst_rst_ni], but is reset by [cc_cdc_fifo_gray.src_rst_ni] (different clocks: declared asynchronous): asserting the source reset can change the sampled value without resetting the destination; reset compatibility is an unproved functional obligation, even with a data synchroniser",
+      "obligation": "",
+      "rule": "RDC-005",
+      "severity": "WARNING",
+      "site": "../../tech_cells_generic/src/rtl/tc_sync.sv:30"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "cc_cdc_fifo_gray",
+      "message": "register cc_cdc_fifo_gray.i_src.i_src_ptr.gen_sync[2].i_sync.reg_q samples cc_cdc_fifo_gray.i_dst.i_dst_ptr.rptr_q which is asynchronously reset by [cc_cdc_fifo_gray.dst_rst_ni], but is reset by [cc_cdc_fifo_gray.src_rst_ni] (different clocks: declared asynchronous): asserting the source reset can change the sampled value without resetting the destination; reset compatibility is an unproved functional obligation, even with a data synchroniser",
+      "obligation": "",
+      "rule": "RDC-005",
+      "severity": "WARNING",
+      "site": "../../tech_cells_generic/src/rtl/tc_sync.sv:30"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "cc_cdc_fifo_gray",
+      "message": "register cc_cdc_fifo_gray.i_src.i_src_ptr.gen_sync[3].i_sync.reg_q samples cc_cdc_fifo_gray.i_dst.i_dst_ptr.rptr_q which is asynchronously reset by [cc_cdc_fifo_gray.dst_rst_ni], but is reset by [cc_cdc_fifo_gray.src_rst_ni] (different clocks: declared asynchronous): asserting the source reset can change the sampled value without resetting the destination; reset compatibility is an unproved functional obligation, even with a data synchroniser",
+      "obligation": "",
+      "rule": "RDC-005",
+      "severity": "WARNING",
+      "site": "../../tech_cells_generic/src/rtl/tc_sync.sv:30"
+    },
+    {
+      "classification": "heuristic",
+      "count": 1,
+      "design": "cc_cdc_fifo_gray",
+      "message": "register cc_cdc_fifo_gray.i_dst.i_dst_data.i_spill_register.spill_register_flushable_i.gen_spill_reg.a_data_q samples cc_cdc_fifo_gray.i_src.i_src_data.data_q which is asynchronously reset by [cc_cdc_fifo_gray.src_rst_ni], but is reset by [cc_cdc_fifo_gray.dst_rst_ni] (different clocks: declared asynchronous): asserting the source reset can change the sampled value without resetting the destination; reset compatibility is an unproved functional obligation, even with a data synchroniser",
+      "obligation": "",
+      "rule": "RDC-005",
+      "severity": "WARNING",
+      "site": "cc_cdc_fifo_gray.i_dst.i_dst_data.i_spill_register.spill_register_flushable_i.gen_spill_reg.a_data_q, cc_cdc_fifo_gray.i_src.i_src_data.data_q"
+    },
+    {
+      "classification": "unresolved",
+      "count": 1,
+      "design": "cc_cdc_fifo_gray",
+      "message": "2 independent asynchronous reset sources exist; the order in which they assert and release is not modelled, and no constraint or intent describes it",
+      "obligation": "",
+      "rule": "RDC-011",
+      "severity": "WARNING",
+      "site": "design"
+    },
+    {
+      "classification": "unresolved",
+      "count": 1,
+      "design": "cc_cdc_fifo_gray",
+      "message": "no power intent (UPF/CPF) is supported or supplied: retention, isolation and power-domain reset rules are not evaluated",
+      "obligation": "",
+      "rule": "RDC-012",
+      "severity": "WARNING",
+      "site": "design"
+    },
+    {
+      "classification": "informational",
+      "count": 1,
+      "design": "cc_cdc_fifo_gray",
+      "message": "reset cc_cdc_fifo_gray.dst_rst_ni: recovery/removal timing, minimum pulse width and metastability are physical properties that digital RTL cannot show; they are not analysed",
+      "obligation": "",
+      "rule": "RDC-013",
+      "severity": "WARNING",
+      "site": "design"
+    },
+    {
+      "classification": "informational",
+      "count": 1,
+      "design": "cc_cdc_fifo_gray",
+      "message": "reset cc_cdc_fifo_gray.src_rst_ni: recovery/removal timing, minimum pulse width and metastability are physical properties that digital RTL cannot show; they are not analysed",
+      "obligation": "",
+      "rule": "RDC-013",
+      "severity": "WARNING",
+      "site": "design"
+    },
+    {
+      "classification": "unresolved",
+      "count": 1,
+      "design": "cc_cdc_fifo_gray",
+      "message": "FIFO cc_cdc_fifo_gray.i_dst.i_dst_ptr.rptr_q / cc_cdc_fifo_gray.i_src.i_src_ptr.wptr_q: the order in which the two clock domains leave reset is not defined by the design; a side that leaves reset early can read or write before the other side's pointers are valid (the pointers are reset independently)",
+      "obligation": "reset release of both domains must be sequenced (or each side must ignore the other until a synchronised ready); not verified",
+      "rule": "RDC-023",
+      "severity": "WARNING",
+      "site": "../../tech_cells_generic/src/rtl/tc_sync.sv:30"
+    },
+    {
+      "classification": "established",
+      "count": 1,
+      "design": "cc_cdc_fifo_gray",
+      "message": "generate block is unnamed",
+      "obligation": "",
+      "rule": "SLANG-unnamed-generate",
+      "severity": "WARNING",
+      "site": "cc_gray_to_binary.sv:21"
+    }
+  ],
+  "sample": {
+    "absent_designs": [],
+    "covered_operator_families": [
+      "rdc-2phase-cross-domain-gen-reset",
+      "rdc-2phase-drop-src-rst-input-delay",
+      "rdc-2phase-multicycle-path-on-reset",
+      "rdc-2phase-reset-both-polarities",
+      "rdc-2phase-reset-used-as-data",
+      "rdc-2phase-single-stage-rst-sync",
+      "rdc-2phase-unreset-reg-feeds-reset-reg",
+      "rdc-4phase-data-flop-drives-reset",
+      "rdc-4phase-dual-async-set-clear",
+      "rdc-4phase-false-path-through-reset",
+      "rdc-4phase-gated-reset-with-data",
+      "rdc-4phase-rst-sync-early-fanout",
+      "rdc-4phase-rst-wrong-clock-delay",
+      "rdc-4phase-same-clock-unreset-dest",
+      "rdc-axis-async-reset-one-side-of-crossing",
+      "rdc-axis-reset-mux-functional-select",
+      "rdc-fifo2phase-partial-reset-wptr",
+      "rdc-fifo2phase-reset-gate-cross-domain-select",
+      "rdc-fifo2phase-undriven-reset-root",
+      "rdc-gray-combined-async-resets",
+      "rdc-gray-false-path-on-reset",
+      "rdc-gray-rst-sync-opposite-edge",
+      "rdc-gray-x-reset-value-to-output"
+    ],
+    "mutants_by_design": {
+      "axis_async_fifo": 2,
+      "cc_cdc_2phase": 7,
+      "cc_cdc_4phase": 7,
+      "cc_cdc_fifo_2phase": 3,
+      "cc_cdc_fifo_gray": 4
+    },
+    "note": "Targeted structural probes; not a representative or release qualification sample.",
+    "operators": 23
+  },
+  "schema": "sverity-cdc-mutation-score/1",
+  "tool": "tools/dev/cdc_mutation_score.py",
+  "tool_commit": "5a33341ea7c03e1ea383e2d5984b643b16b1c12b",
+  "tool_git_dirty": true,
+  "tool_sha256": "13d0681dbdd1c498176dc28ea8085eb4be5fb41a70c957b106c96f5452341a62"
+}

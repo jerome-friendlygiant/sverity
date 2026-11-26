@@ -1,0 +1,71 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-a (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "good",
+  "critical": false,
+  "workflow_class": "Timing exceptions",
+  "sites": [],
+  "rationale": "sys_rst_q only feeds the asynchronous reset of a two-stage clk_dbg reset synchroniser. That is the normal way to hand a reset into another domain: assertion is asynchronous and release is resynchronised before the counter. The multicycle path between asynchronous clocks has no effect on the reset.",
+  "author_reading": {
+    "id": "rfc1-a13",
+    "intended_verdict": "bad",
+    "critical": false,
+    "workflow_class": "Timing exceptions",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 17,
+        "signal": "sys_rst_q"
+      }
+    ],
+    "rationale": "The clk_sys reset flop drives the clk_dbg chain asynchronously, and the multicycle declaration relaxes that path across asynchronous clocks; the counter is diagnostic only."
+  },
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Reset generation and glitches",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 13,
+          "signal": "sys_rst_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 17,
+          "signal": "dbg_rst"
+        }
+      ],
+      "expected_rules": [
+        "RDC-007",
+        "RDC-003"
+      ],
+      "rationale": "dbg_rst is reset from sys_rst_q, a single clk_sys flop with no synchroniser in its own domain. The clocks are declared asynchronous, so this is a reset generated in another domain. The two dbg_rst stages in clk_dbg reduce the metastability risk but do not make the cross-domain reset safe.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)",
+      "suspected_flaw": "The release of dbg_rst depends on the unsynchronised sys_rst_q output. Whether the two clk_dbg stages are enough is a judgement the RTL alone does not settle."
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Timing exceptions",
+      "sites": [],
+      "rationale": "The system flop feeds the raw end of a two-stage debug reset chain, whose final stage releases the counter. The multicycle exception names the two clocks, while the reset root is driven by the system flop."
+    }
+  ],
+  "settlement": {
+    "by": "rdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "good",
+    "critical": false,
+    "workflow_class": "Timing exceptions",
+    "sites": [],
+    "rationale": "B is right: the dbg_rst chain is a correct reset synchroniser, and its raw input may come from any domain. A (and the author) treat the clk_sys flop driving the chain's reset as a cross-domain generated reset, but no clk_dbg functional register is released by it. Note that RDC-007's written trigger has no exemption for a synchroniser chain's reset, so it may report this good case."
+  }
+}

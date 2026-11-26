@@ -1,0 +1,152 @@
+{
+ "schema": "sverity-label-adjudication/1",
+ "batch": "rdc-8-rfc1-fresh",
+ "note": "Adjudications after the first score (which stays as measured), by an independent judge who did not author, read or settle these cases, under one convention: a good case becomes unknown when its RTL is correct only under a property of a top-level input that neither the RTL nor an SDC line that actually applies declares (raw-reset release timing into a register that can expose a mixed or metastable non-reset value, a reset assertion width the function relies on, or the launch clock of an input whose capture is unsafe if asynchronous); it stays good when the RTL is safe for any timing of those inputs. rfc1-b01 and b02 move from a frozen detection gap to expected rule RDC-009 once the rule covers exported resets. rfc1-b04, b05, b06 and b10 were reviewed under the same convention and stay good. AI decisions, not human sign-off. Each entry states the reading the case was settled at (was) and the final reading (now: verdict, class, critical, sites), which the label must equal.",
+ "cases": [
+  {
+   "case": "RDC/rfc1-a04",
+   "was": {
+    "verdict": "good",
+    "class": "Reset inventory and unknown sources",
+    "critical": false
+   },
+   "now": {
+    "verdict": "unknown",
+    "class": "Reset inventory and unknown sources",
+    "critical": false,
+    "sites": [
+     {
+      "file": "design.sv",
+      "line": 11,
+      "signal": "por_n"
+     }
+    ]
+   },
+   "reason": "8-bit cfg releases from por_n, which has no input delay, while we can load wdata; a release in the recovery window can corrupt cfg and cfg_shadow; the twin rfc1-a02 is good only because por_n is constrained",
+   "decided_by": "rdc-rfc1-adjudicator",
+   "readings_sha256": "261bafa411d8b958b6defa89ed2a9f9cfdaf614aa8cccc697a8368d94b8825af"
+  },
+  {
+   "case": "RDC/rfc1-b11",
+   "was": {
+    "verdict": "good",
+    "class": "Reset synchronisation",
+    "critical": false
+   },
+   "now": {
+    "verdict": "unknown",
+    "class": "Reset synchronisation",
+    "critical": false,
+    "sites": [
+     {
+      "file": "design.sv",
+      "line": 17,
+      "signal": "valid_i"
+     },
+     {
+      "file": "intent.sdc",
+      "line": 2,
+      "signal": "valid_i"
+     }
+    ]
+   },
+   "reason": "reset release is safe by construction, but the valid_i input delay is not applied (-max/-min take no value), and an asynchronous valid_i directly enables the 8-bit count_q (convention 2: value from an unconstrained input)",
+   "decided_by": "rdc-rfc1-adjudicator",
+   "readings_sha256": "b2cc3ac371ff3110cff1391ccb7188c396eef75a7777e3ff4e035ec74cdc9abb"
+  },
+  {
+   "case": "RDC/rfc1-c06",
+   "was": {
+    "verdict": "good",
+    "class": "Reset-domain data crossings",
+    "critical": false
+   },
+   "now": {
+    "verdict": "unknown",
+    "class": "Reset-domain data crossings",
+    "critical": false,
+    "sites": [
+     {
+      "file": "design.sv",
+      "line": 27,
+      "signal": "rst_a_n"
+     },
+     {
+      "file": "design.sv",
+      "line": 32,
+      "signal": "status_b_o"
+     }
+    ]
+   },
+   "reason": "the source-reset clear of the sticky status samples rst_a_n as a level in clk_b, so it relies on an undeclared minimum assertion width; RDC_WORKFLOW: an undeclared contract blocks any claim about reset pulse behaviour",
+   "decided_by": "rdc-rfc1-adjudicator",
+   "readings_sha256": "0b2974cd1a6cfaa6569288383539f04d44d08368eda955b3ef39f69b0f323ccc"
+  },
+  {
+   "case": "RDC/rfc1-b01",
+   "was": {
+    "verdict": "bad",
+    "class": "Reset generation and glitches",
+    "critical": true,
+    "expected_rules": [],
+    "detection_gap": "The gated reset periph_rst_no is only exported. No local asynchronous reset pin reads it, so the reset-net rules (RDC-007/008/009/017), which start from local reset roots, do not see it. CST-012 (multi-domain output) is outside the RDC deck and does not address the glitch."
+   },
+   "now": {
+    "verdict": "bad",
+    "class": "Reset generation and glitches",
+    "critical": true,
+    "sites": [
+     {
+      "file": "design.sv",
+      "line": 21,
+      "signal": "periph_rst_no"
+     },
+     {
+      "file": "design.sv",
+      "line": 19,
+      "signal": "link_up_q"
+     }
+    ],
+    "expected_rules": [
+     "RDC-009"
+    ]
+   },
+   "reason": "RDC-009 reports a top-level output that builds a reset from a reset root and a functional leaf (exported reset, consumer outside the design); the frozen detection gap no longer holds",
+   "decided_by": "rdc-rfc1-adjudicator",
+   "readings_sha256": "bddf0365d6f1f0f2908902b6321adaff9fcedda9afe7009caefcf34a03bb9575"
+  },
+  {
+   "case": "RDC/rfc1-b02",
+   "was": {
+    "verdict": "bad",
+    "class": "Reset generation and glitches",
+    "critical": true,
+    "expected_rules": [],
+    "detection_gap": "mc_rst_no is only exported. No local asynchronous reset pin reads it, so the reset mux rules (RDC-009/RDC-017), which start from local reset roots, do not see it. CST-012 (multi-domain output) is outside the RDC deck and does not address the glitch."
+   },
+   "now": {
+    "verdict": "bad",
+    "class": "Reset generation and glitches",
+    "critical": true,
+    "sites": [
+     {
+      "file": "design.sv",
+      "line": 25,
+      "signal": "mc_rst_no"
+     },
+     {
+      "file": "design.sv",
+      "line": 21,
+      "signal": "run_sel_q"
+     }
+    ],
+    "expected_rules": [
+     "RDC-009"
+    ]
+   },
+   "reason": "RDC-009 reports a top-level output that builds a reset from a reset root and a functional leaf (exported reset, consumer outside the design); the frozen detection gap no longer holds",
+   "decided_by": "rdc-rfc1-adjudicator",
+   "readings_sha256": "75476d833a7d7bb160b6a7da03c07325c440a82a1c531f0ee852c7bd30332286"
+  }
+ ]
+}

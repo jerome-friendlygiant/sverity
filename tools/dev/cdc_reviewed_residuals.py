@@ -40,6 +40,13 @@ CATALOG = ROOT / "docs/rules/catalog.json"
 DEFAULT_SDC_DIR = ROOT / "tests/public_projects/reviewed_sdc"
 SCHEMA = "sverity-cdc-reviewed-residuals/1"
 FLAGS = ["--profile", "asic", "--goal", "cdc", "--deck", "cdc"]
+DECKS = {
+    "cdc": dict(schema=SCHEMA, flags=FLAGS, catalog_key="cdc_deck", tag="reviewed"),
+    "rdc": dict(schema="sverity-rdc-reviewed-residuals/1",
+                flags=["--profile", "asic", "--goal", "rdc", "--deck", "rdc"],
+                catalog_key="rdc_deck", tag="reviewed-rdc"),
+}
+_ACTIVE_DECK = "cdc"
 
 # Physical source lines analysed per IP (top file plus the pinned modules it instantiates,
 # comments included, headers excluded), from tests/accuracy/results/cdc-residual-review-rfc1.json.gz
@@ -59,16 +66,17 @@ CLASSES = ("established", "heuristic", "unresolved", "not_analysed", "generic_ob
 BUDGETS = dict(false_positive_per_kloc=1.0, not_analysed_per_kloc=2.0, obligation_per_kloc=15.0)
 
 
-def deck_rules():
+def deck_rules(deck="cdc"):
+    key = DECKS[deck]["catalog_key"]
     rules = json.loads(CATALOG.read_text())["rules"]
-    return {r["id"] for r in rules if r.get("cdc_deck") is True}
+    return {r["id"] for r in rules if r.get(key) is True}
 
 
-def run_design(binary, spec, cwd, scratch, dependencies, sdc, tag):
+def run_design(binary, spec, cwd, scratch, dependencies, sdc, tag, flags=FLAGS):
     scratch.mkdir(parents=True, exist_ok=True)
     report = scratch / f"{spec['name']}-{tag}.json"
     report.unlink(missing_ok=True)
-    args = [*FLAGS, "--top", spec["name"], "--root", ".", "--sdc", str(sdc)]
+    args = [*flags, "--top", spec["name"], "--root", ".", "--sdc", str(sdc)]
     args += [x.format(**dependencies) for x in spec.get("args", [])]
     args += spec["sources"]
     cmd, unit = mem_guard.build_command(
@@ -155,7 +163,12 @@ def main():
     ap.add_argument("--json", type=pathlib.Path, required=True)
     ap.add_argument("--sdc-dir", type=pathlib.Path, default=DEFAULT_SDC_DIR,
                     help="directory of <design>.sdc files (default: tests/public_projects/reviewed_sdc)")
+    ap.add_argument("--deck", choices=sorted(DECKS), default="cdc",
+                    help="deck to measure (default: cdc)")
     opt = ap.parse_args()
+    global _ACTIVE_DECK
+    _ACTIVE_DECK = opt.deck
+    cfg = DECKS[opt.deck]
     if opt.json.exists():
         ap.error("output already exists; choose a new JSON path")
     scratch = opt.scratch.resolve()
@@ -169,19 +182,20 @@ def main():
     if {x["name"] for x in specs} != set(ANALYSED_LINES) or sum(ANALYSED_LINES.values()) != TOTAL_LINES:
         raise RuntimeError("manifest designs differ from the analysed-line table")
     kloc = TOTAL_LINES / 1000.0
-    deck = deck_rules()
+    deck = deck_rules(opt.deck)
     checkouts, pins = mutation.checkouts(scratch, manifest)
     dependencies = {name: str(path) for name, path in checkouts.items()}
 
     designs, totals = {}, dict(deck=_empty(), preview=_empty())
     deck_rules_seen, preview_rules_seen = collections.Counter(), collections.Counter()
+    tag = cfg["tag"]
     for spec in specs:
         name = spec["name"]
         sdc = sdc_dir / f"{name}.sdc"
         if not sdc.is_file():
             raise RuntimeError(f"{name}: missing reviewed SDC {name}.sdc in the SDC directory")
         cwd = checkouts[spec["repository"]] / spec["workdir"]
-        report, rc = run_design(binary, spec, cwd, scratch / "residual-reports", dependencies, sdc, "reviewed")
+        report, rc = run_design(binary, spec, cwd, scratch / "residual-reports", dependencies, sdc, tag, flags=cfg["flags"])
         summary = report.get("summary", {})
         if summary.get("execution_status") != "SUCCESS" or rc < 0 or rc & (8 | 64):
             raise RuntimeError(f"{name}: execution failed (exit {rc})")
@@ -198,7 +212,7 @@ def main():
             analysed_physical_lines=lines, commit=pins[spec["repository"]]["commit"],
             sdc=(f"tests/public_projects/reviewed_sdc/{name}.sdc" if sdc.parent == DEFAULT_SDC_DIR else f"{name}.sdc"),
             sdc_sha256=hashlib.sha256(sdc.read_bytes()).hexdigest(),
-            report_sha256=hashlib.sha256((scratch / "residual-reports" / f"{name}-reviewed.json").read_bytes()).hexdigest(),
+            report_sha256=hashlib.sha256((scratch / "residual-reports" / f"{name}-{tag}.json").read_bytes()).hexdigest(),
             execution_status=summary.get("execution_status"), analysis_coverage=summary.get("analysis_coverage"),
             review_status=summary.get("review_status"), exit_code=rc,
             deck=row, deck_rates=rates(row, lines / 1000.0),
@@ -207,7 +221,7 @@ def main():
     total_row = _flat(totals["deck"])
     checks = budget_checks(total_row, kloc)
     out = dict(
-        schema=SCHEMA, tool="tools/dev/cdc_reviewed_residuals.py", flags=FLAGS,
+        schema=cfg["schema"], tool="tools/dev/cdc_reviewed_residuals.py", flags=cfg["flags"],
         tool_sha256=hashlib.sha256(pathlib.Path(__file__).read_bytes()).hexdigest(),
         binary_sha256=hashlib.sha256(binary.read_bytes()).hexdigest(),
         manifest_sha256=hashlib.sha256(mutation.MANIFEST.read_bytes()).hexdigest(),
@@ -248,5 +262,5 @@ if __name__ == "__main__":
     try:
         sys.exit(main())
     except (OSError, subprocess.SubprocessError, RuntimeError, KeyError, ValueError) as exc:
-        print(f"cdc reviewed residuals: {exc}", file=sys.stderr)
+        print(f"{_ACTIVE_DECK} reviewed residuals: {exc}", file=sys.stderr)
         sys.exit(2)

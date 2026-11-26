@@ -123,12 +123,12 @@ def sdc_label(path, spec, sdc_dir=None):
     return str(path.relative_to(ROOT)) if path.is_relative_to(ROOT) else path.name
 
 
-def run(binary, spec, cwd, scratch, dependencies, tag, override=None, profile=None, deck=None, sdc=None):
+def run(binary, spec, cwd, scratch, dependencies, tag, override=None, profile=None, deck=None, sdc=None, goal="cdc"):
     scratch.mkdir(parents=True, exist_ok=True)
     report = scratch / (spec["name"] + "-" + tag + ".json")
     # Preserve the manifest's original arguments; only substitute dependency path
     # placeholders and the explicitly mutated primary source.
-    args = ["--goal", "cdc"]
+    args = ["--goal", goal]
     if profile:
         args += ["--profile", profile]
     if deck:
@@ -437,6 +437,7 @@ def main():
                     help="Optional JSON operator/candidate list (defaults to the frozen wave-1 OPERATORS).")
     ap.add_argument("--profile", default=None, help="Optional sverity --profile (for example asic); default: not passed.")
     ap.add_argument("--deck", default=None, help="Optional sverity --deck (for example cdc); default: not passed.")
+    ap.add_argument("--goal", default="cdc", choices=("cdc", "rdc"), help="sverity --goal (default cdc).")
     ap.add_argument("--sdc-dir", type=pathlib.Path, default=None,
                     help="Directory of <design>.sdc files that replace each manifest SDC (for example the reviewed SDCs).")
     opt = ap.parse_args()
@@ -462,12 +463,12 @@ def main():
         repo = checkouts_by_name[spec["repository"]]
         cwd = repo / spec["workdir"]
         report, rc, digest = run(opt.binary.resolve(), spec, cwd, scratch / "reports", dependencies, "baseline",
-                                 profile=opt.profile, deck=opt.deck, sdc=active_sdc(spec, sdc_dir))
+                                 profile=opt.profile, deck=opt.deck, sdc=active_sdc(spec, sdc_dir), goal=opt.goal)
         if report.get("summary", {}).get("execution_status") != "SUCCESS" or rc < 0 or rc & (8 | 64):
             raise RuntimeError(f"{name}: baseline execution failed (exit {rc})")
         baselines[name] = report
         sdc_path = active_sdc(spec, sdc_dir)
-        config_identity = dict(goal="cdc", top=spec["name"], root=".", sources=spec["sources"],
+        config_identity = dict(goal=opt.goal, top=spec["name"], root=".", sources=spec["sources"],
                               manifest_args=spec.get("args", []), sdc=sdc_label(sdc_path, spec, sdc_dir),
                               sdc_sha256=hashlib.sha256(sdc_path.read_bytes()).hexdigest())
         # Added only when passed, so the default invocation identity is unchanged.
@@ -523,7 +524,7 @@ def main():
         # evidence and fingerprints match; only the file contents change between the runs.
         override = None if target == "sdc" else (op["file"], dest)
         sdc_run = dest if target == "sdc" else sdc_base
-        common = dict(profile=opt.profile, deck=opt.deck, sdc=sdc_run)
+        common = dict(profile=opt.profile, deck=opt.deck, sdc=sdc_run, goal=opt.goal)
         paired, paired_rc, paired_digest = run(opt.binary.resolve(), spec, cwd, scratch / "reports",
                                                dependencies, tag + "-baseline", override, **common)
         if paired.get("summary", {}).get("execution_status") != "SUCCESS" or paired_rc < 0 or paired_rc & (8 | 64):
@@ -577,9 +578,9 @@ def main():
                                   invalid=sum(x["outcome"] == "INVALID" for x in mutants),
                                   equivalent=sum(x["outcome"] == "EQUIVALENT" for x in mutants)),
                residual_inventory=inventory(baselines))
-    if opt.profile or opt.deck or sdc_dir:
+    if opt.profile or opt.deck or sdc_dir or opt.goal != "cdc":
         out["options"] = {k: v for k, v in dict(
-            profile=opt.profile, deck=opt.deck,
+            profile=opt.profile, deck=opt.deck, goal=None if opt.goal == "cdc" else opt.goal,
             sdc_dir=(str(sdc_dir.relative_to(ROOT)) if sdc_dir.is_relative_to(ROOT) else sdc_dir.name) if sdc_dir else None,
         ).items() if v}
     residual_counts = collections.Counter()

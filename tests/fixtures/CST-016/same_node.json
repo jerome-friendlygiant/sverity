@@ -1,0 +1,7 @@
+{"reset_contracts": {
+  "sources": [
+    {"id": "a", "port": "top.rst_a_n", "active": "low"},
+    {"id": "b", "port": "top.rst_a_n", "active": "low"}
+  ],
+  "state": [{"id": "init_a", "source": "a", "initial": "asserted"}]
+}}

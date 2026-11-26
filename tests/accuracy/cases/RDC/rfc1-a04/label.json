@@ -1,0 +1,87 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-a (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "unknown",
+  "critical": false,
+  "workflow_class": "Reset inventory and unknown sources",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 11,
+      "signal": "por_n"
+    }
+  ],
+  "rationale": "cfg and cfg_shadow share por_n and clk, and the software clear of cfg_shadow is synchronous and constrained. The raw por_n release is the batch's background top-level reset, reported only as an inventory obligation (RDC-002/RDC-003).",
+  "author_reading": {
+    "id": "rfc1-a04",
+    "intended_verdict": "good",
+    "critical": false,
+    "workflow_class": "Reset inventory and unknown sources",
+    "sites": [],
+    "rationale": "cfg is reset only by por_n while cfg_shadow honours the software clear synchronously; each reset root reaches the consumers intended."
+  },
+  "labels": [
+    {
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Reset-domain data crossings",
+      "sites": [],
+      "rationale": "Same structure as a02, with a synchronous clear on cfg_shadow from sw_rst_n in an else-arm. The clear is synchronous and sw_rst_n is constrained. The tool may not recognise the else-arm clear as a synchronous candidate, but the RTL is correct.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)"
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Reset inventory and unknown sources",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 11,
+          "signal": "por_n"
+        },
+        {
+          "file": "design.sv",
+          "line": 16,
+          "signal": "por_n"
+        }
+      ],
+      "rationale": "The software clear is clocked and constrained. Both registers directly release from raw POR, and the SDC gives no release timing for that input.",
+      "expected_rules": [
+        "RDC-002",
+        "RDC-003"
+      ],
+      "dropped_run_level_rules": [
+        "RDC-013"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "rdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "good",
+    "critical": false,
+    "workflow_class": "Reset inventory and unknown sources",
+    "sites": [],
+    "rationale": "A is right that the RTL is correct. B's unknown rests only on the raw por_n release having no input delay. In this batch a raw top-level reset is a background inventory obligation unless the case is about it, as in rfc1-a06, rfc1-a12 and rfc1-a15. Class follows the author's inventory pairing with rfc1-a02."
+  },
+  "adjudication": {
+    "by": "rdc-rfc1-adjudicator (Claude Opus 5.5), policy decision after the score",
+    "was": {
+      "verdict": "good",
+      "class": "Reset inventory and unknown sources",
+      "critical": false
+    },
+    "reason": "8-bit cfg releases from por_n, which has no input delay, while we can load wdata; a release in the recovery window can corrupt cfg and cfg_shadow; the twin rfc1-a02 is good only because por_n is constrained",
+    "record": "tests/accuracy/results/rdc-8-rfc1-fresh-adjudication.json"
+  },
+  "expected_rules": [
+    "RDC-002",
+    "RDC-003"
+  ]
+}

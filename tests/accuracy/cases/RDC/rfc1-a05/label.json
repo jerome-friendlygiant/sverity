@@ -1,0 +1,121 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-a (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "unknown",
+  "critical": false,
+  "workflow_class": "Reset inventory and unknown sources",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 14,
+      "signal": "u_por"
+    },
+    {
+      "file": "design.sv",
+      "line": 17,
+      "signal": "core_rst_n"
+    }
+  ],
+  "expected_rules": [
+    "CST-005",
+    "RDC-001",
+    "RDC-003"
+  ],
+  "rationale": "The counter's only asynchronous reset comes from the black-box power-on generator por_gen, so its release timing, clock alignment and glitch freedom cannot be decided.",
+  "author_reading": {
+    "id": "rfc1-a05",
+    "intended_verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Reset inventory and unknown sources",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 14,
+        "signal": "core_rst_n"
+      }
+    ],
+    "rationale": "The reset comes from an opaque generator whose module is not supplied, so its release behaviour and clock domain cannot be decided."
+  },
+  "labels": [
+    {
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Reset inventory and unknown sources",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 17,
+          "signal": "core_rst_n"
+        }
+      ],
+      "expected_rules": [
+        "RDC-001",
+        "RDC-003",
+        "CST-005"
+      ],
+      "rationale": "The async reset comes from por_gen, an opaque library cell with no body. Whether its output is synchronised, glitch-free or released safely cannot be decided. ext_pin is an unconstrained input that feeds only this opaque cell, so no RDC-002 is raised.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)",
+      "detection_gap": "ext_pin feeds the opaque reset generator with no set_input_delay. RDC-002 covers only combinational or gated reset roots, so the unconstrained input into a black box is not reported.",
+      "dropped_run_level_rules": [
+        "RDC-013"
+      ]
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Reset inventory and unknown sources",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 17,
+          "signal": "core_rst_n"
+        },
+        {
+          "file": "design.sv",
+          "line": 20,
+          "signal": "core_rst_n"
+        }
+      ],
+      "rationale": "The missing power-on generator is the only intended driver of the counter reset. The interface gives no assertion or release contract.",
+      "expected_rules": [
+        "RDC-001",
+        "RDC-003"
+      ],
+      "suspected_flaw": "The cell is defined as an empty module without a black-box attribute. Its output is undriven in the literal RTL.",
+      "dropped_run_level_rules": [
+        "RDC-013"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "rdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Reset inventory and unknown sources",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 14,
+        "signal": "u_por"
+      },
+      {
+        "file": "design.sv",
+        "line": 17,
+        "signal": "core_rst_n"
+      }
+    ],
+    "expected_rules": [
+      "CST-005",
+      "RDC-001",
+      "RDC-003"
+    ],
+    "rationale": "Both readers are right: unknown, inventory class. The settler added (* black_box *) to por_gen on line 3, fixing B's flaw that the empty module made the reset literally undriven. CST-005 now reports the black box, and RDC-001 and RDC-003 report a black-box reset root. RDC-013 is a run-level obligation and is not counted."
+  }
+}

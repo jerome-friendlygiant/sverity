@@ -1,0 +1,116 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-b (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Asynchronous control conflicts and reset as data",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 11,
+      "signal": "fault_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 12,
+      "signal": "fault_q"
+    }
+  ],
+  "expected_rules": [
+    "RDC-026"
+  ],
+  "rationale": "The watchdog's asynchronous set has priority over rst_ni, so reset does not initialise fault_q while the fault input is asserted.",
+  "author_reading": {
+    "id": "rfc1-b09",
+    "intended_verdict": "bad",
+    "critical": true,
+    "workflow_class": "Asynchronous control conflicts and reset as data",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 12,
+        "signal": "fault_q"
+      }
+    ],
+    "rationale": "The watchdog asynchronous set has priority over reset, so asserting wdog_fault_i while rst_ni is low sets fault_q and the reset is not honoured."
+  },
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Asynchronous control conflicts and reset as data",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 11,
+          "signal": "fault_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 12,
+          "signal": "wdog_fault_i"
+        }
+      ],
+      "expected_rules": [
+        "RDC-026",
+        "RDC-002"
+      ],
+      "rationale": "The asynchronous set from wdog_fault_i has priority over rst_ni, since the set branch is tested first. While the watchdog is asserted, reset cannot clear fault_q, so the stored fault survives reset and the state is not initialised.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)",
+      "suspected_flaw": "Whether reset should dominate a live watchdog fault is a design decision the case does not state. The RTL gives set priority, which is a likely error."
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Asynchronous control conflicts and reset as data",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 12,
+          "signal": "fault_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 13,
+          "signal": "fault_q"
+        }
+      ],
+      "rationale": "Watchdog set dominates while both controls are asserted. When the watchdog drops while reset remains asserted, no asynchronous event clears fault_q and the fault can remain visible until a clock edge.",
+      "expected_rules": [
+        "RDC-026",
+        "RDC-002",
+        "RDC-003",
+        "RDC-011"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "rdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Asynchronous control conflicts and reset as data",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 11,
+        "signal": "fault_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 12,
+        "signal": "fault_q"
+      }
+    ],
+    "expected_rules": [
+      "RDC-026"
+    ],
+    "rationale": "Both readers are right on bad, critical, class and RDC-026. Their extra RDC-002/RDC-003/RDC-011 rules are incidental. Sites merge A's line 11 and B's line 12."
+  }
+}

@@ -1,0 +1,118 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-c (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Reset synchronisation",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 15,
+      "signal": "rst_a_n"
+    },
+    {
+      "file": "design.sv",
+      "line": 24,
+      "signal": "rst_a_n"
+    }
+  ],
+  "expected_rules": [
+    "RDC-006"
+  ],
+  "rationale": "The sender-domain reset rst_a_n is a single synchroniser stage that directly releases the sender's counter and valid, so the release can be metastable.",
+  "author_reading": {
+    "id": "rfc1-c09",
+    "intended_verdict": "bad",
+    "critical": true,
+    "workflow_class": "Sequencing and release order",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 29,
+        "signal": "tok_v_a_q"
+      }
+    ],
+    "rationale": "The sender starts issuing tokens once its own reset releases after one synchroniser stage, while the receiver is still held in reset for three stages. Tokens sent in that window are dropped by the receiver."
+  },
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Reset synchronisation",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 14,
+          "signal": "rst_a_n"
+        },
+        {
+          "file": "design.sv",
+          "line": 24,
+          "signal": "rst_a_n"
+        }
+      ],
+      "expected_rules": [
+        "RDC-006",
+        "RDC-002"
+      ],
+      "rationale": "The sender domain's reset rst_a_n is a single clk_a flop (D=1) with async reset rst_ni. The sender's flops are released from that one stage with no second stage, so the release can be metastable. The receiver domain uses three stages.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)",
+      "suspected_flaw": "rst_ni has no set_input_delay, so the timing relation of the sender reset to clk_a is not stated."
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Reset synchronisation",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 16,
+          "signal": "rst_a_n"
+        },
+        {
+          "file": "design.sv",
+          "line": 24,
+          "signal": "rst_a_n"
+        }
+      ],
+      "rationale": "One flop directly releases the source counter and valid state. Metastable release can corrupt initial state, while unequal startup delays can make the receiver miss the beginning of the sequence.",
+      "expected_rules": [
+        "RDC-006",
+        "RDC-002",
+        "CDC-004",
+        "CDC-016",
+        "CDC-017"
+      ],
+      "suspected_flaw": "The free-running binary count also has an uncontained CDC with a different depth from valid. The header comments identify the one-stage reset explicitly."
+    }
+  ],
+  "settlement": {
+    "by": "rdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Reset synchronisation",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 15,
+        "signal": "rst_a_n"
+      },
+      {
+        "file": "design.sv",
+        "line": 24,
+        "signal": "rst_a_n"
+      }
+    ],
+    "expected_rules": [
+      "RDC-006"
+    ],
+    "rationale": "Both readers are right on bad, critical, class and RDC-006, and differ only in the line 14 or 16 site. The settler rewrote the comments on lines 13 and 18, which gave away the stage counts. The author's ordering point (tokens lost before the receiver releases) is a second effect with no rule; the stage defect is the one the readers found."
+  }
+}

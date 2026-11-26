@@ -1,0 +1,124 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-c (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Reset-domain data crossings",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 14,
+      "signal": "vld_a_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 27,
+      "signal": "vld_b1_q"
+    }
+  ],
+  "expected_rules": [
+    "RDC-010"
+  ],
+  "rationale": "vld_a_q has no reset, so it keeps sampling req_i while rst_a_n holds pay_a_q at zero. The consumer can commit the cleared payload as a valid transfer.",
+  "author_reading": {
+    "id": "rfc1-c02",
+    "intended_verdict": "bad",
+    "critical": true,
+    "workflow_class": "Reset-domain data crossings",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 14,
+        "signal": "vld_a_q"
+      }
+    ],
+    "rationale": "The source valid register has no reset, so it can stay high across rst_a_n while pay_a_q is cleared. The consumer then captures a cleared payload as a real transfer."
+  },
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Reset-domain data crossings",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 14,
+          "signal": "vld_a_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 27,
+          "signal": "vld_b1_q"
+        }
+      ],
+      "expected_rules": [
+        "RDC-010",
+        "RDC-005"
+      ],
+      "rationale": "vld_a_q is a valid flop with no reset. It keeps sampling req_i through reset and can release as 1 into the destination reset domain, so held_o can capture stale payload after reset. The same design with vld_a_q reset (c05) is correct.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)"
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Reset-domain data crossings",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 14,
+          "signal": "vld_a_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 27,
+          "signal": "vld_b1_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 35,
+          "signal": "held_o"
+        }
+      ],
+      "rationale": "While the producer is in reset, req_i can still set vld_a_q while pay_a_q is forced to zero. The consumer can commit that reset value as valid.",
+      "expected_rules": [
+        "RDC-005",
+        "RDC-010",
+        "CDC-041",
+        "RDC-011",
+        "RDC-002",
+        "RDC-003",
+        "CDC-009"
+      ],
+      "suspected_flaw": "The payload also crosses separate per-bit synchronisers, which cannot assure coherence."
+    }
+  ],
+  "settlement": {
+    "by": "rdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Reset-domain data crossings",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 14,
+        "signal": "vld_a_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 27,
+        "signal": "vld_b1_q"
+      }
+    ],
+    "expected_rules": [
+      "RDC-010"
+    ],
+    "rationale": "Both readers are right on bad, critical and class, and A's sites are kept. RDC-010 targets the unreset valid feeding a reset register. RDC-005 (both) fires on the reset payload crossing, which the reset-valid twin rfc1-c05 shares, so it does not target this defect."
+  }
+}

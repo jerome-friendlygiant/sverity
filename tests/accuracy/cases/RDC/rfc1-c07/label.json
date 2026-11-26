@@ -1,0 +1,114 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-c (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "unknown",
+  "critical": false,
+  "workflow_class": "Reset-domain data crossings",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 19,
+      "signal": "u_mem"
+    },
+    {
+      "file": "design.sv",
+      "line": 42,
+      "signal": "rdata_a"
+    }
+  ],
+  "expected_rules": [
+    "CST-005"
+  ],
+  "rationale": "word_b_o captures rdata_a from the black-box memory sram_2p_hard, which is reset by rst_a_n. Its output behaviour during and after reset is not stated, so the effect on the captured word cannot be decided.",
+  "author_reading": {
+    "id": "rfc1-c07",
+    "intended_verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Reset-domain data crossings",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 42,
+        "signal": "rdata_a"
+      }
+    ],
+    "rationale": "The read data comes from an opaque memory macro whose output reset behaviour is not stated, and it crosses to clk_b without a synchroniser. Whether the captured word is valid after rst_a_n depends on a macro model that the RTL and SDC do not supply."
+  },
+  "labels": [
+    {
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Reset-domain data crossings",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 42,
+          "signal": "rdata_a"
+        }
+      ],
+      "expected_rules": [
+        "RDC-005",
+        "CST-005"
+      ],
+      "rationale": "word_b_o samples the output of the opaque sram_2p_hard memory, which has its own reset input. The memory's reset behaviour and output timing are not visible, so the crossing into clk_b cannot be decided.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)",
+      "detection_gap": "RDC-004 and RDC-005 walk only register sources, so the opaque memory output is not classed as a reset-domain source."
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Reset-domain data crossings",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 24,
+          "signal": "rdata_a"
+        },
+        {
+          "file": "design.sv",
+          "line": 42,
+          "signal": "word_b_o"
+        }
+      ],
+      "rationale": "The missing memory model leaves its reset-time data and thus the accepted-word outcome undecidable. The first-stage validity tap independently exposes a known CDC containment hazard.",
+      "expected_rules": [
+        "CDC-007",
+        "RDC-005",
+        "CDC-041",
+        "RDC-002",
+        "RDC-003",
+        "RDC-011"
+      ],
+      "suspected_flaw": "The cell is defined as an empty module without a black-box attribute. Its output is undriven in the literal RTL. The payload capture also uses the first synchroniser stage."
+    }
+  ],
+  "settlement": {
+    "by": "rdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Reset-domain data crossings",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 19,
+        "signal": "u_mem"
+      },
+      {
+        "file": "design.sv",
+        "line": 42,
+        "signal": "rdata_a"
+      }
+    ],
+    "expected_rules": [
+      "CST-005"
+    ],
+    "rationale": "Both readers are right on unknown and class. The settler added (* black_box *) to sram_2p_hard on line 3, fixing B's flaw. As A's gap note says, RDC-005 walks only register sources and does not see the black-box output, so CST-005 is the disclosure. B's first-stage enable tap is a CDC defect outside the RDC deck."
+  }
+}

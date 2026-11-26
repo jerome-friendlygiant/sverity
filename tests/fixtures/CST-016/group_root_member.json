@@ -1,0 +1,7 @@
+{"reset_contracts": {
+  "sources": [
+    {"id": "a", "root": "top.a_rst", "active": "low"},
+    {"id": "p", "port": "top.rst_n", "active": "low"}
+  ],
+  "assert_together": [{"id": "both", "sources": ["a", "p"]}]
+}}

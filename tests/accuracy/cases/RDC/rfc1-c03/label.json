@@ -1,0 +1,121 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-c (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "unknown",
+  "critical": false,
+  "workflow_class": "Reset-domain data crossings",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 23,
+      "signal": "fsync1_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 29,
+      "signal": "status_b_o"
+    }
+  ],
+  "expected_rules": [
+    "RDC-005"
+  ],
+  "rationale": "A source-only reset clears fault_a_q, but the sticky clk_b status latch, which neither clr_i nor rst_a_n clears, stays set. Whether a source reset must clear the software-visible fault log is a specification question that the RTL does not answer.",
+  "author_reading": {
+    "id": "rfc1-c03",
+    "intended_verdict": "bad",
+    "critical": false,
+    "workflow_class": "Reset-domain data crossings",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 29,
+        "signal": "status_b_o"
+      }
+    ],
+    "rationale": "The status latch is cleared only by rst_b_n, so a warm reset of the source domain leaves a fault indication set after fault_a_q has cleared. Only the software-visible status is stale; no functional state depends on it."
+  },
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Reset-domain data crossings",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 29,
+          "signal": "status_b_o"
+        },
+        {
+          "file": "design.sv",
+          "line": 23,
+          "signal": "fsync1_q"
+        }
+      ],
+      "expected_rules": [
+        "RDC-005"
+      ],
+      "rationale": "status_b_o is a sticky latch in clk_b, cleared only by rst_b_n. Reset of the source domain (rst_a_n) clears fault_a_q but not the latched status, so a stale fault is reported after source reset.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)",
+      "suspected_flaw": "The comment and structure match c06, which adds a clear on the synchronised source reset. The difference is the intended defect."
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Reset inventory and unknown sources",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 13,
+          "signal": "rst_a_n"
+        },
+        {
+          "file": "design.sv",
+          "line": 27,
+          "signal": "rst_b_n"
+        },
+        {
+          "file": "design.sv",
+          "line": 29,
+          "signal": "status_b_o"
+        }
+      ],
+      "rationale": "A source-only reset clears the level, which cannot set the sticky destination by itself. Both raw release relationships are unspecified, and the interface does not say whether an unsampled fault must survive a source reset.",
+      "expected_rules": [
+        "RDC-002",
+        "RDC-003",
+        "RDC-011",
+        "RDC-005",
+        "CDC-041"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "rdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Reset-domain data crossings",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 23,
+        "signal": "fsync1_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 29,
+        "signal": "status_b_o"
+      }
+    ],
+    "expected_rules": [
+      "RDC-005"
+    ],
+    "rationale": "B's unknown is right. The status is sticky against clr_i too, so its survival across a source reset is consistent with a sticky fault log. A source reset can neither set nor corrupt it, and the crossing enters a two-flop synchroniser. A's bad and the author's bad assume mirror semantics that the RTL does not have. The rule is RDC-005: the reset-compatibility obligation whose tolerance is unproved. B's other rules are incidental."
+  }
+}

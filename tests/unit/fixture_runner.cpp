@@ -24,6 +24,7 @@
 
 #include "sverity/analyzer.h"
 #include "sverity/json.h"
+#include "sverity/reset_contracts.h"
 
 namespace fs = std::filesystem;
 using namespace sverity;
@@ -58,6 +59,12 @@ static AnalyzerOptions optionsFromArgs(const std::vector<std::string>& args) {
                 contract.duration = event["duration"]["value"].asDouble();
                 contract.durationUnit = event["duration"]["unit"].asString();
                 o.config.boundaryEvents.push_back(std::move(contract));
+            }
+            if (const auto* intent = parsed.value.find("power_intent"))
+                if (const auto* model = intent->find("model"); model && model->isString()) o.config.powerIntentModel = model->asString();
+            if (const auto* section = parsed.value.find("reset_contracts")) {
+                std::string error;
+                if (!parseResetContracts(*section, o.config.resetContracts, error)) throw std::runtime_error("invalid fixture config: " + error);
             }
         }
         else if (a == "--disable-rule" && i + 1 < args.size()) explicitDisable.insert(args[++i]);

@@ -118,3 +118,24 @@ TEST(catalog_cdc_deck_membership_and_goal_rdc_dependencies) {
     CHECK(!inDeck(*c.find("RDC-004"), "cdc"));
     CHECK(!inGoal("RDC-004", cdcGoal));
 }
+
+TEST(catalog_rdc_deck_membership) {
+    auto& c = Catalog::embedded();
+    CHECK(isDeck("rdc"));
+    size_t total = 0, rdcFam = 0, cstFam = 0, other = 0;
+    for (auto& r : c.rules()) {
+        if (!inDeck(r, "rdc")) continue;
+        total++;
+        if (r.category == "RDC") rdcFam++;
+        else if (r.category == "CST") cstFam++;
+        else other++;
+    }
+    CHECK_EQ(total, 40u);
+    CHECK_EQ(rdcFam, 25u);
+    CHECK_EQ(cstFam, 15u);
+    CHECK_EQ(other, 0u);
+    CHECK(!inDeck(*c.find("RDC-029"), "rdc"));             // blocked: needs power intent
+    CHECK(!inDeck(*c.find("CST-012"), "rdc"));             // CDC-only
+    CHECK(inDeck(*c.find("CST-016"), "rdc"));
+    CHECK(!inDeck(*c.find("CST-007"), "rdc"));
+}

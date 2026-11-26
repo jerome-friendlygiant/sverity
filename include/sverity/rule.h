@@ -11,6 +11,7 @@
 #include "sverity/catalog.h"
 #include "sverity/frontend.h"
 #include "sverity/report.h"
+#include "sverity/reset_contracts.h"
 #include "sverity/sdc.h"
 #include "sverity/timings.h"
 
@@ -34,6 +35,8 @@ struct Config {
     std::map<std::string, Severity> severityOverrides; // expanded exact rule IDs
     Timings* timings = nullptr;            // optional measurements; never affects results
     std::vector<BoundaryEventContract> boundaryEvents;
+    ResetContracts resetContracts;         // `reset_contracts` section; present = given
+    std::string powerIntentModel;          // `power_intent.model` ("single_always_on" is the only value); empty = not declared
     std::string option(const std::string& key, const std::string& def) const {
         auto it = ruleOptions.find(key);
         return it == ruleOptions.end() ? def : it->second;

@@ -1,0 +1,9 @@
+{"reset_contracts": {
+  "sources": [
+    {"id": "a", "root": "top.a_rst", "active": "low"},
+    {"id": "b", "root": "top.b_rst", "active": "low"}
+  ],
+  "release_order": [
+    {"id": "a_before_b", "before": "a", "after": "b", "clock": "clka", "edge": "posedge", "min_cycles": 2}
+  ]
+}}

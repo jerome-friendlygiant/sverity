@@ -1,0 +1,102 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-b (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Reset generation and glitches",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 16,
+      "signal": "sw_rst_n_q"
+    }
+  ],
+  "expected_rules": [
+    "RDC-007",
+    "RDC-014"
+  ],
+  "rationale": "sw_rst_n_q is a clk_cfg flop that directly drives the asynchronous reset of clk_dma flops, so the DMA reset releases at an arbitrary clk_dma phase.",
+  "author_reading": {
+    "id": "rfc1-b03",
+    "intended_verdict": "bad",
+    "critical": true,
+    "workflow_class": "Reset generation and glitches",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 16,
+        "signal": "sw_rst_n_q"
+      }
+    ],
+    "rationale": "sw_rst_n_q is generated in the clk_cfg domain and drives the asynchronous reset of clk_dma flops with no synchroniser, so its release is asynchronous to clk_dma."
+  },
+  "labels": [
+    {
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Reset generation and glitches",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 16,
+          "signal": "sw_rst_n_q"
+        }
+      ],
+      "expected_rules": [
+        "RDC-007",
+        "RDC-014"
+      ],
+      "rationale": "sw_rst_n_q is a single clk_cfg flop, and it asynchronously resets beats_q in clk_dma. The release is not synchronised to clk_dma, so the reset is generated in another domain and released unsafely.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)"
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Reset generation and glitches",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 14,
+          "signal": "sw_rst_n_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 16,
+          "signal": "sw_rst_n_q"
+        }
+      ],
+      "rationale": "Clearing the software request releases DMA reset directly from a configuration-clock flop. Its phase against clk_dma is unrestricted and can violate reset recovery or removal.",
+      "expected_rules": [
+        "RDC-007",
+        "RDC-014",
+        "RDC-002",
+        "RDC-003"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "rdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Reset generation and glitches",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 16,
+        "signal": "sw_rst_n_q"
+      }
+    ],
+    "expected_rules": [
+      "RDC-007",
+      "RDC-014"
+    ],
+    "rationale": "Final equals A. B agrees on verdict, class and RDC-007/RDC-014, adding incidental RDC-002/RDC-003 and a line 14 site."
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-b (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "good",
+  "critical": false,
+  "workflow_class": "Reset generation and glitches",
+  "sites": [],
+  "rationale": "mc_rst_q is registered on clk_a from a synchronised boot reset and a registered run request, so the exported reset changes only on clk_a edges. Its D is held low by the boot chain while por_ni releases.",
+  "author_reading": {
+    "id": "rfc1-b04",
+    "intended_verdict": "good",
+    "critical": false,
+    "workflow_class": "Reset generation and glitches",
+    "sites": [],
+    "rationale": "The memory controller reset is registered on clk_a from a synchronised boot reset and a registered run request, so it changes only on a clock edge."
+  },
+  "labels": [
+    {
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Reset generation and glitches",
+      "sites": [],
+      "rationale": "All of mc_rst_q is on clk_a with the same async reset. mc_rst_no is registered, so its output changes only at clk edges. boot_rst_q is used as data and does not drive an async reset.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)"
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Reset generation and glitches",
+      "sites": [],
+      "rationale": "The exported reset is registered and the boot chain holds its D input low during release. The run condition is sampled on the same clock, so no combinational mux hazard reaches the output.",
+      "suspected_flaw": "The comment describes a registered select, while the implementation registers the result. The downstream reset pin and receiving clock are outside the case."
+    }
+  ]
+}

@@ -1211,6 +1211,34 @@ TEST(cli_cdc_deck_clean_complete_vs_five_adverse_cases) {
     CHECK_EQ(clean.value["summary"]["review_status"].asString(), std::string("PASS"));
     CHECK_EQ(clean.value["summary"]["exit_code_strict"].asInt(), 0);
 
+    // A design with an asynchronous reset and recognised reset synchronisers stays COMPLETE under the CDC deck: the RDC-011 and RDC-012
+    // markers belong to those rules, which this deck does not run.
+    const auto syncSv = write("cdc_reset_sync.sv",
+        "module rsync(input logic clk, arst_n, output logic rst_n);\n"
+        "  logic s1;\n"
+        "  always_ff @(posedge clk or negedge arst_n) if (!arst_n) begin s1 <= 1'b0; rst_n <= 1'b0; end else begin s1 <= 1'b1; rst_n <= s1; end\n"
+        "endmodule\n"
+        "module top(input logic clka, clkb, por_n, da, db, output logic qa, qb);\n"
+        "  logic ra_n, rb_n;\n"
+        "  rsync ua(.clk(clka), .arst_n(por_n), .rst_n(ra_n));\n"
+        "  rsync ub(.clk(clkb), .arst_n(por_n), .rst_n(rb_n));\n"
+        "  always_ff @(posedge clka or negedge ra_n) if (!ra_n) qa <= 1'b0; else qa <= da;\n"
+        "  always_ff @(posedge clkb or negedge rb_n) if (!rb_n) qb <= 1'b0; else qb <= db;\n"
+        "endmodule\n");
+    const auto syncSdc = write("cdc_reset_sync.sdc",
+        "create_clock -name clka -period 10 [get_ports clka]\n"
+        "create_clock -name clkb -period 7 [get_ports clkb]\n"
+        "set_clock_groups -asynchronous -group {clka} -group {clkb}\n"
+        "set_input_delay -clock clka 1.0 [get_ports da]\n"
+        "set_input_delay -clock clkb 1.0 [get_ports db]\n"
+        "set_input_delay -clock clka 1.0 [get_ports por_n]\n");
+    const auto syncOut = (scratch() / "cdc_reset_sync.json").string();
+    run("--profile asic --goal cdc --deck cdc --exit-policy strict --top top --sdc " + syncSdc + " --json " + syncOut + " " + syncSv);
+    auto sync = sverity::json::parse(slurp(syncOut));
+    CHECK(sync.ok);
+    CHECK_EQ(sync.value["summary"]["analysis_coverage"].asString(), std::string("COMPLETE"));
+    CHECK_EQ(sync.value["summary"]["exit_code_strict"].asInt(), 0);
+
     // All 5 adverse readiness cases must force INCOMPLETE coverage.
     struct Adverse { const char* name; std::string sv; std::string sdc; };
     const std::vector<Adverse> cases = {
@@ -1228,6 +1256,114 @@ TEST(cli_cdc_deck_clean_complete_vs_five_adverse_cases) {
         CHECK_EQ(j.value["summary"]["analysis_coverage"].asString(), std::string("INCOMPLETE"));
         CHECK((j.value["summary"]["exit_code_strict"].asInt() & 4) != 0);
     }
+}
+
+TEST(cli_rdc_deck_clean_complete_vs_five_adverse_cases) {
+    const auto root = std::string(SVERITY_SOURCE_DIR);
+    // A constrained design with one raw reset released through two recognised synchronisers, a declared single always-on domain and a
+    // reviewed RDC-013 waiver narrowed to the reset root exits 0 with COMPLETE coverage.
+    const auto sv = write("rdc_clean.sv",
+        "module rsync(input logic clk, arst_n, output logic rst_n);\n"
+        "  logic s1;\n"
+        "  always_ff @(posedge clk or negedge arst_n) if (!arst_n) begin s1 <= 1'b0; rst_n <= 1'b0; end else begin s1 <= 1'b1; rst_n <= s1; end\n"
+        "endmodule\n"
+        "module top(input logic clka, clkb, por_n, da, db, output logic qa, qb);\n"
+        "  logic ra_n, rb_n;\n"
+        "  rsync ua(.clk(clka), .arst_n(por_n), .rst_n(ra_n));\n"
+        "  rsync ub(.clk(clkb), .arst_n(por_n), .rst_n(rb_n));\n"
+        "  always_ff @(posedge clka or negedge ra_n) if (!ra_n) qa <= 1'b0; else qa <= da;\n"
+        "  always_ff @(posedge clkb or negedge rb_n) if (!rb_n) qb <= 1'b0; else qb <= db;\n"
+        "endmodule\n");
+    const std::string clocks =
+        "create_clock -name clka -period 10 [get_ports clka]\n"
+        "create_clock -name clkb -period 7 [get_ports clkb]\n"
+        "set_clock_groups -asynchronous -group {clka} -group {clkb}\n"
+        "set_input_delay -clock clka 1.0 [get_ports da]\n"
+        "set_input_delay -clock clkb 1.0 [get_ports db]\n";
+    const auto sdc = write("rdc_clean.sdc", clocks + "set_input_delay -clock clka 1.0 [get_ports por_n]\n");
+    const auto sdcNoReset = write("rdc_clean_no_reset_delay.sdc", clocks);
+    const auto intent = write("rdc_power_intent.json", R"({"power_intent":{"model":"single_always_on"}})");
+    const auto waiver = write("rdc_waiver.json", R"({"waivers":[{"rule":"RDC-013","signal":"top.por_n","owner":"review","reason":"STA sign-off: recovery, removal and pulse width reviewed"}]})");
+    const std::string base = "--profile asic --goal rdc --deck rdc --exit-policy strict --top top ";
+    struct Result { int exit = 0; sverity::json::Value report; };
+    const auto go = [&](const std::string& name, const std::string& args) {
+        const auto out = (scratch() / (name + ".json")).string();
+        Result r;
+        r.exit = run(base + args + " --json " + out);
+        auto parsed = sverity::json::parse(slurp(out));
+        CHECK(parsed.ok);
+        r.report = std::move(parsed.value);
+        return r;
+    };
+    const auto disposition = [](const Result& r, const std::string& rule, const std::string& severity) {
+        std::string found;
+        for (const auto& d : r.report["diagnostics"].asArray())
+            if (d["rule_id"].asString() == rule && d["severity"].asString() == severity) found = d["disposition"].asString();
+        return found;
+    };
+    const auto reasons = [](const Result& r, const std::string& scope) {
+        std::string text;
+        for (const auto& s : r.report["coverage"]["scopes"].asArray())
+            if (s["scope"].asString() == scope) for (const auto& why : s["reasons"].asArray()) text += why.asString() + "\n";
+        return text;
+    };
+    const auto coverage = [](const Result& r, const std::string& scope) {
+        for (const auto& s : r.report["coverage"]["scopes"].asArray())
+            if (s["scope"].asString() == scope) return s["analysis_coverage"].asString();
+        return std::string();
+    };
+    const auto cleanArgs = "--sdc " + sdc + " --config " + intent + " --waivers " + waiver + " " + sv;
+
+    const auto clean = go("rdc_clean", cleanArgs);
+    CHECK_EQ(clean.exit, 0);
+    CHECK_EQ(clean.report["summary"]["analysis_coverage"].asString(), std::string("COMPLETE"));
+    CHECK_EQ(clean.report["summary"]["review_status"].asString(), std::string("PASS"));
+    CHECK_EQ(clean.report["summary"]["exit_code_strict"].asInt(), 0);
+    CHECK_EQ(disposition(clean, "RDC-013", "WARNING"), std::string("WAIVED"));
+    CHECK(!disposition(clean, "RDC-012", "INFO").empty());
+    CHECK(disposition(clean, "RDC-012", "WARNING").empty());
+
+    // (1) no power intent: RDC-012 WARNING and the reset-extraction scope names it
+    const auto noIntent = go("rdc_no_intent", "--sdc " + sdc + " --waivers " + waiver + " " + sv);
+    CHECK_EQ(noIntent.exit, 6);
+    CHECK(!disposition(noIntent, "RDC-012", "WARNING").empty());
+    CHECK(reasons(noIntent, "reset-extraction").find("RDC-012") != std::string::npos);
+    CHECK_EQ(noIntent.report["summary"]["analysis_coverage"].asString(), std::string("INCOMPLETE"));
+
+    // (2) no waiver: coverage stays COMPLETE, RDC-013 is open for review and the gate fails on it alone
+    const auto noWaiver = go("rdc_no_waiver", "--sdc " + sdc + " --config " + intent + " " + sv);
+    CHECK_EQ(noWaiver.exit, 2);
+    CHECK_EQ(noWaiver.report["summary"]["analysis_coverage"].asString(), std::string("COMPLETE"));
+    CHECK_EQ(disposition(noWaiver, "RDC-013", "WARNING"), std::string("REVIEW_REQUIRED"));
+
+    // (3) the reset input has no input delay
+    const auto rawSv = write("rdc_raw_reset.sv",
+        "module top(input logic clka, por_n, da, output logic qa);\n"
+        "  always_ff @(posedge clka or negedge por_n) if (!por_n) qa <= 1'b0; else qa <= da;\n"
+        "endmodule\n");
+    const auto unconstrained = go("rdc_unconstrained", "--sdc " + sdcNoReset + " --config " + intent + " --waivers " + waiver + " " + rawSv);
+    CHECK((unconstrained.report["summary"]["exit_code_strict"].asInt() & 4) != 0);
+    CHECK(!disposition(unconstrained, "RDC-002", "WARNING").empty());
+    CHECK(reasons(unconstrained, "reset-extraction").find("unconstrained") != std::string::npos);
+
+    // (4) two independent reset sources whose sequencing matters
+    const auto twoSources = go("rdc_two_sources", "--sdc " + root + "/tests/fixtures/_common/async.sdc --config " + intent + " " + root + "/tests/fixtures/RDC-011/bad_two_reset_sources.sv");
+    CHECK((twoSources.report["summary"]["exit_code_strict"].asInt() & 4) != 0);
+    CHECK(!disposition(twoSources, "RDC-011", "WARNING").empty());
+    CHECK(reasons(twoSources, "reset-extraction").find("reset sequencing") != std::string::npos);
+
+    // (5) a declared release order the structure cannot establish
+    const auto contracts = write("rdc_contracts_intent.json",
+        R"({"power_intent":{"model":"single_always_on"},"reset_contracts":{"sources":[{"id":"a","root":"top.a_rst","active":"low"},{"id":"b","root":"top.b_rst","active":"low"}],)"
+        R"("release_order":[{"id":"a_before_b","before":"a","after":"b","clock":"clkb","edge":"posedge","min_cycles":2}]}})");
+    const auto bypass = go("rdc_release_bypass", "--sdc " + root + "/tests/fixtures/_common/async.sdc --config " + contracts + " " + root + "/tests/fixtures/CST-016/unknown_release_bypass.sv");
+    CHECK((bypass.report["summary"]["exit_code_strict"].asInt() & 4) != 0);
+    CHECK(!disposition(bypass, "CST-016", "WARNING").empty());
+    CHECK_EQ(coverage(bypass, "reset-contracts"), std::string("INCOMPLETE"));
+
+    // any power intent model but single_always_on is a configuration error
+    const auto badIntent = write("rdc_bad_intent.json", R"({"power_intent":{"model":"upf"}})");
+    CHECK_EQ(run(base + "--sdc " + sdc + " --config " + badIntent + " " + sv), 64);
 }
 
 TEST(cli_single_unit_lints_every_source_file) {
@@ -1805,4 +1941,119 @@ TEST(cli_cdc043_dual_edge_populates_signals_and_deduplicates_vector) {
     }
     CHECK_EQ(ddrCount, 1);
     CHECK_EQ(splitCount, 1);
+}
+
+TEST(cli_reset_contracts_config) {
+    const auto fixtures = std::string(SVERITY_SOURCE_DIR) + "/tests/fixtures/CDC-013/";
+    const auto sv = fixtures + "boundary_input_sync.sv";
+    const auto out = (scratch() / "reset-contracts.json").string();
+    const auto bad = write("reset-contracts-bad.json", R"({"reset_contracts":{"sources":[{"id":"por","port":"top.por_n","active":"mid"}],"state":[{"id":"s","source":"por","initial":"asserted"}]}})");
+    CHECK_EQ(run("--top top --config " + bad + " " + sv), 64);
+    const auto good = write("reset-contracts-good.json", R"({"reset_contracts":{"sources":[{"id":"por","port":"top.event_i","active":"low"}],"state":[{"id":"s","source":"por","initial":"asserted"}]}})");
+    run("--top top --json " + out + " --config " + good + " " + sv);
+    auto j = sverity::json::parse(slurp(out));
+    CHECK(j.ok);
+    CHECK_EQ(j.value["inputs"]["reset_contracts"]["sources"].asArray().size(), std::size_t(1));
+    CHECK_EQ(j.value["inputs"]["reset_contracts"]["state"].asArray()[0]["initial"].asString(), std::string("asserted"));
+}
+
+TEST(cli_rdc005_cites_assert_together_group_without_severity_change) {
+    const auto sv = write("rdc005-group.sv", R"(module top(input logic clka, clkb, rst_a, rst_b, d, output logic q);
+  logic s, t1, t2;
+  always_ff @(posedge clka or negedge rst_a) if (!rst_a) s <= 1'b0; else s <= d;
+  always_ff @(posedge clkb or negedge rst_b) if (!rst_b) {t2, t1} <= 2'b0; else {t2, t1} <= {t1, s};
+  assign q = t2;
+endmodule
+)");
+    const auto cfg = write("rdc005-group.json", R"({"reset_contracts":{"sources":[{"id":"a","port":"top.rst_a","active":"low"},{"id":"b","port":"top.rst_b","active":"low"}],"assert_together":[{"id":"g_ab","sources":["a","b"]}]}})");
+    const auto sdc = std::string(SVERITY_SOURCE_DIR) + "/tests/fixtures/_common/async.sdc";
+    const auto out = (scratch() / "rdc005-group-report.json").string();
+    run("--top top --sdc " + sdc + " --config " + cfg + " --json " + out + " " + sv);
+    auto j = sverity::json::parse(slurp(out));
+    CHECK(j.ok);
+    bool found = false;
+    for (const auto& d : j.value["diagnostics"].asArray()) {
+        if (d["rule_id"].asString() != "RDC-005") continue;
+        found = true;
+        CHECK_EQ(d["severity"].asString(), std::string("WARNING"));
+        bool cited = false;
+        for (const auto& ev : d["evidence"].asArray()) cited = cited || ev["text"].asString() == "g_ab (assert_together, assumed)";
+        CHECK(cited);
+    }
+    CHECK(found);
+}
+
+TEST(cli_rdc011_declared_port_order_is_marked_environment_assumption) {
+    const auto sv = write("rdc011-order.sv", R"(module top(input logic clka, clkb, rst_a_n, rst_b_n, d, output logic q, r);
+  always_ff @(posedge clka or negedge rst_a_n) if (!rst_a_n) q <= 1'b0; else q <= d;
+  always_ff @(posedge clkb or negedge rst_b_n) if (!rst_b_n) r <= 1'b0; else r <= q;
+endmodule
+)");
+    const auto cfg = write("rdc011-order.json", R"({"reset_contracts":{"sources":[{"id":"a","port":"top.rst_a_n","active":"low"},{"id":"b","port":"top.rst_b_n","active":"low"}],"release_order":[{"id":"a_before_b","before":"a","after":"b","clock":"clka","edge":"posedge","min_cycles":2}]}})");
+    const auto sdc = std::string(SVERITY_SOURCE_DIR) + "/tests/fixtures/_common/async.sdc";
+    const auto out = (scratch() / "rdc011-order-report.json").string();
+    run("--top top --sdc " + sdc + " --config " + cfg + " --json " + out + " " + sv);
+    auto j = sverity::json::parse(slurp(out));
+    CHECK(j.ok);
+    bool found = false;
+    for (const auto& d : j.value["diagnostics"].asArray()) {
+        if (d["rule_id"].asString() != "RDC-011") continue;
+        found = true;
+        CHECK_EQ(d["severity"].asString(), std::string("WARNING"));
+        CHECK(d["message"].asString().find("(declared by the environment, not checked)") != std::string::npos);
+    }
+    CHECK(found);
+}
+
+TEST(cli_rdc019_lists_functional_user_register_in_signals) {
+    const auto sv = write("rdc019-signals.sv", R"(module top(input logic clk, rst_ni, d, output logic q, in_rst_q);
+  always_ff @(posedge clk or negedge rst_ni) if (!rst_ni) q <= 1'b0; else q <= d;
+  always_ff @(posedge clk) in_rst_q <= ~rst_ni;
+endmodule
+)");
+    const auto out = (scratch() / "rdc019-signals.json").string();
+    run("--top top --json " + out + " " + sv);
+    auto j = sverity::json::parse(slurp(out));
+    CHECK(j.ok);
+    bool found = false;
+    for (const auto& d : j.value["diagnostics"].asArray()) {
+        if (d["rule_id"].asString() != "RDC-019") continue;
+        found = true;
+        bool hasRoot = false, hasUser = false;
+        for (const auto& s : d["signals"].asArray()) {
+            if (s.asString() == "top.rst_ni") hasRoot = true;
+            if (s.asString() == "top.in_rst_q") hasUser = true;
+        }
+        CHECK(hasRoot);
+        CHECK(hasUser);
+    }
+    CHECK(found);
+}
+
+TEST(cli_cst005_lists_blackbox_output_nets_and_driven_state) {
+    const auto sv = write("cst005-signals.sv", R"((* black_box *) module bb_ff(input logic ck, input logic d, output logic q);
+endmodule
+module top(input logic clk, d, output logic status_o);
+  logic status_q;
+  bb_ff u_bb(.ck(clk), .d(d), .q(status_q));
+  assign status_o = status_q;
+endmodule
+)");
+    const auto out = (scratch() / "cst005-signals.json").string();
+    run("--top top --json " + out + " " + sv);
+    auto j = sverity::json::parse(slurp(out));
+    CHECK(j.ok);
+    bool found = false;
+    for (const auto& d : j.value["diagnostics"].asArray()) {
+        if (d["rule_id"].asString() != "CST-005") continue;
+        found = true;
+        bool hasNet = false, hasPort = false;
+        for (const auto& s : d["signals"].asArray()) {
+            if (s.asString() == "top.status_q") hasNet = true;
+            if (s.asString() == "top.status_o") hasPort = true;
+        }
+        CHECK(hasNet);
+        CHECK(hasPort);
+    }
+    CHECK(found);
 }

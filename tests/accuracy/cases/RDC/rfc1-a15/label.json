@@ -1,0 +1,69 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-a (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "good",
+  "critical": false,
+  "workflow_class": "Timing exceptions",
+  "sites": [],
+  "rationale": "ext_rst_n only feeds a two-stage reset synchroniser on clk, so release into q is synchronised. A false path on a synchroniser's asynchronous input is the standard constraint, not a hidden check.",
+  "author_reading": {
+    "id": "rfc1-a15",
+    "intended_verdict": "unknown",
+    "critical": false,
+    "workflow_class": "Timing exceptions",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 10,
+        "signal": "ext_rst_n"
+      }
+    ],
+    "rationale": "The reset is released through a two-stage chain, but the false path on ext_rst_n removes the external assertion timing and the source's timing is not stated."
+  },
+  "labels": [
+    {
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Timing exceptions",
+      "sites": [],
+      "rationale": "The 2-stage synchroniser from ext_rst_n is correct. The set_false_path on ext_rst_n removes recovery and removal checks, which RDC-027 reports as a disclosure, but the RTL releases q safely.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)",
+      "suspected_flaw": "The false path on ext_rst_n is the kind RDC-027 flags. The RTL is correct, but a reviewer should confirm the false path is intended."
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "unknown",
+      "critical": false,
+      "workflow_class": "Timing exceptions",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 10,
+          "signal": "ext_rst_n"
+        }
+      ],
+      "rationale": "The two-stage chain contains asynchronous release, but the exception supplies no external reset contract. Minimum incoming pulse width and raw reset pin timing remain open.",
+      "expected_rules": [
+        "RDC-027",
+        "RDC-002"
+      ],
+      "dropped_run_level_rules": [
+        "RDC-013"
+      ]
+    }
+  ],
+  "settlement": {
+    "by": "rdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "good",
+    "critical": false,
+    "workflow_class": "Timing exceptions",
+    "sites": [],
+    "rationale": "A is right: the synchroniser establishes safe release independently of the false path, and pulse width is the generic RDC-013 obligation for every reset. B's unknown treats the exception as removing a check the design depends on, but nothing downstream of the chain relies on ext_rst_n timing. RDC-027 may still report it as a review disclosure."
+  }
+}

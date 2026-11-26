@@ -1,0 +1,113 @@
+{
+  "family": "RDC",
+  "top": "top",
+  "origin": "authored",
+  "batch": "rdc-8-rfc1-fresh",
+  "author": "rdc-rfc1-author-c (Claude Haiku 5.5)",
+  "sdc": [
+    "intent.sdc"
+  ],
+  "verdict": "bad",
+  "critical": true,
+  "workflow_class": "Reset-domain data crossings",
+  "sites": [
+    {
+      "file": "design.sv",
+      "line": 35,
+      "signal": "tok_a_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 46,
+      "signal": "tok_b1_q"
+    },
+    {
+      "file": "design.sv",
+      "line": 34,
+      "signal": "tok_v_a_q"
+    }
+  ],
+  "expected_rules": [
+    "RDC-005"
+  ],
+  "rationale": "A source-only reset clears tok_a_q and tok_v_a_q while the consumer is active. The one-stage tok_b1_q takes the cleared token before the two-stage valid falls, so the consumer emits a zero token marked valid.",
+  "author_reading": {
+    "id": "rfc1-c12",
+    "intended_verdict": "good",
+    "critical": false,
+    "workflow_class": "Sequencing and release order",
+    "sites": [],
+    "rationale": "The sender issues only while a ready level from the receiving domain is set, and ready rises only after the receiver's own reset releases, so no token is issued into a receiver still in reset."
+  },
+  "labels": [
+    {
+      "verdict": "good",
+      "critical": false,
+      "workflow_class": "Sequencing and release order",
+      "sites": [],
+      "rationale": "The sender issues tokens only while rdy is set by the receiver's reset-aware ready level. Both sides reset independently, but tokens are level-valid, so a one-sided reset drops in-flight tokens rather than creating spurious ones.",
+      "by": "rdc-rfc1-reader-a (Claude Haiku 5.5)"
+    },
+    {
+      "by": "rdc-rfc1-reader-b (GPT-6.2 Sol)",
+      "verdict": "bad",
+      "critical": true,
+      "workflow_class": "Sequencing and release order",
+      "sites": [
+        {
+          "file": "design.sv",
+          "line": 17,
+          "signal": "rdy_b_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 34,
+          "signal": "tok_v_a_q"
+        },
+        {
+          "file": "design.sv",
+          "line": 55,
+          "signal": "tok_b_o"
+        }
+      ],
+      "rationale": "B can restart before its ready-low level has passed through the A synchroniser. A can keep valid asserted across the restart, allowing B to accept stale tokens before the sender has observed the reset.",
+      "expected_rules": [
+        "RDC-005",
+        "CDC-041",
+        "RDC-011",
+        "RDC-002",
+        "RDC-003",
+        "CDC-004",
+        "CDC-016"
+      ],
+      "suspected_flaw": "The ready dependence is one-way and does not meet the RDC-023 reciprocal trigger. The continuously changing payload has a separate containment defect."
+    }
+  ],
+  "settlement": {
+    "by": "rdc-rfc1-settler (Claude Opus 5.5)",
+    "verdict": "bad",
+    "critical": true,
+    "workflow_class": "Reset-domain data crossings",
+    "sites": [
+      {
+        "file": "design.sv",
+        "line": 35,
+        "signal": "tok_a_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 46,
+        "signal": "tok_b1_q"
+      },
+      {
+        "file": "design.sv",
+        "line": 34,
+        "signal": "tok_v_a_q"
+      }
+    ],
+    "expected_rules": [
+      "RDC-005"
+    ],
+    "rationale": "B is right that the design is bad: the ready level orders release only, and does not protect the consumer from a producer reset. B places the hazard at the receiver restart, but the concrete corruption is the zero token produced by a producer-only reset, so the class is reset-domain data crossings (RDC-005). A and the author consider only the ready gating."
+  }
+}
