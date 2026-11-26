@@ -8,7 +8,9 @@ Horizons say what we mean to do next, not how long it takes. Nothing here is dro
 
 ## 1. Short term: fixes and finishing what is started
 
-These are bugs and unfinished work, not limits of the approach. Each is fixed when its fixture passes and the item is removed from this list. None is open.
+These are bugs and unfinished work, not limits of the approach. Each is fixed when its fixture passes and the item is removed from this list.
+
+- 13 unit tests fail when run alone because they depend on earlier tests in the same run (found 2026-11-23). Make each test independent.
 
 ## 2. Mid term: reaching 1.0
 
@@ -16,13 +18,13 @@ The target is the [1.0 criteria](SVerity_RFC.md#8-acceptance-criteria-for-10). I
 
 **What 1.0 claims.** Validated SystemVerilog RTL lint and structural CDC and RDC analysis, for named workflows, configurations and design sizes, with every functional and physical obligation stated. Validating rules against our own specification does not make SVerity a substitute for a commercial tool, because a team could still be unable to switch. So 1.0 is bounded, and replacement is earned family by family in the phases below. **A family claims to replace a commercial tool only after passing its own gate.** Until then the release says it does not.
 
-| Phase | Work | Gate to pass |
-|---|---|---|
-| **1. Measure** | An accuracy suite of independently labelled good, bad and unknown designs that were not used to develop the rules. Budgets for false alarms, missed defects, unresolved findings and review effort per family, fixed before evaluation. Capacity and review budgets on stated hardware. | The suite and budgets are published and a baseline is measured. No seeded critical defect is silently accepted. |
-| **2. Lint replacement** | Name the workflow and the defect classes it needs, and build the lint deck from those rather than from what exists. Migrate a real team's lint policy and waivers. | The deck is validated and meets its budgets, and an independent pilot switches, with every exclusion listed (the pilot is not planned for 1.0). |
-| **3. CDC replacement** | Complete crossing inventory under reviewed clock intent, then a way to close what structure cannot show: stability of a qualified payload, protocols, reconvergence and glitches. Modes and exceptions, boundary contracts at block level, and library cells. | As for lint. Every obligation has a named closure step, inside the tool or accepted outside it. |
-| **4. RDC replacement** | Reset trees, independently asserted resets, user-declared sequencing, release order, and a model of a stopped clock and a held or released reset. The furthest behind, so it comes last. | As for lint. Sequencing can be stated and checked, not only reported as unresolved. |
-| **5. Integration** | ASIC and FPGA profile bundles, reconciling existing constraints and waivers, baselines and CI, and a full-SoC run with an SDC within budget. | Two independent pilot workflows run end to end, with anything unsupported visible and blocking a safety claim. |
+| Phase | Work | Gate to pass | Status |
+|---|---|---|---|
+| **1. Measure** | An accuracy suite of independently labelled good, bad and unknown designs not used to develop the rules. Per-family budgets for false alarms, missed defects, unresolved findings and review effort, fixed before evaluation. Capacity and review budgets on stated hardware. | The [suite](../tests/accuracy/README.md) and budgets are published and a baseline is measured. No seeded critical defect is silently accepted. | Suite and per-family budgets in place. The lint, CDC and RDC held-out batches each meet their budgets in verified regression. Labels are AI-labelled; the human label check is deferred. |
+| **2. Lint replacement** | Name the workflow and the defect classes it needs, and build the lint deck from those. Migrate a real team's lint policy and waivers. | The deck is validated and meets its budgets, and an independent pilot switches, with every exclusion listed. | 1.0 workflow qualified (ASIC per-IP); replacement gate open. See [lint qualification](rules/LINT_WORKFLOW.md#qualification). |
+| **3. CDC replacement** | Complete crossing inventory (`CST-020`, deferred) under reviewed clock intent, then a way to close what structure cannot show: stability of a qualified payload, protocols, reconvergence and glitches. Modes and exceptions, boundary contracts at block level, and library cells. | As for lint. Every obligation has a named closure step, inside the tool or accepted outside it. | 1.0 workflow qualified (ASIC per-IP); replacement gate open. The `--deck cdc` has 60 rules: 38 CDC, 15 CST and 7 directly coupled RDC. See [CDC qualification](rules/CDC_WORKFLOW.md#qualification). |
+| **4. RDC replacement** | Reset trees, independently asserted resets, user-declared sequencing, release order, and a model of a stopped clock and a held or released reset. | As for lint. Sequencing can be stated and checked, not only reported as unresolved. | 1.0 workflow qualified (ASIC per-IP); replacement gate open. Sequencing beyond a recognised synchroniser chain is open. See [RDC qualification](rules/RDC_WORKFLOW.md#qualification). |
+| **5. Integration** | ASIC and FPGA profile bundles, reconciling existing constraints and waivers, baselines and CI, and a full-SoC run with an SDC within budget. | Two independent pilot workflows run end to end, with anything unsupported visible and blocking a safety claim. | Open. |
 
 Phases 2 to 4 can overlap, and a phase can draw from the [long-term goals](#3-long-term-beyond-10) what its named workflow proves it needs. Passing every gate is what would make SVerity a good replacement. If only some pass when 1.0 ships, its claim names those families and no others.
 
@@ -30,15 +32,18 @@ Phases 2 to 4 can overlap, and a phase can draw from the [long-term goals](#3-lo
 
 **Showing it without a commercial licence.** Commercial output is a useful reference but not ground truth, and a licence may forbid publishing it. The evidence is independently labelled designs, held-out cases, reproducible resource measurements, documented closure effort and private adopter trials, with aggregate results published where agreements allow.
 
-**Decisions still needed.** Who the first adopters are and which workflows they need, the remaining qualification budgets, and how to run the pilots with real teams.
+**Maintainer decisions.**
 
-**Phase 1: where it stands.** The [accuracy suite](../tests/accuracy/README.md) contains 426 independently AI-labelled cases, mixing reduced public RTL and authored designs. `tools/dev/accuracy.py` measures the baseline without changing the tool: 59 critical cases are missed or silent, so the phase gate is not met. The labels pass validation and the repository verification passes. Numeric budgets and human review of a label sample remain outstanding; the suite is evidence for improvement, not sign-off.
+| Decision | Consequence |
+|---|---|
+| Team pilot deferred, not done for 1.0 (2026-11-17). | No family claims to replace a commercial tool at 1.0. 1.0 claims workflow qualification only. |
+| Human label check deferred. | Labels and reviews are by independent AI and are disclosed as such. |
+| No FPGA hardware or evidence is available. | 1.0 qualifies ASIC per-IP workflows. FPGA profile bundles and `CDC-012` stay preview and are excluded from the 1.0 claim in writing before the freeze, unless FPGA evidence appears. |
+| Whole-SoC capacity accepted over the 600 s / 8 GiB target. | CDC 730 s / 11.84 GiB (2026-11-23), RDC 783 s / 8.15 GiB (2026-11-26). |
+| Lint is good enough for 1.0 when every defect class that can give ERROR or FATAL is covered. | Only WARNING and INFO checks may stay imperfect. |
+| OpenTitan is a reference, not a target. | Use it to learn what matters. Do not fit rules to its idioms or waivers. |
 
-**Phase 2 lint replacement.** The ASIC per-IP workflow has recorded accuracy, replay, recall and capacity evidence. The maintainer deferred the human label check and team pilot for 1.0. See [lint qualification](rules/LINT_WORKFLOW.md#qualification).
-
-**Phase 3 CDC replacement.** The [CDC workflow](rules/CDC_WORKFLOW.md) records the approved per-IP ASIC scope, the verification procedures and the current [qualification results](rules/CDC_WORKFLOW.md#qualification). Structural CDC 1.0 qualifies the 60-rule `--deck cdc` workflow deck (`--profile asic --goal cdc --deck cdc --exit-policy strict`: 38 CDC, 15 CST and 7 directly coupled RDC rules). The remaining 18 active RDC rules are qualified in the `--deck rdc` workflow deck (Phase 4 RDC). The team adopter pilot and the complete crossing inventory (`CST-020`) are deferred to commercial replacement.
-
-**Phase 4 RDC replacement.** The [RDC workflow](rules/RDC_WORKFLOW.md) records the per-IP ASIC scope and the [qualification results](rules/RDC_WORKFLOW.md#qualification). The 40-rule `--deck rdc` has 40 rules `validated` by independent AI review. The 23 mutation operators are all caught and the five pinned designs show no confirmed false positive. The held-out batch meets 9 of 9 budgets in regression. A clean design exits 0 with `COMPLETE` coverage under strict policy (CLI test `cli_rdc_deck_clean_complete_vs_five_adverse_cases`), and the whole `top_earlgrey` run completes in 783 s at 8.2 GiB peak, accepted for 1.0 over the 600 s and 8 GiB target; a faster run stays open. Sequencing checks beyond a recognised synchroniser chain remain open.
+Still open for the maintainer: who the first adopters are.
 
 **Validate in widening decks.** Each deck stays open until every rule in it has a written severity policy, good, bad, boundary, unknown and mutation fixtures, and a passed independent adversarial review. Independent review may be a separate AI reviewer, and the report says so; it is not a human signoff.
 
@@ -64,8 +69,7 @@ The maintainer accepted 730 s and 11.9 GiB for CDC on 2026-11-23 and 783 s and 8
 
 Still open:
 
-- Faster and smaller whole-SoC CDC, toward the original target. Time is in the crossing and reconvergence stages. Memory is the model and the finding volume. The [cone budgets](rules/ANALYSIS.md#how-cones-are-computed-once) apply.
-- Triage of the whole-SoC findings against the RTL. None has been reviewed, so the 11,407 ERRORs are not a defect count.
+- Faster and smaller whole-SoC runs, and triage of the whole-SoC findings (the 11,407 ERRORs are not a defect count): [Next work](#next-work-in-order) items 2 and 4.
 - Close the INCOMPLETE scopes: logic-generated clocks, unknown external AST clock relationships, unconstrained inputs and outputs, graph precision from user functions and wide symbols, the `CDC-015` work limit and payload qualification.
 - Review the clock bindings, modes and cross-root relationships of the reviewed constraints. They are design intent and are not proved.
 
@@ -89,14 +93,18 @@ Still open:
 4. **Adversarial CDC and RDC recognition.** Check glitch and reconvergence lookalikes, payload capture, reset sequencing and cross-domain tolerance. Require a trustworthy structural conclusion or an explicit obligation, never formal proof as a hidden dependency.
 5. **Independent release and report validation.** Reconcile inventories and retain evidence for every unknown, waiver and configuration ([diagnostic contract](SVerity_RFC.md#3-diagnostic-contract-non-negotiable)).
 
-**Also needed for 1.0**
+**Also needed for 1.0** (the rule validation and release package are in [Next work](#next-work-in-order))
 
-- ASIC and FPGA profile bundles, including cell metadata for CDC-012. They are undefined today.
-- Written severity policies for the rules that lack one, and each rule's `default_severity`. `tools/dev/conformance.py` lists them.
-- Implement or drop the 8 unvalidated CST rules in the decks: CST-007, 008, 015, 017, 020, 021, 023 and 024. They sit in the decks and keep those decks from COMPLETE.
-- Validate, or exclude from the 1.0 deck with a written reason before the freeze, the other unvalidated deck rules: LNT-027, 029, 035, 057, 060, 071, 075, 076 and 083 to 086, and CDC-012. The 1.0 deck has 146 of 167 rules validated.
+- FPGA profile bundles and `CDC-012` stay preview and are excluded from the 1.0 claim in writing before the freeze, unless FPGA evidence appears.
 - A differential run against a commercial tool, if legitimate access exists. Without it the release says that no comparison was made.
-- The release package: the frozen deck list, the validated families, and the disclosures that review was by independent AI rather than human sign-off, that no team pilot ran, and that whole-SoC coverage is INCOMPLETE.
+
+### Next work, in order
+
+1. **Freeze 1.0.** For each of the 21 unvalidated 1.0-deck rules, validate it or exclude it with a written reason: LNT-027, 029, 035, 057, 060, 071, 075, 076, 083 to 086; CST-007, 008, 015, 017, 020, 021, 023, 024; CDC-012. (RDC-029 is blocked on UPF and already outside the decks.) Write the release package: frozen deck lists per workflow, validated families, and the disclosures that review was by AI rather than human sign-off, that no pilot ran, that no commercial comparison was made, that whole-SoC coverage is INCOMPLETE and that only ASIC is qualified. Done when `tools/dev/conformance.py` shows every 1.0-deck rule validated or excluded and the package is published.
+2. **Triage the whole-SoC findings.** None of the 11,407 CDC ERRORs or the 59 RDC ERRORs has been checked against the RTL. Group them by root cause, review a stratified sample and record precision per rule. Fix false alarms in the shared analysis. Done when each root-cause group has a verdict and the sampled precision is published. This is the noise measure commercial users judge a tool by.
+3. **Evidence that is not self-referential.** Labels, reviews and specs are all SVerity's own. Add (a) a bug-history benchmark: public commits that fixed real lint, CDC or RDC defects in pinned open designs (for example OpenTitan, Ibex, CVA6, PULP), reverted, each expected to be caught; and (b) a small human-checked label sample when a reviewer is available. Done when the benchmark is frozen and scored with the first scores kept.
+4. **Capacity.** Lint on a large SoC partitioned by part, with boundary checks solved afterwards, to keep peak RAM low (maintainer's direction). Faster and smaller whole-SoC CDC and RDC toward 600 s / 8 GiB: time is in the crossing and reconvergence stages, memory is the model and the finding volume, and the [cone budgets](rules/ANALYSIS.md#how-cones-are-computed-once) apply. Done when the runs meet the target or the maintainer accepts the new figures.
+5. **Toward replacement (after 1.0).** A team pilot once an adopter exists. Hierarchical block summaries, needed for SoCs much larger than Earl Grey, take priority over the other [long-term goals](#3-long-term-beyond-10); the section 3 table is unchanged. Migration aids: constraint and waiver translation from public documentation only.
 
 ## 3. Long term: beyond 1.0
 
@@ -144,9 +152,7 @@ There are two different completion targets: delivering SVerity's advertised 1.0 
 
 ### What review has and has not shown
 
-An independent review (2026-11) built the tool and ran it on hand-written cases and public RTL. Crossings through interfaces, functions, hierarchical references, structs, generate loops, memories, latches and clock muxes were all reported; reconvergence, first-stage fan-out, mixed edges, third-clock stages and pulse loss were caught. This is evidence from a few dozen cases, not proof that no false-safe results remain. Cases from earlier audits stay in the rule fixture directories under descriptive names.
-
-Three more independent AI reviews (2026-11-05, a separate model running the binary on about 200 hand-written cases, with the earlier binary for comparison) hunted false-safe results in the changes behind this page. They found real defects each round, which are fixed and kept as fixtures: an override or waiver of one rule accepting another fact of the same crossing, a stage enabled by its own data recognised as a synchroniser, a precise loop lowered by a neighbouring approximate branch. A fourth round has not been run on those fixes, and these are AI reviews, not human sign-off. A further round (2026-11-06, GPT-6.1 Sol, 58 probes) reviewed the fixes made from the accuracy suite and found six false-safe or false-alarm defects, among them loop ranges taken on trust and any combination of two stages taken for an edge detector. All are fixed with fixtures; the fixes themselves have not been reviewed again. The hard parts of the analysis stay unproved by this: the reviews list what they did not reach.
+Per-family rule reviews are independent AI adversarial reviews, recorded in each catalog entry and workflow qualification. They are evidence from hand-written probes, not proof that no false-safe results remain, and not human sign-off. Each review lists what it did not reach.
 
 ## 5. Coming from a commercial flow
 
